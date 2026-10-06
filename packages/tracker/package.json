@@ -1,0 +1,14 @@
+{
+  "name": "@runlight/tracker",
+  "private": true,
+  "description": "The Runlight browser script. Built into the SDK, not published on its own.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/build.mjs --check"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
+}
