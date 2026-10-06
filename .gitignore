@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+data/
+*.db
+*.db-wal
+*.db-shm
+*.mmdb
+.DS_Store
+*.tgz
+
+# Local notes and keys, never committed
+/files/

@@ -1,0 +1,19 @@
+{
+  "name": "runlight-monorepo",
+  "private": true,
+  "description": "Runlight: privacy friendly web analytics that lives inside your app.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "check:dashes": "node scripts/check-dashes.mjs",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run check:dashes && npm test --workspaces --if-present",
+    "build": "npm run check:dashes && npm run build --workspaces --if-present",
+    "check": "npm run check:dashes && npm run typecheck && npm test"
+  }
+}
