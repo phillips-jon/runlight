@@ -1,0 +1,119 @@
+{
+  "description": "User agents and what every implementation must read from them. bot: dropped. agent: an AI agent, recorded as a fetch by middleware and dropped by the tracker endpoint.",
+  "cases": [
+    {
+      "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+      "client": { "browser": "Chrome", "browserVersion": "129", "os": "macOS", "osVersion": "", "device": "desktop" }
+    },
+    {
+      "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+      "client": { "browser": "Safari", "browserVersion": "18", "os": "macOS", "osVersion": "", "device": "desktop" }
+    },
+    {
+      "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+      "screenWidth": 820,
+      "client": { "browser": "Safari", "browserVersion": "18", "os": "iOS", "osVersion": "", "device": "tablet" }
+    },
+    {
+      "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+      "client": { "browser": "Safari", "browserVersion": "18", "os": "iOS", "osVersion": "18", "device": "mobile" }
+    },
+    {
+      "ua": "Mozilla/5.0 (iPad; CPU OS 17_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.6 Mobile/15E148 Safari/604.1",
+      "client": { "browser": "Safari", "browserVersion": "17", "os": "iOS", "osVersion": "17", "device": "tablet" }
+    },
+    {
+      "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/129.0.6668.69 Mobile/15E148 Safari/604.1",
+      "client": { "browser": "Chrome", "browserVersion": "129", "os": "iOS", "osVersion": "18", "device": "mobile" }
+    },
+    {
+      "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36 Edg/129.0.0.0",
+      "client": { "browser": "Edge", "browserVersion": "129", "os": "Windows", "osVersion": "10", "device": "desktop" }
+    },
+    {
+      "ua": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) Gecko/20100101 Firefox/131.0",
+      "client": { "browser": "Firefox", "browserVersion": "131", "os": "Windows", "osVersion": "10", "device": "desktop" }
+    },
+    {
+      "ua": "Mozilla/5.0 (Windows NT 6.1; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36 OPR/95.0.0.0",
+      "client": { "browser": "Opera", "browserVersion": "95", "os": "Windows", "osVersion": "7", "device": "desktop" }
+    },
+    {
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+      "hints": { "brands": "\"Brave\";v=\"129\", \"Not=A?Brand\";v=\"8\", \"Chromium\";v=\"129\"" },
+      "client": { "browser": "Brave", "browserVersion": "129", "os": "Linux", "osVersion": "", "device": "desktop" }
+    },
+    {
+      "ua": "Mozilla/5.0 (X11; CrOS x86_64 14541.0.0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+      "client": { "browser": "Chrome", "browserVersion": "129", "os": "Chrome OS", "osVersion": "", "device": "desktop" }
+    },
+    {
+      "ua": "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.6668.81 Mobile Safari/537.36",
+      "client": { "browser": "Chrome", "browserVersion": "129", "os": "Android", "osVersion": "14", "device": "mobile" }
+    },
+    {
+      "ua": "Mozilla/5.0 (Linux; Android 13; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+      "client": { "browser": "Chrome", "browserVersion": "129", "os": "Android", "osVersion": "13", "device": "tablet" }
+    },
+    {
+      "ua": "Mozilla/5.0 (Linux; Android 14; SAMSUNG SM-S921B) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/26.0 Chrome/122.0.0.0 Mobile Safari/537.36",
+      "client": { "browser": "Samsung Internet", "browserVersion": "26", "os": "Android", "osVersion": "14", "device": "mobile" }
+    },
+    {
+      "ua": "Mozilla/5.0 (Linux; Android 14; Pixel 8 Build/AP2A.240905.003; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/129.0.6668.81 Mobile Safari/537.36",
+      "client": { "browser": "Android WebView", "browserVersion": "129", "os": "Android", "osVersion": "14", "device": "mobile" }
+    },
+    {
+      "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/478.0.0.38.109;FBBV/640000000]",
+      "client": { "browser": "Facebook", "browserVersion": "478", "os": "iOS", "osVersion": "17", "device": "mobile" }
+    },
+    {
+      "ua": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1 Ddg/18.0",
+      "client": { "browser": "DuckDuckGo", "browserVersion": "18", "os": "iOS", "osVersion": "18", "device": "mobile" }
+    },
+    {
+      "ua": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+      "bot": true
+    },
+    {
+      "ua": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/116.0.1938.76 Safari/537.36",
+      "bot": true
+    },
+    {
+      "ua": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/129.0.0.0 Safari/537.36",
+      "bot": true
+    },
+    {
+      "ua": "curl/8.7.1",
+      "bot": true
+    },
+    {
+      "ua": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+      "bot": true
+    },
+    {
+      "ua": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ChatGPT-User/1.0; +https://openai.com/bot",
+      "agent": { "name": "ChatGPT-User", "kind": "live" }
+    },
+    {
+      "ua": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+      "agent": { "name": "GPTBot", "kind": "crawl" }
+    },
+    {
+      "ua": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+      "agent": { "name": "ClaudeBot", "kind": "crawl" }
+    },
+    {
+      "ua": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; +Claude-User@anthropic.com)",
+      "agent": { "name": "Claude-User", "kind": "live" }
+    },
+    {
+      "ua": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Perplexity-User/1.0; +https://perplexity.ai/perplexity-user)",
+      "agent": { "name": "Perplexity-User", "kind": "live" }
+    },
+    {
+      "ua": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)",
+      "agent": { "name": "PerplexityBot", "kind": "crawl" }
+    }
+  ]
+}

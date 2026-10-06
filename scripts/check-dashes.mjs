@@ -83,7 +83,7 @@ if (commitsAt >= 0) {
 }
 
 if (hits.length > 0) {
-  console.error(`\nFound ${hits.length} em/en dash(es). Use a period, colon, comma or parentheses.\n`);
+  console.error(`\nFound ${hits.length} em/en dash(es). Use a period, colon, comma, or parentheses.\n`);
   for (const h of hits) console.error("  " + h);
   console.error("");
   process.exit(1);

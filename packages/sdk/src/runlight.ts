@@ -1,0 +1,302 @@
+import { locate, type GeoLookup } from "./geo.js";
+import { randomId, randomSalt, visitorHash } from "./hash.js";
+import { parsePayload, MAX_BODY, type Payload } from "./payload.js";
+import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
+import { attribute, parsePage, stripWww } from "./sources.js";
+import type { SiteRow, SqlStore } from "./store.js";
+import { isTimezone } from "./time.js";
+import { aiAgent, isBot, parseClient } from "./ua.js";
+
+export interface SiteOptions {
+  /** Stable id, stored with every row. Default "default". */
+  id?: string;
+  name?: string;
+  /**
+   * Hostnames that belong to this site, without www. With one site, empty
+   * means any hostname. With several, each site needs at least one.
+   */
+  hostnames?: string[];
+  /** IANA timezone for reports, such as "Europe/London". Default "UTC". */
+  timezone?: string;
+}
+
+export interface RunlightOptions {
+  store: SqlStore;
+  /** The site this install counts. Ignored when `sites` is given. */
+  site?: SiteOptions;
+  /** Several sites in one install, told apart by hostname. */
+  sites?: SiteOptions[];
+  /** Looks up a location for an IP when the platform sends no location headers. */
+  geo?: GeoLookup;
+  /**
+   * Read the client IP from forwarding headers (CF-Connecting-IP,
+   * X-Real-IP, then the first X-Forwarded-For). Default true: analytics
+   * needs the visitor's address, and most apps sit behind a proxy. A
+   * client can forge these, which can only skew its own counts.
+   */
+  trustProxy?: boolean;
+  /** For tests. */
+  now?: () => number;
+}
+
+/** Per request facts an adapter knows and a Fetch Request does not carry. */
+export interface RequestContext {
+  /** The address of the connection, used when no forwarding header names the client. */
+  ip?: string;
+}
+
+/** Thirty minutes without a request ends a session. */
+export const SESSION_IDLE_MS = 30 * 60 * 1000;
+
+function utcDay(ts: number): string {
+  return new Date(ts).toISOString().slice(0, 10);
+}
+
+function siteRow(options: SiteOptions, index: number): SiteRow {
+  const timezone = options.timezone ?? "UTC";
+  if (!isTimezone(timezone)) throw new Error(`Runlight: unknown timezone "${timezone}"`);
+  const id = options.id ?? (index === 0 ? "default" : "");
+  if (!id || !/^[a-z0-9][a-z0-9._-]{0,63}$/i.test(id)) throw new Error(`Runlight: site id "${id}" must be letters, digits, dots, dashes, or underscores`);
+  return {
+    id,
+    name: options.name ?? (options.hostnames?.[0] ?? "My site"),
+    hostnames: (options.hostnames ?? []).map(stripWww),
+    timezone,
+  };
+}
+
+export class Runlight {
+  readonly store: SqlStore;
+  readonly sites: SiteRow[];
+  private readonly geo: GeoLookup | undefined;
+  private readonly trustProxy: boolean;
+  readonly now: () => number;
+  private ready: Promise<void> | null = null;
+  private salts: { day: string; today: string; yesterday: string | null } | null = null;
+
+  constructor(options: RunlightOptions) {
+    if (!options?.store) throw new Error("Runlight: pass a store, such as sqlite({ path: \"./data/runlight.db\" })");
+    this.store = options.store;
+    const configured = options.sites?.length ? options.sites : [options.site ?? {}];
+    this.sites = configured.map(siteRow);
+    if (this.sites.length > 1 && this.sites.some((site) => site.hostnames.length === 0)) {
+      throw new Error("Runlight: with several sites, give each one its hostnames");
+    }
+    if (new Set(this.sites.map((site) => site.id)).size !== this.sites.length) {
+      throw new Error("Runlight: two sites share an id");
+    }
+    this.geo = options.geo;
+    this.trustProxy = options.trustProxy ?? true;
+    this.now = options.now ?? Date.now;
+  }
+
+  /** Creates tables and records the configured sites. Runs once. */
+  init(): Promise<void> {
+    this.ready ??= (async () => {
+      await this.store.migrate();
+      for (const site of this.sites) await this.store.upsertSite(site, this.now());
+    })().catch((error) => {
+      this.ready = null;
+      throw error;
+    });
+    return this.ready;
+  }
+
+  routes(options: RoutesOptions = {}): Routes {
+    return createRoutes(this, options);
+  }
+
+  site(id: string | null | undefined): SiteRow | null {
+    if (!id) return this.sites[0] ?? null;
+    return this.sites.find((site) => site.id === id) ?? null;
+  }
+
+  /** The site a page belongs to, or null if it belongs to none. */
+  siteFor(hostname: string, id?: string): SiteRow | null {
+    const host = stripWww(hostname);
+    if (id) {
+      const site = this.site(id);
+      return site && (site.hostnames.length === 0 || site.hostnames.includes(host)) ? site : null;
+    }
+    if (this.sites.length === 1) {
+      const only = this.sites[0]!;
+      return only.hostnames.length === 0 || only.hostnames.includes(host) ? only : null;
+    }
+    return this.sites.find((site) => site.hostnames.includes(host)) ?? null;
+  }
+
+  clientIp(request: Request, context: RequestContext = {}): string {
+    if (this.trustProxy) {
+      const h = request.headers;
+      const forwarded = h.get("cf-connecting-ip") ?? h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",")[0];
+      if (forwarded?.trim()) return forwarded.trim();
+    }
+    return context.ip ?? "";
+  }
+
+  /** Today's salt and, if it still exists, yesterday's. Old salts are deleted on the way. */
+  private async currentSalts(now: number): Promise<{ today: string; yesterday: string | null }> {
+    const day = utcDay(now);
+    if (this.salts?.day === day) return this.salts;
+    const yesterdayDay = utcDay(now - 86_400_000);
+    const today = await this.store.salt(day, randomSalt());
+    const yesterday = await this.store.saltIfExists(yesterdayDay);
+    await this.store.dropSaltsBefore(yesterdayDay);
+    this.salts = { day, today, yesterday };
+    return this.salts;
+  }
+
+  /** Handles one tracker request. Always resolves; bad input is dropped quietly. */
+  async collect(request: Request, context: RequestContext = {}): Promise<void> {
+    const length = Number(request.headers.get("content-length") ?? 0);
+    if (length > MAX_BODY) return;
+    const text = await request.text().catch(() => "");
+    const payload = parsePayload(text);
+    if (!payload) return;
+
+    const ua = request.headers.get("user-agent") ?? "";
+    if (aiAgent(ua) || isBot(ua)) return;
+
+    const site = this.siteFor(payload.url.hostname, payload.site);
+    if (!site) return;
+
+    await this.init();
+    const now = this.now();
+    if (payload.kind === "engagement") return this.engagement(site, payload, now);
+
+    const ip = this.clientIp(request, context);
+    const salts = await this.currentSalts(now);
+    const today = await visitorHash(salts.today, site.id, ip, ua);
+    const page = parsePage(payload.url);
+
+    let session: { id: string; visitor: string } | null = null;
+    if (payload.kind === "event" && payload.pageviewId) {
+      const pageview = await this.store.pageview(site.id, payload.pageviewId);
+      if (pageview) session = { id: pageview.session, visitor: pageview.visitor };
+    }
+    if (!session) {
+      const candidates = [today];
+      if (salts.yesterday) candidates.push(await visitorHash(salts.yesterday, site.id, ip, ua));
+      session = await this.store.openSession(site.id, candidates, now - SESSION_IDLE_MS);
+    }
+    if (!session) {
+      session = { id: randomId(), visitor: today };
+      const attribution = attribute(page, payload.referrer, site.hostnames);
+      const client = parseClient(
+        ua,
+        {
+          brands: request.headers.get("sec-ch-ua"),
+          mobile: request.headers.get("sec-ch-ua-mobile"),
+          platform: request.headers.get("sec-ch-ua-platform"),
+        },
+        payload.screenWidth,
+      );
+      const location = await locate(request.headers, ip, this.geo);
+      await this.store.insertSession({
+        id: session.id,
+        site: site.id,
+        visitor: session.visitor,
+        startedAt: now,
+        hostname: page.hostname,
+        ...attribution,
+        utmSource: page.utm.source,
+        utmMedium: page.utm.medium,
+        utmCampaign: page.utm.campaign,
+        utmTerm: page.utm.term,
+        utmContent: page.utm.content,
+        ...location,
+        ...client,
+        screen: payload.screenWidth && payload.screenHeight ? `${payload.screenWidth}x${payload.screenHeight}` : "",
+        language: payload.language,
+      });
+    }
+
+    await this.store.touchSession(session.id, now, payload.kind, page.path);
+    await this.store.insertEvent({
+      site: site.id,
+      ts: now,
+      kind: payload.kind,
+      visitor: session.visitor,
+      session: session.id,
+      pageview: payload.pageviewId,
+      path: page.path,
+      hostname: page.hostname,
+      title: payload.kind === "pageview" ? payload.title : "",
+      name: payload.kind === "event" ? payload.name : "",
+      props: payload.props,
+      engagedMs: 0,
+      scroll: null,
+      link: "",
+    });
+  }
+
+  private async engagement(site: SiteRow, payload: Payload, now: number): Promise<void> {
+    if (payload.engagedMs <= 0) return;
+    const pageview = await this.store.pageview(site.id, payload.pageviewId);
+    if (!pageview) return;
+    await this.store.addEngagement(pageview.session, payload.engagedMs);
+    await this.store.insertEvent({
+      site: site.id,
+      ts: now,
+      kind: "engagement",
+      visitor: pageview.visitor,
+      session: pageview.session,
+      pageview: payload.pageviewId,
+      path: pageview.path,
+      hostname: pageview.hostname,
+      title: "",
+      name: "",
+      props: null,
+      engagedMs: payload.engagedMs,
+      scroll: payload.scroll ?? null,
+      link: "",
+    });
+  }
+
+  /**
+   * Records a request from a known AI agent. Call it from middleware for
+   * every page request; it ignores everything else and never throws.
+   * Agents do not run JavaScript, so the tracker cannot see them.
+   */
+  async observe(request: Request): Promise<void> {
+    try {
+      if (request.method !== "GET") return;
+      const agent = aiAgent(request.headers.get("user-agent") ?? "");
+      if (!agent) return;
+      const url = new URL(request.url);
+      // Pages, not their assets.
+      const ext = /\.([a-z0-9]+)$/i.exec(url.pathname)?.[1]?.toLowerCase();
+      if (ext && !["html", "htm", "md", "txt", "php"].includes(ext)) return;
+      const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.hostname;
+      const site = this.siteFor(host.split(":")[0] ?? host);
+      if (!site) return;
+      await this.init();
+      await this.store.insertEvent({
+        site: site.id,
+        ts: this.now(),
+        kind: "fetch",
+        visitor: "",
+        session: "",
+        pageview: "",
+        path: url.pathname.slice(0, 1000),
+        hostname: stripWww(url.hostname),
+        title: "",
+        name: agent.name,
+        props: { company: agent.company, kind: agent.kind },
+        engagedMs: 0,
+        scroll: null,
+        link: "",
+      });
+    } catch {
+      // Analytics must never break the page it watches.
+    }
+  }
+
+  /** Scheduled work: rotates salts. Idempotent; safe to call every minute. */
+  async check(): Promise<{ ok: true }> {
+    await this.init();
+    this.salts = null;
+    await this.currentSalts(this.now());
+    return { ok: true };
+  }
+}

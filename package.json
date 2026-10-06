@@ -15,5 +15,8 @@
     "test": "npm run check:dashes && npm test --workspaces --if-present",
     "build": "npm run check:dashes && npm run build --workspaces --if-present",
     "check": "npm run check:dashes && npm run typecheck && npm test"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2"
   }
 }
