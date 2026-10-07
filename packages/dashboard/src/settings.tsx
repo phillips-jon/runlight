@@ -124,7 +124,7 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
           </Field>
         ) : null}
         <Field label={t("settings.timezone")} hint={t("settings.timezoneHint")}>
-          <select class="field" value={timezone} onChange={(e) => setTimezone((e.target as HTMLSelectElement).value)}>
+          <select class="value" value={timezone} onChange={(e) => setTimezone((e.target as HTMLSelectElement).value)}>
             {(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => (
               <option value={z}>{z.replace(/_/g, " ")}</option>
             ))}
@@ -141,7 +141,7 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
       </form>
       <div class="settings-group">
         <Field label={t("settings.language")} hint={t("settings.languageHint")}>
-          <select class="field" value={currentLocale()} onChange={(e) => onLanguage((e.target as HTMLSelectElement).value)}>
+          <select class="value" value={currentLocale()} onChange={(e) => onLanguage((e.target as HTMLSelectElement).value)}>
             {LANGUAGES.map(([code, label]) => (
               <option value={code}>{label}</option>
             ))}

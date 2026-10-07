@@ -104,7 +104,8 @@ function Avatar({ site }: { site: Site }) {
   );
 }
 
-function Live({ site }: { site: string }) {
+/** The live count. Before a site's first visit there is nothing to watch, so it is plain text, not a button. */
+function Live({ site, ready }: { site: string; ready: boolean }) {
   const [n, setN] = useState<number | null>(null);
   useEffect(() => {
     let live = true;
@@ -118,6 +119,14 @@ function Live({ site }: { site: string }) {
   }, [site]);
   const [open, setOpen] = useState(false);
   if (n === null) return null;
+  if (!ready) {
+    return (
+      <span class="live">
+        <span class="beat" aria-hidden="true" />
+        {tn("app.live", n, { n: exact(n) })}
+      </span>
+    );
+  }
   return (
     <>
       <button type="button" class="live" title={t("app.live.title")} onClick={() => setOpen(true)}>
@@ -304,7 +313,7 @@ function App() {
                   </button>
                 </h1>
               )}
-              {site ? <Live site={site.id} /> : null}
+              {site ? <Live site={site.id} ready={site.lastSeen != null} /> : null}
             </div>
             {site && !share ? (
               <button type="button" class="gear" aria-label={t("settings.open")} title={t("settings.open")} onClick={() => setSettingsOpen("general")}>

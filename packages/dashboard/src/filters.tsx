@@ -51,7 +51,7 @@ function Clause({ draft, view, first, onChange, onRemove }: {
       <div class="clause-body">
         <div class="clause-line">
           <select
-            class="field"
+            class="value"
             aria-label={t("filter.field")}
             value={draft.dimension}
             onChange={(e) => onChange({ ...draft, dimension: (e.target as HTMLSelectElement).value, value: "" })}

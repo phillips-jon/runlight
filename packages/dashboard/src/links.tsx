@@ -159,7 +159,7 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
           <span class="field-label">{t("links.slug")}</span>
           <div class="slug-row">
             {domains.length ? (
-              <select class="field" aria-label={t("links.domain")} value={domain} onChange={(e) => setDomain((e.target as HTMLSelectElement).value)}>
+              <select class="value" aria-label={t("links.domain")} value={domain} onChange={(e) => setDomain((e.target as HTMLSelectElement).value)}>
                 {domains.map((d) => (
                   <option value={d}>{d}/</option>
                 ))}
@@ -167,7 +167,7 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
                 <option value="">{display(prefix)}/</option>
               </select>
             ) : link?.domain ? (
-              <select class="field" aria-label={t("links.domain")} value={domain} onChange={(e) => setDomain((e.target as HTMLSelectElement).value)}>
+              <select class="value" aria-label={t("links.domain")} value={domain} onChange={(e) => setDomain((e.target as HTMLSelectElement).value)}>
                 <option value={link.domain}>{t("links.removedDomain", { domain: link.domain })}</option>
                 <option value="">{display(prefix)}/</option>
               </select>
