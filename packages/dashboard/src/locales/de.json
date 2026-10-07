@@ -555,5 +555,8 @@
   "visits.start": "Besuche importieren",
   "visits.running": "{done} von {total} Tagen gelesen, bisher {pageviews} Seitenaufrufe",
   "visits.done": "Fertig. {pageviews} Seitenaufrufe und {events} Ereignisse sind in {visits} Besuchen angekommen.",
-  "visits.stopped": "Angehalten. Starte erneut, um beim zuletzt importierten Tag weiterzumachen."
+  "visits.stopped": "Angehalten. Starte erneut, um beim zuletzt importierten Tag weiterzumachen.",
+  "props.title": "Eigenschaften",
+  "props.open": "Eigenschaften von {name}",
+  "props.none": "Dieses Ereignis wurde in diesem Zeitraum ohne Eigenschaften gesendet."
 }

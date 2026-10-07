@@ -113,6 +113,23 @@ export const TOOLS: Tool[] = [
     request: read("/api/breakdown", [...RANGE_KEYS, "dimension", "page"], (args) => [["limit", String(Math.min(100, Math.max(1, Number(args.limit) || 10)))]]),
   },
   {
+    name: "get_event_properties",
+    title: "An event's properties",
+    description:
+      "The properties sent with one custom event and the values each took, most common first. Automatic events have their own: \"Outbound link\" and \"File download\" carry url, and \"404\" carries path. Leave key out to see every property name and the values of the most used one.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ...RANGE,
+        event: { type: "string", description: "The event's name, as get_breakdown with dimension event lists it." },
+        key: { type: "string", description: "Which property. Defaults to the most used one." },
+        limit: { type: "integer", minimum: 1, maximum: 100, description: "Values to return. Defaults to 25." },
+      },
+      required: ["event"],
+    },
+    request: read("/api/event-props", [...RANGE_KEYS, "event", "key"], (args) => [["limit", String(Math.min(100, Math.max(1, Number(args.limit) || 25)))]]),
+  },
+  {
     name: "get_visit_times",
     title: "When people visit",
     description: "Visits by weekday and hour in the site's timezone: grid[weekday][hour], Monday first, hours 0 to 23.",

@@ -266,6 +266,12 @@ export const api = {
       `links/import/${source}${siteQuery(site)}`,
       { credentials, cursor, done },
     ),
+  eventProps: (view: View, event: string, key: string | null) => {
+    const params = viewParams(view);
+    params.set("event", event);
+    if (key) params.set("key", key);
+    return get<{ event: string; keys: Array<{ key: string; events: number }>; key: string | null; rows: Array<{ value: string; events: number; visitors: number }> }>("event-props", params);
+  },
   umamiWebsites: (credentials: Record<string, string>) => send<{ websites: Array<{ id: string; name: string; domain: string }> }>("POST", "import/umami/websites", { credentials }),
   importVisits: (site: string, credentials: Record<string, string>, website: string, cursor: string | null) =>
     send<{ cursor: string | null; done: number; total: number; pageviews: number; events: number; visits: number }>("POST", `import/umami/visits${siteQuery(site)}`, { credentials, website, cursor }),

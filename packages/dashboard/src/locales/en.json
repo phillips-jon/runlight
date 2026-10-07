@@ -555,5 +555,8 @@
   "visits.start": "Import visits",
   "visits.running": "{done} of {total} days read, {pageviews} pageviews so far",
   "visits.done": "Finished. {pageviews} pageviews and {events} events came across in {visits} visits.",
-  "visits.stopped": "Stopped. Start again to carry on from the last day imported."
+  "visits.stopped": "Stopped. Start again to carry on from the last day imported.",
+  "props.title": "Properties",
+  "props.open": "Properties of {name}",
+  "props.none": "This event was sent without properties in this range."
 }

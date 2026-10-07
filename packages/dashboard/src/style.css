@@ -3599,3 +3599,47 @@ button.live:hover {
 .import-kind {
   margin-bottom: 18px;
 }
+
+/* The properties button on an event's row: quiet until the row is hovered. */
+.row-detail {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+}
+
+.rows li:hover .row-detail,
+.row-detail:focus-visible {
+  color: var(--ink);
+}
+
+.row-detail:hover {
+  background: var(--card);
+}
+
+.props-body {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.props-keys {
+  justify-self: start;
+  flex-wrap: wrap;
+}
+
+.props-body .rows {
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

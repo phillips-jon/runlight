@@ -28,7 +28,7 @@ Click a card to put it on the chart; several can share it, each scaled to its ow
 - **When people visit** shows visits by weekday and hour, in the site’s timezone.
 - **AI agents** lists the AI agents that fetched your pages and which pages they fetched. See [AI sources and agents](/docs/ai/).
 - **Devices** breaks visits down by device type, browser, operating system, screen size, and language.
-- **Events** shows your own events and the automatic ones.
+- **Events** shows your own events and the automatic ones. The list button on each row opens its properties, such as the address of every outbound link and download or the path of every 404, with how often each came up.
 - **Campaigns** shows your UTM tags by source, medium, campaign, term, and content.
 - **Conversions** shows your [goals](/docs/goals/).
 - **Links** shows your [short links](/docs/links/).

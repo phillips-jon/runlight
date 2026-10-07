@@ -157,7 +157,7 @@ const TOKEN_PREFIX = "rl_";
 /** The header a shared dashboard sends its share id in. */
 const SHARE_HEADER = "x-runlight-share";
 /** What a share can read: one site's reports, nothing that changes anything. */
-const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals"]);
+const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props"]);
 const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[a-f0-9]{24}$/.test(path);
 /** Where the tracker's click rules go; the script ships with this string in their place. */
 const RULES_PLACEHOLDER = '"__RUNLIGHT_RULES__"';
@@ -919,6 +919,19 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         day.map((c) => ({ visits: c.visits, visitors: c.visitors, pageviews: c.pageviews, bounceRate: c.visits ? c.bounced / c.visits : 0 })),
       );
       return json({ site: site.id, range: rangeOut, grid, cells: details });
+    }
+
+    if (path === "/api/event-props") {
+      const event = url.searchParams.get("event") ?? "";
+      if (!event) return json({ error: "Name the event" }, 400);
+      const keys = await runlight.store.eventPropKeys(query, event);
+      const asked = url.searchParams.get("key");
+      // A property name goes into a JSON path on SQLite, so quotes and backslashes are refused.
+      if (asked !== null && !/^[^"\\]{1,64}$/.test(asked)) return json({ error: "Bad property name" }, 400);
+      const key = asked ?? keys[0]?.key ?? null;
+      const limit = Math.min(1000, Math.max(1, Number(url.searchParams.get("limit")) || 100));
+      const rows = key ? await runlight.store.eventPropValues(query, event, key, limit) : [];
+      return json({ site: site.id, range: rangeOut, event, keys, key, rows });
     }
 
     if (path === "/api/breakdown") {

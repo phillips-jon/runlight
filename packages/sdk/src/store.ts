@@ -795,6 +795,42 @@ export class SqlStore {
     return { sql: `SUM(COALESCE(CAST(json_extract(e.props, ?) AS REAL), 0))`, params: [`$."${prop}"`] };
   }
 
+  /** The property names sent with an event in a query's range, most used first. */
+  async eventPropKeys(query: Query, event: string): Promise<Array<{ key: string; events: number }>> {
+    const f = filterSql(query.filters);
+    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    const where = `e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'event' AND e.name = ? AND e.props IS NOT NULL${f.sql}`;
+    const params = [query.site, query.from, query.to, event, ...f.params];
+    const rows =
+      this.db.dialect === "postgres"
+        ? await this.db.all(
+            `SELECT k AS key, COUNT(*) AS events FROM rl_events e ${join} CROSS JOIN LATERAL jsonb_object_keys(CASE WHEN jsonb_typeof(e.props::jsonb) = 'object' THEN e.props::jsonb ELSE '{}'::jsonb END) AS k
+             WHERE ${where} GROUP BY k ORDER BY events DESC, key LIMIT 30`,
+            params,
+          )
+        : await this.db.all(
+            `SELECT j.key AS key, COUNT(*) AS events FROM rl_events e ${join}, json_each(e.props) j
+             WHERE ${where} AND json_type(e.props) = 'object' GROUP BY j.key ORDER BY events DESC, key LIMIT 30`,
+            params,
+          );
+    return rows.map((r) => ({ key: String(r.key), events: num(r.events) }));
+  }
+
+  /** The values one property of an event took, with how often and by how many visitors. */
+  async eventPropValues(query: Query, event: string, key: string, limit: number): Promise<Array<{ value: string; events: number; visitors: number }>> {
+    const f = filterSql(query.filters);
+    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    const value = this.db.dialect === "postgres" ? `(e.props::jsonb ->> ?)` : `CAST(json_extract(e.props, ?) AS TEXT)`;
+    const path = this.db.dialect === "postgres" ? key : `$."${key}"`;
+    const rows = await this.db.all(
+      `SELECT ${value} AS value, COUNT(*) AS events, COUNT(DISTINCT e.visitor) AS visitors FROM rl_events e ${join}
+       WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'event' AND e.name = ? AND ${value} IS NOT NULL${f.sql}
+       GROUP BY 1 ORDER BY events DESC, value LIMIT ?`,
+      [path, query.site, query.from, query.to, event, path, ...f.params, limit],
+    );
+    return rows.map((r) => ({ value: String(r.value), events: num(r.events), visitors: num(r.visitors) }));
+  }
+
   private revenueSql(goal: GoalRow): { sql: string; params: unknown[] } {
     if (goal.valueMode === "prop" && goal.valueProp) return this.propSum(goal.valueProp);
     // Cast, so Postgres does not read the bound value as a bigint and refuse 9.99.

@@ -555,5 +555,8 @@
   "visits.start": "Importar visitas",
   "visits.running": "{done} de {total} dias lidos, {pageviews} visualizações até agora",
   "visits.done": "Pronto. {pageviews} visualizações e {events} eventos chegaram em {visits} visitas.",
-  "visits.stopped": "Parado. Comece de novo para continuar do último dia importado."
+  "visits.stopped": "Parado. Comece de novo para continuar do último dia importado.",
+  "props.title": "Propriedades",
+  "props.open": "Propriedades de {name}",
+  "props.none": "Este evento foi enviado sem propriedades neste período."
 }

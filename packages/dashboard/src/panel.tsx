@@ -4,6 +4,7 @@ import { count, countryName, duration, flag, hourLabel, percent, weekdays } from
 import type { RhythmCell } from "./api.js";
 import { rich, t, tn, type Key } from "./i18n.js";
 import { MapOverlay, WorldMap } from "./map.js";
+import { EventProps } from "./eventprops.js";
 import { Icon } from "./icons.js";
 
 export interface Tab {
@@ -70,7 +71,7 @@ function Mix({ parts }: { parts: Array<{ name: string; n: number; slot: number }
   );
 }
 
-function Rows({ rows, tab, onFilter }: { rows: Row[]; tab: Tab; onFilter: (dimension: string, value: string) => void }) {
+function Rows({ rows, tab, onFilter, onDetail }: { rows: Row[]; tab: Tab; onFilter: (dimension: string, value: string) => void; onDetail?: (value: string) => void }) {
   const column = tab.column ?? "visitors";
   const top = Math.max(1, ...rows.map((r) => Number(r[column] ?? 0)));
   const dot = (value: string): number | undefined => tab.colors?.[value] ?? (tab.groups ? tab.groups.slots[tab.groups.of(value)] : undefined);
@@ -97,6 +98,11 @@ function Rows({ rows, tab, onFilter }: { rows: Row[]; tab: Tab; onFilter: (dimen
               <span class="name">{name}</span>
             )}
             {tab.extra ? <span class="extra">{tab.extra.format(Number(row[tab.extra.key] ?? 0))}</span> : null}
+            {onDetail ? (
+              <button type="button" class="row-detail" title={t("props.open", { name: text })} aria-label={t("props.open", { name: text })} onClick={() => onDetail(row.value)}>
+                <Icon name="list" />
+              </button>
+            ) : null}
             <span class="num">{count(n)}</span>
           </li>
         );
@@ -278,6 +284,8 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
   const [showMap, setShowMap] = useState(false);
   const [fullMap, setFullMap] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  /** The event whose properties are open, from the Events panel. */
+  const [detail, setDetail] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState("");
   const tab = tabs[active] ?? tabs[0]!;
@@ -344,6 +352,7 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
         </div>
       </header>
       {fullMap ? <MapOverlay view={view} onFilter={onFilter} onClose={() => setFullMap(false)} /> : null}
+      {detail ? <EventProps view={view} event={detail} onClose={() => setDetail(null)} /> : null}
       {showAll ? <AllRows title={title} tab={tab} view={view} onFilter={onFilter} onClose={() => setShowAll(false)} /> : null}
       {showMap ? (
         <WorldMap view={view} onFilter={onFilter} />
@@ -354,7 +363,7 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
           {error ? <p class="empty">{error}</p> : null}
           {!error && rows && all.length === 0 ? <p class="empty">{t("panel.empty")}</p> : null}
           {!rows && !error ? <p class="empty">{t("common.loading")}</p> : null}
-          <Rows rows={all.slice(0, SHORT)} tab={tab} onFilter={onFilter} />
+          <Rows rows={all.slice(0, SHORT)} tab={tab} onFilter={onFilter} onDetail={tab.dimension === "event" ? setDetail : undefined} />
           {all.length > SHORT ? (
             <button type="button" class="more" onClick={() => setShowAll(true)}>
               <Icon name="expand" />
