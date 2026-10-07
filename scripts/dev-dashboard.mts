@@ -12,6 +12,7 @@ import { bundle, locales } from "../packages/dashboard/scripts/build.mjs";
 import { world } from "../packages/dashboard/scripts/world.mjs";
 import { runlight } from "../packages/sdk/src/index.ts";
 import { toNodeHandler } from "../packages/sdk/src/node.ts";
+import { RUNLIGHT_ICON } from "../packages/sdk/src/routes.ts";
 import { sqlite } from "../packages/sdk/src/stores/sqlite.ts";
 import type { SessionRow } from "../packages/sdk/src/store.ts";
 
@@ -46,7 +47,7 @@ createServer(async (req, res) => {
   if (path === "/runlight" || path === "/runlight/" || share) {
     res.setHeader("content-type", "text/html; charset=utf-8");
     res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Runlight (dev)</title><link rel="stylesheet" href="/runlight/dev.css"></head>
+<title>Runlight (dev)</title><link rel="icon" href="${RUNLIGHT_ICON}"><link rel="stylesheet" href="/runlight/dev.css"></head>
 <body><div id="app" data-base="/runlight"${share ? ` data-share="${share}"` : ""} data-world="/runlight/world.json" data-locales='${JSON.stringify(Object.fromEntries(Object.keys(locales()).map((c) => [c, `/runlight/locales/${c}.json`])))}'></div><script type="module" src="/runlight/dev.js"></script></body></html>`);
     return;
   }

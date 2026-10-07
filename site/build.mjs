@@ -73,7 +73,7 @@ marked.use({
     code({ text, lang }) {
       const [language = "text", ...rest] = (lang || "").trim().split(/\s+/);
       const file = rest.find((r) => r.startsWith("file="))?.slice(5);
-      return `<div class="code">${file ? `<p class="file">${escape(file)}</p>` : ""}<pre><code translate="no">${highlight(text, language)}</code></pre><button type="button" class="copy" aria-label="Copy">Copy</button></div>\n`;
+      return `<div class="out"><p class="from"><span>${escape(file ?? language)}</span><button type="button" class="copy">Copy</button></p><pre><code translate="no">${highlight(text, language)}</code></pre></div>\n`;
     },
     table(token) {
       return `<div class="table">${new marked.Renderer().table.call(this, token)}</div>\n`;
@@ -85,9 +85,10 @@ marked.use({
 const curly = (html) =>
   html.split(/(<pre[\s\S]*?<\/pre>|<code[\s\S]*?<\/code>|<[^>]+>)/).map((part, i) => (i % 2 ? part : part.replace(/(\w)(?:'|&#39;)(\w)/g, "$1’$2"))).join("");
 
-/** The mark: an indicator lamp, lit. */
-const MARK = `<svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="2.5"/><circle cx="16" cy="16" r="6" fill="currentColor"/></svg>`;
-const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><style>circle{stroke:#000;fill:#000}@media (prefers-color-scheme:dark){circle{stroke:#fff;fill:#fff}}</style><circle cx="16" cy="16" r="12.5" style="fill:none" stroke-width="2.5"/><circle cx="16" cy="16" r="6" style="stroke:none"/></svg>`;
+/** The mark: an R in a rounded lamp housing, one corner lit. The R is cut
+    from the housing in the sheet's colour, so it follows the theme. */
+const MARK = `<svg class="mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false"><rect class="housing" x="2.5" y="2.5" width="27" height="27" rx="7"/><path class="r" d="M11 23V9h6.2a4.3 4.3 0 0 1 0 8.6H11m6 0 5 5.4"/><circle class="lit" cx="23.6" cy="8.4" r="2.6"/></svg>`;
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><style>.h{fill:#000}.r{stroke:#fff}@media (prefers-color-scheme:dark){.h{fill:#fff}.r{stroke:#000}}</style><rect class="h" x="2.5" y="2.5" width="27" height="27" rx="7"/><path class="r" d="M11 23V9h6.2a4.3 4.3 0 0 1 0 8.6H11m6 0 5 5.4" fill="none" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="23.6" cy="8.4" r="2.6" fill="#22c55e"/></svg>`;
 
 const THEME_ICONS = `<svg class="moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg><svg class="sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>`;
 
@@ -102,13 +103,15 @@ function readDocs() {
     .sort((a, b) => Number(a.meta.order ?? 99) - Number(b.meta.order ?? 99));
 }
 
-function layout({ title, description, body, pagePath, assets, bodyClass = "" }) {
-  const full = pagePath === "/" ? "Runlight: analytics that lives inside your app" : `${title} | Runlight`;
-  const nav = [["Docs", "/docs/"], ["Install", "/docs/install/"], ["Privacy", "/docs/privacy/"], ["GitHub", GITHUB]]
-    .map(([label, href]) => `<a href="${href}"${pagePath.startsWith(href) && href !== "/" && !href.startsWith("http") ? ' aria-current="page"' : ""}>${label}</a>`)
-    .join("");
+const NAV = [["Docs", "/docs/"], ["Install", "/docs/install/"], ["Privacy", "/docs/privacy/"], ["GitHub", GITHUB]];
+
+function layout({ title, description, body, pagePath, assets }) {
+  const full = pagePath === "/" ? "Runlight | Analytics that lives inside your app" : `${title} | Runlight`;
+  const here = (href) => (!href.startsWith("http") && (href === pagePath || (href === "/docs/" && pagePath.startsWith("/docs/") && !NAV.some(([, h]) => h !== "/docs/" && h === pagePath))) ? ' aria-current="page"' : "");
+  const links = NAV.map(([label, href]) => `<a href="${href}"${here(href)}>${label}</a>`).join("");
+  const col = (head, items) => `<div><p class="foot-head">${head}</p><ul>${items.map(([l, h]) => `<li><a href="${h}"${h.startsWith("http") ? ' rel="noopener"' : ""}>${l}</a></li>`).join("")}</ul></div>`;
   return `<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -119,36 +122,42 @@ function layout({ title, description, body, pagePath, assets, bodyClass = "" }) 
 <meta property="og:description" content="${escape(description)}">
 <meta property="og:url" content="${SITE}${pagePath}">
 <meta property="og:type" content="website">
-<meta property="og:image" content="${SITE}/assets/shots/hero-light.webp">
+<meta property="og:image" content="${SITE}/assets/shots/hero-dark.webp">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="theme-color" content="#f4f4f5">
+<meta name="theme-color" content="#09090b">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <script src="${assets.theme}"></script>
 <link rel="stylesheet" href="https://use.typekit.net/guv6qty.css">
 <link rel="stylesheet" href="${assets.css}">
 <script src="${assets.js}" defer></script>
 </head>
-<body class="${bodyClass}">
+<body>
 <a class="skip" href="#main">Skip to content</a>
-<header class="top">
-  <a class="brand" href="/">${MARK}<span translate="no">Runlight</span></a>
-  <nav aria-label="Site">${nav}</nav>
-</header>
-<main id="main">
+<div class="page">
+  <nav class="top" aria-label="Site">
+    <div class="links">${links}</div>
+    <details class="menu"><summary>Menu</summary><ol>${NAV.map(([l, h]) => `<li><a href="${h}">${l}</a></li>`).join("")}</ol></details>
+    <a class="brand" href="/" title="Runlight">${MARK}<span translate="no">Runlight</span></a>
+  </nav>
+  <main id="main">
 ${body}
-</main>
-<footer class="foot">
-  <div class="foot-cols">
-    <div class="foot-about"><a class="brand" href="/">${MARK}<span translate="no">Runlight</span></a><p>Open source web analytics that lives inside your app. MIT licensed.</p></div>
-    <div><p class="foot-head">Docs</p><ul><li><a href="/docs/">Getting started</a></li><li><a href="/docs/install/">Install</a></li><li><a href="/docs/tracking/">Tracking</a></li><li><a href="/docs/goals/">Goals</a></li><li><a href="/docs/links/">Short links</a></li><li><a href="/docs/reports/">Email reports</a></li></ul></div>
-    <div><p class="foot-head">Reference</p><ul><li><a href="/docs/configuration/">Configuration</a></li><li><a href="/docs/api/">HTTP API</a></li><li><a href="/docs/privacy/">Privacy</a></li><li><a href="/prompt.txt">Prompt for agents</a></li><li><a href="/llms.txt">llms.txt</a></li></ul></div>
-    <div><p class="foot-head">Project</p><ul><li><a href="${GITHUB}" rel="noopener">GitHub</a></li><li><a href="https://www.npmjs.com/package/@runlight/sdk" rel="noopener">npm</a></li><li><a href="https://joncphillips.com" rel="me noopener">Jon Phillips</a></li></ul></div>
-  </div>
-  <div class="foot-end">
-    <p>© ${new Date().getFullYear()} Runlight. Made by <a href="https://joncphillips.com" rel="me noopener">Jon Phillips</a>.</p>
-    <button class="theme" type="button" title="Light or dark (Shift+Cmd+D, or Shift+Ctrl+D)" aria-label="Switch theme">${THEME_ICONS}</button>
-  </div>
-</footer>
+  </main>
+  <footer>
+    <div class="foot-top">
+      <div class="foot-about"><a class="brand" href="/">${MARK}<span translate="no">Runlight</span></a><p>Web analytics that lives inside your app. Open source, no cookies, and nothing personal stored.</p></div>
+      <nav class="foot-cols" aria-label="Footer">
+        ${col("Docs", [["Getting started", "/docs/"], ["Install", "/docs/install/"], ["Tracking", "/docs/tracking/"], ["The dashboard", "/docs/dashboard/"], ["Scheduled check", "/docs/cron/"]])}
+        ${col("Features", [["Goals", "/docs/goals/"], ["Short links", "/docs/links/"], ["AI sources", "/docs/ai/"], ["Email reports", "/docs/reports/"]])}
+        ${col("Reference", [["Configuration", "/docs/configuration/"], ["HTTP API", "/docs/api/"], ["Privacy", "/docs/privacy/"], ["Prompt for agents", "/prompt.txt"], ["llms.txt", "/llms.txt"]])}
+        ${col("Project", [["GitHub", GITHUB], ["npm", "https://www.npmjs.com/package/@runlight/sdk"], ["License", `${GITHUB}/blob/main/LICENSE`]])}
+      </nav>
+    </div>
+    <div class="foot-end">
+      <p>© ${new Date().getFullYear()} Runlight. MIT licensed. Made by <a href="https://joncphillips.com" rel="me noopener">Jon C. Phillips</a>.</p>
+      <button class="theme" type="button" title="Light or dark (Shift+Cmd+D, or Shift+Ctrl+D)" aria-label="Switch between light and dark">${THEME_ICONS}</button>
+    </div>
+  </footer>
+</div>
 </body>
 </html>
 `;
@@ -164,18 +173,20 @@ function docPage(doc, docs, assets) {
     if (!groups.find((x) => x.name === g)) groups.push({ name: g, docs: [] });
     groups.find((x) => x.name === g).docs.push(d);
   }
-  const side = groups
-    .map((g) => `<p class="side-head">${escape(g.name)}</p><ul>${g.docs.map((d) => `<li><a href="${d.path}"${d === doc ? ' aria-current="page"' : ""}>${escape(d.meta.nav ?? d.meta.title)}</a></li>`).join("")}</ul>`)
+  const num = (d) => String(docs.indexOf(d) + 1).padStart(2, "0");
+  const list = groups
+    .map((g) => `<p class="label">${escape(g.name)}</p><ol>${g.docs.map((d) => `<li><a href="${d.path}"${d === doc ? ' aria-current="page"' : ""}><span>${num(d)}</span><span>${escape(d.meta.nav ?? d.meta.title)}</span></a></li>`).join("")}</ol>`)
     .join("");
   const at = docs.indexOf(doc);
   const prev = docs[at - 1];
   const next = docs[at + 1];
-  const pager = `<nav class="pager" aria-label="Pages">${prev ? `<a href="${prev.path}"><span>Previous</span>${escape(prev.meta.title)}</a>` : "<span></span>"}${next ? `<a class="next" href="${next.path}"><span>Next</span>${escape(next.meta.title)}</a>` : ""}</nav>`;
-  const toc = pageToc.length > 1 ? `<nav class="toc" aria-label="On this page"><p class="side-head">On this page</p><ul>${pageToc.map((h) => `<li><a href="#${h.id}">${h.text}</a></li>`).join("")}</ul></nav>` : "";
+  const pager = `<nav class="pager" aria-label="Pages">${prev ? `<a href="${prev.path}"><small>Previous</small>${escape(prev.meta.title)}</a>` : ""}${next ? `<a class="next" href="${next.path}"><small>Next</small>${escape(next.meta.title)}</a>` : ""}</nav>`;
+  const toc = pageToc.length > 1 ? `<nav class="toc" aria-label="On this page"><p class="label">On this page</p><ul>${pageToc.map((h) => `<li><a href="#${h.id}">${h.text}</a></li>`).join("")}</ul></nav>` : "<span></span>";
   const body = `<div class="docs">
-<details class="side-menu"><summary>Docs</summary>${side}</details>
-<aside class="side" aria-label="Docs">${side}</aside>
-<article class="prose">
+<aside class="docs-side" aria-label="Docs">${list}</aside>
+<article class="doc">
+<details class="docs-menu"><summary>All docs</summary>${list}</details>
+<p class="label">${escape(doc.meta.group ?? "Docs")}</p>
 <h1>${escape(doc.meta.title)}</h1>
 ${doc.meta.description ? `<p class="lede">${escape(doc.meta.description)}</p>` : ""}
 ${html}
@@ -184,7 +195,7 @@ ${pager}
 </article>
 ${toc}
 </div>`;
-  return layout({ title: doc.meta.title, description: doc.meta.description ?? "", body, pagePath: doc.path, assets, bodyClass: "doc" });
+  return layout({ title: doc.meta.title, description: doc.meta.description ?? "", body, pagePath: doc.path, assets });
 }
 
 function build() {
@@ -204,7 +215,7 @@ function build() {
   const landing = readFileSync(path.join(SRC, "landing.html"), "utf8");
   writeFileSync(
     path.join(DIST, "index.html"),
-    layout({ title: "Runlight", description: "Open source web analytics that installs into your app like any other package. Your database, your domain, no cookies.", body: curly(landing), pagePath: "/", assets, bodyClass: "home" }),
+    layout({ title: "Runlight", description: "Open source web analytics that installs into your app like any other package. Your database, your domain, no cookies.", body: curly(landing), pagePath: "/", assets }),
   );
 
   const docs = readDocs();
@@ -230,7 +241,7 @@ function build() {
   );
   writeFileSync(
     path.join(DIST, "404.html"),
-    layout({ title: "Not found", description: "", body: `<section class="notfound"><h1>Nothing here.</h1><p>That page does not exist. Try <a href="/docs/">the docs</a> or <a href="/">the home page</a>.</p></section>`, pagePath: "/404/", assets }),
+    layout({ title: "Not found", description: "", body: `<section class="notfound"><p class="label">404</p><h1>Nothing here.</h1><p>That page does not exist. Try <a href="/docs/">the docs</a> or <a href="/">the home page</a>.</p></section>`, pagePath: "/404/", assets }),
   );
   return docs;
 }

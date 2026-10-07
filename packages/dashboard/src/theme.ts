@@ -1,4 +1,7 @@
-/** Light, dark, or the system's choice, remembered per browser and shared by every control that changes it. */
+/**
+ * Light, dark, or the system's choice, remembered per browser and shared by
+ * every control that changes it. Light until someone picks otherwise.
+ */
 export type ThemeChoice = "system" | "light" | "dark";
 
 const KEY = "runlight_theme";
@@ -7,9 +10,9 @@ const listeners = new Set<() => void>();
 export function themeChoice(): ThemeChoice {
   try {
     const stored = localStorage.getItem(KEY);
-    if (stored === "light" || stored === "dark") return stored;
+    if (stored === "light" || stored === "dark" || stored === "system") return stored;
   } catch {}
-  return "system";
+  return "light";
 }
 
 export function isDark(): boolean {
@@ -25,8 +28,7 @@ export function applyTheme(): void {
 
 export function setTheme(choice: ThemeChoice): void {
   try {
-    if (choice === "system") localStorage.removeItem(KEY);
-    else localStorage.setItem(KEY, choice);
+    localStorage.setItem(KEY, choice);
   } catch {}
   applyTheme();
   for (const listener of listeners) listener();

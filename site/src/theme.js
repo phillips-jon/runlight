@@ -1,8 +1,8 @@
-// Before the page paints: the reader's saved theme, else their system's.
+// Before the page paints: dark, unless the reader turned the sheet over to light.
 (function () {
   try {
-    var saved = localStorage.getItem("runlight_site_theme");
-    var dark = saved ? saved === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.dataset.theme = dark ? "dark" : "light";
-  } catch (e) {}
+    document.documentElement.dataset.theme = localStorage.getItem("runlight_site_theme") === "light" ? "light" : "dark";
+  } catch (e) {
+    document.documentElement.dataset.theme = "dark";
+  }
 })();

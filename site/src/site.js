@@ -1,30 +1,54 @@
-// Theme switch (button and Shift+Cmd+D), copy buttons, and the live clock-free bits of the page.
+// The theme switch (and Shift+Cmd+D), install tabs, and copy buttons.
 (function () {
   var root = document.documentElement;
-  var setTheme = function (dark) {
+  var toggle = function () {
+    var dark = root.dataset.theme !== "dark";
     root.dataset.theme = dark ? "dark" : "light";
     try {
       localStorage.setItem("runlight_site_theme", dark ? "dark" : "light");
     } catch (e) {}
   };
-  var toggle = function () {
-    setTheme(root.dataset.theme !== "dark");
+  var flash = function (button, text) {
+    var was = button.getAttribute("data-label") || button.textContent;
+    button.setAttribute("data-label", was);
+    button.lastChild.textContent = text;
+    setTimeout(function () {
+      button.lastChild.textContent = was.trim();
+    }, 1500);
   };
-  document.addEventListener("click", function (e) {
-    var t = e.target.closest && e.target.closest(".theme, .copy");
-    if (!t) return;
-    if (t.classList.contains("theme")) return toggle();
-    var box = t.closest(".code, .install");
-    var text = box && (box.querySelector("code") || {}).textContent;
-    if (!text || !navigator.clipboard) return;
-    navigator.clipboard.writeText(text.replace(/\n$/, "")).then(function () {
-      var was = t.textContent;
-      t.textContent = "Copied";
-      setTimeout(function () {
-        t.textContent = was;
-      }, 1500);
+  var copy = function (button, text) {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(text).then(function () {
+      flash(button, "Copied");
     });
+  };
+
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest && e.target.closest(".theme, .copy, .tab, .prompt");
+    if (!el) return;
+    if (el.classList.contains("theme")) return toggle();
+    if (el.classList.contains("tab")) {
+      var tabs = el.closest(".tabs");
+      tabs.querySelectorAll(".tab").forEach(function (t) {
+        var on = t === el;
+        t.setAttribute("aria-selected", on ? "true" : "false");
+        document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+      });
+      return;
+    }
+    if (el.classList.contains("prompt")) {
+      fetch("/prompt.txt").then(function (r) {
+        return r.text();
+      }).then(function (text) {
+        copy(el, text);
+      });
+      return;
+    }
+    var box = el.closest(".install, .out");
+    var code = box && box.querySelector("code");
+    if (code) copy(el, code.textContent.replace(/\n$/, ""));
   });
+
   document.addEventListener("keydown", function (e) {
     if (e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
       e.preventDefault();

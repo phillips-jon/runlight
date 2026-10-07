@@ -3364,3 +3364,32 @@ button.live:hover {
 .report-add .solid {
   height: 40px;
 }
+
+/* The Runlight mark beside "Powered by Runlight". */
+.powered {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.powered-mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.powered-mark rect {
+  fill: var(--ink);
+}
+
+.powered-mark path {
+  fill: none;
+  stroke: var(--page);
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.powered-mark circle {
+  fill: #22c55e;
+}

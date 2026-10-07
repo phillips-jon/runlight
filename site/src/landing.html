@@ -1,168 +1,153 @@
-<section class="hero">
-  <h1><b>6,920 people</b> visited in the last 30 days, <span class="up">37% more</span> than the 30 days before.</h1>
-  <p class="lede">That is the first line of a Runlight dashboard. Runlight is open source web analytics that installs into your app like any other package. It keeps its numbers in your database, shows them on your own domain, and never sets a cookie.</p>
-  <div class="act">
-    <p class="install"><code>npm install @runlight/sdk better-sqlite3</code><button type="button" class="copy">Copy</button></p>
-    <a class="button" href="/docs/">Read the docs</a>
+<section class="opening">
+  <h1 class="say"><b>Runlight</b> counts who visits your site, where they came from, and what they did next, from inside your own app, with every number kept in your own database.</h1>
+  <p class="then">It is a library, not a service: a package, one route, and a script under 2 KB. No cookies, nothing personal stored, and no account to make. <a href="https://github.com/phillips-jon/runlight/blob/main/LICENSE" rel="noopener">MIT licensed</a>.</p>
+  <div class="installs">
+    <div class="tabs" role="tablist" aria-label="Package manager">
+      <button type="button" class="tab" role="tab" id="t-npm" aria-controls="i-npm" aria-selected="true">npm</button>
+      <button type="button" class="tab" role="tab" id="t-pnpm" aria-controls="i-pnpm" aria-selected="false">pnpm</button>
+      <button type="button" class="tab" role="tab" id="t-yarn" aria-controls="i-yarn" aria-selected="false">Yarn</button>
+      <button type="button" class="tab" role="tab" id="t-bun" aria-controls="i-bun" aria-selected="false">Bun</button>
+    </div>
+    <p class="install" id="i-npm" role="tabpanel" aria-labelledby="t-npm"><code>npm install @runlight/sdk better-sqlite3</code><button type="button" class="copy">Copy</button></p>
+    <p class="install" id="i-pnpm" role="tabpanel" aria-labelledby="t-pnpm" hidden><code>pnpm add @runlight/sdk better-sqlite3</code><button type="button" class="copy">Copy</button></p>
+    <p class="install" id="i-yarn" role="tabpanel" aria-labelledby="t-yarn" hidden><code>yarn add @runlight/sdk better-sqlite3</code><button type="button" class="copy">Copy</button></p>
+    <p class="install" id="i-bun" role="tabpanel" aria-labelledby="t-bun" hidden><code>bun add @runlight/sdk better-sqlite3</code><button type="button" class="copy">Copy</button></p>
+  </div>
+  <div class="actions">
+    <button type="button" class="btn prompt"><span class="dot" aria-hidden="true"></span><span>Copy setup prompt for your AI</span></button>
+    <p class="note">Paste it into any coding agent to set Runlight up. Also at <a href="/prompt.txt">/prompt.txt</a>.</p>
   </div>
 </section>
 
-<figure class="bleed">
-  <div class="screen">
-    <img class="on-light" src="/assets/shots/hero-light.webp" width="2400" height="1280" alt="A Runlight dashboard: 6,920 people visited in the last 30 days, 37% more than the 30 days before. Cards for visitors, visits, pageviews, views per visit, bounce rate, and visit duration sit above a chart of visitors per day.">
-    <img class="on-dark" src="/assets/shots/hero-dark.webp" width="2400" height="1280" alt="The same dashboard in dark mode." loading="lazy">
+<section class="row" id="dashboard">
+  <p class="label">Dashboard</p>
+  <div class="body">
+    <h2>One page, with everything on it.</h2>
+    <p>It mounts inside your app at <code>/runlight</code>. The first line says how many people came and how that compares; six numbers sit above a chart, and below them the pages, sources, places, devices, campaigns, and AI agents, each one a click away from filtering everything else.</p>
+    <figure class="browser">
+      <div class="chrome" aria-hidden="true"><span class="dots"><i></i><i></i><i></i></span><span class="url">yourapp.com/runlight</span><span></span></div>
+      <img class="on-dark" src="/assets/shots/hero-dark.webp" width="2400" height="1280" alt="A Runlight dashboard: 6,920 people visited in the last 30 days, 37% more than the 30 days before. Cards for visitors, visits, pageviews, views per visit, bounce rate, and visit duration sit above a chart of visitors per day.">
+      <img class="on-light" src="/assets/shots/hero-light.webp" width="2400" height="1280" alt="The same dashboard in light mode." loading="lazy">
+    </figure>
+    <p class="caption">The dashboard as the package serves it, for a month of a demo blog.</p>
   </div>
-  <figcaption>The demo dashboard, served by the package at /runlight.</figcaption>
-</figure>
+</section>
 
-<section class="band" id="install">
+<section class="row" id="install">
   <p class="label">Install</p>
-  <div>
-    <div class="text">
-      <h2>A package, a route, and a script tag.</h2>
-      <p>Runlight is a library, not a service. You add it to an app you already run, mount its routes, and put one small script on your pages. The tracker is under 2 KB, and it posts to your own domain, so ad blockers have nothing to block.</p>
-    </div>
-    <div class="steps">
-      <div>
-        <div class="code"><p class="file">lib/runlight.ts</p><pre><code translate="no"><span class="k">import</span> { runlight } <span class="k">from</span> <span class="s">"@runlight/sdk"</span>;
-<span class="k">import</span> { sqlite } <span class="k">from</span> <span class="s">"@runlight/sdk/sqlite"</span>;
+  <div class="body">
+    <h2>Three files, in the app you already have.</h2>
+    <p>One file says where the numbers live, one route serves the script, takes the visits, and shows the dashboard, and one tag counts every page. The script posts to your own domain, so ad blockers have nothing to block.</p>
+    <div class="out"><p class="from"><span>lib/runlight.ts</span><button type="button" class="copy">Copy</button></p><pre><code translate="no"><span class="k">import</span> { runlight } <span class="k">from</span> <span class="s">"@runlight/sdk"</span>;
+<span class="k">import</span> { sqlite } <span class="k">from</span> <span class="s">"@runlight/sdk/sqlite"</span>;   <span class="c">// or postgres</span>
 
 <span class="k">export</span> <span class="k">const</span> rl = runlight({
   store: sqlite({ path: <span class="s">"./data/runlight.db"</span> }),
-  site: { hostnames: [<span class="s">"example.com"</span>] },
-});</code></pre><button type="button" class="copy">Copy</button></div>
-        <p>One file says where the numbers live: SQLite, or Postgres with the same API.</p>
-      </div>
-      <div>
-        <div class="code"><p class="file">app/runlight/[[...path]]/route.ts</p><pre><code translate="no"><span class="k">import</span> { rl } <span class="k">from</span> <span class="s">"@/lib/runlight"</span>;
+  site: { hostnames: [<span class="s">"example.com"</span>], timezone: <span class="s">"Europe/London"</span> },
+});</code></pre></div>
+    <div class="out"><p class="from"><span>app/runlight/[[...path]]/route.ts</span><button type="button" class="copy">Copy</button></p><pre><code translate="no"><span class="k">import</span> { rl } <span class="k">from</span> <span class="s">"@/lib/runlight"</span>;
 
-<span class="k">export</span> <span class="k">const</span> {
-  GET, POST, PUT, PATCH, DELETE, OPTIONS,
-} = rl.routes();</code></pre><button type="button" class="copy">Copy</button></div>
-        <p>One route serves the script, takes the visits, and shows the dashboard.</p>
-      </div>
-      <div>
-        <div class="code"><p class="file">app/layout.tsx</p><pre><code translate="no">&lt;script defer src=<span class="s">"/runlight/s.js"</span>&gt;&lt;/script&gt;</code></pre><button type="button" class="copy">Copy</button></div>
-        <p>One tag counts every page. Set <code>RUNLIGHT_TOKEN</code> and open <code>/runlight</code>.</p>
-      </div>
-    </div>
-    <p class="text small after">That is Next.js. Express and plain Node, Hono, SvelteKit, Astro, Remix, and anything else that handles a web Request work the same way. <a href="/docs/install/">See every framework</a>.</p>
+<span class="k">export</span> <span class="k">const</span> { GET, POST, PUT, PATCH, DELETE, OPTIONS } = rl.routes();</code></pre></div>
+    <div class="out"><p class="from"><span>app/layout.tsx</span><button type="button" class="copy">Copy</button></p><pre><code translate="no">&lt;script defer src=<span class="s">"/runlight/s.js"</span>&gt;&lt;/script&gt;</code></pre></div>
+    <p class="small">That is Next.js. Express, Hono, SvelteKit, Astro, Remix, and anything else that handles a web Request work the same way: <a href="/docs/install/">every framework</a>. Set <code>RUNLIGHT_TOKEN</code> and open <code>/runlight</code> to sign in.</p>
   </div>
 </section>
 
-<section class="band" id="privacy">
+<section class="row" id="privacy">
   <p class="label">Privacy</p>
-  <div>
-    <div class="text">
-      <h2>Counts people without knowing who they are.</h2>
-      <p>Each day Runlight makes a new random salt. A visitor is a hash of that salt, your site, their IP address, and their browser’s user agent, cut to 64 bits. The IP and the user agent are never written down, and salts older than yesterday are deleted, so after a day nobody, you included, can tell whether two visits came from the same person.</p>
-      <p>No cookies, nothing in local storage, and no fingerprinting beyond that one daily hash. That is why there is nothing to put in a cookie banner.</p>
-    </div>
-    <dl class="row" aria-label="Everything Runlight keeps about one visit">
-      <dt>visitor</dt><dd>a6fbd78a579b03bf</dd>
-      <dt>started_at</dt><dd>2026-10-06 18:29 UTC</dd>
-      <dt>pages</dt><dd>/blog/building-runlight → / (3 pageviews)</dd>
-      <dt>engaged</dt><dd>4m 27s</dd>
-      <dt>source</dt><dd>Hacker News (Social), from news.ycombinator.com</dd>
-      <dt>place</dt><dd>New York, US-NY, US</dd>
-      <dt>device</dt><dd>desktop, Windows 10, Edge 129, 1920x1080, en-US</dd>
-      <dd class="never">Everything Runlight keeps about one real visit from the demo. Not kept: the IP address, the user agent, and anything that lasts longer than a day.</dd>
+  <div class="body">
+    <h2>It counts people without knowing who they are.</h2>
+    <p>Each day Runlight makes a new random salt. A visitor is a hash of that salt, your site, their IP address, and their browser’s user agent, cut to 64 bits. The address and the user agent are never written down, and salts older than yesterday are deleted, so after a day nobody, you included, can tell whether two visits came from the same person. No cookies, nothing in local storage, nothing to put in a banner.</p>
+    <dl class="stacks">
+      <div><dt>visitor</dt><dd class="mono">a6fbd78a579b03bf</dd></div>
+      <div><dt>arrived</dt><dd class="mono">2026-10-06 18:29 UTC, on /blog/building-runlight</dd></div>
+      <div><dt>stayed</dt><dd class="mono">3 pageviews, 4m 27s engaged, left from /</dd></div>
+      <div><dt>came from</dt><dd class="mono">Hacker News (Social), news.ycombinator.com</dd></div>
+      <div><dt>place</dt><dd class="mono">New York, US-NY, US</dd></div>
+      <div><dt>device</dt><dd class="mono">desktop, Windows 10, Edge 129, 1920x1080, en-US</dd></div>
     </dl>
+    <p class="caption">Everything Runlight keeps about one visit from the demo. Not kept: the IP address, the user agent, and anything that lasts longer than a day. <a href="/docs/privacy/">How it works</a>.</p>
   </div>
 </section>
 
-<section class="band" id="sources">
+<section class="row" id="sources">
   <p class="label">Sources</p>
-  <div>
-    <div class="text">
-      <h2>Knows when the visit came from ChatGPT.</h2>
-      <p>Referrers become sources you recognise, and sources fall into channels: search, social, email, campaigns, and AI, which counts people who clicked through from ChatGPT, Claude, Perplexity, Gemini, and the rest. Newsletter click trackers and webmail count as email, not as a referral from some redirect host.</p>
-      <p>AI agents that read your pages to answer someone’s question never run JavaScript, so no tracker sees them. Runlight does, from one line of middleware: <code>rl.observe(request)</code>.</p>
-    </div>
+  <div class="body">
+    <h2>It knows when a visit came from ChatGPT.</h2>
+    <p>Referrers become sources you recognise, and sources fall into channels: search, social, email, campaigns, and AI, for people who clicked through from ChatGPT, Claude, Perplexity, Gemini, and the rest. Newsletter click trackers and webmail count as email, not as a referral from some redirect host.</p>
+    <p>AI agents that fetch your pages to answer a question never run JavaScript, so no tracker sees them. One line of middleware does: <code>rl.observe(request)</code>.</p>
     <div class="pair">
-      <figure class="shot"><img class="on-light" src="/assets/shots/sources-light.webp" width="956" height="824" alt="The Sources box: channels as a coloured bar, with Organic Search, Social, Direct, AI, Email, Referral, and Campaign." loading="lazy"><img class="on-dark" src="/assets/shots/sources-dark.webp" width="956" height="824" alt="" loading="lazy"></figure>
-      <figure class="shot"><img class="on-light" src="/assets/shots/ai-light.webp" width="1350" height="780" alt="The AI box: which agents fetched which pages, split between agents reading for a person and crawlers." loading="lazy"><img class="on-dark" src="/assets/shots/ai-dark.webp" width="1350" height="780" alt="" loading="lazy"></figure>
+      <figure class="shot"><img class="on-dark" src="/assets/shots/sources-dark.webp" width="956" height="824" alt="The Sources box: channels as a coloured bar, with Organic Search, Social, Direct, AI, Email, Referral, and Campaign." loading="lazy"><img class="on-light" src="/assets/shots/sources-light.webp" width="956" height="824" alt="" loading="lazy"></figure>
+      <figure class="shot"><img class="on-dark" src="/assets/shots/ai-dark.webp" width="1350" height="780" alt="The AI agents box: which agents fetched pages, split between agents reading for a person and crawlers." loading="lazy"><img class="on-light" src="/assets/shots/ai-light.webp" width="1350" height="780" alt="" loading="lazy"></figure>
     </div>
   </div>
 </section>
 
-<section class="band" id="live">
+<section class="row" id="live">
   <p class="label">Live</p>
-  <div>
-    <div class="text">
-      <h2>What is happening right now.</h2>
-      <p>Click “here now” and Runlight shows the last half hour minute by minute, the pages people are on, where they came from, and a running line of what they did. It says what happened and where, never who.</p>
-    </div>
-    <figure class="shot"><img class="on-light" src="/assets/shots/realtime-light.webp" width="2080" height="1476" alt="The realtime view: 4 people on the site, pageviews per minute, the pages, sources, and countries active now, and a feed such as Someone in Portland, United States viewed /about from ChatGPT." loading="lazy"><img class="on-dark" src="/assets/shots/realtime-dark.webp" width="2080" height="1476" alt="" loading="lazy"></figure>
+  <div class="body">
+    <h2>What is happening right now, and never who.</h2>
+    <p>Click “here now” for the last half hour minute by minute, the pages people are on, where they came from, and a running line of what they did. It refreshes every ten seconds.</p>
+    <figure class="shot"><img class="on-dark" src="/assets/shots/realtime-dark.webp" width="2080" height="1476" alt="The realtime view: 4 people on the site, pageviews per minute, the pages, sources, and countries active now, and a feed such as Someone in Portland, United States viewed /about from ChatGPT." loading="lazy"><img class="on-light" src="/assets/shots/realtime-light.webp" width="2080" height="1476" alt="" loading="lazy"></figure>
   </div>
 </section>
 
-<section class="band" id="goals">
+<section class="row" id="goals">
   <p class="label">Goals</p>
-  <div>
-    <div class="text">
-      <h2>Conversions, and what they were worth.</h2>
-      <p>A goal is an event you send, a page someone reaches (<code>/thanks*</code> works), or a click on something. For clicks there is no code at all: press “Pick on my site”, click the button on your own page, and Runlight counts it from then on. Give a goal a fixed value or read the amount from the event, and the box shows revenue by goal, source, and page.</p>
-      <p>Goals are worked out when you read them, not when visits come in, so a goal you add today counts last month too.</p>
-    </div>
-    <figure class="shot narrow"><img class="on-light" src="/assets/shots/conversions-light.webp" width="956" height="472" alt="The Conversions box: Read the Runlight post, Newsletter signup, Purchase, and Email me, each with a conversion rate and count, and $6,250 revenue in the heading." loading="lazy"><img class="on-dark" src="/assets/shots/conversions-dark.webp" width="956" height="472" alt="" loading="lazy"></figure>
+  <div class="body">
+    <h2>Conversions, and what they were worth.</h2>
+    <p>A goal is an event you send, a page someone reaches (<code>/thanks*</code> works), or a click on something. Clicks need no code: press “Pick on my site”, click the button on your own page, and Runlight counts it from then on. Give a goal a fixed value or read the amount from the event, and the box shows revenue by goal, source, and page.</p>
+    <p>Goals are worked out when you read them, so one you add today counts last month too.</p>
+    <figure class="shot narrow"><img class="on-dark" src="/assets/shots/conversions-dark.webp" width="956" height="472" alt="The Conversions box: Read the Runlight post, Newsletter signup, Purchase, and Email me, each with a rate and a count, and $6,250 revenue in the heading." loading="lazy"><img class="on-light" src="/assets/shots/conversions-light.webp" width="956" height="472" alt="" loading="lazy"></figure>
   </div>
 </section>
 
-<section class="band" id="links">
+<section class="row" id="links">
   <p class="label">Links</p>
-  <div>
-    <div class="text">
-      <h2>Short links on your own domain.</h2>
-      <p>Make <code>t.example.com/sale</code> from the dashboard and every click is counted like a visit: source, country, device, and campaign. Thousands of links are fine. Bring yours over from Umami, Dub, Bitly, Short.io, Rebrandly, or a CSV, with their click history where the service shares it.</p>
-    </div>
-    <figure class="shot"><img class="on-light" src="/assets/shots/links-light.webp" width="1350" height="1388" alt="The Links box: short links such as Black and white set and Winter blues, with their slugs and click counts." loading="lazy"><img class="on-dark" src="/assets/shots/links-dark.webp" width="1350" height="1388" alt="" loading="lazy"></figure>
+  <div class="body">
+    <h2>Short links on your own domain, counted like visits.</h2>
+    <p>Make <code>t.example.com/sale</code> from the dashboard and every click is counted with its source, country, device, and campaign. Thousands of links are fine. Bring yours over from Umami, Dub, Bitly, Short.io, Rebrandly, or a CSV, with their click history where the service shares it.</p>
+    <figure class="shot"><img class="on-dark" src="/assets/shots/links-dark.webp" width="1350" height="1388" alt="The Links box: short links such as Black and white set and Winter blues, with their slugs and click counts." loading="lazy"><img class="on-light" src="/assets/shots/links-light.webp" width="1350" height="1388" alt="" loading="lazy"></figure>
   </div>
 </section>
 
-<section class="band" id="reports">
+<section class="row" id="reports">
   <p class="label">Reports</p>
-  <div>
-    <div class="text">
-      <h2>A weekly email that reads like the dashboard.</h2>
-      <p>Pick who gets a weekly or monthly summary, in their own language. Runlight sends it through the email service you already use, from your own address, with a one-click unsubscribe. Keys are stored encrypted and never shown again.</p>
-    </div>
-    <ul class="services" aria-label="Mail services">
-      <li>Amazon SES</li><li>Resend</li><li>Postmark</li><li>SendGrid</li><li>Mailgun</li><li>Brevo</li><li>Mailjet</li><li>MailerSend</li><li>SparkPost</li><li>SMTP</li><li>Webhook</li>
-    </ul>
+  <div class="body">
+    <h2>A weekly email that reads like the dashboard.</h2>
+    <p>Pick who gets a weekly or monthly summary, each in their own language. It goes out through the email service you already use, from your own address, with a one-click unsubscribe. Keys are stored encrypted and never shown again.</p>
+    <div class="chips" aria-label="Mail services"><span class="chip">Amazon SES</span><span class="chip">Resend</span><span class="chip">Postmark</span><span class="chip">SendGrid</span><span class="chip">Mailgun</span><span class="chip">Brevo</span><span class="chip">Mailjet</span><span class="chip">MailerSend</span><span class="chip">SparkPost</span><span class="chip">SMTP</span><span class="chip">Webhook</span></div>
     <figure class="shot narrow"><img src="/assets/shots/email.webp" width="1200" height="2530" alt="A weekly report email: 1,378 people visited last week, with six metrics, top pages, sources, countries, and conversions." loading="lazy"></figure>
+    <p class="caption">The weekly email for the demo site, as a mail app shows it.</p>
   </div>
 </section>
 
-<section class="band" id="more">
+<section class="row" id="also">
   <p class="label">Also</p>
-  <div>
-    <div class="text">
-      <h2>The rest of what you would expect.</h2>
-    </div>
-    <dl class="facts">
-      <div><dt>Share a dashboard</dt><dd>A private link anyone can open, read only, for one site. Delete it and it stops working.</dd></div>
+  <div class="body">
+    <h2>And the rest of what you would expect.</h2>
+    <dl class="stacks">
+      <div><dt>Sharing</dt><dd>A private, read-only link to one site’s dashboard. Delete it and it stops working.</dd></div>
       <div><dt>Compare</dt><dd>Against the period before, the same days last year, or any dates you pick.</dd></div>
-      <div><dt>Filter anything</dt><dd>Page, source, campaign, country, city, device, browser, and more, combined.</dd></div>
-      <div><dt>Five languages</dt><dd>The dashboard and the emails in English, French, Spanish, German, and Portuguese.</dd></div>
-      <div><dt>Many sites</dt><dd>One install can count several sites, told apart by hostname.</dd></div>
-      <div><dt>An API</dt><dd>Everything on the dashboard is JSON at <code>/runlight/api</code>, for your own scripts.</dd></div>
+      <div><dt>Filters</dt><dd>Page, source, campaign, country, city, device, browser, and more, combined.</dd></div>
+      <div><dt>Languages</dt><dd>The dashboard and the emails in English, French, Spanish, German, and Portuguese.</dd></div>
+      <div><dt>Sites</dt><dd>One install can count several sites, told apart by hostname.</dd></div>
+      <div><dt>Stores</dt><dd>SQLite on a single server, Postgres anywhere else.</dd></div>
+      <div><dt>API</dt><dd>Everything on the dashboard as JSON at <code>/runlight/api</code>.</dd></div>
     </dl>
   </div>
 </section>
 
-<section class="band" id="why">
+<section class="row" id="why">
   <p class="label">Why</p>
-  <div class="note">
-    <p>I ran my own fork of Umami so I could have short links on my own domains, and every update meant merging my changes again. Runlight is what I wanted instead: analytics that ships inside the app it measures, keeps its data next to the rest of mine, and is honest about what it knows.</p>
-    <p class="sign">Jon Phillips</p>
+  <div class="body">
+    <h2>Because analytics should sit next to the rest of your data.</h2>
+    <p>I ran my own fork of Umami to get short links on my own domains, and every update meant merging my changes again. Runlight is what I wanted instead: analytics that ships inside the app it measures, keeps its numbers beside everything else I own, and is honest about what it knows.</p>
+    <p class="small">Jon C. Phillips</p>
   </div>
 </section>
 
-<section class="closing">
-  <h2>Count your first visit in about five minutes.</h2>
-  <div class="act">
-    <p class="install"><code>npm install @runlight/sdk better-sqlite3</code><button type="button" class="copy">Copy</button></p>
-    <a class="button" href="/docs/">Read the docs</a>
-  </div>
+<section class="end">
+  <p>Count your first visit in about five minutes.</p>
+  <div class="go"><a href="/docs/">Read the docs</a><a href="https://github.com/phillips-jon/runlight" rel="noopener">Source on GitHub</a><a href="/prompt.txt">The setup prompt</a></div>
 </section>

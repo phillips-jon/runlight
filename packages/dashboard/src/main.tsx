@@ -447,6 +447,11 @@ function App() {
 
       <footer class="foot">
         <a href="https://runlight.sh" class="powered">
+          <svg class="powered-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <rect x="2.5" y="2.5" width="27" height="27" rx="7" />
+            <path d="M11 23V9h6.2a4.3 4.3 0 0 1 0 8.6H11m6 0 5 5.4" />
+            <circle cx="23.6" cy="8.4" r="2.6" />
+          </svg>
           {rich("foot.powered", { name: <span>Runlight</span> })}
         </a>
         <span class="foot-range">{stats ? `${rangeText(stats.range.from, stats.range.to)} · ${stats.range.timezone}` : ""}</span>
