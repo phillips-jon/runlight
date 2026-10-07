@@ -250,3 +250,43 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .mark .housing { fill: var(--ink); }
 .mark .r { fill: none; stroke: var(--sheet); stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
 .mark .lit { fill: #22c55e; }
+
+/* About, terms, privacy, and contact: a label down the left, the text beside it. */
+.solo { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 48px; align-items: start; padding: 48px 0 24px; }
+.solo > .label { padding-top: 16px; }
+.solo .updated { font: 400 13px/1.5 var(--mono); color: var(--muted); }
+.notice { border-left: 2px solid var(--rule-2); padding: 2px 0 2px 16px; }
+.notice.ok { border-left-color: var(--ok); }
+.notice.bad { border-left-color: #f87171; }
+
+/* Forms: labels in mono capitals, fields drawn as thin boxes. */
+.form { display: grid; gap: 20px; max-width: 34rem; }
+.doc > .form { margin-top: 32px; }
+.form label { display: block; font: 400 12px/1.5 var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.form input, .form textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--rule-2); border-radius: 3px; background: var(--sunk); color: var(--ink); font: inherit; font-size: 17px; }
+.form textarea { resize: vertical; min-height: 10rem; line-height: 1.5; }
+.form input:focus, .form textarea:focus { outline: none; border-color: var(--ink); }
+.form .btn { font-size: 14px; padding: 12px 18px; }
+
+@media (max-width: 900px) {
+  .solo { grid-template-columns: minmax(0, 1fr); gap: 8px; padding-top: 24px; }
+  .solo > .label { padding-top: 0; }
+}
+
+/* Each package manager's logo, grey until hovered or chosen, then in its own colours. */
+.tab .logo { width: 16px; height: 16px; fill: currentColor; flex: none; }
+.tab-npm:hover .logo, .tab-npm[aria-selected="true"] .logo { fill: #cb3837; }
+.tab-pnpm:hover .logo, .tab-pnpm[aria-selected="true"] .logo { fill: #f69220; }
+.tab-yarn:hover .logo, .tab-yarn[aria-selected="true"] .logo { fill: #2c8ebb; }
+.tab-bun .logo { filter: grayscale(1); opacity: .7; }
+.tab-bun:hover .logo, .tab-bun[aria-selected="true"] .logo { filter: none; opacity: 1; }
+@media (max-width: 760px) {
+  .tab .logo { width: 18px; height: 18px; }
+}
+
+/* Each service with its logo, in its own colours; a black mark turns light on dark paper. */
+.chip { gap: 7px; padding: 3px 9px 3px 7px; }
+.chip img { height: 14px; width: auto; max-width: 18px; object-fit: contain; flex: none; }
+.chip img.r { border-radius: 2px; }
+.chip .glyph { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+:root[data-theme="dark"] .chip img.inv { filter: invert(1); }

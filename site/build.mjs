@@ -18,6 +18,7 @@ import { marked } from "marked";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SRC = path.join(here, "src");
 const DOCS = path.join(here, "docs");
+const PAGES = path.join(here, "pages");
 const args = process.argv.slice(2);
 const CHECK = args.includes("--check");
 const SERVE = args.includes("--serve");
@@ -149,7 +150,7 @@ ${body}
         ${col("Docs", [["Getting started", "/docs/"], ["Install", "/docs/install/"], ["Tracking", "/docs/tracking/"], ["The dashboard", "/docs/dashboard/"], ["Scheduled check", "/docs/cron/"]])}
         ${col("Features", [["Goals", "/docs/goals/"], ["Short links", "/docs/links/"], ["AI sources", "/docs/ai/"], ["Email reports", "/docs/reports/"]])}
         ${col("Reference", [["Configuration", "/docs/configuration/"], ["HTTP API", "/docs/api/"], ["Privacy", "/docs/privacy/"], ["Prompt for agents", "/prompt.txt"], ["llms.txt", "/llms.txt"]])}
-        ${col("Project", [["GitHub", GITHUB], ["npm", "https://www.npmjs.com/package/@runlight/sdk"], ["License", `${GITHUB}/blob/main/LICENSE`]])}
+        ${col("Project", [["About", "/about/"], ["GitHub", GITHUB], ["npm", "https://www.npmjs.com/package/@runlight/sdk"], ["Contact", "/contact/"], ["Terms", "/terms/"], ["Privacy", "/privacy/"]])}
       </nav>
     </div>
     <div class="foot-end">
@@ -198,6 +199,68 @@ ${toc}
   return layout({ title: doc.meta.title, description: doc.meta.description ?? "", body, pagePath: doc.path, assets });
 }
 
+/** A page with its mono label down the left, the way the landing sets a row. */
+const solo = (label, inner) => `<div class="solo"><p class="label">${escape(label)}</p><article class="doc">${inner}</article></div>`;
+
+/**
+ * The contact form. It posts to /contact, which nginx hands to
+ * deploy/contact/server.mjs; the service answers with a redirect to
+ * /contact/sent/ or /contact/error/, so it works without script. site.js
+ * fills t with how long the page was open; the service turns away anything
+ * sent in under three seconds. website is a trap for bots and stays empty.
+ */
+const CONTACT_FORM = `<form class="form" method="post" action="/contact">
+<p><label for="c-name">Name</label><input id="c-name" name="name" type="text" required maxlength="200" autocomplete="name"></p>
+<p><label for="c-email">Email</label><input id="c-email" name="email" type="email" required maxlength="320" autocomplete="email" spellcheck="false"></p>
+<p><label for="c-message">Message</label><textarea id="c-message" name="message" required maxlength="5000" rows="8"></textarea></p>
+<p class="vh" aria-hidden="true"><label for="c-website">Leave this empty</label><input id="c-website" name="website" type="text" tabindex="-1" autocomplete="off"></p>
+<input type="hidden" name="t" value="">
+<p><button class="btn" type="submit">Send</button></p>
+</form>`;
+
+/** About, terms, and privacy from pages/*.md, and the contact page with its two answers. Returns their paths. */
+function buildPages(assets) {
+  const write = (route, page) => {
+    const dir = path.join(DIST, route);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(path.join(dir, "index.html"), layout({ pagePath: route, assets, ...page }));
+  };
+  const routes = [];
+  for (const file of readdirSync(PAGES).filter((f) => f.endsWith(".md")).sort()) {
+    const { meta, body } = frontmatter(readFileSync(path.join(PAGES, file), "utf8"));
+    const route = `/${file.replace(/\.md$/, "")}/`;
+    headingIds = new Set();
+    const updated = meta.updated ? `<p class="updated">Last updated ${escape(meta.updated)}</p>\n` : "";
+    const html = curly(marked.parse(body)).replace(/(<\/h1>\n)/, `$1${updated}`);
+    write(route, { title: meta.title, description: meta.description ?? "", body: solo(meta.label ?? meta.title, html) });
+    routes.push(route);
+  }
+  write("/contact/", {
+    title: "Contact",
+    description: "Send a message to the maintainer of Runlight.",
+    body: solo("Contact", `<h1>Contact</h1>
+<p>Write here with a question, a bug report, an idea, or a request to delete something you sent. A person reads every message and replies to the address you give.</p>
+<p>Bugs and feature requests are often quicker as <a href="${GITHUB}/issues">GitHub issues</a>, which are public. What you send here is used only to reply to you; the <a href="/privacy/">privacy page</a> says what happens to it.</p>
+${CONTACT_FORM}`),
+  });
+  routes.push("/contact/");
+  write("/contact/sent/", {
+    title: "Message sent",
+    description: "Your message was sent.",
+    body: solo("Contact", `<h1>Sent</h1>
+<p class="notice ok" role="status">Thank you. Your message is on its way, and the reply will come to the email address you gave.</p>
+<p><a href="/">Back to the start</a></p>`),
+  });
+  write("/contact/error/", {
+    title: "Message not sent",
+    description: "Your message was not sent.",
+    body: solo("Contact", `<h1>Not sent</h1>
+<p class="notice bad" role="alert">Your message did not go through, so nothing was sent. Check that each field is filled in and the email address is complete, then try again. If it keeps failing, wait a minute, or open an issue on <a href="${GITHUB}/issues">GitHub</a>.</p>
+${CONTACT_FORM}`),
+  });
+  return routes;
+}
+
 function build() {
   rmSync(DIST, { recursive: true, force: true });
   mkdirSync(path.join(DIST, "assets"), { recursive: true });
@@ -218,6 +281,7 @@ function build() {
     layout({ title: "Runlight", description: "Open source web analytics that installs into your app like any other package. Your database, your domain, no cookies.", body: curly(landing), pagePath: "/", assets }),
   );
 
+  const pages = buildPages(assets);
   const docs = readDocs();
   for (const doc of docs) {
     const dir = path.join(DIST, doc.path);
@@ -237,7 +301,7 @@ function build() {
   writeFileSync(path.join(DIST, "robots.txt"), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
   writeFileSync(
     path.join(DIST, "sitemap.xml"),
-    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${["/", ...docs.map((d) => d.path)].map((p) => `  <url><loc>${SITE}${p}</loc></url>`).join("\n")}\n</urlset>\n`,
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${["/", ...docs.map((d) => d.path), ...pages].map((p) => `  <url><loc>${SITE}${p}</loc></url>`).join("\n")}\n</urlset>\n`,
   );
   writeFileSync(
     path.join(DIST, "404.html"),
@@ -285,7 +349,7 @@ if (CHECK) {
 }
 
 if (SERVE) {
-  for (const dir of [SRC, DOCS]) watch(dir, { recursive: true }, () => {
+  for (const dir of [SRC, DOCS, PAGES]) watch(dir, { recursive: true }, () => {
     try {
       build();
     } catch (error) {

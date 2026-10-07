@@ -144,11 +144,11 @@ export async function buildReport(
   ];
   const delta = (key: keyof Stats, lowerIsBetter?: boolean) => {
     const b = prev[key];
-    if (!b) return { text: "", color: "#6b7280" };
+    if (!b) return { text: "", color: "#6b7280", tone: "flat" };
     const c = (now[key] - b) / b;
-    if (Math.abs(c) < 0.005) return { text: "0%", color: "#6b7280" };
+    if (Math.abs(c) < 0.005) return { text: "0%", color: "#6b7280", tone: "flat" };
     const good = lowerIsBetter ? c < 0 : c > 0;
-    return { text: `${c > 0 ? "↑" : "↓"} ${percent.format(Math.abs(c))}`, color: good ? "#15803d" : "#b91c1c" };
+    return { text: `${c > 0 ? "↑" : "↓"} ${percent.format(Math.abs(c))}`, color: good ? "#15803d" : "#b91c1c", tone: good ? "up" : "down" };
   };
 
   const lists: Array<{ title: string; rows: Array<[string, string]> }> = [
@@ -171,33 +171,48 @@ export async function buildReport(
   const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
   const cell = (m: (typeof metrics)[number]) => {
     const d = delta(m.key, m.lowerIsBetter);
-    return `<td width="33%" style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;vertical-align:top">
-<div style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#6b7280">${esc(t(`metric.${m.key}`))}</div>
-<div style="font-size:24px;font-weight:600;color:#111827;margin-top:4px">${esc(m.format(now[m.key]))}</div>
-<div style="font-size:12px;color:${d.color};margin-top:2px;min-height:16px">${esc(d.text)}</div></td>`;
+    return `<td width="33%" class="rl-line" style="padding:12px 14px;border:1px solid #e5e7eb;border-radius:10px;vertical-align:top">
+<div class="rl-muted" style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:#6b7280">${esc(t(`metric.${m.key}`))}</div>
+<div class="rl-ink" style="font-size:24px;font-weight:600;color:#111827;margin-top:4px">${esc(m.format(now[m.key]))}</div>
+<div class="rl-${d.tone}" style="font-size:12px;color:${d.color};margin-top:2px;min-height:16px">${esc(d.text)}</div></td>`;
   };
   const table = (l: (typeof lists)[number]) =>
-    `<h3 style="font-size:14px;color:#111827;margin:28px 0 8px">${esc(l.title)}</h3>
+    `<h3 class="rl-ink" style="font-size:14px;color:#111827;margin:28px 0 8px">${esc(l.title)}</h3>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px">${
       l.rows.length
-        ? l.rows.map(([a, b]) => `<tr><td style="padding:7px 0;border-top:1px solid #f0f0f0;color:#374151;word-break:break-all">${esc(a)}</td><td align="right" style="padding:7px 0 7px 12px;border-top:1px solid #f0f0f0;color:#111827;font-weight:600;white-space:nowrap">${esc(b)}</td></tr>`).join("")
-        : `<tr><td style="padding:7px 0;color:#6b7280">${esc(t("panel.empty"))}</td></tr>`
+        ? l.rows.map(([a, b]) => `<tr><td class="rl-row rl-body-text" style="padding:7px 0;border-top:1px solid #f0f0f0;color:#374151;word-break:break-all">${esc(a)}</td><td align="right" class="rl-row rl-ink" style="padding:7px 0 7px 12px;border-top:1px solid #f0f0f0;color:#111827;font-weight:600;white-space:nowrap">${esc(b)}</td></tr>`).join("")
+        : `<tr><td class="rl-muted" style="padding:7px 0;color:#6b7280">${esc(t("panel.empty"))}</td></tr>`
     }</table>`;
 
   const footer = t("email.footer", { frequency: t(monthly ? "email.monthly" : "email.weekly"), site: site.name });
-  const html = `<!doctype html><html lang="${code}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:${font}">
+  const html = `<!doctype html><html lang="${code}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(subject)}</title>
+<style>
+@media (prefers-color-scheme: dark) {
+  .rl-page { background: #09090b !important; }
+  .rl-card { background: #141417 !important; border-color: #27272a !important; }
+  .rl-line { border-color: #27272a !important; }
+  .rl-row { border-top-color: #1f1f23 !important; }
+  .rl-ink { color: #ffffff !important; }
+  .rl-body-text { color: #d4d4d8 !important; }
+  .rl-muted, .rl-flat { color: #a1a1aa !important; }
+  .rl-up { color: #4ade80 !important; }
+  .rl-down { color: #f87171 !important; }
+  .rl-button { background: #ffffff !important; color: #000000 !important; }
+  .rl-foot, .rl-foot a { color: #a1a1aa !important; }
+}
+</style></head>
+<body class="rl-page" style="margin:0;padding:0;background:#f4f4f5;font-family:${font}">
 <div style="display:none;max-height:0;overflow:hidden">${esc(headline)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5"><tr><td align="center" style="padding:32px 16px">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;border-radius:14px;border:1px solid #e5e7eb"><tr><td style="padding:32px">
-<div style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#6b7280">${esc(site.name)} · ${esc(dates)}</div>
-<h1 style="font-size:24px;line-height:1.3;color:#111827;margin:10px 0 24px;font-weight:600">${esc(headline)}</h1>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="rl-page" style="background:#f4f4f5"><tr><td align="center" style="padding:32px 16px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="rl-card" style="max-width:600px;background:#ffffff;border-radius:14px;border:1px solid #e5e7eb"><tr><td style="padding:32px">
+<div class="rl-muted" style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#6b7280">${esc(site.name)} · ${esc(dates)}</div>
+<h1 class="rl-ink" style="font-size:24px;line-height:1.3;color:#111827;margin:10px 0 24px;font-weight:600">${esc(headline)}</h1>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="6" style="border-collapse:separate;margin:0 -6px">
 <tr>${metrics.slice(0, 3).map(cell).join("")}</tr><tr>${metrics.slice(3).map(cell).join("")}</tr></table>
 ${lists.map(table).join("")}
-<p style="margin:32px 0 0"><a href="${esc(links.dashboard)}" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:11px 18px;border-radius:8px;font-size:14px;font-weight:600">${esc(t("email.open"))}</a></p>
+<p style="margin:32px 0 0"><a href="${esc(links.dashboard)}" class="rl-button" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;padding:11px 18px;border-radius:8px;font-size:14px;font-weight:600">${esc(t("email.open"))}</a></p>
 </td></tr></table>
-<p style="max-width:600px;font-size:12px;line-height:1.5;color:#6b7280;margin:16px auto 0">${esc(footer)} <a href="${esc(links.unsubscribe)}" style="color:#6b7280">${esc(t("email.unsubscribe"))}</a></p>
+<p class="rl-foot" style="max-width:600px;font-size:12px;line-height:1.5;color:#6b7280;margin:16px auto 0">${esc(footer)} <a href="${esc(links.unsubscribe)}" style="color:#6b7280">${esc(t("email.unsubscribe"))}</a></p>
 </td></tr></table></body></html>`;
 
   const text = [

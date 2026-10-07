@@ -49,6 +49,13 @@
     if (code) copy(el, code.textContent.replace(/\n$/, ""));
   });
 
+  // The contact form says how long the page was open; the service turns away anything sent in under three seconds.
+  var opened = Date.now();
+  document.addEventListener("submit", function (e) {
+    var t = e.target.querySelector && e.target.querySelector('input[name="t"]');
+    if (t) t.value = String(Date.now() - opened);
+  });
+
   document.addEventListener("keydown", function (e) {
     if (e.shiftKey && (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") {
       e.preventDefault();
