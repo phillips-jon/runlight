@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import { ApiError, api, base, install, share, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
+import { ApiError, api, base, geoCredit, install, share, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, Spark, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
@@ -485,6 +485,11 @@ function App() {
           </svg>
           {rich("foot.powered", { name: <span>Runlight</span> })}
         </a>
+        {geoCredit ? (
+          <a class="geo-credit" href="https://db-ip.com" rel="noopener">
+            {rich("foot.geoCredit", { name: <span>DB-IP</span> })}
+          </a>
+        ) : null}
         <span class="foot-range">{stats ? `${rangeText(stats.range.from, stats.range.to)} · ${stats.range.timezone}` : ""}</span>
         <label class="language">
           <span class="visually-hidden">{t("foot.language")}</span>

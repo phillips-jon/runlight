@@ -544,5 +544,6 @@
   "sites.firstLead": "Runlight cuenta cada sitio que añadas aquí. Escribe el dominio del sitio y la siguiente pantalla te mostrará la etiqueta de script para sus páginas.",
   "sites.delete": "Eliminar este sitio",
   "sites.deleteHint": "Eliminar un sitio borra todas sus visitas, enlaces, objetivos e informes, y no se puede deshacer.",
-  "app.signOut": "Cerrar sesión"
+  "app.signOut": "Cerrar sesión",
+  "foot.geoCredit": "Ubicaciones de {name}"
 }

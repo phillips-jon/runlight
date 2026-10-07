@@ -9,6 +9,7 @@
  *   RUNLIGHT_SECRET   signs sessions and encrypts mail keys (made and kept in DATA_DIR if unset)
  *   RUNLIGHT_TOKEN    also accepted as a bearer token on the API
  *   TRUST_PROXY       "false" when no proxy sits in front, so forwarded addresses are ignored
+ *   RUNLIGHT_GEO      city (the default), country, off, or the path to an MMDB file
  */
 import { randomBytes } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -16,6 +17,7 @@ import { createServer as createHttpServer } from "node:http";
 import path from "node:path";
 import type { SqlStore } from "@runlight/sdk";
 import { toRequest, writeResponse } from "@runlight/sdk/node";
+import { Geo, fileLookup } from "./geo.js";
 import { createServer } from "./server.js";
 import { VERSION } from "./version.js";
 
@@ -33,6 +35,10 @@ listens. DATA_DIR (./runlight-data) holds the SQLite file and the secret, and
 DATABASE_URL switches to Postgres. RUNLIGHT_SECRET signs sessions and encrypts
 mail keys, RUNLIGHT_TOKEN also works as a bearer token on the API, and
 TRUST_PROXY=false ignores forwarded addresses when nothing sits in front.
+RUNLIGHT_GEO picks where locations come from when no platform header gives
+them. It is city by default, which downloads DB-IP's free city database into
+DATA_DIR and refreshes it each month. Set it to country for a smaller file, to
+off, or to the path of your own MMDB file.
 
 Docs: https://runlight.sh/docs/server/
 `;
@@ -67,7 +73,12 @@ async function main(): Promise<void> {
   const dataDir = path.resolve(env("DATA_DIR") ?? "./runlight-data");
   mkdirSync(dataDir, { recursive: true });
   const store = await openStore(dataDir);
+  const geoSetting = env("RUNLIGHT_GEO") ?? "city";
+  const geo = geoSetting === "city" || geoSetting === "country" ? new Geo(path.join(dataDir, "geo"), geoSetting) : null;
+  const lookup = geo ? geo.lookup : geoSetting !== "off" ? fileLookup(path.resolve(geoSetting)) : undefined;
   const server = createServer({
+    ...(lookup ? { geo: lookup } : {}),
+    geoCredit: Boolean(geo),
     store,
     secret: secretFor(dataDir),
     ...(env("RUNLIGHT_TOKEN") ? { token: env("RUNLIGHT_TOKEN") } : {}),
@@ -108,8 +119,11 @@ async function main(): Promise<void> {
     }
   });
 
-  // Salts and email reports: now, then every five minutes.
-  const tick = () => server.check().catch((error) => console.error("Runlight: the scheduled check failed", error));
+  // Salts, email reports, and this month's location data: now, then every five minutes.
+  const tick = () => {
+    server.check().catch((error) => console.error("Runlight: the scheduled check failed", error));
+    geo?.refresh().catch((error) => console.error("Runlight: could not refresh location data", error));
+  };
   void tick();
   const timer = setInterval(tick, 5 * 60_000);
   timer.unref();

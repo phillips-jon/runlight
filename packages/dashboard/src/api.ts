@@ -108,6 +108,8 @@ export const base = document.getElementById("app")?.dataset.base ?? "";
 export const share = document.getElementById("app")?.dataset.share ?? "";
 /** Where the standalone server signs people out; empty in library mode. */
 export const signOut = document.getElementById("app")?.dataset.signOut ?? "";
+/** Whether locations come from DB-IP's free data, which asks to be credited. */
+export const geoCredit = document.getElementById("app")?.dataset.geoCredit !== undefined;
 /** How this install is run, learned from the sites list: sites managed in the dashboard (the standalone server) or set in code. */
 export const install = { managed: false };
 

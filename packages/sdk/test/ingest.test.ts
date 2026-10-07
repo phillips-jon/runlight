@@ -201,3 +201,19 @@ test("several sites in one install, told apart by hostname", async () => {
   await assert.rejects(t.get("/api/stats?site=brand-c"));
 });
 }
+
+test("a region name from a location database is kept readable, and a code stays a code", async () => {
+  const { runlight } = await import("../src/index.js");
+  const { sqlite } = await import("../src/stores/sqlite.js");
+  const names: Record<string, { country: string; region: string; city: string }> = {
+    "203.0.113.1": { country: "ca", region: "Ontario", city: "Toronto" },
+    "203.0.113.2": { country: "GB", region: "ENG", city: "London" },
+  };
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), geo: (ip) => names[ip] ?? null });
+  const { GET, POST } = rl.routes({ token: null });
+  for (const ip of Object.keys(names)) {
+    await POST(new Request("https://x.com/runlight/e", { method: "POST", headers: { "user-agent": "Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36", "x-forwarded-for": ip }, body: JSON.stringify({ k: "pageview", u: "https://x.com/" }) }));
+  }
+  const rows = (await (await GET(new Request("https://x.com/runlight/api/breakdown?period=today&dimension=region"))).json()) as any;
+  assert.deepEqual(rows.rows.map((r: any) => r.value).sort(), ["CA-Ontario", "GB-ENG"]);
+});

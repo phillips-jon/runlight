@@ -23,8 +23,11 @@ function decode(value: string | null): string {
 function clean(location: Partial<Location>): Location {
   let country = (location.country ?? "").toUpperCase().slice(0, 2);
   if (!/^[A-Z]{2}$/.test(country) || country === "XX" || country === "T1") country = "";
-  let region = (location.region ?? "").toUpperCase().slice(0, 10);
-  if (region && !region.includes("-") && country) region = `${country}-${region}`;
+  // A code ("CA", "US-CA") is kept as ISO 3166-2; a name from a database
+  // that has no codes ("California") is kept readable, as "US-California".
+  const raw = (location.region ?? "").trim();
+  let region = /^([A-Za-z]{2}-)?[A-Za-z0-9]{1,3}$/.test(raw) ? raw.toUpperCase() : raw.slice(0, 80);
+  if (region && !/^[A-Z]{2}-/.test(region) && country) region = `${country}-${region}`;
   if (!country) region = "";
   const city = country ? (location.city ?? "").slice(0, 100) : "";
   return { country, region, city };

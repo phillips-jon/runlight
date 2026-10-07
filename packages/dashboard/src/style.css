@@ -3456,3 +3456,9 @@ button.live:hover {
 .foot .sign-out:hover {
   color: var(--ink);
 }
+
+.foot .geo-credit {
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: none;
+}

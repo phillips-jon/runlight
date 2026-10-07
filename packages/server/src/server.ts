@@ -17,6 +17,8 @@ export interface ServerOptions {
   /** Trust X-Forwarded-For and friends for the visitor's address. Default true. */
   trustProxy?: boolean;
   geo?: GeoLookup;
+  /** Credit DB-IP in the dashboard, when its free data supplies locations. */
+  geoCredit?: boolean;
   now?: () => number;
 }
 
@@ -83,6 +85,7 @@ export function createServer(options: ServerOptions): RunlightServer {
     // The cron route is never needed: the server runs the check itself.
     cronSecret: randomBytes(32).toString("hex"),
     signOut: "/logout",
+    geoCredit: options.geoCredit ?? false,
     authorize: async (request) => {
       const auth = request.headers.get("authorization") ?? "";
       if (options.token && auth.toLowerCase().startsWith("bearer ") && equal(auth.slice(7).trim(), options.token)) return true;

@@ -544,5 +544,6 @@
   "sites.firstLead": "Runlight zählt jede Website, die du hier hinzufügst. Gib die Domain der Website ein, und der nächste Schritt zeigt das Script-Tag für ihre Seiten.",
   "sites.delete": "Diese Website löschen",
   "sites.deleteHint": "Beim Löschen einer Website verschwinden alle Besuche, Links, Ziele und Berichte dazu, und das lässt sich nicht rückgängig machen.",
-  "app.signOut": "Abmelden"
+  "app.signOut": "Abmelden",
+  "foot.geoCredit": "Standorte von {name}"
 }

@@ -544,5 +544,6 @@
   "sites.firstLead": "Runlight compte chaque site que vous ajoutez ici. Saisissez le domaine du site, et l’écran suivant affiche la balise de script à placer sur ses pages.",
   "sites.delete": "Supprimer ce site",
   "sites.deleteHint": "Supprimer un site efface chaque visite, lien, objectif et rapport enregistré pour lui, sans retour possible.",
-  "app.signOut": "Se déconnecter"
+  "app.signOut": "Se déconnecter",
+  "foot.geoCredit": "Lieux par {name}"
 }

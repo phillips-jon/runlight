@@ -544,5 +544,6 @@
   "sites.firstLead": "O Runlight conta cada site que você adicionar aqui. Informe o domínio do site, e a próxima tela mostra a tag de script para colocar nas páginas dele.",
   "sites.delete": "Excluir este site",
   "sites.deleteHint": "Excluir um site apaga todas as visitas, links, metas e relatórios dele, e isso não pode ser desfeito.",
-  "app.signOut": "Sair"
+  "app.signOut": "Sair",
+  "foot.geoCredit": "Localizações por {name}"
 }
