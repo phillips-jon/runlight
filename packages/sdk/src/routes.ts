@@ -3,7 +3,8 @@ import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
 import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
 import { LINK_DOMAIN_CHECK, type RequestContext, type Runlight } from "./runlight.js";
-import type { ShareRow, SiteRow } from "./store.js";
+import type { ShareRow, SiteRow, TokenRow } from "./store.js";
+import { mcpResponse } from "./mcp.js";
 import { randomId } from "./hash.js";
 import { GoalError, clickRules, goalFrom } from "./goals.js";
 import { MailError, SERVICES } from "./mail/transports.js";
@@ -134,6 +135,9 @@ const DASHBOARD = (base: string, share = "") => `<!doctype html>
 </html>
 `;
 
+/** API tokens start with this, so they are told apart from the main token. */
+const TOKEN_PREFIX = "rl_";
+
 /** The header a shared dashboard sends its share id in. */
 const SHARE_HEADER = "x-runlight-share";
 /** What a share can read: one site's reports, nothing that changes anything. */
@@ -168,6 +172,24 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (given && constantTimeEqual(given, token)) return true;
     const cookie = readCookie(request, COOKIE);
     return Boolean(cookie) && constantTimeEqual(cookie, await cookieValue(token));
+  }
+
+  /** An API token from the bearer header: read-only, and maybe limited to one site. */
+  async function apiToken(request: Request): Promise<TokenRow | null> {
+    const given = bearer(request);
+    if (!given.startsWith(TOKEN_PREFIX)) return null;
+    await runlight.init();
+    const row = await runlight.store.tokenByHash(await sha256(given));
+    if (!row) return null;
+    const now = runlight.now();
+    // At most once a minute, so a busy assistant does not write on every call.
+    if (row.lastUsedAt === null || now - row.lastUsedAt > 60_000) await runlight.store.touchToken(row.id, now);
+    return row;
+  }
+
+  /** Who may read stats: the owner (true), an API token, or nobody. */
+  async function reader(request: Request): Promise<true | TokenRow | false | "unconfigured"> {
+    return (await apiToken(request)) ?? (await canRead(request));
   }
 
   function denied(result: false | "unconfigured"): Response {
@@ -572,6 +594,30 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return json({ error: "Method not allowed" }, 405);
   }
 
+  async function tokensApi(request: Request, path: string): Promise<Response> {
+    await runlight.init();
+    const view = (t: TokenRow) => ({ id: t.id, name: t.name, site: t.site, hint: t.hint, createdAt: t.createdAt, lastUsedAt: t.lastUsedAt });
+    if (path === "/api/tokens" && request.method === "GET") return json({ tokens: (await runlight.store.tokens()).map(view) });
+    if (path === "/api/tokens" && request.method === "POST") {
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const name = String(body.name ?? "").trim().slice(0, 100);
+      if (!name) return json({ error: "Name the token" }, 400);
+      const site = String(body.site ?? "");
+      if (site && !runlight.sites.some((s) => s.id === site)) return json({ error: "Unknown site" }, 404);
+      const secret = `${TOKEN_PREFIX}${randomId(20)}`;
+      const row: TokenRow = { id: randomId(), name, site, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
+      await runlight.store.insertToken(row);
+      // The only time the token is ever shown.
+      return json({ token: view(row), secret }, 201);
+    }
+    const match = /^\/api\/tokens\/([a-f0-9]{24})$/.exec(path);
+    if (match && request.method === "DELETE") {
+      return (await runlight.store.deleteToken(match[1]!)) ? json({ ok: true }) : json({ error: "Unknown token" }, 404);
+    }
+    return json({ error: "Not found" }, 404);
+  }
+
   async function api(request: Request, path: string, url: URL): Promise<Response> {
     if (path === "/api" && request.method === "GET") {
       return json({ name: "runlight", version: VERSION, api: API_VERSION, ...IMPLEMENTATION });
@@ -602,6 +648,25 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         (cronSecret && given && constantTimeEqual(given, cronSecret)) || (await canRead(request)) === true;
       if (!allowed) return json({ error: "Unauthorized" }, 401);
       return json(await runlight.check());
+    }
+
+    // Only the owner manages tokens: an API token cannot make or revoke one.
+    if (path === "/api/tokens" || path.startsWith("/api/tokens/")) {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      return tokensApi(request, path);
+    }
+
+    // An API token may list links and their clicks, but not change them.
+    if (path === "/api/links" && request.method === "GET" && bearer(request).startsWith(TOKEN_PREFIX)) {
+      const token = await apiToken(request);
+      if (!token) return denied(false);
+      await runlight.init();
+      const site = runlight.site(url.searchParams.get("site") ?? (token.site || null));
+      if (!site || (token.site && site.id !== token.site)) return json({ error: "Unknown site" }, 404);
+      const scoped = new URL(url);
+      scoped.searchParams.set("site", site.id);
+      return linksApi(request, path, scoped);
     }
 
     if (path === "/api/links" || path.startsWith("/api/links/") || path === "/api/link-domains" || path.startsWith("/api/link-domains/")) {
@@ -654,17 +719,24 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     // A shared dashboard sees exactly what its visitors see, even for someone signed in.
     const shareId = request.headers.get(SHARE_HEADER);
     let shared: ShareRow | null = null;
+    // The one site a share or a site's API token may read; null for every site.
+    let only: string | null = null;
     if (shareId !== null) {
       shared = SHARE_ID.test(shareId) ? await runlight.store.shareById(shareId) : null;
       if (!shared) return json({ error: "This share link no longer works" }, 404);
       if (!sharedPath(path)) return json({ error: "Not available on a shared dashboard" }, 403);
+      only = shared.site;
     } else {
-      const access = await canRead(request);
-      if (access !== true) return denied(access);
+      const access = await reader(request);
+      if (access === false || access === "unconfigured") return denied(access);
+      if (access !== true) {
+        if (!sharedPath(path)) return json({ error: "API tokens can only read" }, 403);
+        only = access.site || null;
+      }
     }
 
     if (path === "/api/sites") {
-      const visible = shared ? runlight.sites.filter((s) => s.id === shared.site) : runlight.sites;
+      const visible = only ? runlight.sites.filter((s) => s.id === only) : runlight.sites;
       const sites = await Promise.all(
         visible.map(async (site) => ({
           ...site,
@@ -676,9 +748,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return json({ sites });
     }
 
-    const site = shared ? runlight.site(shared.site) : await querySite(url);
-    if (!site) return json({ error: "Unknown site" }, 404);
+    const site = shared ? runlight.site(shared.site) : only ? runlight.site(url.searchParams.get("site") ?? only) : await querySite(url);
     if (site instanceof Response) return site;
+    if (!site || (only && site.id !== only)) return json({ error: "Unknown site" }, 404);
 
     if (path === "/api/icon") {
       const host = site.hostnames[0];
@@ -849,6 +921,25 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       }
 
       if (path === "/api" || path.startsWith("/api/")) return await api(request, path, url);
+
+      if (path === "/mcp") {
+        // No server-sent stream and no sessions: every message is one POST.
+        if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
+        const access = await reader(request);
+        if (access === false || access === "unconfigured") {
+          const refused = denied(access);
+          refused.headers.set("www-authenticate", 'Bearer realm="runlight"');
+          return refused;
+        }
+        // Each tool reads the HTTP API with the caller's own headers, so it sees what they may.
+        const headers = new Headers(request.headers);
+        for (const name of ["content-type", "content-length", SHARE_HEADER]) headers.delete(name);
+        return await mcpResponse(request, (apiPath, params) => {
+          const target = new URL(`${base}${apiPath}`, url.origin);
+          for (const [key, value] of params) target.searchParams.append(key, value);
+          return api(new Request(target, { headers }), apiPath, target);
+        });
+      }
 
       const unsubscribe = /^\/unsubscribe\/([^/]+)\/?$/.exec(path);
       if (unsubscribe && (request.method === "GET" || request.method === "POST")) return await unsubscribePage(request, unsubscribe[1]!);

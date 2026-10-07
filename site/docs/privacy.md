@@ -2,7 +2,7 @@
 title: Privacy
 description: Exactly what Runlight stores, what it never stores, and why that keeps you clear of cookie banners.
 group: Trust
-order: 16
+order: 17
 ---
 
 Runlight is built so that it never needs to know who anyone is.

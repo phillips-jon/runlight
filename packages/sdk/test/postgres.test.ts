@@ -28,7 +28,7 @@ test("two processes starting at once create the tables once", { skip: !url && "R
     const apps = Array.from({ length: 4 }, make);
     await Promise.all(apps.map((app) => app.init()));
     const { rows } = await admin.query(`SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema = $1`, [schema]);
-    assert.equal(rows[0].n, 11);
+    assert.equal(rows[0].n, 12);
   } finally {
     await admin.query(`DROP SCHEMA ${schema} CASCADE`);
   }

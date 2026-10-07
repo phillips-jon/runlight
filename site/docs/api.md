@@ -2,14 +2,16 @@
 title: HTTP API
 description: Everything the dashboard shows is JSON at /runlight/api, for your own scripts and tools.
 group: Reference
-order: 11
+order: 12
 ---
 
-The dashboard is built on this API, so anything it shows you can fetch yourself. Send the token as a bearer:
+The dashboard is built on this API, so anything it shows you can fetch yourself. Send a token as a bearer:
 
 ```bash
 curl https://example.com/runlight/api/stats?period=30d -H "Authorization: Bearer $RUNLIGHT_TOKEN"
 ```
+
+For scripts, make a read-only token in **Settings**, **API and AI**, instead of handing out `RUNLIGHT_TOKEN`. It reads every report below and lists short links, can be limited to one site, and stops working the moment you delete it. Everything that changes something, and the token, share, and mail endpoints, need `RUNLIGHT_TOKEN` itself (or your `authorize` check). The same tokens connect AI assistants: see [Ask your AI](/docs/mcp/).
 
 Requests that change something must send `content-type: application/json`.
 
@@ -55,6 +57,10 @@ Dimensions for `breakdown` and `filter`: `page`, `entry`, `exit`, `hostname`, `e
 | `GET`, `POST /api/reports`, `DELETE /api/reports/:id`, `POST /api/reports/:id/send` | Report recipients, and sending a sample. |
 | `GET` or `POST /api/check` | The [scheduled check](/docs/cron/). |
 | `POST /api/observe` | Records a page served to an AI agent: `{ "url", "userAgent" }`. Takes the token or the observe key. Used by the CMS plugins. |
+| `GET /api/tokens` | API tokens, with each one's name, site, last four characters, and when it was last used. Never the tokens themselves. |
+| `POST /api/tokens` | Makes a read-only token from `{ "name", "site" }` and returns it once as `secret`. Leave `site` empty for every site. |
+| `DELETE /api/tokens/:id` | Deletes a token, which stops it working at once. |
+| `POST /mcp` | The MCP server for AI assistants. See [Ask your AI](/docs/mcp/). |
 
 ## Errors
 

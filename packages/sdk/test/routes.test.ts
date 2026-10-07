@@ -156,7 +156,7 @@ test("a version 1 database upgrades to the current schema", async () => {
   await rl.updateSite("default", { name: "Upgraded" });
   assert.equal(rl.site("default")!.name, "Upgraded");
   const [meta] = await store.db.all<{ value: string }>("SELECT value FROM rl_meta WHERE key = 'schema'");
-  assert.equal(meta!.value, "7");
+  assert.equal(meta!.value, "8");
 });
 
 test("a share reads one site's reports and nothing else, until it is deleted", async () => {

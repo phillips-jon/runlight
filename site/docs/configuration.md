@@ -2,7 +2,7 @@
 title: Configuration
 description: Every option for runlight(), its stores, its sites, and its routes.
 group: Reference
-order: 10
+order: 11
 ---
 
 ```ts

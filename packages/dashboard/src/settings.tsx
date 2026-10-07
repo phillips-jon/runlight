@@ -8,15 +8,17 @@ import { Icon } from "./icons.js";
 import { ImportLinks } from "./importer.js";
 import { domainPrompt, installPrompt } from "./prompts.js";
 import { Sharing } from "./sharing.js";
+import { Tokens } from "./tokens.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
-export type Section = "general" | "install" | "goals" | "email" | "sharing" | "links" | "import";
+export type Section = "general" | "install" | "goals" | "email" | "sharing" | "api" | "links" | "import";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
   ["goals", "settings.goals"],
   ["email", "settings.email"],
   ["sharing", "settings.sharing"],
+  ["api", "settings.api"],
   ["links", "settings.links"],
   ["import", "settings.import"],
 ];
@@ -39,7 +41,7 @@ function ago(ms: number): string {
   return f.format(Math.round(seconds / 86_400), "day");
 }
 
-function Copy({ text, label, class: extra }: { text: string; label?: string; class?: string }) {
+export function Copy({ text, label, class: extra }: { text: string; label?: string; class?: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -61,7 +63,7 @@ function Copy({ text, label, class: extra }: { text: string; label?: string; cla
   );
 }
 
-function Code({ children }: { children: string }) {
+export function Code({ children }: { children: string }) {
   return (
     <div class="code">
       <pre>
@@ -411,6 +413,8 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
               <EmailReports site={site} />
             ) : section === "sharing" ? (
               <Sharing site={site} />
+            ) : section === "api" ? (
+              <Tokens sites={sites} />
             ) : section === "links" ? (
               <LinkDomains site={site} />
             ) : (

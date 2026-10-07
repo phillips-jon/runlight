@@ -3393,3 +3393,32 @@ button.live:hover {
 .powered-mark circle {
   fill: #22c55e;
 }
+
+/* Settings, API and AI: a new token, shown once, with how to connect it. */
+.token-made {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  margin: 6px 0 4px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--up) 45%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--up) 6%, var(--card));
+}
+
+.token-made .settings-text {
+  margin: 0;
+}
+
+.token-made .token-done {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.token-add select.value {
+  flex: 0 0 auto;
+  width: auto;
+  height: 40px;
+}

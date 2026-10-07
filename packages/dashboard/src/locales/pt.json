@@ -514,5 +514,21 @@
   "email.unsub.doneTitle": "Inscrição cancelada",
   "email.unsub.done": "Nenhum relatório de {site} chegará mais a {email}.",
   "email.unsub.goneTitle": "Nada para cancelar",
-  "email.unsub.gone": "Este link já foi usado, ou o relatório foi removido."
+  "email.unsub.gone": "Este link já foi usado, ou o relatório foi removido.",
+  "settings.api": "API e IA",
+  "tokens.intro": "Pergunte ao seu assistente de IA sobre suas estatísticas. Crie um token e adicione o Runlight ao Claude, ao Cursor ou a qualquer app que se conecte a servidores MCP. Um token só pode ler: nunca altera configurações, links ou metas. O mesmo token funciona com a API HTTP.",
+  "tokens.server": "Endereço do servidor MCP",
+  "tokens.namePlaceholder": "Para que serve, como Claude ou um script",
+  "tokens.scope": "Quais sites ele pode ler",
+  "tokens.allSites": "Todos os sites",
+  "tokens.siteOnly": "Só {site}",
+  "tokens.create": "Criar token",
+  "tokens.empty": "Nenhum token ainda.",
+  "tokens.used": "usado em {date}",
+  "tokens.never": "nunca usado",
+  "tokens.revokeNote": "Apagar um token faz ele parar de funcionar na hora.",
+  "tokens.once": "Copie este token agora. Ele aparece só uma vez, e o Runlight guarda apenas uma impressão dele.",
+  "tokens.claudeCode": "Para o Claude Code, rode:",
+  "tokens.json": "Para o Cursor e outros apps que usam uma configuração JSON mcpServers:",
+  "tokens.done": "Pronto, já copiei"
 }

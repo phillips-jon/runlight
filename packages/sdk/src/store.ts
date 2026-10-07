@@ -98,6 +98,19 @@ export interface ShareRow {
   createdAt: number;
 }
 
+/** An API token. Only its hash is stored; the token itself is shown once. */
+export interface TokenRow {
+  id: string;
+  name: string;
+  /** "" reads every site; otherwise the one site it may read. */
+  site: string;
+  hash: string;
+  /** The token's last four characters, so people can tell theirs apart. */
+  hint: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+}
+
 export interface LinkRow {
   id: string;
   site: string;
@@ -220,7 +233,7 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 7;
+const SCHEMA_VERSION = 8;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -277,6 +290,11 @@ function schema(dialect: Db["dialect"]): string[] {
       lang TEXT NOT NULL DEFAULT 'en', token TEXT NOT NULL, origin ${text},
       last_period ${text}, last_sent_at BIGINT, created_at BIGINT NOT NULL)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS rl_reports_token ON rl_reports (token)`,
+    // Version 8: read-only API tokens, for scripts and AI assistants over MCP.
+    `CREATE TABLE IF NOT EXISTS rl_tokens (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, site ${text}, hash TEXT NOT NULL, hint ${text},
+      created_at BIGINT NOT NULL, last_used_at BIGINT)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS rl_tokens_hash ON rl_tokens (hash)`,
   ];
 }
 
@@ -564,6 +582,51 @@ export class SqlStore {
   /** Deleting a share is how it is revoked: the link stops working at once. */
   async deleteShare(id: string): Promise<void> {
     await this.db.run(`DELETE FROM rl_shares WHERE id = ?`, [id]);
+  }
+
+  // API tokens
+
+  private tokenRow(r: Record<string, unknown>): TokenRow {
+    return {
+      id: String(r.id),
+      name: String(r.name),
+      site: String(r.site ?? ""),
+      hash: String(r.hash),
+      hint: String(r.hint ?? ""),
+      createdAt: Number(r.created_at),
+      lastUsedAt: r.last_used_at === null || r.last_used_at === undefined ? null : Number(r.last_used_at),
+    };
+  }
+
+  async tokens(): Promise<TokenRow[]> {
+    return (await this.db.all(`SELECT * FROM rl_tokens ORDER BY created_at DESC`)).map((r) => this.tokenRow(r));
+  }
+
+  async tokenByHash(hash: string): Promise<TokenRow | null> {
+    const [row] = await this.db.all(`SELECT * FROM rl_tokens WHERE hash = ?`, [hash]);
+    return row ? this.tokenRow(row) : null;
+  }
+
+  async insertToken(t: TokenRow): Promise<void> {
+    await this.db.run(`INSERT INTO rl_tokens (id, name, site, hash, hint, created_at, last_used_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+      t.id,
+      t.name,
+      t.site,
+      t.hash,
+      t.hint,
+      t.createdAt,
+      t.lastUsedAt,
+    ]);
+  }
+
+  async touchToken(id: string, now: number): Promise<void> {
+    await this.db.run(`UPDATE rl_tokens SET last_used_at = ? WHERE id = ?`, [now, id]);
+  }
+
+  /** Deleting a token is how it is revoked: it stops working at once. */
+  async deleteToken(id: string): Promise<boolean> {
+    const rows = await this.db.all(`DELETE FROM rl_tokens WHERE id = ? RETURNING id`, [id]);
+    return rows.length === 1;
   }
 
   // Settings

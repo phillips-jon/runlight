@@ -2,7 +2,7 @@
 title: Drupal
 description: Count a Drupal site with Runlight, and see when AI agents read it.
 group: Platforms
-order: 14
+order: 15
 ---
 
 The Runlight module connects a Drupal 10.3 or 11 site to a Runlight you run elsewhere: an app with Runlight mounted, or the standalone server. Drupal keeps nothing but the module’s settings; the numbers live in your Runlight.

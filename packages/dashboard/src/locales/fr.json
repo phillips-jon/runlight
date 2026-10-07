@@ -514,5 +514,21 @@
   "email.unsub.doneTitle": "Vous êtes désabonné",
   "email.unsub.done": "Plus aucun rapport de {site} n'arrivera à {email}.",
   "email.unsub.goneTitle": "Rien à désabonner",
-  "email.unsub.gone": "Ce lien a déjà servi, ou le rapport a été supprimé."
+  "email.unsub.gone": "Ce lien a déjà servi, ou le rapport a été supprimé.",
+  "settings.api": "API et IA",
+  "tokens.intro": "Interrogez votre assistant IA sur vos statistiques. Créez un jeton, puis ajoutez Runlight à Claude, Cursor ou toute application qui se connecte aux serveurs MCP. Un jeton ne peut que lire : il ne modifie jamais les réglages, les liens ou les objectifs. Le même jeton fonctionne avec l’API HTTP.",
+  "tokens.server": "Adresse du serveur MCP",
+  "tokens.namePlaceholder": "À quoi il sert, par exemple Claude ou un script",
+  "tokens.scope": "Les sites qu’il peut lire",
+  "tokens.allSites": "Tous les sites",
+  "tokens.siteOnly": "{site} seulement",
+  "tokens.create": "Créer un jeton",
+  "tokens.empty": "Aucun jeton pour l’instant.",
+  "tokens.used": "utilisé le {date}",
+  "tokens.never": "jamais utilisé",
+  "tokens.revokeNote": "Supprimer un jeton l’arrête aussitôt.",
+  "tokens.once": "Copiez ce jeton maintenant. Il n’est affiché qu’une fois, et Runlight n’en garde qu’une empreinte.",
+  "tokens.claudeCode": "Pour Claude Code, lancez :",
+  "tokens.json": "Pour Cursor et les autres applications qui prennent une configuration JSON mcpServers :",
+  "tokens.done": "C’est fait, je l’ai copié"
 }

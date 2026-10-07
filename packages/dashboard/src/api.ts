@@ -167,6 +167,16 @@ export interface Report {
   createdAt: number;
 }
 
+export interface ApiToken {
+  id: string;
+  name: string;
+  /** "" for every site. */
+  site: string;
+  hint: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+}
+
 export interface Share {
   id: string;
   site: string;
@@ -264,6 +274,9 @@ export const api = {
   addReport: (site: string, input: { email: string; frequency: string; lang: string; origin: string }) => send<{ report: Report }>("POST", `reports${siteQuery(site)}`, input),
   deleteReport: (site: string, id: string) => del(`reports/${id}${siteQuery(site)}`),
   sendReport: (site: string, id: string) => send<{ ok: true }>("POST", `reports/${id}/send${siteQuery(site)}`, {}),
+  tokens: () => get<{ tokens: ApiToken[] }>("tokens", new URLSearchParams()),
+  createToken: (name: string, site: string) => send<{ token: ApiToken; secret: string }>("POST", "tokens", { name, site }),
+  deleteToken: (id: string) => del(`tokens/${id}`),
   shares: (site: string) => get<{ shares: Share[] }>("shares", new URLSearchParams(site ? { site } : {})),
   createShare: (site: string, name: string) => send<{ share: Share }>("POST", `shares${siteQuery(site)}`, { name }),
   renameShare: (site: string, id: string, name: string) => send<{ share: Share }>("PATCH", `shares/${id}${siteQuery(site)}`, { name }),
