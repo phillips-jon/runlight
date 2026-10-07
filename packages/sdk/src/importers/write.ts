@@ -6,25 +6,25 @@ import type { DailyClicks, ForeignClick, ForeignLink } from "./types.js";
 /** Domains run by the shorteners themselves. Links there stay on Runlight's own path. */
 const SHORTENER_DOMAINS = new Set(["bit.ly", "bitly.com", "j.mp", "dub.sh", "dub.co", "dub.link", "short.gy", "rebrand.ly", "rebrandly.com", "rb.gy"]);
 
-const hexId = async (value: string, length = 24) => (await sha256(value)).slice(0, length);
+export const hexId = async (value: string, length = 24) => (await sha256(value)).slice(0, length);
 
 /** The Runlight id an imported link gets, from its source and its id there. */
 export const importedLinkId = (source: string, sourceId: string) => hexId(`${source}:${sourceId}`);
 
 // Browser and system names as other tools write them, in Runlight's spelling.
-const BROWSERS: Record<string, string> = {
+export const BROWSERS: Record<string, string> = {
   chrome: "Chrome", crios: "Chrome", "chromium-webview": "Android WebView", "chrome webview": "Android WebView", safari: "Safari", ios: "Safari", "ios-webview": "Safari",
   "mobile safari": "Safari", firefox: "Firefox", fxios: "Firefox", edge: "Edge", "edge-chromium": "Edge", "edge-ios": "Edge", "microsoft edge": "Edge",
   opera: "Opera", "opera-mini": "Opera", samsung: "Samsung Internet", "samsung internet": "Samsung Internet", yandexbrowser: "Yandex Browser",
   facebook: "Facebook", instagram: "Instagram", brave: "Brave", duckduckgo: "DuckDuckGo",
 };
-const SYSTEMS: Record<string, string> = {
+export const SYSTEMS: Record<string, string> = {
   "mac os": "macOS", "mac os x": "macOS", macos: "macOS", ios: "iOS", "android os": "Android", android: "Android",
   "windows 10": "Windows", "windows 11": "Windows", "windows 7": "Windows", windows: "Windows", linux: "Linux", "chrome os": "Chrome OS", "chromium os": "Chrome OS",
 };
-const DEVICES: Record<string, string> = { desktop: "desktop", laptop: "desktop", mobile: "mobile", smartphone: "mobile", phone: "mobile", tablet: "tablet" };
+export const DEVICES: Record<string, string> = { desktop: "desktop", laptop: "desktop", mobile: "mobile", smartphone: "mobile", phone: "mobile", tablet: "tablet" };
 
-const title = (v: string) => (v ? v[0]!.toUpperCase() + v.slice(1) : "");
+export const title = (v: string) => (v ? v[0]!.toUpperCase() + v.slice(1) : "");
 
 export interface WriteResult {
   status: "created" | "skipped" | "failed";

@@ -53,6 +53,12 @@ Click **here now** under the site name to see the last 30 minutes. The view show
 
 Settings, Sharing makes a read-only link to one site’s dashboard for a client or your team. Anyone with the link sees the reports and conversions, and the link hides your short links, settings, and the site’s address. Delete the link and it stops working at once. A shared dashboard uses the same page, served from `/runlight/share/<id>`, and the id is 128 random bits.
 
+## Bringing history over from Umami
+
+In **Settings**, **Import**, **Visits**, sign in to your Umami with an API key (or a username and password on a stock self-hosted Umami) and pick the Umami website that matches this site. Runlight reads its pageviews and custom events a few days at a time, oldest first, and writes them as visits with their sources, campaigns, places, and devices. A gap of thirty minutes starts a new visit, as it does for live visits.
+
+The import stops where Runlight's own visits begin, so no day is counted twice. If you stop it or close the page, running it again carries on from the last day it finished. Umami records no engaged time, so an imported visit's length runs from its first pageview to its last. Your key or password is only used while the import runs and is never saved.
+
 ## Settings
 
 The gear beside the site name opens Settings, which holds the site’s name, timezone, and language; install steps; goals; email reports; sharing; custom domains for short links; and importing links. The theme switch is in the footer, and Shift+Cmd+D (Shift+Ctrl+D) toggles the theme too.

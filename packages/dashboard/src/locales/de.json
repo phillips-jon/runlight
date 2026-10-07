@@ -314,7 +314,7 @@
   "links.showMore": "{n} weitere anzeigen",
   "links.clicksLabel": "Klicks",
   "links.createdOn": "Erstellt am {date}",
-  "settings.import": "Links importieren",
+  "settings.import": "Import",
   "import.intro": "Hol deine Kurzlinks von einem anderen Dienst, mit Klickverlauf, wo der Dienst ihn teilt. Dein Schlüssel oder Passwort dient nur diesem Import und wird nie gespeichert. Ein erneuter Import überspringt vorhandene Links.",
   "import.source": "Importieren von",
   "import.csv": "Beliebige CSV",
@@ -545,5 +545,15 @@
   "sites.deleteHint": "Beim Löschen einer Website verschwinden alle Besuche, Links, Ziele und Berichte dazu, und das lässt sich nicht rückgängig machen.",
   "app.signOut": "Abmelden",
   "install.ignoreServer": "Damit deine eigenen Besuche nicht mehr zählen, öffne {link} einmal in jedem Browser, den du nutzt.",
-  "panel.geoCredit": "Standorte von {name}"
+  "panel.geoCredit": "Standorte von {name}",
+  "visits.tab": "Besuche",
+  "visits.linksTab": "Kurzlinks",
+  "visits.intro": "Hol deinen Besuchsverlauf aus Umami, damit deine Diagramme weiter zurückreichen als bis zu dem Tag, an dem Runlight zu zählen begann. Runlight importiert nur, was vor seinem eigenen ersten Besuch liegt, daher zählt nichts doppelt, und ein erneuter Lauf macht dort weiter, wo er aufgehört hat. Dein Schlüssel oder Passwort dient nur diesem Import und wird nie gespeichert.",
+  "visits.find": "Websites suchen",
+  "visits.website": "Umami-Website",
+  "visits.noWebsites": "Dieses Umami-Konto hat keine Websites.",
+  "visits.start": "Besuche importieren",
+  "visits.running": "{done} von {total} Tagen gelesen, bisher {pageviews} Seitenaufrufe",
+  "visits.done": "Fertig. {pageviews} Seitenaufrufe und {events} Ereignisse sind in {visits} Besuchen angekommen.",
+  "visits.stopped": "Angehalten. Starte erneut, um beim zuletzt importierten Tag weiterzumachen."
 }

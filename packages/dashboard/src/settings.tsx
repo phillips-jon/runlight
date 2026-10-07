@@ -6,6 +6,7 @@ import { Goals } from "./goals.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { ImportLinks } from "./importer.js";
+import { ImportVisits } from "./visitsimport.js";
 import { domainPrompt, installPrompt, scriptPrompt } from "./prompts.js";
 import { DeleteButton } from "./links.js";
 import { Sharing } from "./sharing.js";
@@ -187,6 +188,23 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
           </div>
         </div>
       ) : null}
+    </>
+  );
+}
+
+/** Settings, Import: visit history from Umami, or short links from any of several services. */
+function Import({ site }: { site: Site }) {
+  const [kind, setKind] = useState<"visits" | "links">("visits");
+  return (
+    <>
+      <div class="ops import-kind" role="radiogroup" aria-label={t("settings.import")}>
+        {(["visits", "links"] as const).map((k) => (
+          <button type="button" role="radio" aria-checked={kind === k} class={kind === k ? "op on" : "op"} onClick={() => setKind(k)}>
+            {t(k === "visits" ? "visits.tab" : "visits.linksTab")}
+          </button>
+        ))}
+      </div>
+      {kind === "visits" ? <ImportVisits site={site} /> : <ImportLinks site={site} />}
     </>
   );
 }
@@ -456,7 +474,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
             ) : section === "links" ? (
               <LinkDomains site={site} />
             ) : (
-              <ImportLinks site={site} />
+              <Import site={site} />
             )}
           </div>
         </div>

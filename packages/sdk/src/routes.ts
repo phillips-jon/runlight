@@ -12,6 +12,7 @@ import { languages, translator } from "./messages.js";
 import type { ReportRow } from "./store.js";
 import { fetchIcon } from "./icon.js";
 import { ImportError, importStep } from "./importers/index.js";
+import { importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
 import { isSessionDimension } from "./query.js";
 import { buckets, compareRange, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
@@ -674,6 +675,28 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         (cronSecret && given && constantTimeEqual(given, cronSecret)) || (await canRead(request)) === true;
       if (!allowed) return json({ error: "Unauthorized" }, 401);
       return json(await runlight.check());
+    }
+
+    // Visit history from Umami: list the account's websites, then import one a step at a time.
+    if ((path === "/api/import/umami/websites" || path === "/api/import/umami/visits") && request.method === "POST") {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const credentials = Object.fromEntries(
+        Object.entries((body.credentials && typeof body.credentials === "object" ? body.credentials : {}) as Record<string, unknown>).map(([k, v]) => [k, String(v)]),
+      );
+      try {
+        if (path === "/api/import/umami/websites") return json({ websites: await umamiWebsites(credentials) });
+        await runlight.init();
+        const site = await querySite(url);
+        if (site instanceof Response) return site;
+        const step = await importUmamiVisits(runlight, site.id, credentials, String(body.website ?? ""), typeof body.cursor === "string" ? body.cursor : null);
+        return json(step);
+      } catch (error) {
+        if (error instanceof ImportError) return json({ error: error.message }, 400);
+        throw error;
+      }
     }
 
     // Only the owner manages tokens: an API token cannot make or revoke one.

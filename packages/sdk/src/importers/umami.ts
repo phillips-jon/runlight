@@ -35,6 +35,24 @@ interface UmamiSession {
 const PAGE = 5;
 
 /**
+ * Signs in to an Umami: an API key, or a username and password (stock
+ * self-hosted Umami has no API keys). A token from an earlier step is reused.
+ */
+export async function umamiSignIn(credentials: Record<string, string>, token?: string): Promise<{ base: string; token: string }> {
+  const base = (credentials.url ?? "").trim().replace(/\/+$/, "");
+  if (!/^https?:\/\/[^/]+/.test(base)) throw new ImportError("Enter your Umami address, like https://stats.example.com");
+  const key = credentials.apiKey?.trim() ?? "";
+  if (key || token) return { base, token: key || token! };
+  if (!credentials.username || !credentials.password) throw new ImportError("Enter an API key, or a username and password");
+  const login = await getJson<{ token: string }>(`${base}/api/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username: credentials.username, password: credentials.password }),
+  });
+  return { base, token: login.token };
+}
+
+/**
  * Umami v3 (and forks with custom link domains). Signs in with an API key,
  * or with a username and password (stock self-hosted Umami has no API keys).
  * In Umami a link's clicks are events stored under the link's id, with the
@@ -42,21 +60,11 @@ const PAGE = 5;
  */
 export const umami: Importer = {
   async step({ credentials, cursor, known }) {
-    const base = (credentials.url ?? "").trim().replace(/\/+$/, "");
-    if (!/^https?:\/\/[^/]+/.test(base)) throw new ImportError("Enter your Umami address, like https://stats.example.com");
     // A key comes with every step; only a sign-in token, which expires, rides in the cursor.
     const saved = cursor ? (JSON.parse(cursor) as { page: number; token?: string }) : { page: 1 };
     const key = credentials.apiKey?.trim() ?? "";
-    const state = { page: saved.page, token: key || saved.token || "" };
-    if (!state.token) {
-      if (!credentials.username || !credentials.password) throw new ImportError("Enter an API key, or a username and password");
-      const login = await getJson<{ token: string }>(`${base}/api/auth/login`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ username: credentials.username, password: credentials.password }),
-      });
-      state.token = login.token;
-    }
+    const { base, token } = await umamiSignIn(credentials, saved.token);
+    const state = { page: saved.page, token };
     const headers = { authorization: `Bearer ${state.token}` };
     const list = await getJson<{ data: UmamiLink[]; count: number }>(`${base}/api/links?page=${state.page}&pageSize=${PAGE}`, { headers });
 

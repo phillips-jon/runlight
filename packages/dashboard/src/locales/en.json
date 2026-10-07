@@ -314,7 +314,7 @@
   "links.showMore": "Show {n} more",
   "links.clicksLabel": "Clicks",
   "links.createdOn": "Created {date}",
-  "settings.import": "Import links",
+  "settings.import": "Import",
   "import.intro": "Bring your short links over from another service, with their click history where the service shares it. Your key or password is used for this import only and never saved. Importing again skips links already here.",
   "import.source": "Import from",
   "import.csv": "Any CSV",
@@ -545,5 +545,15 @@
   "sites.deleteHint": "Deleting a site removes every visit, link, goal, and report recorded for it, and it cannot be undone.",
   "app.signOut": "Sign out",
   "install.ignoreServer": "To stop counting your own visits, open {link} once in each browser you use.",
-  "panel.geoCredit": "Locations by {name}"
+  "panel.geoCredit": "Locations by {name}",
+  "visits.tab": "Visits",
+  "visits.linksTab": "Short links",
+  "visits.intro": "Bring your visit history over from Umami, so your charts reach back past the day Runlight started counting. Runlight only imports what came before its own first visit, so nothing is counted twice, and running it again carries on where it stopped. Your key or password is used for this import only and never saved.",
+  "visits.find": "Find websites",
+  "visits.website": "Umami website",
+  "visits.noWebsites": "This Umami account has no websites.",
+  "visits.start": "Import visits",
+  "visits.running": "{done} of {total} days read, {pageviews} pageviews so far",
+  "visits.done": "Finished. {pageviews} pageviews and {events} events came across in {visits} visits.",
+  "visits.stopped": "Stopped. Start again to carry on from the last day imported."
 }

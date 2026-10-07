@@ -314,7 +314,7 @@
   "links.showMore": "Mostrar {n} más",
   "links.clicksLabel": "Clics",
   "links.createdOn": "Creado el {date}",
-  "settings.import": "Importar enlaces",
+  "settings.import": "Importar",
   "import.intro": "Trae tus enlaces cortos desde otro servicio, con su historial de clics cuando el servicio lo comparte. Tu clave o contraseña solo se usa para esta importación y nunca se guarda. Importar de nuevo omite los enlaces que ya están.",
   "import.source": "Importar desde",
   "import.csv": "Cualquier CSV",
@@ -545,5 +545,15 @@
   "sites.deleteHint": "Eliminar un sitio borra todas sus visitas, enlaces, objetivos e informes, y no se puede deshacer.",
   "app.signOut": "Cerrar sesión",
   "install.ignoreServer": "Para dejar de contar tus propias visitas, abre {link} una vez en cada navegador que uses.",
-  "panel.geoCredit": "Ubicaciones de {name}"
+  "panel.geoCredit": "Ubicaciones de {name}",
+  "visits.tab": "Visitas",
+  "visits.linksTab": "Enlaces cortos",
+  "visits.intro": "Trae tu historial de visitas desde Umami, para que tus gráficos lleguen más atrás del día en que Runlight empezó a contar. Runlight solo importa lo anterior a su propia primera visita, así que nada se cuenta dos veces, y al volver a ejecutarlo sigue donde se detuvo. Tu clave o contraseña solo se usa para esta importación y nunca se guarda.",
+  "visits.find": "Buscar sitios",
+  "visits.website": "Sitio de Umami",
+  "visits.noWebsites": "Esta cuenta de Umami no tiene sitios.",
+  "visits.start": "Importar visitas",
+  "visits.running": "{done} de {total} días leídos, {pageviews} páginas vistas hasta ahora",
+  "visits.done": "Listo. Llegaron {pageviews} páginas vistas y {events} eventos en {visits} visitas.",
+  "visits.stopped": "Detenido. Vuelve a empezar para seguir desde el último día importado."
 }

@@ -926,6 +926,12 @@ export class SqlStore {
   // Reports
 
   /** When the site's first visit was recorded, or null with no data yet. */
+  /** When Runlight itself first counted a visit, leaving out imported history. */
+  async firstOwnVisit(site: string): Promise<number | null> {
+    const [row] = await this.db.all(`SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ? AND imported = 0`, [site]);
+    return row?.t === null || row?.t === undefined ? null : num(row.t);
+  }
+
   async firstSeen(site: string): Promise<number | null> {
     const [row] = await this.db.all(`SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ?`, [site]);
     return row?.t === null || row?.t === undefined ? null : num(row.t);

@@ -3595,3 +3595,7 @@ button.live:hover {
 .geo-credit:hover {
   color: var(--muted);
 }
+
+.import-kind {
+  margin-bottom: 18px;
+}

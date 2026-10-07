@@ -266,6 +266,9 @@ export const api = {
       `links/import/${source}${siteQuery(site)}`,
       { credentials, cursor, done },
     ),
+  umamiWebsites: (credentials: Record<string, string>) => send<{ websites: Array<{ id: string; name: string; domain: string }> }>("POST", "import/umami/websites", { credentials }),
+  importVisits: (site: string, credentials: Record<string, string>, website: string, cursor: string | null) =>
+    send<{ cursor: string | null; done: number; total: number; pageviews: number; events: number; visits: number }>("POST", `import/umami/visits${siteQuery(site)}`, { credentials, website, cursor }),
   goals: (view: View) =>
     get<{ visitors: number; goals: Array<Goal & GoalTotals & { previous?: GoalTotals }> }>("goals", viewParams(view)),
   goal: (view: View, id: string) => get<GoalReport>(`goals/${id}`, viewParams(view)),
