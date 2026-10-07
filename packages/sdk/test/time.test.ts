@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buckets, localDate, resolveRange, startOf } from "../src/time.js";
+import { buckets, compareRange, localDate, resolveRange, startOf } from "../src/time.js";
 
 test("a local day starts at local midnight", () => {
   assert.equal(new Date(startOf("2026-07-01", "Europe/London")).toISOString(), "2026-06-30T23:00:00.000Z");
@@ -40,4 +40,20 @@ test("month buckets start on the first", () => {
   assert.equal(new Date(months[0]!.start).toISOString(), "2026-01-15T00:00:00.000Z");
   assert.equal(new Date(months[1]!.start).toISOString(), "2026-02-01T00:00:00.000Z");
   assert.equal(new Date(months[2]!.end).toISOString(), "2026-03-11T00:00:00.000Z");
+});
+
+test("comparison ranges: previous, a year back, custom, and off", () => {
+  const now = Date.UTC(2026, 9, 6, 12);
+  const week = resolveRange({ period: "7d" }, "UTC", now)!;
+  const prev = compareRange(week, "previous", "UTC")!;
+  assert.deepEqual([prev.fromDate, prev.toDate], ["2026-09-23", "2026-09-29"]);
+  assert.equal(prev.to, week.from);
+  const year = compareRange(week, "year", "UTC")!;
+  assert.deepEqual([year.fromDate, year.toDate], ["2025-09-30", "2025-10-06"]);
+  const leap = compareRange(resolveRange({ from: "2028-02-29", to: "2028-02-29" }, "UTC", now)!, "year", "UTC")!;
+  assert.equal(leap.fromDate, "2027-02-28");
+  const custom = compareRange(week, "custom", "UTC", { from: "2026-01-01", to: "2026-01-07" })!;
+  assert.equal(custom.fromDate, "2026-01-01");
+  assert.equal(compareRange(week, "custom", "UTC", { from: "2026-01-07", to: "2026-01-01" }), null);
+  assert.equal(compareRange(week, "off", "UTC"), null);
 });

@@ -141,6 +141,45 @@ export function resolveRange(
   return { from: startOf(fromDate, timezone), to: startOf(addDays(toDate, 1), timezone), fromDate, toDate, interval };
 }
 
+export type CompareMode = "previous" | "year" | "custom" | "off";
+
+function addYears(date: string, years: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const shifted = new Date(Date.UTC(y! + years, m! - 1, d!));
+  // Feb 29 in a year without one becomes Feb 28, not Mar 1.
+  if (shifted.getUTCMonth() !== m! - 1) shifted.setUTCDate(0);
+  return shifted.toISOString().slice(0, 10);
+}
+
+/**
+ * The range a period is compared with: the same number of days just before
+ * it, the same dates a year earlier, or custom dates. Null for "off" or bad
+ * custom dates.
+ */
+export function compareRange(
+  range: Range,
+  mode: CompareMode,
+  timezone: string,
+  custom: { from?: string | null; to?: string | null } = {},
+): Range | null {
+  let fromDate: string;
+  let toDate: string;
+  if (mode === "off") return null;
+  if (mode === "year") {
+    fromDate = addYears(range.fromDate, -1);
+    toDate = addYears(range.toDate, -1);
+  } else if (mode === "custom") {
+    if (!custom.from || !custom.to || !isDate(custom.from) || !isDate(custom.to) || custom.from > custom.to) return null;
+    fromDate = custom.from;
+    toDate = custom.to;
+  } else {
+    const days = daysBetween(range.fromDate, range.toDate) + 1;
+    fromDate = addDays(range.fromDate, -days);
+    toDate = addDays(range.fromDate, -1);
+  }
+  return { from: startOf(fromDate, timezone), to: startOf(addDays(toDate, 1), timezone), fromDate, toDate, interval: range.interval };
+}
+
 /** The same length of time immediately before a range. */
 export function previousRange(range: Range): Pick<Range, "from" | "to"> {
   return { from: range.from - (range.to - range.from), to: range.from };

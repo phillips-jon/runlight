@@ -6,7 +6,7 @@
 // The bundle is rebuilt on every page load, so a refresh shows an edit.
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
-import { bundle } from "../packages/dashboard/scripts/build.mjs";
+import { bundle, locales } from "../packages/dashboard/scripts/build.mjs";
 import { world } from "../packages/dashboard/scripts/world.mjs";
 import { runlight } from "../packages/sdk/src/index.ts";
 import { toNodeHandler } from "../packages/sdk/src/node.ts";
@@ -33,7 +33,7 @@ createServer(async (req, res) => {
     res.setHeader("content-type", "text/html; charset=utf-8");
     res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Runlight (dev)</title><link rel="stylesheet" href="/runlight/dev.css"></head>
-<body><div id="app" data-base="/runlight" data-world="/runlight/world.json"></div><script type="module" src="/runlight/dev.js"></script></body></html>`);
+<body><div id="app" data-base="/runlight" data-world="/runlight/world.json" data-locales='${JSON.stringify(Object.fromEntries(Object.keys(locales()).map((c) => [c, `/runlight/locales/${c}.json`])))}'></div><script type="module" src="/runlight/dev.js"></script></body></html>`);
     return;
   }
   if (path === "/runlight/dev.js" || path === "/runlight/dev.css") {
@@ -45,6 +45,14 @@ createServer(async (req, res) => {
       res.statusCode = 500;
       res.end(String(error));
     }
+    return;
+  }
+  const lang = /^\/runlight\/locales\/([a-z]+)\.json$/.exec(path);
+  if (lang) {
+    const all = locales();
+    res.setHeader("content-type", "application/json");
+    res.statusCode = all[lang[1]!] ? 200 : 404;
+    res.end(all[lang[1]!] ?? "{}");
     return;
   }
   if (path === "/runlight/world.json") {

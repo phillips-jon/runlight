@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { DASHBOARD_HASH } from "../src/generated/dashboard.js";
+import { DASHBOARD_HASH, LOCALES_HASH } from "../src/generated/dashboard.js";
 import { TRACKER_HASH } from "../src/generated/tracker.js";
 import { runlight } from "../src/index.js";
 import { sqlite } from "../src/stores/sqlite.js";
@@ -99,6 +99,11 @@ test("the dashboard page loads its hashed assets under a strict CSP", async () =
   assert.match(js.headers.get("cache-control") ?? "", /immutable/);
   assert.equal((await GET(req(`/admin/runlight/assets/app.${DASHBOARD_HASH}.css`))).status, 200);
   assert.equal((await GET(req("/admin/runlight/assets/app.old.js"))).status, 404);
+  assert.ok(html.includes(`/admin/runlight/assets/locale.fr.${LOCALES_HASH}.json`), "the page lists its languages");
+  const french = await GET(req(`/admin/runlight/assets/locale.fr.${LOCALES_HASH}.json`));
+  assert.equal(french.status, 200);
+  assert.equal((await french.json())["filter.button"], "Filtrer");
+  assert.equal((await GET(req(`/admin/runlight/assets/locale.xx.${LOCALES_HASH}.json`))).status, 404);
   assert.equal((await GET(req("/admin/runlight/api/stats"))).status, 401, "the data stays behind the token");
 });
 

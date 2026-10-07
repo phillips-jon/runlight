@@ -1,29 +1,21 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, type Filter, type Row, type View } from "./api.js";
 import { count } from "./format.js";
+import { t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
 
-export const FIELDS: Array<{ group: string; fields: Array<[string, string]> }> = [
-  { group: "Pages", fields: [["page", "Page"], ["entry", "Entry page"], ["exit", "Exit page"], ["hostname", "Hostname"]] },
-  {
-    group: "Sources",
-    fields: [["channel", "Channel"], ["source", "Source"], ["referrer", "Referrer"], ["utm_campaign", "Campaign"], ["utm_source", "UTM source"], ["utm_medium", "UTM medium"], ["utm_content", "UTM content"], ["utm_term", "UTM term"]],
-  },
-  { group: "Location", fields: [["country", "Country"], ["region", "Region"], ["city", "City"]] },
-  {
-    group: "Device",
-    fields: [["device", "Device"], ["browser", "Browser"], ["browser_version", "Browser version"], ["os", "OS"], ["os_version", "OS version"], ["screen", "Screen"], ["language", "Language"]],
-  },
-  { group: "Behaviour", fields: [["event", "Event"]] },
+export const FIELDS: Array<{ group: Key; fields: string[] }> = [
+  { group: "group.pages", fields: ["page", "entry", "exit", "hostname"] },
+  { group: "group.sources", fields: ["channel", "source", "referrer", "utm_campaign", "utm_source", "utm_medium", "utm_content", "utm_term"] },
+  { group: "group.location", fields: ["country", "region", "city"] },
+  { group: "group.device", fields: ["device", "browser", "browser_version", "os", "os_version", "screen", "language"] },
+  { group: "group.behaviour", fields: ["event"] },
 ];
 
-export const FIELD_NAMES: Record<string, string> = Object.fromEntries(FIELDS.flatMap((g) => g.fields));
+export const fieldName = (dimension: string): string => t(`field.${dimension}` as Key);
 
-const OPS: Array<[Filter["op"], string]> = [
-  ["is", "is"],
-  ["not", "is not"],
-  ["contains", "contains"],
-];
+const OPS: Filter["op"][] = ["is", "not", "contains"];
+export const opName = (op: Filter["op"]): string => t(`filter.${op}`);
 
 interface Draft extends Filter {
   id: number;
@@ -54,31 +46,31 @@ function Clause({ draft, view, first, onChange, onRemove }: {
 
   return (
     <div class="clause">
-      <span class="joiner">{first ? "where" : "and"}</span>
+      <span class="joiner">{t(first ? "filter.where" : "filter.and")}</span>
       <div class="clause-body">
         <div class="clause-line">
           <select
             class="field"
-            aria-label="Field"
+            aria-label={t("filter.field")}
             value={draft.dimension}
             onChange={(e) => onChange({ ...draft, dimension: (e.target as HTMLSelectElement).value, value: "" })}
           >
             {FIELDS.map((g) => (
-              <optgroup label={g.group}>
-                {g.fields.map(([value, text]) => (
-                  <option value={value}>{text}</option>
+              <optgroup label={t(g.group)}>
+                {g.fields.map((value) => (
+                  <option value={value}>{fieldName(value)}</option>
                 ))}
               </optgroup>
             ))}
           </select>
-          <div class="ops" role="radiogroup" aria-label="Match">
-            {OPS.map(([op, text]) => (
+          <div class="ops" role="radiogroup" aria-label={t("filter.match")}>
+            {OPS.map((op) => (
               <button type="button" role="radio" aria-checked={draft.op === op} class={draft.op === op ? "op on" : "op"} onClick={() => onChange({ ...draft, op })}>
-                {text}
+                {opName(op)}
               </button>
             ))}
           </div>
-          <button type="button" class="remove" aria-label="Remove this condition" onClick={onRemove}>
+          <button type="button" class="remove" aria-label={t("filter.removeCondition")} onClick={onRemove}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" />
             </svg>
@@ -87,8 +79,8 @@ function Clause({ draft, view, first, onChange, onRemove }: {
         <input
           class="value"
           type="text"
-          aria-label="Value"
-          placeholder={draft.op === "contains" ? "Any part of the value" : "Type a value or pick one below"}
+          aria-label={t("filter.value")}
+          placeholder={t(draft.op === "contains" ? "filter.placeholderContains" : "filter.placeholder")}
           value={draft.value}
           onInput={(e) => onChange({ ...draft, value: (e.target as HTMLInputElement).value })}
         />
@@ -130,8 +122,8 @@ export function FilterDrawer({ view, onApply, onClose }: { view: View; onApply: 
     <div class="scrim" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="filter-title" ref={panel}>
         <header class="drawer-head">
-          <h2 id="filter-title">Show visits</h2>
-          <button type="button" class="remove" aria-label="Close" onClick={onClose}>
+          <h2 id="filter-title">{t("filter.title")}</h2>
+          <button type="button" class="remove" aria-label={t("common.close")} onClick={onClose}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" />
             </svg>
@@ -148,17 +140,17 @@ export function FilterDrawer({ view, onApply, onClose }: { view: View; onApply: 
             />
           ))}
           <button type="button" class="add" onClick={() => setDrafts([...drafts, { dimension: "country", op: "is", value: "", id: nextId++ }])}>
-            + Add a condition
+            {t("filter.add")}
           </button>
-          <p class="drawer-note">Every condition has to hold. Click any row on the dashboard to add one without opening this.</p>
+          <p class="drawer-note">{t("filter.note")}</p>
         </div>
         <footer class="drawer-foot">
           <button type="button" class="ghost" onClick={() => setDrafts([])}>
-            Clear all
+            {t("common.clearAll")}
           </button>
           <span class="grow" />
           <button type="button" class="ghost" onClick={onClose}>
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -168,7 +160,7 @@ export function FilterDrawer({ view, onApply, onClose }: { view: View; onApply: 
               onClose();
             }}
           >
-            {ready.length ? `Apply ${ready.length} ${ready.length === 1 ? "condition" : "conditions"}` : "Show everything"}
+            {ready.length ? tn("filter.apply", ready.length) : t("filter.everything")}
           </button>
         </footer>
       </div>

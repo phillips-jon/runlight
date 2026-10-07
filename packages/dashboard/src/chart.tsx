@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { Point } from "./api.js";
 import { bucketLabel } from "./format.js";
-import type { MetricDef } from "./metrics.js";
+import { t } from "./i18n.js";
+import { metricLabel, type MetricDef } from "./metrics.js";
 
 interface Props {
   points: Point[];
+  /** The comparison period's points, by position, drawn dashed behind. */
+  previous?: Point[];
   metrics: MetricDef[];
   interval: string;
   timezone: string;
@@ -29,7 +32,7 @@ function niceMax(value: number): number {
  * that visitors and a bounce rate share a unit; the tooltip gives the
  * real values.
  */
-export function Chart({ points, metrics, interval, timezone }: Props) {
+export function Chart({ points, previous, metrics, interval, timezone }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
   const [hover, setHover] = useState<number | null>(null);
@@ -48,7 +51,8 @@ export function Chart({ points, metrics, interval, timezone }: Props) {
   const innerH = HEIGHT - pad.top - pad.bottom;
   const step = points.length > 1 ? innerW / (points.length - 1) : 0;
   const x = (i: number) => pad.left + (points.length > 1 ? i * step : innerW / 2);
-  const tops = new Map(metrics.map((m) => [m.key, niceMax(Math.max(0, ...points.map((p) => p[m.key])))]));
+  const before = previous ?? [];
+  const tops = new Map(metrics.map((m) => [m.key, niceMax(Math.max(0, ...points.map((p) => p[m.key]), ...before.map((p) => p[m.key])))]));
   const y = (m: MetricDef, v: number) => pad.top + innerH - (v / (tops.get(m.key) ?? 1)) * innerH;
   const baseline = pad.top + innerH;
   const labelEvery = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(innerW / 92))));
@@ -64,7 +68,7 @@ export function Chart({ points, metrics, interval, timezone }: Props) {
 
   return (
     <div class="chart" ref={box}>
-      <svg width={width} height={HEIGHT} role="img" aria-label={`${metrics.map((m) => m.label).join(", ")} over time`} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
+      <svg width={width} height={HEIGHT} role="img" aria-label={t("chart.label", { metrics: metrics.map(metricLabel).join(", ") })} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
         {gridFractions.map((f) => (
           <line class={f === 0 ? "gridline base" : "gridline"} x1={pad.left} x2={width - pad.right} y1={baseline - f * innerH} y2={baseline - f * innerH} />
         ))}
@@ -82,6 +86,11 @@ export function Chart({ points, metrics, interval, timezone }: Props) {
             </text>
           ) : null,
         )}
+        {metrics.map((m) => {
+          if (before.length < 2) return null;
+          const then = before.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(m, p[m.key]).toFixed(1)}`).join("");
+          return <path class={`then s${m.slot}`} d={then} />;
+        })}
         {metrics.map((m) => {
           const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(m, p[m.key]).toFixed(1)}`).join("");
           const area = points.length ? `${line}L${x(points.length - 1).toFixed(1)},${baseline}L${x(0).toFixed(1)},${baseline}Z` : "";
@@ -104,13 +113,22 @@ export function Chart({ points, metrics, interval, timezone }: Props) {
       {hovered && hover !== null ? (
         <div class={x(hover) > width / 2 ? "tip left" : "tip"} style={{ left: `${x(hover)}px` }}>
           <span class="tip-when">{bucketLabel(hovered.start, interval === "hour" ? "hour" : interval === "month" ? "month" : "day", timezone)}</span>
-          {metrics.map((m) => (
-            <span class="tip-row">
-              <span class={`swatch s${m.slot}`} />
-              <span class="tip-label">{m.label}</span>
-              <strong>{m.format(hovered[m.key])}</strong>
+          {metrics.map((m) => {
+            const then = hover !== null ? before[hover] : undefined;
+            return (
+              <span class="tip-row">
+                <span class={`swatch s${m.slot}`} />
+                <span class="tip-label">{metricLabel(m)}</span>
+                <strong>{m.format(hovered[m.key])}</strong>
+                {then ? <span class="tip-then">{m.format(then[m.key])}</span> : null}
+              </span>
+            );
+          })}
+          {hover !== null && before[hover] ? (
+            <span class="tip-then-when">
+              {t("chart.then", { when: bucketLabel(before[hover]!.start, interval === "hour" ? "hour" : interval === "month" ? "month" : "day", timezone) })}
             </span>
-          ))}
+          ) : null}
         </div>
       ) : null}
     </div>

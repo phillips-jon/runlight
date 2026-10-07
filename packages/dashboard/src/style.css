@@ -1752,3 +1752,121 @@ body.locked {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Comparison */
+
+.then {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  opacity: 0.55;
+}
+
+.tip-then {
+  margin-left: 8px;
+  font: 12px var(--mono);
+  color: var(--faint);
+}
+
+.tip-then-when {
+  display: block;
+  margin-top: 4px;
+  font: 11px var(--mono);
+  color: var(--faint);
+}
+
+.compare-vs {
+  font: 11px var(--mono);
+  color: var(--faint);
+}
+
+.picker-button.compare.off span:not(.compare-vs) {
+  color: var(--muted);
+}
+
+.presets-title {
+  padding: 4px 10px 8px;
+  font: 11px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+/* Language switch */
+
+.language select {
+  appearance: none;
+  height: 34px;
+  padding: 0 30px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%238a8a93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 9px center / 13px no-repeat;
+  font: 12px var(--sans);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.language select:hover {
+  border-color: var(--faint);
+  color: var(--ink);
+}
+
+/* Show all */
+
+.name-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-sheet {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, 100%);
+  height: min(82vh, 900px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  animation: fade 0.15s ease-out;
+}
+
+.sheet-sub {
+  margin-left: 6px;
+  font: 13px var(--mono);
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.sheet-search {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 24px 12px;
+}
+
+.sheet-search .value {
+  flex: 1;
+}
+
+.sheet-count {
+  min-width: 48px;
+  text-align: right;
+  font: 12px var(--mono);
+  color: var(--faint);
+}
+
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 24px 20px;
+}
+
+.sheet-body .cols {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding-top: 6px;
+  background: var(--card);
+}

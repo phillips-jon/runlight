@@ -1,11 +1,11 @@
-import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
+import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
 import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
 import type { RequestContext, Runlight } from "./runlight.js";
 import type { SiteRow } from "./store.js";
 import { fetchIcon } from "./icon.js";
-import { buckets, localDate, localWeekdayHour, previousRange, resolveRange } from "./time.js";
+import { buckets, compareRange, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
 import { API_VERSION, VERSION } from "./version.js";
 
 export interface RoutesOptions {
@@ -89,6 +89,10 @@ function escapeAttr(value: string): string {
   return value.replace(/[&"<>]/g, (c) => `&#${c.charCodeAt(0)};`);
 }
 
+function localeUrls(base: string): string {
+  return JSON.stringify(Object.fromEntries(Object.keys(LOCALES).map((code) => [code, `${base}/assets/locale.${code}.${LOCALES_HASH}.json`])));
+}
+
 const DASHBOARD = (base: string) => `<!doctype html>
 <html lang="en">
 <head>
@@ -99,7 +103,7 @@ const DASHBOARD = (base: string) => `<!doctype html>
 <link rel="stylesheet" href="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.css">
 </head>
 <body>
-<div id="app" data-base="${escapeAttr(base)}" data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json"></div>
+<div id="app" data-base="${escapeAttr(base)}" data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json" data-locales="${escapeAttr(localeUrls(base))}"></div>
 <script type="module" src="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.js"></script>
 </body>
 </html>
@@ -168,7 +172,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     );
     if (!range) return json({ error: "Bad date range. Use period, or from and to as YYYY-MM-DD." }, 400);
     const query: Query = { site: site.id, from: range.from, to: range.to, filters };
-    return { query, range };
+    // compare=false is the older spelling of off.
+    const raw = url.searchParams.get("compare") ?? "previous";
+    const mode = (raw === "false" ? "off" : raw) as CompareMode;
+    if (!["previous", "year", "custom", "off"].includes(mode)) return json({ error: `Bad compare "${raw}". Use previous, year, custom, or off.` }, 400);
+    const compared = compareRange(range, mode, site.timezone, { from: url.searchParams.get("compare_from"), to: url.searchParams.get("compare_to") });
+    if (mode === "custom" && !compared) return json({ error: "Bad comparison range. Use compare_from and compare_to as YYYY-MM-DD." }, 400);
+    return { query, range, compared };
   }
 
   async function api(request: Request, path: string, url: URL): Promise<Response> {
@@ -218,19 +228,21 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     const read = await readQuery(url, site);
     if (read instanceof Response) return read;
-    const { query, range } = read;
+    const { query, range, compared } = read;
     const rangeOut = { from: range.fromDate, to: range.toDate, interval: range.interval, timezone: site.timezone };
+    const compareOut = compared ? { from: compared.fromDate, to: compared.toDate } : undefined;
 
     if (path === "/api/stats") {
       const stats = await runlight.store.stats(query);
-      const compare = url.searchParams.get("compare");
-      const previous = compare === "false" ? undefined : await runlight.store.stats({ ...query, ...previousRange(range) });
-      return json({ site: site.id, range: rangeOut, stats, previous });
+      const previous = compared ? await runlight.store.stats({ ...query, from: compared.from, to: compared.to }) : undefined;
+      return json({ site: site.id, range: rangeOut, compare: compareOut, stats, previous });
     }
 
     if (path === "/api/series") {
       const points = await runlight.store.series(query, buckets(range, site.timezone));
-      return json({ site: site.id, range: rangeOut, points });
+      // Comparison points line up with the main ones by position.
+      const previous = compared ? (await runlight.store.series(query, buckets(compared, site.timezone))).slice(0, points.length) : undefined;
+      return json({ site: site.id, range: rangeOut, compare: compareOut, points, previous });
     }
 
     if (path === "/api/rhythm") {
@@ -273,6 +285,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
       if (path === `/assets/world.${WORLD_HASH}.json` && request.method === "GET") {
         return new Response(WORLD_JSON, {
+          headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=31536000, immutable" },
+        });
+      }
+
+      const locale = /^\/assets\/locale\.([a-z]{2,3})\.([a-f0-9]+)\.json$/.exec(path);
+      if (locale && locale[2] === LOCALES_HASH && LOCALES[locale[1]!] && request.method === "GET") {
+        return new Response(LOCALES[locale[1]!], {
           headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=31536000, immutable" },
         });
       }

@@ -61,6 +61,9 @@ export interface View {
   from: string;
   to: string;
   filters: Filter[];
+  compare: "previous" | "year" | "custom" | "off";
+  compareFrom: string;
+  compareTo: string;
 }
 
 export const base = document.getElementById("app")?.dataset.base ?? "";
@@ -90,13 +93,18 @@ export function viewParams(view: View): URLSearchParams {
     params.set("period", view.period);
   }
   for (const f of view.filters) params.append("filter", `${f.dimension}:${f.op}:${f.value}`);
+  if (view.compare !== "previous") params.set("compare", view.compare);
+  if (view.compare === "custom") {
+    params.set("compare_from", view.compareFrom);
+    params.set("compare_to", view.compareTo);
+  }
   return params;
 }
 
 export const api = {
   sites: () => get<{ sites: Site[] }>("sites", new URLSearchParams()),
-  stats: (view: View) => get<{ range: Range; stats: Stats; previous?: Stats }>("stats", viewParams(view)),
-  series: (view: View) => get<{ range: Range; points: Point[] }>("series", viewParams(view)),
+  stats: (view: View) => get<{ range: Range; compare?: { from: string; to: string }; stats: Stats; previous?: Stats }>("stats", viewParams(view)),
+  series: (view: View) => get<{ range: Range; points: Point[]; previous?: Point[] }>("series", viewParams(view)),
   breakdown: (view: View, dimension: string, limit: number) => {
     const params = viewParams(view);
     params.set("dimension", dimension);

@@ -79,6 +79,16 @@ test("a visit: pageviews, an event, engagement, and the reports that follow", as
   assert.equal(rhythm.grid[1][12], 2, "two visits on Tuesday at noon UTC");
   assert.equal(rhythm.grid.flat().reduce((a: number, b: number) => a + b, 0), 2);
 
+  const lastYear = await t.get("/api/stats?period=today&compare=year");
+  assert.deepEqual(lastYear.compare, { from: "2025-10-06", to: "2025-10-06" });
+  assert.equal(lastYear.previous.visitors, 0);
+  const off = await t.get("/api/series?period=today&compare=off");
+  assert.equal(off.previous, undefined);
+  const withPrevious = await t.get("/api/series?period=today");
+  assert.equal(withPrevious.previous.length, 24);
+  await assert.rejects(t.get("/api/stats?period=today&compare=custom"));
+  await assert.rejects(t.get("/api/stats?period=today&compare=sideways"));
+
   const live = await t.get("/api/realtime");
   assert.equal(live.visitors, 2);
   assert.equal(live.minutes.length, 30);

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, type Row, type View } from "./api.js";
 import { count, countryName, flag } from "./format.js";
+import { t, tn } from "./i18n.js";
 
 interface World {
   w: number;
@@ -14,7 +15,7 @@ let loading: Promise<World> | null = null;
 /** The shapes are fetched once, the first time any map opens. */
 function loadWorld(): Promise<World> {
   loading ??= fetch(worldUrl).then((r) => {
-    if (!r.ok) throw new Error("Could not load the map");
+    if (!r.ok) throw new Error(t("map.failed"));
     return r.json() as Promise<World>;
   });
   loading.catch(() => (loading = null));
@@ -66,10 +67,12 @@ export function WorldMap({ view, onFilter, large }: Props) {
       <svg
         viewBox={`0 0 ${world.w} ${world.h}`}
         role="img"
-        aria-label={`Visitors by country: ${rows
-          .slice(0, 5)
-          .map((r) => `${countryName(r.value)} ${count(r.visitors)}`)
-          .join(", ")}`}
+        aria-label={t("map.label", {
+          top: rows
+            .slice(0, 5)
+            .map((r) => `${countryName(r.value)} ${count(r.visitors)}`)
+            .join(", "),
+        })}
         onPointerLeave={() => setHover(null)}
       >
         {world.shapes.map((s) => {
@@ -92,15 +95,15 @@ export function WorldMap({ view, onFilter, large }: Props) {
           <strong>
             {flag(hovered.id)} {countryName(hovered.id)}
           </strong>
-          <span>{hovered.n ? `${count(hovered.n)} ${hovered.n === 1 ? "visitor" : "visitors"}` : "No visitors"}</span>
+          <span>{hovered.n ? tn("map.visitors", hovered.n, { n: count(hovered.n) }) : t("map.none")}</span>
         </div>
       ) : null}
       <div class="map-scale" aria-hidden="true">
-        <span>Fewer</span>
+        <span>{t("scale.fewer")}</span>
         {Array.from({ length: STEPS }, (_, i) => (
           <span class={`cell q${i + 1}`} />
         ))}
-        <span>More</span>
+        <span>{t("scale.more")}</span>
       </div>
     </div>
   );
@@ -124,10 +127,10 @@ export function MapOverlay({ view, onFilter, onClose }: Props & { onClose: () =>
   const total = rows.reduce((sum, r) => sum + r.visitors, 0);
   return (
     <div class="scrim center" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="map-sheet" role="dialog" aria-modal="true" aria-label="Visitors around the world">
+      <div class="map-sheet" role="dialog" aria-modal="true" aria-label={t("map.title")}>
         <header class="drawer-head">
-          <h2>Around the world</h2>
-          <button type="button" class="remove" aria-label="Close" onClick={onClose}>
+          <h2>{t("map.title")}</h2>
+          <button type="button" class="remove" aria-label={t("common.close")} onClick={onClose}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" />
             </svg>

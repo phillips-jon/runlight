@@ -3,25 +3,12 @@ import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import { ApiError, api, base, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, Spark } from "./chart.js";
 import { change, exact } from "./format.js";
-import { MAX_CHARTED, METRICS, metric, type MetricKey } from "./metrics.js";
-import { FIELD_NAMES, FilterDrawer } from "./filters.js";
+import { FilterDrawer, fieldName, opName } from "./filters.js";
+import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type Key } from "./i18n.js";
+import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey } from "./metrics.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
-import { DEFAULT_PERIOD, Picker, rangeText } from "./picker.js";
+import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
 import "./style.css";
-
-/** How a period reads inside a sentence, and what it is compared with. */
-const PHRASES: Record<string, [string, string]> = {
-  today: ["today", "yesterday"],
-  yesterday: ["yesterday", "the day before"],
-  "7d": ["in the last 7 days", "the 7 days before"],
-  "30d": ["in the last 30 days", "the 30 days before"],
-  "90d": ["in the last 90 days", "the 90 days before"],
-  month: ["this month", "the same stretch before it"],
-  last_month: ["last month", "the month before"],
-  year: ["this year", "the same stretch before it"],
-  "12mo": ["in the last 12 months", "the 12 months before"],
-  all: ["since tracking began", ""],
-};
 
 function readView(): View {
   const q = new URLSearchParams(location.search);
@@ -30,7 +17,19 @@ function readView(): View {
     const [dimension, op, ...rest] = raw.split(":");
     if (dimension && (op === "is" || op === "not" || op === "contains")) filters.push({ dimension, op, value: rest.join(":") });
   }
-  return { site: q.get("site") ?? "", period: q.get("period") ?? DEFAULT_PERIOD, from: q.get("from") ?? "", to: q.get("to") ?? "", filters };
+  const compare = (["previous", "year", "custom", "off"].includes(q.get("compare") ?? "") ? q.get("compare") : "previous") as CompareMode;
+  const compareFrom = q.get("compare_from") ?? "";
+  const compareTo = q.get("compare_to") ?? "";
+  return {
+    site: q.get("site") ?? "",
+    period: q.get("period") ?? DEFAULT_PERIOD,
+    from: q.get("from") ?? "",
+    to: q.get("to") ?? "",
+    filters,
+    compare: compare === "custom" && !(compareFrom && compareTo) ? "previous" : compare,
+    compareFrom,
+    compareTo,
+  };
 }
 
 function readCharted(): MetricKey[] {
@@ -48,6 +47,11 @@ function writeUrl(view: View, charted: MetricKey[]) {
     q.set("period", view.period);
   }
   for (const f of view.filters) q.append("filter", `${f.dimension}:${f.op}:${f.value}`);
+  if (view.compare !== "previous") q.set("compare", view.compare);
+  if (view.compare === "custom") {
+    q.set("compare_from", view.compareFrom);
+    q.set("compare_to", view.compareTo);
+  }
   if (charted.join(",") !== "visitors") q.set("chart", charted.join(","));
   const search = q.toString();
   history.replaceState(null, "", search ? `?${search}` : location.pathname);
@@ -61,14 +65,16 @@ function todayIn(timezone: string): string {
   }
 }
 
+const isPeriod = (p: string) => (PERIODS as readonly string[]).includes(p);
+
 function Delta({ now, before, lowerIsBetter }: { now: number; before: number | undefined; lowerIsBetter?: boolean }) {
   const c = change(now, before);
   if (c === null) return <span class="delta" />;
   const flat = Math.abs(c) < 0.005;
   const good = lowerIsBetter ? c < 0 : c > 0;
   return (
-    <span class={`delta ${flat ? "flat" : good ? "up" : "down"}`} title="Against the previous period">
-      {flat ? "no change" : `${c > 0 ? "↑" : "↓"} ${Math.abs(Math.round(c * 100))}%`}
+    <span class={`delta ${flat ? "flat" : good ? "up" : "down"}`} title={t("delta.title")}>
+      {flat ? t("delta.none") : `${c > 0 ? "↑" : "↓"} ${Math.abs(Math.round(c * 100))}%`}
     </span>
   );
 }
@@ -100,41 +106,47 @@ function Live({ site }: { site: string }) {
   }, [site]);
   if (n === null) return null;
   return (
-    <span class="live" title="Visitors in the last five minutes">
+    <span class="live" title={t("app.live.title")}>
       <span class={n > 0 ? "beat on" : "beat"} aria-hidden="true" />
-      {n} here now
+      {tn("app.live", n, { n: exact(n) })}
     </span>
   );
 }
 
-function Headline({ view, stats, previous }: { view: View; stats: Stats; previous?: Stats }) {
-  const phrase = view.from ? [`between ${rangeText(view.from, view.to)}`, "the same stretch before"] : PHRASES[view.period] ?? PHRASES[DEFAULT_PERIOD]!;
+function Headline({ view, stats, previous, compare }: { view: View; stats: Stats; previous?: Stats; compare?: { from: string; to: string } }) {
+  const period = isPeriod(view.period) ? view.period : DEFAULT_PERIOD;
+  const when = view.from ? t("when.range", { range: rangeText(view.from, view.to) }) : t(`when.${period}` as Key);
+  const against =
+    view.compare === "off" || !compare
+      ? ""
+      : view.compare === "year"
+        ? t("headline.lastYear")
+        : view.compare === "custom"
+          ? rangeText(compare.from, compare.to)
+          : view.from
+            ? t("before.range")
+            : t(`before.${period}` as Key);
   const c = change(stats.visitors, previous?.visitors);
-  const who = stats.visitors === 1 ? "person" : "people";
-  const verb = view.filters.length ? "matched these filters" : "visited";
-  return (
-    <p class="headline">
-      <strong>
-        {exact(stats.visitors)} {who}
-      </strong>{" "}
-      {verb} {phrase[0]}
-      {c !== null && phrase[1] && Math.abs(c) >= 0.005 ? (
-        <>
-          , <span class={c > 0 ? "up" : "down"}>{Math.abs(Math.round(c * 100))}% {c > 0 ? "more" : "fewer"}</span> than {phrase[1]}.
-        </>
-      ) : (
-        "."
-      )}
-    </p>
-  );
+  const parts = {
+    who: <strong>{tn("headline.who", stats.visitors, { n: exact(stats.visitors) })}</strong>,
+    verb: t(view.filters.length ? "headline.matched" : "headline.visited"),
+    when,
+    against,
+    change:
+      c === null ? "" : <span class={c > 0 ? "up" : "down"}>{t(c > 0 ? "headline.more" : "headline.fewer", { pct: Math.abs(Math.round(c * 100)) })}</span>,
+  };
+  const key: Key = c === null || !against ? "headline.plain" : Math.abs(c) < 0.005 ? "headline.same" : c > 0 ? "headline.up" : "headline.down";
+  return <p class="headline">{rich(key, parts)}</p>;
 }
 
 function App() {
+  const [, setLanguage] = useState(currentLocale());
   const [sites, setSites] = useState<Site[] | null>(null);
   const [view, setView] = useState<View>(readView);
   const [charted, setCharted] = useState<MetricKey[]>(readCharted);
-  const [stats, setStats] = useState<{ range: Range; stats: Stats; previous?: Stats } | null>(null);
+  const [stats, setStats] = useState<{ range: Range; compare?: { from: string; to: string }; stats: Stats; previous?: Stats } | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
+  const [previousPoints, setPreviousPoints] = useState<Point[] | undefined>(undefined);
   const [failure, setFailure] = useState("");
   const [filtering, setFiltering] = useState(false);
 
@@ -156,6 +168,7 @@ function App() {
         setFailure("");
         setStats(s);
         setPoints(series.points);
+        setPreviousPoints(series.previous);
       })
       .catch((e: Error) => live && fail(e));
     return () => {
@@ -175,6 +188,11 @@ function App() {
       const next = [...current, key];
       return next.length > MAX_CHARTED ? next.slice(next.length - MAX_CHARTED) : next;
     });
+  const changeLanguage = (code: string) => {
+    setLocale(code, true)
+      .then(() => setLanguage(code))
+      .catch((e: Error) => setFailure(e.message));
+  };
 
   const site = sites?.find((s) => s.id === view.site) ?? sites?.[0];
   const panels = useMemo(layout, []);
@@ -184,9 +202,7 @@ function App() {
     return (
       <main class="signed-out">
         <h1>Runlight</h1>
-        <p>
-          Open this page once with <code>?token=</code> followed by your <code>RUNLIGHT_TOKEN</code> to sign in.
-        </p>
+        <p>{rich("app.signedOut", { token: <code>?token=</code>, env: <code>RUNLIGHT_TOKEN</code> })}</p>
       </main>
     );
   }
@@ -202,7 +218,7 @@ function App() {
             <div class="identity-text">
               {sites && sites.length > 1 ? (
                 <label class="site-select">
-                  <span class="visually-hidden">Site</span>
+                  <span class="visually-hidden">{t("app.site")}</span>
                   <select value={site?.id} onChange={(e) => update({ site: (e.target as HTMLSelectElement).value, filters: [] })}>
                     {sites.map((x) => (
                       <option value={x.id}>{x.name}</option>
@@ -216,37 +232,45 @@ function App() {
             </div>
           </div>
           <div class="actions">
-          <button type="button" class={view.filters.length ? "filter-button on" : "filter-button"} onClick={() => setFiltering(true)}>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M2.5 3.5h11M4.5 8h7M6.5 12.5h3" />
-            </svg>
-            Filter{view.filters.length ? <span class="count">{view.filters.length}</span> : null}
-          </button>
-          <Picker
-            period={view.period}
-            from={view.from}
-            to={view.to}
-            today={today}
-            onPeriod={(period) => update({ period, from: "", to: "" })}
-            onRange={(from, to) => update({ from, to })}
-          />
+            <button type="button" class={view.filters.length ? "filter-button on" : "filter-button"} onClick={() => setFiltering(true)}>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M2.5 3.5h11M4.5 8h7M6.5 12.5h3" />
+              </svg>
+              {t("filter.button")}
+              {view.filters.length ? <span class="count">{view.filters.length}</span> : null}
+            </button>
+            <Picker
+              period={view.period}
+              from={view.from}
+              to={view.to}
+              today={today}
+              onPeriod={(period) => update({ period, from: "", to: "" })}
+              onRange={(from, to) => update({ from, to })}
+            />
+            <ComparePicker
+              mode={view.compare}
+              from={view.compareFrom}
+              to={view.compareTo}
+              today={today}
+              onChange={(compare, compareFrom = "", compareTo = "") => update({ compare, compareFrom, compareTo })}
+            />
           </div>
         </div>
-        {stats ? <Headline view={view} stats={stats.stats} previous={stats.previous} /> : <p class="headline">&nbsp;</p>}
+        {stats ? <Headline view={view} stats={stats.stats} previous={stats.previous} compare={stats.compare} /> : <p class="headline">&nbsp;</p>}
         {view.filters.length ? (
           <div class="filters">
             {view.filters.map((f) => (
               <span class="filter">
-                <span class="filter-dim">{FIELD_NAMES[f.dimension] ?? f.dimension}</span>
-                {f.op === "is" ? "is" : f.op === "not" ? "is not" : "contains"} <strong>{label(f.dimension, f.value)}</strong>
-                <button type="button" aria-label="Remove filter" onClick={() => update({ filters: view.filters.filter((x) => x !== f) })}>
+                <span class="filter-dim">{fieldName(f.dimension)}</span>
+                {opName(f.op)} <strong>{label(f.dimension, f.value)}</strong>
+                <button type="button" aria-label={t("filter.remove")} onClick={() => update({ filters: view.filters.filter((x) => x !== f) })}>
                   ×
                 </button>
               </span>
             ))}
             {view.filters.length > 1 ? (
               <button type="button" class="clear" onClick={() => update({ filters: [] })}>
-                Clear all
+                {t("common.clearAll")}
               </button>
             ) : null}
           </div>
@@ -262,10 +286,10 @@ function App() {
             const on = charted.includes(m.key);
             const value = stats?.stats[m.key];
             return (
-              <button type="button" class={`metric s${m.slot}${on ? " on" : ""}`} aria-pressed={on} onClick={() => toggleMetric(m.key)} title={m.hint}>
+              <button type="button" class={`metric s${m.slot}${on ? " on" : ""}`} aria-pressed={on} onClick={() => toggleMetric(m.key)} title={metricHint(m)}>
                 <span class="metric-label">
                   <span class={`swatch s${m.slot}`} />
-                  {m.label}
+                  {metricLabel(m)}
                 </span>
                 <span class="metric-value">{value === undefined ? " " : m.format(value)}</span>
                 <span class="metric-foot">
@@ -281,32 +305,45 @@ function App() {
             {shownMetrics.map((m) => (
               <span>
                 <span class={`swatch s${m.slot}`} />
-                {m.label}
+                {metricLabel(m)}
               </span>
             ))}
           </div>
           <span class="chart-note">
-            {shownMetrics.length > 1 ? "Each line is scaled to its own peak. Hover for values." : `Pick up to ${MAX_CHARTED} cards to compare.`}
+            {shownMetrics.length > 1 ? t("chart.scaled") : t("chart.pick", { n: MAX_CHARTED })}
+            {stats?.compare ? ` ${t("chart.dashed", { range: rangeText(stats.compare.from, stats.compare.to) })}` : ""}
           </span>
         </div>
-        {stats ? <Chart points={points} metrics={shownMetrics} interval={stats.range.interval} timezone={stats.range.timezone} /> : <div class="chart" />}
+        {stats ? (
+          <Chart points={points} previous={previousPoints} metrics={shownMetrics} interval={stats.range.interval} timezone={stats.range.timezone} />
+        ) : (
+          <div class="chart" />
+        )}
       </section>
 
       <div class="board">
         {panels.map((panel, i) =>
-          panel.title === "When people visit" ? (
+          panel.title === "panel.rhythm" ? (
             <Rhythm view={view} wide={panel.wide} />
           ) : (
-            <Panel title={panel.title} tabs={panel.tabs} view={view} onFilter={addFilter} wide={panel.wide} map={panel.title === "Locations"} key={i} />
+            <Panel title={panel.title} tabs={panel.tabs} view={view} onFilter={addFilter} wide={panel.wide} map={panel.title === "panel.locations"} key={i} />
           ),
         )}
       </div>
 
       <footer class="foot">
         <a href="https://runlight.sh" class="powered">
-          Powered by <span>Runlight</span>
+          {rich("foot.powered", { name: <span>Runlight</span> })}
         </a>
         <span class="foot-range">{stats ? `${rangeText(stats.range.from, stats.range.to)} · ${stats.range.timezone}` : ""}</span>
+        <label class="language">
+          <span class="visually-hidden">{t("foot.language")}</span>
+          <select value={currentLocale()} onChange={(e) => changeLanguage((e.target as HTMLSelectElement).value)}>
+            {LANGUAGES.map(([code, name]) => (
+              <option value={code}>{name}</option>
+            ))}
+          </select>
+        </label>
         <Theme />
       </footer>
     </main>
@@ -326,67 +363,67 @@ const CHANNEL_COLORS: Record<string, number> = {
 const DEVICE_COLORS: Record<string, number> = { desktop: 1, mobile: 2, tablet: 3 };
 const LIVE_AGENTS = new Set(["ChatGPT-User", "Claude-User", "Perplexity-User", "MistralAI-User", "meta-externalfetcher"]);
 
-function layout(): Array<{ title: string; tabs: Tab[]; wide?: boolean }> {
+function layout(): Array<{ title: Key; tabs: Tab[]; wide?: boolean }> {
   const f = { filterable: true };
   // Wide and narrow alternate row by row, so the board reads as a zigzag.
   return [
     {
-      title: "Pages",
+      title: "panel.pages",
       wide: true,
       tabs: [
-        { dimension: "page", label: "Top", ...f, extra: timeOnPage },
-        { dimension: "entry", label: "Entry", ...f, extra: bounce },
-        { dimension: "exit", label: "Exit", ...f },
+        { dimension: "page", label: "tab.top", ...f, extra: timeOnPage },
+        { dimension: "entry", label: "tab.entry", ...f, extra: bounce },
+        { dimension: "exit", label: "tab.exit", ...f },
       ],
     },
     {
-      title: "Sources",
+      title: "panel.sources",
       tabs: [
-        { dimension: "channel", label: "Channels", ...f, colors: CHANNEL_COLORS },
-        { dimension: "source", label: "Sources", ...f },
-        { dimension: "referrer", label: "Referrers", ...f },
+        { dimension: "channel", label: "tab.channels", ...f, colors: CHANNEL_COLORS },
+        { dimension: "source", label: "tab.sources", ...f },
+        { dimension: "referrer", label: "tab.referrers", ...f },
       ],
     },
     {
-      title: "Locations",
+      title: "panel.locations",
       tabs: [
-        { dimension: "country", label: "Countries", ...f },
-        { dimension: "region", label: "Regions", ...f },
-        { dimension: "city", label: "Cities", ...f },
+        { dimension: "country", label: "tab.countries", ...f },
+        { dimension: "region", label: "tab.regions", ...f },
+        { dimension: "city", label: "tab.cities", ...f },
       ],
     },
-    { title: "When people visit", wide: true, tabs: [] },
+    { title: "panel.rhythm", wide: true, tabs: [] },
     {
-      title: "AI agents",
+      title: "panel.ai",
       wide: true,
       tabs: [
-        { dimension: "ai_agent", label: "Agents", column: "fetches", groups: { of: (v) => (LIVE_AGENTS.has(v) ? "Live fetches" : "Crawls"), slots: { "Live fetches": 7, Crawls: 1 } } },
-        { dimension: "ai_page", label: "Pages", column: "fetches" },
+        { dimension: "ai_agent", label: "tab.agents", column: "fetches", groups: { of: (v) => (LIVE_AGENTS.has(v) ? "ai.live" : "ai.crawl"), slots: { "ai.live": 7, "ai.crawl": 1 } } },
+        { dimension: "ai_page", label: "tab.pages", column: "fetches" },
       ],
     },
     {
-      title: "Devices",
+      title: "panel.devices",
       tabs: [
-        { dimension: "device", label: "Device", ...f, colors: DEVICE_COLORS },
-        { dimension: "browser", label: "Browser", ...f },
-        { dimension: "os", label: "OS", ...f },
-        { dimension: "screen", label: "Screen", ...f },
-        { dimension: "language", label: "Language", ...f },
+        { dimension: "device", label: "tab.device", ...f, colors: DEVICE_COLORS },
+        { dimension: "browser", label: "tab.browser", ...f },
+        { dimension: "os", label: "tab.os", ...f },
+        { dimension: "screen", label: "tab.screen", ...f },
+        { dimension: "language", label: "tab.language", ...f },
       ],
     },
     {
-      title: "Events",
-      tabs: [{ dimension: "event", label: "Event", column: "events", ...f }],
+      title: "panel.events",
+      tabs: [{ dimension: "event", label: "tab.event", column: "events", ...f }],
     },
     {
-      title: "Campaigns",
+      title: "panel.campaigns",
       wide: true,
       tabs: [
-        { dimension: "utm_campaign", label: "Campaign", ...f },
-        { dimension: "utm_source", label: "Source", ...f },
-        { dimension: "utm_medium", label: "Medium", ...f },
-        { dimension: "utm_content", label: "Content", ...f },
-        { dimension: "utm_term", label: "Term", ...f },
+        { dimension: "utm_campaign", label: "tab.campaign", ...f },
+        { dimension: "utm_source", label: "tab.source", ...f },
+        { dimension: "utm_medium", label: "tab.medium", ...f },
+        { dimension: "utm_content", label: "tab.content", ...f },
+        { dimension: "utm_term", label: "tab.term", ...f },
       ],
     },
   ];
@@ -406,19 +443,33 @@ function Theme() {
     else delete document.documentElement.dataset.theme;
   }, [theme]);
   const dark = theme ? theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  const toggle = () => {
+    const next = dark ? "light" : "dark";
+    setTheme(next);
+    try {
+      localStorage.setItem("runlight_theme", next);
+    } catch {}
+  };
+  // Cmd+Shift+D on a Mac, Ctrl+Shift+D elsewhere.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "d") {
+        e.preventDefault();
+        toggle();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  });
+  const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   return (
     <button
       type="button"
       class="theme"
-      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
-      title={dark ? "Light theme" : "Dark theme"}
-      onClick={() => {
-        const next = dark ? "light" : "dark";
-        setTheme(next);
-        try {
-          localStorage.setItem("runlight_theme", next);
-        } catch {}
-      }}
+      aria-label={t(dark ? "theme.toLight" : "theme.toDark")}
+      aria-keyshortcuts={mac ? "Meta+Shift+D" : "Control+Shift+D"}
+      title={`${t(dark ? "theme.light" : "theme.dark")} (${mac ? "⌘⇧D" : "Ctrl+Shift+D"})`}
+      onClick={toggle}
     >
       {dark ? (
         <svg viewBox="0 0 20 20" aria-hidden="true">
@@ -434,4 +485,7 @@ function Theme() {
   );
 }
 
-render(<App />, document.getElementById("app")!);
+const root = document.getElementById("app")!;
+setLocale(initialLocale())
+  .catch(() => setLocale("en"))
+  .finally(() => render(<App />, root));
