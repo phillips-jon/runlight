@@ -2319,4 +2319,5 @@ h1 .home:hover {
 /* No line box under the icon, so it centres exactly against the name. */
 .identity > .home {
   display: flex;
+  margin-top: 2px;
 }
