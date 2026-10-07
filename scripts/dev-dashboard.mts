@@ -37,11 +37,13 @@ const links = toNodeHandler(rl.linkHandler());
 
 createServer(async (req, res) => {
   const path = (req.url ?? "/").split("?")[0]!;
-  if (path === "/runlight" || path === "/runlight/") {
+  // Share pages get the same live bundle; the API refuses a share id that does not exist.
+  const share = /^\/runlight\/share\/([a-f0-9]{32})\/?$/.exec(path)?.[1] ?? "";
+  if (path === "/runlight" || path === "/runlight/" || share) {
     res.setHeader("content-type", "text/html; charset=utf-8");
     res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Runlight (dev)</title><link rel="stylesheet" href="/runlight/dev.css"></head>
-<body><div id="app" data-base="/runlight" data-world="/runlight/world.json" data-locales='${JSON.stringify(Object.fromEntries(Object.keys(locales()).map((c) => [c, `/runlight/locales/${c}.json`])))}'></div><script type="module" src="/runlight/dev.js"></script></body></html>`);
+<body><div id="app" data-base="/runlight"${share ? ` data-share="${share}"` : ""} data-world="/runlight/world.json" data-locales='${JSON.stringify(Object.fromEntries(Object.keys(locales()).map((c) => [c, `/runlight/locales/${c}.json`])))}'></div><script type="module" src="/runlight/dev.js"></script></body></html>`);
     return;
   }
   if (path === "/runlight/dev.js" || path === "/runlight/dev.css") {

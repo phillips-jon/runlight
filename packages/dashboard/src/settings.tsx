@@ -5,12 +5,14 @@ import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { ImportLinks } from "./importer.js";
 import { domainPrompt, installPrompt } from "./prompts.js";
+import { Sharing } from "./sharing.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
-type Section = "general" | "install" | "links" | "import";
+type Section = "general" | "install" | "sharing" | "links" | "import";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
+  ["sharing", "settings.sharing"],
   ["links", "settings.links"],
   ["import", "settings.import"],
 ];
@@ -397,6 +399,8 @@ export function SettingsModal({ site, sites, onClose, onSaved, onLanguage }: {
               <General site={site} onSaved={onSaved} onLanguage={onLanguage} />
             ) : section === "install" ? (
               <Install site={site} sites={sites} />
+            ) : section === "sharing" ? (
+              <Sharing site={site} />
             ) : section === "links" ? (
               <LinkDomains site={site} />
             ) : (

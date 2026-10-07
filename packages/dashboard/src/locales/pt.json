@@ -352,5 +352,16 @@
   "compare.allTime": "Não há nada antes de todo o período para comparar.",
   "view.reset": "Redefinir",
   "view.resetHint": "Voltar aos últimos 30 dias, sem filtros nem comparação",
-  "headline.fromNone": "{who} {verb} {when}, contra ninguém {against}."
+  "headline.fromNone": "{who} {verb} {when}, contra ninguém {against}.",
+  "settings.sharing": "Compartilhar",
+  "share.intro": "Um link de compartilhamento mostra as estatísticas deste site a quem o tiver, sem login: os números, as páginas, as fontes e os locais. Nunca mostra seus links curtos, suas configurações nem o endereço do site.",
+  "share.namePlaceholder": "Para quem é, como um cliente ou sua equipe",
+  "share.create": "Criar link de compartilhamento",
+  "share.empty": "Nenhum link de compartilhamento ainda.",
+  "share.unnamed": "Sem título",
+  "share.open": "Abrir",
+  "share.rename": "Renomear",
+  "share.save": "Salvar",
+  "share.revokeNote": "Apagar um link de compartilhamento o desativa na hora. Quem o tinha passa a ver uma página avisando.",
+  "share.gone": "Este link de compartilhamento não funciona mais. Peça um novo a quem o enviou."
 }

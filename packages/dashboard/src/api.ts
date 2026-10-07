@@ -102,6 +102,16 @@ export interface View {
 }
 
 export const base = document.getElementById("app")?.dataset.base ?? "";
+/** Set when this page is a shared, read-only dashboard; every request carries it. */
+export const share = document.getElementById("app")?.dataset.share ?? "";
+
+export interface Share {
+  id: string;
+  site: string;
+  name: string;
+  createdAt: number;
+  path: string;
+}
 
 export class ApiError extends Error {
   constructor(readonly status: number, message: string) {
@@ -110,7 +120,10 @@ export class ApiError extends Error {
 }
 
 async function get<T>(path: string, params: URLSearchParams): Promise<T> {
-  const response = await fetch(`${base}/api/${path}?${params}`, { credentials: "same-origin" });
+  const response = await fetch(`${base}/api/${path}?${params}`, {
+    credentials: "same-origin",
+    headers: share ? { "x-runlight-share": share } : undefined,
+  });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as { error?: string } | null;
     throw new ApiError(response.status, body?.error ?? response.statusText);
@@ -175,6 +188,10 @@ export const api = {
       `links/import/${source}${siteQuery(site)}`,
       { credentials, cursor, done },
     ),
+  shares: (site: string) => get<{ shares: Share[] }>("shares", new URLSearchParams(site ? { site } : {})),
+  createShare: (site: string, name: string) => send<{ share: Share }>("POST", `shares${siteQuery(site)}`, { name }),
+  renameShare: (site: string, id: string, name: string) => send<{ share: Share }>("PATCH", `shares/${id}${siteQuery(site)}`, { name }),
+  deleteShare: (site: string, id: string) => del(`shares/${id}${siteQuery(site)}`),
   linkDomains: (site: string) => get<{ domains: string[] }>("link-domains", new URLSearchParams(site ? { site } : {})),
   addLinkDomain: (site: string, domain: string) => send<{ domain: string }>("POST", `link-domains${siteQuery(site)}`, { domain }),
   checkLinkDomain: (site: string, domain: string) =>

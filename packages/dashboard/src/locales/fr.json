@@ -352,5 +352,16 @@
   "compare.allTime": "Rien ne précède le début : il n'y a rien à comparer.",
   "view.reset": "Réinitialiser",
   "view.resetHint": "Revenir aux 30 derniers jours, sans filtre ni comparaison",
-  "headline.fromNone": "{who} {verb} {when}, contre personne {against}."
+  "headline.fromNone": "{who} {verb} {when}, contre personne {against}.",
+  "settings.sharing": "Partage",
+  "share.intro": "Un lien de partage montre les statistiques de ce site à quiconque l'a, sans connexion : les chiffres, les pages, les sources et les lieux. Il ne montre jamais vos liens courts, vos réglages ni l'adresse du site.",
+  "share.namePlaceholder": "Pour qui, comme un client ou votre équipe",
+  "share.create": "Créer un lien de partage",
+  "share.empty": "Aucun lien de partage pour l'instant.",
+  "share.unnamed": "Sans titre",
+  "share.open": "Ouvrir",
+  "share.rename": "Renommer",
+  "share.save": "Enregistrer",
+  "share.revokeNote": "Supprimer un lien de partage le désactive aussitôt. Ceux qui l'avaient voient alors une page qui l'indique.",
+  "share.gone": "Ce lien de partage ne fonctionne plus. Demandez-en un nouveau à la personne qui l'a envoyé."
 }

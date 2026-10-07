@@ -45,6 +45,14 @@ export interface SiteOverrides {
   timezone?: string;
 }
 
+/** A public, read-only view of one site's stats, opened by its unguessable id. */
+export interface ShareRow {
+  id: string;
+  site: string;
+  name: string;
+  createdAt: number;
+}
+
 export interface LinkRow {
   id: string;
   site: string;
@@ -164,7 +172,7 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 4;
+const SCHEMA_VERSION = 5;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -207,6 +215,8 @@ function schema(dialect: Db["dialect"]): string[] {
     `CREATE UNIQUE INDEX IF NOT EXISTS rl_links_slug_unique ON rl_links (slug) WHERE deleted_at IS NULL`,
     `CREATE INDEX IF NOT EXISTS rl_events_link ON rl_events (link, ts)`,
     `CREATE TABLE IF NOT EXISTS rl_link_domains (domain TEXT PRIMARY KEY, site TEXT NOT NULL, created_at BIGINT NOT NULL)`,
+    // Version 5: share links.
+    `CREATE TABLE IF NOT EXISTS rl_shares (id TEXT PRIMARY KEY, site TEXT NOT NULL, name ${text}, created_at BIGINT NOT NULL)`,
   ];
 }
 
@@ -450,6 +460,31 @@ export class SqlStore {
   /** Hides a link and frees its slug; its clicks stay in the history. */
   async deleteLink(id: string, now: number): Promise<void> {
     await this.db.run(`UPDATE rl_links SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`, [now, id]);
+  }
+
+  // Shares
+
+  async shares(site: string): Promise<ShareRow[]> {
+    const rows = await this.db.all(`SELECT id, site, name, created_at FROM rl_shares WHERE site = ? ORDER BY created_at DESC`, [site]);
+    return rows.map((r) => ({ id: String(r.id), site: String(r.site), name: String(r.name ?? ""), createdAt: Number(r.created_at) }));
+  }
+
+  async shareById(id: string): Promise<ShareRow | null> {
+    const [r] = await this.db.all(`SELECT id, site, name, created_at FROM rl_shares WHERE id = ?`, [id]);
+    return r ? { id: String(r.id), site: String(r.site), name: String(r.name ?? ""), createdAt: Number(r.created_at) } : null;
+  }
+
+  async insertShare(share: ShareRow): Promise<void> {
+    await this.db.run(`INSERT INTO rl_shares (id, site, name, created_at) VALUES (?, ?, ?, ?)`, [share.id, share.site, share.name, share.createdAt]);
+  }
+
+  async renameShare(id: string, name: string): Promise<void> {
+    await this.db.run(`UPDATE rl_shares SET name = ? WHERE id = ?`, [name, id]);
+  }
+
+  /** Deleting a share is how it is revoked: the link stops working at once. */
+  async deleteShare(id: string): Promise<void> {
+    await this.db.run(`DELETE FROM rl_shares WHERE id = ?`, [id]);
   }
 
   async linkDomains(): Promise<Array<{ domain: string; site: string }>> {

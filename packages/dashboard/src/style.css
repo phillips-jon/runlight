@@ -3002,3 +3002,39 @@ select.field,
   line-height: 1.4;
   color: var(--muted);
 }
+
+/* Sharing */
+
+.share-name {
+  font-weight: 600;
+}
+
+.share-meta {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.share-rename {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.share-rename .value {
+  height: 32px;
+  max-width: 260px;
+}
+
+a.copy.inline {
+  text-decoration: none;
+  color: inherit;
+}
+
+@media (max-width: 720px) {
+  .share-list li {
+    flex-wrap: wrap;
+  }
+}

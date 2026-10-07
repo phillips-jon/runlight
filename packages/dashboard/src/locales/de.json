@@ -352,5 +352,16 @@
   "compare.allTime": "Vor dem gesamten Zeitraum gibt es nichts zum Vergleichen.",
   "view.reset": "Zurücksetzen",
   "view.resetHint": "Zurück zu den letzten 30 Tagen, ohne Filter oder Vergleich",
-  "headline.fromNone": "{who} {verb} ({when}), gegenüber niemandem {against}."
+  "headline.fromNone": "{who} {verb} ({when}), gegenüber niemandem {against}.",
+  "settings.sharing": "Teilen",
+  "share.intro": "Ein Freigabelink zeigt die Statistiken dieser Website jedem, der ihn hat, ohne Anmeldung: die Zahlen, Seiten, Quellen und Orte. Er zeigt nie deine Kurzlinks, Einstellungen oder die Adresse der Website.",
+  "share.namePlaceholder": "Für wen, etwa einen Kunden oder dein Team",
+  "share.create": "Freigabelink erstellen",
+  "share.empty": "Noch keine Freigabelinks.",
+  "share.unnamed": "Ohne Titel",
+  "share.open": "Öffnen",
+  "share.rename": "Umbenennen",
+  "share.save": "Speichern",
+  "share.revokeNote": "Ein gelöschter Freigabelink funktioniert sofort nicht mehr. Wer ihn hatte, sieht dann einen Hinweis darauf.",
+  "share.gone": "Dieser Freigabelink funktioniert nicht mehr. Bitte die Person, die ihn geschickt hat, um einen neuen."
 }

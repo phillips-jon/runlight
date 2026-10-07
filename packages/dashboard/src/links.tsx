@@ -301,7 +301,7 @@ type Sort = "clicks" | "newest" | "name";
 const PAGE = 100;
 
 /** Two steps, so a stray click never deletes: the first arms it for a few seconds. */
-function DeleteButton({ name, onDelete }: { name: string; onDelete: () => void }) {
+export function DeleteButton({ name, onDelete }: { name: string; onDelete: () => void }) {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (!armed) return;

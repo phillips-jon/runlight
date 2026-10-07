@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import { ApiError, api, base, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
+import { ApiError, api, base, share, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, Spark, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
@@ -168,7 +168,8 @@ function App() {
   const [filtering, setFiltering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const fail = (e: Error) => setFailure(e instanceof ApiError && e.status === 401 ? "signed-out" : e.message);
+  const fail = (e: Error) =>
+    setFailure(e instanceof ApiError && e.status === 401 ? "signed-out" : share && e instanceof ApiError && e.status === 404 ? t("share.gone") : e.message);
 
   useEffect(() => {
     api.sites().then((r) => setSites(r.sites)).catch(fail);
@@ -272,7 +273,7 @@ function App() {
               )}
               {site ? <Live site={site.id} /> : null}
             </div>
-            {site ? (
+            {site && !share ? (
               <button type="button" class="gear" aria-label={t("settings.open")} title={t("settings.open")} onClick={() => setSettingsOpen(true)}>
                 <svg viewBox="0 0 20 20" aria-hidden="true">
                   <circle cx="10" cy="10" r="2.6" />
@@ -398,7 +399,7 @@ function App() {
             <Panel title={panel.title} tabs={panel.tabs} view={view} onFilter={addFilter} wide={panel.wide} map={panel.title === "panel.locations"} key={i} />
           ),
         )}
-        {site ? <LinksPanel view={view} site={site.id} /> : null}
+        {site && !share ? <LinksPanel view={view} site={site.id} /> : null}
       </div>
 
       <footer class="foot">

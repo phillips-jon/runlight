@@ -3,7 +3,8 @@ import { TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
 import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
 import { LINK_DOMAIN_CHECK, type RequestContext, type Runlight } from "./runlight.js";
-import type { SiteRow } from "./store.js";
+import type { ShareRow, SiteRow } from "./store.js";
+import { randomId } from "./hash.js";
 import { fetchIcon } from "./icon.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { LinkError } from "./links.js";
@@ -98,7 +99,7 @@ function localeUrls(base: string): string {
   return JSON.stringify(Object.fromEntries(Object.keys(LOCALES).map((code) => [code, `${base}/assets/locale.${code}.${LOCALES_HASH}.json`])));
 }
 
-const DASHBOARD = (base: string) => `<!doctype html>
+const DASHBOARD = (base: string, share = "") => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -108,11 +109,17 @@ const DASHBOARD = (base: string) => `<!doctype html>
 <link rel="stylesheet" href="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.css">
 </head>
 <body>
-<div id="app" data-base="${escapeAttr(base)}" data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json" data-locales="${escapeAttr(localeUrls(base))}"></div>
+<div id="app" data-base="${escapeAttr(base)}"${share ? ` data-share="${escapeAttr(share)}"` : ""} data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json" data-locales="${escapeAttr(localeUrls(base))}"></div>
 <script type="module" src="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.js"></script>
 </body>
 </html>
 `;
+
+/** The header a shared dashboard sends its share id in. */
+const SHARE_HEADER = "x-runlight-share";
+/** What a share can read: one site's reports, nothing that changes anything. */
+const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown"]);
+const SHARE_ID = /^[a-f0-9]{32}$/;
 
 const DASHBOARD_CSP =
   "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -335,6 +342,41 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return json({ error: "Not found" }, 404);
   }
 
+  async function sharesApi(request: Request, path: string, url: URL): Promise<Response> {
+    await runlight.init();
+    const site = await querySite(url);
+    if (site instanceof Response) return site;
+    const view = (share: ShareRow) => ({ ...share, path: `${base}/share/${share.id}` });
+
+    if (path === "/api/shares") {
+      if (request.method === "GET") return json({ shares: (await runlight.store.shares(site.id)).map(view) });
+      if (request.method === "POST") {
+        const body = await readJson(request);
+        if (body instanceof Response) return body;
+        const share: ShareRow = { id: randomId(16), site: site.id, name: String(body.name ?? "").trim().slice(0, 100), createdAt: runlight.now() };
+        await runlight.store.insertShare(share);
+        return json({ share: view(share) }, 201);
+      }
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    const id = decodeURIComponent(path.slice("/api/shares/".length));
+    const share = SHARE_ID.test(id) ? await runlight.store.shareById(id) : null;
+    if (!share || share.site !== site.id) return json({ error: "Unknown share" }, 404);
+    if (request.method === "PATCH") {
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const name = String(body.name ?? "").trim().slice(0, 100);
+      await runlight.store.renameShare(share.id, name);
+      return json({ share: view({ ...share, name }) });
+    }
+    if (request.method === "DELETE") {
+      await runlight.store.deleteShare(share.id);
+      return json({ ok: true });
+    }
+    return json({ error: "Method not allowed" }, 405);
+  }
+
   async function api(request: Request, path: string, url: URL): Promise<Response> {
     if (path === "/api" && request.method === "GET") {
       return json({ name: "runlight", version: VERSION, api: API_VERSION, ...IMPLEMENTATION });
@@ -352,6 +394,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const access = await canRead(request);
       if (access !== true) return denied(access);
       return linksApi(request, path, url);
+    }
+
+    if (path === "/api/shares" || path.startsWith("/api/shares/")) {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      return sharesApi(request, path, url);
     }
 
     const siteMatch = /^\/api\/sites\/([^/]+)$/.exec(path);
@@ -376,16 +424,34 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
 
-    const access = await canRead(request);
-    if (access !== true) return denied(access);
     await runlight.init();
+    // A shared dashboard sees exactly what its visitors see, even for someone signed in.
+    const shareId = request.headers.get(SHARE_HEADER);
+    let shared: ShareRow | null = null;
+    if (shareId !== null) {
+      shared = SHARE_ID.test(shareId) ? await runlight.store.shareById(shareId) : null;
+      if (!shared) return json({ error: "This share link no longer works" }, 404);
+      if (!SHARED_PATHS.has(path)) return json({ error: "Not available on a shared dashboard" }, 403);
+    } else {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+    }
 
     if (path === "/api/sites") {
-      const sites = await Promise.all(runlight.sites.map(async (site) => ({ ...site, lastSeen: await runlight.store.lastSeen(site.id) })));
+      const visible = shared ? runlight.sites.filter((s) => s.id === shared.site) : runlight.sites;
+      const sites = await Promise.all(
+        visible.map(async (site) => ({
+          ...site,
+          // Hostnames say where the site lives; a share shows only its name.
+          ...(shared ? { hostnames: [] } : {}),
+          lastSeen: await runlight.store.lastSeen(site.id),
+        })),
+      );
       return json({ sites });
     }
 
-    const site = await querySite(url);
+    const site = shared ? runlight.site(shared.site) : await querySite(url);
+    if (!site) return json({ error: "Unknown site" }, 404);
     if (site instanceof Response) return site;
 
     if (path === "/api/icon") {
@@ -518,6 +584,25 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       }
 
       if (path === "/api" || path.startsWith("/api/")) return await api(request, path, url);
+
+      const sharePage = /^\/share\/([^/]+)\/?$/.exec(path);
+      if (sharePage && request.method === "GET") {
+        await runlight.init();
+        const id = sharePage[1]!;
+        const share = SHARE_ID.test(id) ? await runlight.store.shareById(id) : null;
+        if (!share) return new Response("This share link no longer works.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+        return new Response(DASHBOARD(base, share.id), {
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            "content-security-policy": DASHBOARD_CSP,
+            "x-frame-options": "DENY",
+            // The share id is the key; never send it on to another site.
+            "referrer-policy": "no-referrer",
+            "x-robots-tag": "noindex",
+          },
+        });
+      }
 
       if ((path === "/" || path === "") && request.method === "GET") {
         const given = url.searchParams.get("token");

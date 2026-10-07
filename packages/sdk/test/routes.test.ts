@@ -151,5 +151,46 @@ test("a version 1 database upgrades to the current schema", async () => {
   await rl.updateSite("default", { name: "Upgraded" });
   assert.equal(rl.site("default")!.name, "Upgraded");
   const [meta] = await store.db.all<{ value: string }>("SELECT value FROM rl_meta WHERE key = 'schema'");
-  assert.equal(meta!.value, "4");
+  assert.equal(meta!.value, "5");
+});
+
+test("a share reads one site's reports and nothing else, until it is deleted", async () => {
+  const rl = runlight({
+    store: sqlite({ path: ":memory:" }),
+    sites: [
+      { id: "a", name: "Site A", hostnames: ["a.com"], timezone: "UTC" },
+      { id: "b", name: "Site B", hostnames: ["b.com"], timezone: "UTC" },
+    ],
+  });
+  const { GET, POST, PATCH, DELETE } = rl.routes({ token: "secret" });
+  const auth = { authorization: "Bearer secret", "content-type": "application/json" };
+
+  assert.equal((await POST(req("/runlight/api/shares?site=a", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" }))).status, 401);
+  const made = await POST(req("/runlight/api/shares?site=a", { method: "POST", headers: auth, body: JSON.stringify({ name: "Client" }) }));
+  assert.equal(made.status, 201);
+  const { share } = (await made.json()) as { share: { id: string; path: string; name: string } };
+  assert.match(share.id, /^[a-f0-9]{32}$/);
+  assert.equal(share.path, `/runlight/share/${share.id}`);
+
+  const page = await GET(req(share.path));
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), new RegExp(`data-share="${share.id}"`));
+  assert.equal(page.headers.get("referrer-policy"), "no-referrer");
+
+  const as = { "x-runlight-share": share.id };
+  assert.equal((await GET(req("/runlight/api/stats?site=b", { headers: as }))).status, 200);
+  const stats = (await (await GET(req("/runlight/api/stats?site=b", { headers: as }))).json()) as { site: string };
+  assert.equal(stats.site, "a", "a share is pinned to its own site whatever is asked");
+  const sites = (await (await GET(req("/runlight/api/sites", { headers: as }))).json()) as { sites: Array<{ id: string; hostnames: string[] }> };
+  assert.deepEqual(sites.sites.map((s) => [s.id, s.hostnames]), [["a", []]]);
+  assert.equal((await GET(req("/runlight/api/links?site=a", { headers: as }))).status, 401, "links need the token");
+  assert.equal((await GET(req("/runlight/api/shares?site=a", { headers: as }))).status, 401, "a share cannot list shares");
+  assert.equal((await GET(req("/runlight/api/stats", { headers: { "x-runlight-share": "0".repeat(32) } }))).status, 404);
+
+  const renamed = await PATCH(req(`/runlight/api/shares/${share.id}?site=a`, { method: "PATCH", headers: auth, body: JSON.stringify({ name: "Board" }) }));
+  assert.equal(((await renamed.json()) as { share: { name: string } }).share.name, "Board");
+  assert.equal((await DELETE(req(`/runlight/api/shares/${share.id}?site=b`, { method: "DELETE", headers: auth }))).status, 404, "only from its own site");
+  assert.equal((await DELETE(req(`/runlight/api/shares/${share.id}?site=a`, { method: "DELETE", headers: auth }))).status, 200);
+  assert.equal((await GET(req("/runlight/api/stats", { headers: as }))).status, 404);
+  assert.equal((await GET(req(share.path))).status, 404);
 });
