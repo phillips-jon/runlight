@@ -219,6 +219,26 @@ async function get<T>(path: string, params: URLSearchParams): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+/** Fetches a file from the API (with a share's header when there is one) and saves it under the server's name. */
+export async function download(path: string, params: URLSearchParams): Promise<void> {
+  const response = await fetch(`${base}/api/${path}?${params}`, {
+    credentials: "same-origin",
+    headers: share ? { "x-runlight-share": share } : undefined,
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new ApiError(response.status, body?.error ?? response.statusText);
+  }
+  const name = /filename="([^"]+)"/.exec(response.headers.get("content-disposition") ?? "")?.[1] ?? "runlight-export";
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(await response.blob());
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 10_000);
+}
+
 export function viewParams(view: View): URLSearchParams {
   const params = new URLSearchParams();
   if (view.site) params.set("site", view.site);

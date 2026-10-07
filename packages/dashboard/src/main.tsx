@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import { ApiError, accounts, api, base, install, share, type Person, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
+import { ApiError, accounts, api, base, download, install, share, viewParams, type Person, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, Spark, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
@@ -207,8 +207,11 @@ function App() {
     writeUrl(view, charted);
   }, [view, charted]);
 
+  // The last numbers stay up while new ones load; past 300 ms they fade, so a slow database shows it is working.
+  const [slow, setSlow] = useState(false);
   useEffect(() => {
     let live = true;
+    const timer = setTimeout(() => live && setSlow(true), 300);
     Promise.all([api.stats(view), api.series(view)])
       .then(([s, series]) => {
         if (!live) return;
@@ -217,9 +220,14 @@ function App() {
         setPoints(series.points);
         setPreviousPoints(series.previous);
       })
-      .catch((e: Error) => live && fail(e));
+      .catch((e: Error) => live && fail(e))
+      .finally(() => {
+        clearTimeout(timer);
+        if (live) setSlow(false);
+      });
     return () => {
       live = false;
+      clearTimeout(timer);
     };
   }, [view]);
 
@@ -435,7 +443,7 @@ function App() {
         </section>
       ) : null}
 
-      <section class="overview" hidden={waiting}>
+      <section class={slow ? "overview stale" : "overview"} hidden={waiting} aria-busy={slow}>
         <div class="metrics">
           {METRICS.map((m) => {
             const on = charted.includes(m.key);
@@ -506,6 +514,9 @@ function App() {
           </select>
         </label>
         <Theme />
+        <button type="button" class="sign-out" title={t("export.title")} onClick={() => void download("export", viewParams(view)).catch((e: Error) => setFailure(e.message))}>
+          {t("export.zip")}
+        </button>
         {me ? (
           <button type="button" class="sign-out" onClick={() => setAccountOpen(true)}>
             {t("account.title")}

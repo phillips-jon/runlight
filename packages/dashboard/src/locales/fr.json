@@ -579,5 +579,8 @@
   "people.add": "Ajouter",
   "pluginKey.title": "Clé pour les extensions CMS",
   "pluginKey.intro": "Les extensions WordPress, Drupal et Craft utilisent cette clé pour signaler les agents IA qui lisent les pages de ce site. Elle ne peut signaler que pour ce site et ne peut rien lire. La remplacer arrête aussitôt l’ancienne.",
-  "pluginKey.replace": "Remplacer la clé"
+  "pluginKey.replace": "Remplacer la clé",
+  "export.csv": "Télécharger le CSV",
+  "export.zip": "Exporter",
+  "export.title": "Télécharger tout ce que montre cette vue en fichiers CSV"
 }

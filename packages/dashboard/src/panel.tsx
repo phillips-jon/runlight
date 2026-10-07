@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { api, geoCredit, type Row, type View } from "./api.js";
+import { api, download, geoCredit, viewParams, type Row, type View } from "./api.js";
 import { count, countryName, duration, flag, hourLabel, percent, weekdays } from "./format.js";
 import type { RhythmCell } from "./api.js";
 import { rich, t, tn, type Key } from "./i18n.js";
@@ -230,6 +230,20 @@ function AllRows({ title, tab, view, onFilter, onClose }: { title: Key; tab: Tab
           <h2>
             {t(title)} <span class="sheet-sub">{t(tab.label)}</span>
           </h2>
+          <button
+            type="button"
+            class="copy inline sheet-download"
+            onClick={() => {
+              const params = viewParams(view);
+              params.set("dimension", tab.dimension);
+              params.set("limit", String(ALL));
+              params.set("format", "csv");
+              void download("breakdown", params).catch(() => {});
+            }}
+          >
+            <Icon name="upload" />
+            {t("export.csv")}
+          </button>
           <button type="button" class="remove" aria-label={t("common.close")} onClick={onClose}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" />
@@ -288,18 +302,26 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
   const [detail, setDetail] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState("");
+  /** Set when a reload takes longer than 300 ms, to fade the rows still showing. */
+  const [slow, setSlow] = useState(false);
   const tab = tabs[active] ?? tabs[0]!;
   const column = tab.column ?? "visitors";
 
   useEffect(() => {
     let live = true;
     setError("");
+    const timer = setTimeout(() => live && setSlow(true), 300);
     api
       .breakdown(view, tab.dimension, 50)
       .then((result) => live && setRows(result.rows))
-      .catch((e: Error) => live && setError(e.message));
+      .catch((e: Error) => live && setError(e.message))
+      .finally(() => {
+        clearTimeout(timer);
+        if (live) setSlow(false);
+      });
     return () => {
       live = false;
+      clearTimeout(timer);
     };
   }, [view, tab.dimension]);
 
@@ -314,7 +336,7 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
   }
 
   return (
-    <section class={wide ? "panel wide" : "panel"}>
+    <section class={`${wide ? "panel wide" : "panel"}${slow && rows ? " stale" : ""}`} aria-busy={slow}>
       <header class="panel-head">
         <h2>{t(title)}</h2>
         <div class="head-tools">

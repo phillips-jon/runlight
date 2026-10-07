@@ -579,5 +579,8 @@
   "people.add": "Person hinzufügen",
   "pluginKey.title": "Schlüssel für CMS-Plugins",
   "pluginKey.intro": "Die Plugins für WordPress, Drupal und Craft melden mit diesem Schlüssel KI-Agenten, die die Seiten dieser Website lesen. Er kann nur für diese Website melden und nichts lesen. Ein neuer Schlüssel macht den alten sofort ungültig.",
-  "pluginKey.replace": "Schlüssel ersetzen"
+  "pluginKey.replace": "Schlüssel ersetzen",
+  "export.csv": "CSV herunterladen",
+  "export.zip": "Exportieren",
+  "export.title": "Alles aus dieser Ansicht als CSV-Dateien herunterladen"
 }

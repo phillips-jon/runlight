@@ -579,5 +579,8 @@
   "people.add": "Add person",
   "pluginKey.title": "Key for CMS plugins",
   "pluginKey.intro": "The WordPress, Drupal, and Craft plugins use this key to report AI agents reading this site's pages. It can only report for this site and cannot read anything. Replacing it stops the old key at once.",
-  "pluginKey.replace": "Replace key"
+  "pluginKey.replace": "Replace key",
+  "export.csv": "Download CSV",
+  "export.zip": "Export",
+  "export.title": "Download everything in this view as CSV files"
 }

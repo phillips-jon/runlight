@@ -222,3 +222,21 @@ test("a local test counts while a site is being set up, and local traffic is ign
   await hit("https://example.com/");
   assert.equal(await views(), 2);
 });
+
+test("an export is a ZIP of CSV files for the view, and a share link can export its own site", async () => {
+  const { csvRow } = await import("../src/zip.js");
+  assert.equal(csvRow(["=SUM(A1)", "+1", "-2", "a,b", 'say "hi"', 12]), `'=SUM(A1),'+1,-2,"a,b","say ""hi""",12`, "spreadsheet formulas are defused");
+  const t = setup("sqlite");
+  await t.send({ k: "pageview", u: "https://example.com/pricing" });
+  const answer = await t.routes.GET(new Request("https://example.com/runlight/api/export?period=today", { headers: { authorization: "Bearer secret" } }));
+  assert.equal(answer.headers.get("content-type"), "application/zip");
+  const bytes = new Uint8Array(await answer.arrayBuffer());
+  assert.deepEqual([...bytes.slice(0, 4)], [0x50, 0x4b, 0x03, 0x04], "starts like a ZIP");
+  const text = new TextDecoder().decode(bytes);
+  for (const name of ["overview.csv", "over-time.csv", "page.csv", "channel.csv"]) assert.ok(text.includes(name), name);
+  assert.ok(text.includes("/pricing,1,1"));
+  const made = await t.routes.POST(new Request("https://example.com/runlight/api/shares", { method: "POST", headers: auth, body: "{}" }));
+  const { share } = (await made.json()) as { share: { id: string } };
+  const shared = await t.routes.GET(new Request("https://example.com/runlight/api/export?period=today", { headers: { "x-runlight-share": share.id } }));
+  assert.equal(shared.status, 200);
+});

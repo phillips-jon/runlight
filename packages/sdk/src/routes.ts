@@ -5,6 +5,8 @@ import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
 import { LINK_DOMAIN_CHECK, type RequestContext, type Runlight } from "./runlight.js";
 import type { ShareRow, SiteRow, TokenRow } from "./store.js";
 import { mcpResponse } from "./mcp.js";
+import { csv, zip } from "./zip.js";
+import { DIMENSIONS } from "./query.js";
 import { randomId } from "./hash.js";
 import { GoalError, clickRules, goalFrom } from "./goals.js";
 import { MailError, SERVICES } from "./mail/transports.js";
@@ -100,6 +102,19 @@ function isJson(request: Request): boolean {
   return (request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase() === "application/json";
 }
 
+/** Rows of objects as CSV, with a column for every key the first row has. */
+function rowsCsv(rows: ReadonlyArray<object>): string {
+  const header = rows.length ? Object.keys(rows[0]!) : ["value"];
+  return csv(header, rows.map((r) => header.map((k) => (r as Record<string, unknown>)[k])));
+}
+
+/** A file to save, never shown in the browser or kept in a shared cache. */
+function download(name: string, body: string | Uint8Array, type: string): Response {
+  return new Response(body as BodyInit, {
+    headers: { "content-type": type, "content-disposition": `attachment; filename="${name.replace(/[^A-Za-z0-9._-]/g, "-")}"`, "cache-control": "private, no-store" },
+  });
+}
+
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -163,7 +178,7 @@ const TOKEN_PREFIX = "rl_";
 /** The header a shared dashboard sends its share id in. */
 const SHARE_HEADER = "x-runlight-share";
 /** What a share can read: one site's reports, nothing that changes anything. */
-const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props"]);
+const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props", "/api/export"]);
 const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[a-f0-9]{24}$/.test(path);
 /** Where the tracker's click rules go; the script ships with this string in their place. */
 const RULES_PLACEHOLDER = '"__RUNLIGHT_RULES__"';
@@ -987,7 +1002,35 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const limit = Math.min(1000, Math.max(1, Number(url.searchParams.get("limit")) || 10));
       const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
       const rows = await runlight.store.breakdown(query, dimension, limit, (page - 1) * limit);
+      if (url.searchParams.get("format") === "csv") return download(`${site.id}-${dimension}-${range.fromDate}-${range.toDate}.csv`, rowsCsv(rows), "text/csv; charset=utf-8");
       return json({ site: site.id, range: rangeOut, dimension, rows });
+    }
+
+    // Everything the dashboard shows for a view, as a ZIP of CSV files.
+    if (path === "/api/export") {
+      const files: Array<{ name: string; text: string }> = [];
+      const stats = await runlight.store.stats(query);
+      const previous = compared ? await runlight.store.stats({ ...query, from: compared.from, to: compared.to }) : null;
+      const metrics = Object.keys(stats) as Array<keyof typeof stats>;
+      files.push({
+        name: "overview.csv",
+        text: csv(["metric", "value", ...(previous ? ["previous"] : [])], metrics.map((m) => [m, stats[m], ...(previous ? [previous[m]] : [])])),
+      });
+      const points = await runlight.store.series(query, buckets(range, site.timezone));
+      files.push({ name: "over-time.csv", text: rowsCsv(points as unknown as Array<Record<string, unknown>>) });
+      for (const dimension of DIMENSIONS) {
+        const rows = await runlight.store.breakdown(query, dimension, 1000, 0);
+        if (rows.length) files.push({ name: `${dimension}.csv`, text: rowsCsv(rows as unknown as Array<Record<string, unknown>>) });
+      }
+      const goals = await runlight.store.goals(site.id);
+      if (goals.length) {
+        const totals = await runlight.store.goalTotalsAll(query, goals);
+        files.push({
+          name: "goals.csv",
+          text: csv(["goal", "conversions", "visitors", "revenue", "currency"], goals.map((g) => [g.name, totals.get(g.id)!.conversions, totals.get(g.id)!.visitors, totals.get(g.id)!.revenue, g.currency])),
+        });
+      }
+      return download(`${site.id}-${range.fromDate}-${range.toDate}.zip`, zip(files, new Date(runlight.now())), "application/zip");
     }
 
     return json({ error: "Not found" }, 404);

@@ -3667,3 +3667,36 @@ button.sign-out {
   background: none;
   cursor: pointer;
 }
+
+.list-sheet .sheet-download {
+  position: static;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+/* A reload past 300 ms: the numbers already shown fade until the new ones arrive. */
+.overview .metrics,
+.overview .chart,
+.panel .rows,
+.panel .mix-bar,
+.panel .map {
+  transition: opacity 0.2s ease;
+}
+
+.overview.stale .metrics,
+.overview.stale .chart,
+.panel.stale .rows,
+.panel.stale .mix-bar,
+.panel.stale .map {
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overview .metrics,
+  .overview .chart,
+  .panel .rows,
+  .panel .mix-bar,
+  .panel .map {
+    transition: none;
+  }
+}

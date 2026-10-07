@@ -579,5 +579,8 @@
   "people.add": "Añadir persona",
   "pluginKey.title": "Clave para plugins de CMS",
   "pluginKey.intro": "Los plugins de WordPress, Drupal y Craft usan esta clave para informar de los agentes de IA que leen las páginas de este sitio. Solo puede informar para este sitio y no puede leer nada. Al reemplazarla, la anterior deja de funcionar al instante.",
-  "pluginKey.replace": "Reemplazar clave"
+  "pluginKey.replace": "Reemplazar clave",
+  "export.csv": "Descargar CSV",
+  "export.zip": "Exportar",
+  "export.title": "Descargar todo lo de esta vista en archivos CSV"
 }
