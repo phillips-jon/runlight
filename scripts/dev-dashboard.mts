@@ -3,6 +3,7 @@
 //   npm run dev:dashboard            then open http://localhost:4800/runlight/
 //   npm run dev:dashboard -- --reseed           (all made-up data)
 //   npm run dev:dashboard -- --reseed-links     (only the short links)
+//   RUNLIGHT_DEV_DB=/tmp/empty.db PORT=4802 npm run dev:dashboard -- --empty   (a site before its first visit)
 //
 // The bundle is rebuilt on every page load, so a refresh shows an edit.
 import { existsSync, mkdirSync, rmSync } from "node:fs";
@@ -24,13 +25,14 @@ mkdirSync(new URL("../data/", import.meta.url).pathname, { recursive: true });
 
 const rl = runlight({ store: sqlite({ path: FILE }), site: { name: "joncphillips.com", hostnames: ["joncphillips.com"], timezone: "America/Toronto" } });
 await rl.init();
-if (fresh) await seed();
+const empty = process.argv.includes("--empty");
+if (fresh && !empty) await seed();
 if (process.argv.includes("--reseed-links")) {
   await rl.store.db.run("DELETE FROM rl_sessions WHERE id IN (SELECT session FROM rl_events WHERE kind = 'click')");
   await rl.store.db.run("DELETE FROM rl_events WHERE kind = 'click'");
   await rl.store.db.run("DELETE FROM rl_links");
 }
-if ((await rl.store.db.all("SELECT id FROM rl_links LIMIT 1")).length === 0) await seedLinks();
+if (!empty && (await rl.store.db.all("SELECT id FROM rl_links LIMIT 1")).length === 0) await seedLinks();
 
 const routes = toNodeHandler(rl.routes({ token: null }).handler);
 const links = toNodeHandler(rl.linkHandler());

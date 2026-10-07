@@ -10,7 +10,8 @@ import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey }
 import { LinksPanel } from "./links.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
-import { SettingsModal } from "./settings.js";
+import { RealtimeModal } from "./realtime.js";
+import { Install, SettingsModal } from "./settings.js";
 import { applyTheme, isDark, onThemeChange, setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 import "./style.css";
 
@@ -111,12 +112,16 @@ function Live({ site }: { site: string }) {
       clearInterval(timer);
     };
   }, [site]);
+  const [open, setOpen] = useState(false);
   if (n === null) return null;
   return (
-    <span class="live" title={t("app.live.title")}>
-      <span class={n > 0 ? "beat on" : "beat"} aria-hidden="true" />
-      {tn("app.live", n, { n: exact(n) })}
-    </span>
+    <>
+      <button type="button" class="live" title={t("app.live.title")} onClick={() => setOpen(true)}>
+        <span class={n > 0 ? "beat on" : "beat"} aria-hidden="true" />
+        {tn("app.live", n, { n: exact(n) })}
+      </button>
+      {open ? <RealtimeModal site={site} onClose={() => setOpen(false)} /> : null}
+    </>
   );
 }
 
@@ -232,6 +237,22 @@ function App() {
   };
 
   const site = sites?.find((s) => s.id === view.site) ?? sites?.[0];
+
+  // A site with no visits yet shows the install steps, and checks every few seconds for its first visit.
+  const waiting = Boolean(site && site.lastSeen == null && !share);
+  useEffect(() => {
+    if (!waiting) return;
+    const timer = setInterval(() => {
+      api
+        .sites()
+        .then((r) => {
+          setSites(r.sites);
+          if (r.sites.find((x) => x.id === site?.id)?.lastSeen != null) setView((v) => ({ ...v }));
+        })
+        .catch(() => {});
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [waiting, site?.id]);
   const panels = useMemo(layout, []);
   const today = todayIn(site?.timezone ?? "UTC");
 
@@ -282,7 +303,7 @@ function App() {
               </button>
             ) : null}
           </div>
-          <div class="actions">
+          <div class="actions" hidden={waiting}>
             {isDefault ? null : (
               <button type="button" class="reset-button" onClick={reset} title={t("view.resetHint")}>
                 <Icon name="reset" />
@@ -314,7 +335,7 @@ function App() {
             />
           </div>
         </div>
-        {stats ? <Headline view={view} stats={stats.stats} previous={stats.previous} compare={stats.compare} /> : <p class="headline">&nbsp;</p>}
+        {waiting ? null : stats ? <Headline view={view} stats={stats.stats} previous={stats.previous} compare={stats.compare} /> : <p class="headline">&nbsp;</p>}
         {view.filters.length ? (
           <div class="filters">
             {view.filters.map((f) => (
@@ -352,7 +373,20 @@ function App() {
       ) : null}
       {filtering ? <FilterDrawer view={view} onApply={(filters) => update({ filters })} onClose={() => setFiltering(false)} /> : null}
 
-      <section class="overview">
+      {waiting && site && sites ? (
+        <section class="welcome">
+          <h2>{t("welcome.title", { name: site.name })}</h2>
+          <p class="welcome-lead">
+            <span class="beat wait" aria-hidden="true" />
+            {t("welcome.lead")}
+          </p>
+          <div class="welcome-steps">
+            <Install site={site} sites={sites} />
+          </div>
+        </section>
+      ) : null}
+
+      <section class="overview" hidden={waiting}>
         <div class="metrics">
           {METRICS.map((m) => {
             const on = charted.includes(m.key);
@@ -391,7 +425,7 @@ function App() {
         )}
       </section>
 
-      <div class="board">
+      <div class="board" hidden={waiting}>
         {panels.map((panel, i) =>
           panel.title === "panel.rhythm" ? (
             <Rhythm view={view} wide={panel.wide} />

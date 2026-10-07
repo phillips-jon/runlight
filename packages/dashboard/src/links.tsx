@@ -43,7 +43,7 @@ function Copy({ text, small }: { text: string; small?: boolean }) {
 }
 
 /** Modal frame shared by the link dialogs: Escape and the backdrop close it. */
-function Sheet({ title, sub, wide, onClose, children }: { title: string; sub?: string; wide?: boolean; onClose: () => void; children: ComponentChildren }) {
+export function Sheet({ title, sub, wide, onClose, children }: { title: string; sub?: string; wide?: boolean; onClose: () => void; children: ComponentChildren }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);

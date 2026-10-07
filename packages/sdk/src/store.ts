@@ -161,8 +161,11 @@ export interface Realtime {
   visitors: number;
   pages: Array<{ value: string; visitors: number }>;
   sources: Array<{ value: string; visitors: number }>;
+  countries: Array<{ value: string; visitors: number }>;
   /** Pageviews per minute for the last 30 minutes, oldest first. */
   minutes: number[];
+  /** The latest pageviews and events, newest first: what happened, never who. */
+  recent: Array<{ ts: number; kind: string; path: string; name: string; country: string; city: string; source: string; device: string }>;
 }
 
 /** A session's bounce: one page, nothing clicked that was tracked, under ten seconds engaged. */
@@ -813,7 +816,34 @@ export class SqlStore {
       const index = Math.floor(num(row.m));
       if (index >= 0 && index < 30) minutes[index] = (minutes[index] ?? 0) + num(row.n);
     }
+    const countries = await this.db.all(
+      `SELECT s.country AS value, COUNT(DISTINCT e.visitor) AS visitors FROM rl_events e JOIN rl_sessions s ON s.id = e.session
+       WHERE e.site = ? AND e.ts >= ? AND e.kind IN ('pageview', 'event') AND s.country <> ''
+       GROUP BY s.country ORDER BY visitors DESC, value LIMIT 10`,
+      [site, since],
+    );
+    const recent = await this.db.all(
+      `SELECT e.ts, e.kind, e.path, e.name, s.country, s.city, s.source, s.device FROM rl_events e JOIN rl_sessions s ON s.id = e.session
+       WHERE e.site = ? AND e.ts >= ? AND e.kind IN ('pageview', 'event') ORDER BY e.ts DESC LIMIT 20`,
+      [site, start],
+    );
     const pairs = (rows: Record<string, unknown>[]) => rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors) }));
-    return { visitors: num(active?.n), pages: pairs(pages), sources: pairs(sources), minutes };
+    return {
+      visitors: num(active?.n),
+      pages: pairs(pages),
+      sources: pairs(sources),
+      countries: pairs(countries),
+      minutes,
+      recent: recent.map((r) => ({
+        ts: num(r.ts),
+        kind: String(r.kind),
+        path: String(r.path ?? ""),
+        name: String(r.name ?? ""),
+        country: String(r.country ?? ""),
+        city: String(r.city ?? ""),
+        source: String(r.source ?? ""),
+        device: String(r.device ?? ""),
+      })),
+    };
   }
 }

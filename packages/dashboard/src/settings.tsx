@@ -158,7 +158,7 @@ function General({ site, onSaved, onLanguage }: { site: Site; onSaved: (site: Si
   );
 }
 
-function Install({ site, sites }: { site: Site; sites: Site[] }) {
+export function Install({ site, sites }: { site: Site; sites: Site[] }) {
   const [ignored, setIgnored] = useState(() => {
     try {
       return localStorage.getItem("runlight_ignore") === "1";

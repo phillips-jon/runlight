@@ -94,6 +94,12 @@ test("a visit: pageviews, an event, engagement, and the reports that follow", as
   assert.equal(live.visitors, 2);
   assert.equal(live.minutes.length, 30);
   assert.equal(live.minutes.reduce((a: number, b: number) => a + b, 0), 3);
+  assert.ok(Array.isArray(live.countries));
+  assert.equal(live.recent.length, 4, "three pageviews and an event");
+  assert.ok(live.recent[0].ts >= live.recent[3].ts, "newest first");
+  for (const r of live.recent) {
+    assert.deepEqual(Object.keys(r).sort(), ["city", "country", "device", "kind", "name", "path", "source", "ts"], "what happened, never who");
+  }
 });
 
 test("thirty idle minutes start a new session; a new day is a new visitor", async () => {

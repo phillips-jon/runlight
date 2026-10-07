@@ -81,7 +81,9 @@ export interface Realtime {
   visitors: number;
   pages: Array<{ value: string; visitors: number }>;
   sources: Array<{ value: string; visitors: number }>;
+  countries: Array<{ value: string; visitors: number }>;
   minutes: number[];
+  recent: Array<{ ts: number; kind: string; path: string; name: string; country: string; city: string; source: string; device: string }>;
 }
 
 export interface Filter {
