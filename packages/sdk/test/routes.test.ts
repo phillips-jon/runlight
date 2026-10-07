@@ -101,3 +101,16 @@ test("the dashboard page loads its hashed assets under a strict CSP", async () =
   assert.equal((await GET(req("/admin/runlight/assets/app.old.js"))).status, 404);
   assert.equal((await GET(req("/admin/runlight/api/stats"))).status, 401, "the data stays behind the token");
 });
+
+test("icon links are ranked: touch icon, then SVG, then PNG, then anything", async () => {
+  const { iconLinks } = await import("../src/icon.js");
+  const html = `<link rel="icon" href="/favicon.ico"><link rel=icon type="image/png" href="/i.png">
+    <link href='/i.svg' rel="icon" type="image/svg+xml"><link rel="apple-touch-icon" href="https://cdn.example.com/t.png">
+    <link rel="stylesheet" href="/s.css"><link rel="icon" href="javascript:alert(1)">`;
+  assert.deepEqual(iconLinks(html, "https://example.com/"), [
+    "https://cdn.example.com/t.png",
+    "https://example.com/i.svg",
+    "https://example.com/i.png",
+    "https://example.com/favicon.ico",
+  ]);
+});

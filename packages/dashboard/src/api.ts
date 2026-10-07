@@ -26,6 +26,9 @@ export interface Point {
   visitors: number;
   visits: number;
   pageviews: number;
+  viewsPerVisit: number;
+  bounceRate: number;
+  visitDuration: number;
 }
 
 export interface Row {
@@ -60,7 +63,7 @@ export interface View {
   filters: Filter[];
 }
 
-const base = document.getElementById("app")?.dataset.base ?? "";
+export const base = document.getElementById("app")?.dataset.base ?? "";
 
 export class ApiError extends Error {
   constructor(readonly status: number, message: string) {
@@ -100,5 +103,6 @@ export const api = {
     params.set("limit", String(limit));
     return get<{ rows: Row[] }>("breakdown", params);
   },
+  rhythm: (view: View) => get<{ grid: number[][] }>("rhythm", viewParams(view)),
   realtime: (site: string) => get<Realtime>("realtime", new URLSearchParams(site ? { site } : {})),
 };

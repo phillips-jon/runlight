@@ -34,7 +34,7 @@ test("a visit: pageviews, an event, engagement, and the reports that follow", as
     pageviews: 3,
     viewsPerVisit: 1.5,
     bounceRate: 0.5,
-    visitDuration: 4_000,
+    visitDuration: 11_000,
   });
 
   const rows = async (dimension: string, extra = "") => (await t.get(`/api/breakdown?period=today&dimension=${dimension}${extra}`)).rows;
@@ -69,6 +69,15 @@ test("a visit: pageviews, an event, engagement, and the reports that follow", as
   const series = await t.get("/api/series?period=today");
   assert.equal(series.points.length, 24);
   assert.equal(series.points[12].pageviews, 3);
+  assert.equal(series.points[12].bounceRate, 0.5);
+  assert.equal(series.points[12].visitDuration, 11_000);
+  assert.equal(series.points[12].viewsPerVisit, 1.5);
+  assert.equal(series.points[11].bounceRate, 0);
+
+  const rhythm = await t.get("/api/rhythm?period=today");
+  assert.equal(rhythm.grid.length, 7);
+  assert.equal(rhythm.grid[1][12], 2, "two visits on Tuesday at noon UTC");
+  assert.equal(rhythm.grid.flat().reduce((a: number, b: number) => a + b, 0), 2);
 
   const live = await t.get("/api/realtime");
   assert.equal(live.visitors, 2);

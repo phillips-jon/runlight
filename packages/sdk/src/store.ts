@@ -83,7 +83,7 @@ export interface Stats {
   viewsPerVisit: number;
   /** 0 to 1. */
   bounceRate: number;
-  /** Median, milliseconds. */
+  /** Mean engaged time per visit, milliseconds. */
   visitDuration: number;
 }
 
@@ -97,6 +97,10 @@ export interface SeriesPoint {
   visitors: number;
   visits: number;
   pageviews: number;
+  /** Of the visits that started in this bucket. */
+  viewsPerVisit: number;
+  bounceRate: number;
+  visitDuration: number;
 }
 
 export interface BreakdownRow {
@@ -123,6 +127,8 @@ export interface Realtime {
 export const BOUNCE_MS = 10_000;
 const BOUNCE = `(s.pageviews = 1 AND s.events = 0 AND (s.engaged_ms IS NULL OR s.engaged_ms < ${BOUNCE_MS}))`;
 const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
+/** Engaged time, or for imported visits with none, first to last request. */
+const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
 const SCHEMA_VERSION = 1;
 
@@ -331,16 +337,11 @@ export class SqlStore {
       params,
     );
     const sessions = `FROM rl_sessions s WHERE s.id IN (SELECT DISTINCT e.session ${scope})`;
-    const [bounces] = await this.db.all(`SELECT COUNT(*) AS n, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced ${sessions}`, params);
+    const [bounces] = await this.db.all(
+      `SELECT COUNT(*) AS n, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration ${sessions}`,
+      params,
+    );
     const n = num(bounces?.n);
-    let visitDuration = 0;
-    if (n > 0) {
-      const [median] = await this.db.all(
-        `SELECT COALESCE(s.engaged_ms, s.last_at - s.started_at) AS d ${sessions} ORDER BY d LIMIT 1 OFFSET ?`,
-        [...params, Math.floor((n - 1) / 2)],
-      );
-      visitDuration = num(median?.d);
-    }
 
     const visits = num(totals?.visits);
     const pageviews = num(totals?.pageviews);
@@ -350,7 +351,7 @@ export class SqlStore {
       pageviews,
       viewsPerVisit: visits > 0 ? Math.round((pageviews / visits) * 100) / 100 : 0,
       bounceRate: n > 0 ? num(bounces?.bounced) / n : 0,
-      visitDuration,
+      visitDuration: n > 0 ? Math.round(num(bounces?.duration) / n) : 0,
     };
   }
 
@@ -372,10 +373,38 @@ export class SqlStore {
        GROUP BY b.i`,
       [...params, query.site, ...f.params],
     );
+    // Bounce, duration, and views per visit belong to visits, counted in the
+    // bucket each visit started in.
+    const first = buckets[0]!.start;
+    const last = buckets[buckets.length - 1]!.end;
+    const matching = query.filters.length
+      ? ` AND s.id IN (SELECT DISTINCT e.session FROM rl_events e JOIN rl_sessions s ON s.id = e.session
+           WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
+      : "";
+    const visitRows = await this.db.all<{ i: unknown; n: unknown; bounced: unknown; duration: unknown; views: unknown }>(
+      `WITH b (i, bs, be) AS (VALUES ${values})
+       SELECT b.i AS i, COUNT(*) AS n, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced,
+         SUM(${DURATION}) AS duration, SUM(s.pageviews) AS views
+       FROM b JOIN rl_sessions s ON s.site = ? AND s.started_at >= b.bs AND s.started_at < b.be
+       WHERE 1 = 1${matching}
+       GROUP BY b.i`,
+      [...params, query.site, ...(query.filters.length ? [query.site, first, last, ...f.params] : [])],
+    );
     const found = new Map(rows.map((row) => [num(row.i), row]));
+    const visitFound = new Map(visitRows.map((row) => [num(row.i), row]));
     return buckets.map((bucket, i) => {
       const row = found.get(i);
-      return { start: bucket.start, visitors: num(row?.visitors), visits: num(row?.visits), pageviews: num(row?.pageviews) };
+      const v = visitFound.get(i);
+      const n = num(v?.n);
+      return {
+        start: bucket.start,
+        visitors: num(row?.visitors),
+        visits: num(row?.visits),
+        pageviews: num(row?.pageviews),
+        viewsPerVisit: n > 0 ? Math.round((num(v?.views) / n) * 100) / 100 : 0,
+        bounceRate: n > 0 ? num(v?.bounced) / n : 0,
+        visitDuration: n > 0 ? Math.round(num(v?.duration) / n) : 0,
+      };
     });
   }
 
@@ -468,6 +497,26 @@ export class SqlStore {
       visits: num(row.visits),
       pageviews: num(row.pageviews),
     }));
+  }
+
+  /**
+   * Visits started in each UTC hour of a range, as epoch hour numbers. The
+   * caller folds them into local weekdays and hours, which keeps time zones
+   * (DST included) out of SQL.
+   */
+  async hourly(query: Query): Promise<Array<{ hour: number; visits: number }>> {
+    const f = filterSql(query.filters);
+    const matching = query.filters.length
+      ? ` AND s.id IN (SELECT DISTINCT e.session FROM rl_events e JOIN rl_sessions s ON s.id = e.session
+           WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
+      : "";
+    const rows = await this.db.all(
+      `SELECT s.started_at / 3600000 AS hour, COUNT(*) AS visits FROM rl_sessions s
+       WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ?${matching}
+       GROUP BY 1`,
+      [query.site, query.from, query.to, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : [])],
+    );
+    return rows.map((row) => ({ hour: Math.floor(num(row.hour)), visits: num(row.visits) }));
   }
 
   async realtime(site: string, now: number): Promise<Realtime> {

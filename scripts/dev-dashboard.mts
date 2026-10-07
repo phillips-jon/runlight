@@ -7,6 +7,7 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { bundle } from "../packages/dashboard/scripts/build.mjs";
+import { world } from "../packages/dashboard/scripts/world.mjs";
 import { runlight } from "../packages/sdk/src/index.ts";
 import { toNodeHandler } from "../packages/sdk/src/node.ts";
 import { sqlite } from "../packages/sdk/src/stores/sqlite.ts";
@@ -32,7 +33,7 @@ createServer(async (req, res) => {
     res.setHeader("content-type", "text/html; charset=utf-8");
     res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Runlight (dev)</title><link rel="stylesheet" href="/runlight/dev.css"></head>
-<body><div id="app" data-base="/runlight"></div><script type="module" src="/runlight/dev.js"></script></body></html>`);
+<body><div id="app" data-base="/runlight" data-world="/runlight/world.json"></div><script type="module" src="/runlight/dev.js"></script></body></html>`);
     return;
   }
   if (path === "/runlight/dev.js" || path === "/runlight/dev.css") {
@@ -44,6 +45,11 @@ createServer(async (req, res) => {
       res.statusCode = 500;
       res.end(String(error));
     }
+    return;
+  }
+  if (path === "/runlight/world.json") {
+    res.setHeader("content-type", "application/json");
+    res.end(world());
     return;
   }
   if (path.startsWith("/runlight")) return void routes(req, res);

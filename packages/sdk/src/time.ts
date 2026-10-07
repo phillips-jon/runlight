@@ -173,3 +173,10 @@ export function buckets(range: Range, timezone: string): Bucket[] {
     end: Math.min(starts[i + 1] ?? range.to, range.to),
   }));
 }
+
+/** Monday is 0. */
+export function localWeekdayHour(ts: number, timezone: string): [weekday: number, hour: number] {
+  const [y, m, d, h] = parts(ts, timezone);
+  const weekday = (new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay() + 6) % 7;
+  return [weekday, h!];
+}

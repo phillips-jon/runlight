@@ -1,10 +1,11 @@
-import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS } from "./generated/dashboard.js";
+import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
 import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
 import type { RequestContext, Runlight } from "./runlight.js";
 import type { SiteRow } from "./store.js";
-import { buckets, localDate, previousRange, resolveRange } from "./time.js";
+import { fetchIcon } from "./icon.js";
+import { buckets, localDate, localWeekdayHour, previousRange, resolveRange } from "./time.js";
 import { API_VERSION, VERSION } from "./version.js";
 
 export interface RoutesOptions {
@@ -98,7 +99,7 @@ const DASHBOARD = (base: string) => `<!doctype html>
 <link rel="stylesheet" href="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.css">
 </head>
 <body>
-<div id="app" data-base="${escapeAttr(base)}"></div>
+<div id="app" data-base="${escapeAttr(base)}" data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json"></div>
 <script type="module" src="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.js"></script>
 </body>
 </html>
@@ -196,6 +197,21 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     const site = await querySite(url);
     if (site instanceof Response) return site;
 
+    if (path === "/api/icon") {
+      const host = site.hostnames[0];
+      const icon = await fetchIcon(host ? `https://${host}` : url.origin);
+      if (!icon) return json({ error: "No icon" }, 404, { "cache-control": "private, max-age=3600" });
+      return new Response(icon.body, {
+        headers: {
+          "content-type": icon.type,
+          "cache-control": "private, max-age=86400",
+          // An SVG served from this origin must never run script.
+          "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+          "x-content-type-options": "nosniff",
+        },
+      });
+    }
+
     if (path === "/api/realtime") {
       return json(await runlight.store.realtime(site.id, runlight.now()));
     }
@@ -215,6 +231,15 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (path === "/api/series") {
       const points = await runlight.store.series(query, buckets(range, site.timezone));
       return json({ site: site.id, range: rangeOut, points });
+    }
+
+    if (path === "/api/rhythm") {
+      const grid = Array.from({ length: 7 }, () => new Array<number>(24).fill(0));
+      for (const { hour, visits } of await runlight.store.hourly(query)) {
+        const [weekday, h] = localWeekdayHour(hour * 3_600_000, site.timezone);
+        grid[weekday]![h]! += visits;
+      }
+      return json({ site: site.id, range: rangeOut, grid });
     }
 
     if (path === "/api/breakdown") {
@@ -244,6 +269,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         };
         if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
         return new Response(TRACKER, { headers });
+      }
+
+      if (path === `/assets/world.${WORLD_HASH}.json` && request.method === "GET") {
+        return new Response(WORLD_JSON, {
+          headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=31536000, immutable" },
+        });
       }
 
       if (path.startsWith("/assets/app.") && request.method === "GET") {
