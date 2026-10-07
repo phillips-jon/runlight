@@ -1,33 +1,33 @@
 ---
 title: Ask your AI
-description: Connect Claude, Cursor, or any MCP client to Runlight with a read-only token, then ask about your stats in plain words.
+description: Connect any MCP client, such as Claude or Cursor, to Runlight with a read-only token and ask about your stats in plain words.
 group: Features
 order: 10
 ---
 
-Runlight has an MCP server built in, at `/runlight/mcp` next to the dashboard. Connect an AI assistant to it and ask what you would otherwise click around for: how last week compared with the week before, which pages people from Google read, what is converting, or whether the spike on Tuesday came from Hacker News.
+Runlight has a built-in MCP server at `/runlight/mcp`, next to the dashboard. Once an AI assistant is connected to it, you can ask about things you would otherwise click around for, such as how last week compared with the week before, which pages people from Google read, what is converting, and whether the spike on Tuesday came from Hacker News.
 
-There is nothing extra to run. The server is part of `rl.routes()`, so it is wherever your dashboard is.
+The server is part of `rl.routes()`, so it runs wherever your dashboard does.
 
 ## Make a token
 
-Open the dashboard, then **Settings**, then **API and AI**. Name the token after what will use it, like "Claude" or "Weekly script", and create it. If you track several sites you can limit a token to one of them.
+In the dashboard, go to **Settings** and open **API and AI**. Name the token after what will use it, like "Claude" or "Weekly script", and create it. If you track several sites you can limit a token to one of them.
 
-The token is shown once. Copy it then; Runlight keeps only a fingerprint of it, so it cannot show it again. The page also fills in the setup below with your own address and token.
+Copy the token when it appears. Runlight keeps only a fingerprint of it, so it can show the token just this once. The page also fills in the setup below with your own address and token.
 
-A token can only read. It sees the same numbers the dashboard shows, and it can list short links and their clicks, but it cannot change settings, goals, or links, cannot see your mail settings or share links, and cannot make or delete tokens. Delete it in the same place and it stops working at once. The list shows when each token was last used.
+Tokens are read-only. A token sees the same numbers the dashboard shows and can list short links with their clicks. It cannot change settings, goals, or links, and it cannot make or delete tokens or see your mail settings and share links. A token you delete in the same place stops working at once, and the list shows when each token was last used.
 
 ## Connect your assistant
 
 In each of these, replace the address with your own and `rl_...` with your token.
 
-**Claude Code**
+For **Claude Code**, run this command.
 
 ```bash
 claude mcp add --transport http runlight https://example.com/runlight/mcp --header "Authorization: Bearer rl_..."
 ```
 
-**Cursor**, in `~/.cursor/mcp.json` or a project's `.cursor/mcp.json`:
+For **Cursor**, add this to `~/.cursor/mcp.json` or a project's `.cursor/mcp.json`.
 
 ```json
 {
@@ -40,7 +40,7 @@ claude mcp add --transport http runlight https://example.com/runlight/mcp --head
 }
 ```
 
-**VS Code**, in `.vscode/mcp.json`:
+For **VS Code**, add this to `.vscode/mcp.json`.
 
 ```json
 {
@@ -54,7 +54,7 @@ claude mcp add --transport http runlight https://example.com/runlight/mcp --head
 }
 ```
 
-**Claude Desktop**, through [mcp-remote](https://www.npmjs.com/package/mcp-remote), in `claude_desktop_config.json`:
+**Claude Desktop** connects through [mcp-remote](https://www.npmjs.com/package/mcp-remote). Add this to `claude_desktop_config.json`.
 
 ```json
 {
@@ -79,13 +79,13 @@ Any other client that speaks MCP over Streamable HTTP and can send a header work
 | `get_timeseries` | The same numbers by hour, day, week, or month. |
 | `get_breakdown` | The top pages, entry and exit pages, referrers, sources, channels, UTM tags, countries, regions, cities, browsers, systems, devices, screens, languages, events, and AI agents. |
 | `get_visit_times` | Visits by weekday and hour. |
-| `get_realtime` | Who is on the site now, what they are reading, and where they came from. |
-| `list_goals`, `get_goal` | Conversions, rates, and revenue, and one goal by channel, source, and page. |
+| `get_realtime` | The visitors on the site now, with the page each one is reading and where they came from. |
+| `list_goals`, `get_goal` | Conversions, rates, and revenue for every goal, or one goal split by channel, source, and page. |
 | `list_links` | Short links and their clicks. |
 
-Every tool takes the dashboard's periods (`today`, `7d`, `30d`, `month`, `last_month`, `12mo`, `all`, and the rest) or dates, a comparison, and filters such as `channel:is:Organic Search` or `page:contains:/blog`. Assistants pick these up from the tool descriptions, so you just ask.
+Every tool takes the dashboard's periods (`today`, `7d`, `30d`, `month`, `last_month`, `12mo`, `all`, and the rest) or dates. Each one also takes a comparison and filters such as `channel:is:Organic Search` or `page:contains:/blog`. Assistants learn these from the tool descriptions, so you can simply ask.
 
-Some things to try:
+Here are some things to try.
 
 - "How did last month compare with the month before, and what changed most?"
 - "Which blog posts do people from Google read longest?"
@@ -94,7 +94,7 @@ Some things to try:
 
 ## Scripts
 
-The same token works with the [HTTP API](/docs/api/), for your own scripts and dashboards:
+The same token works with the [HTTP API](/docs/api/), so you can use it in your own scripts and dashboards.
 
 ```bash
 curl "https://example.com/runlight/api/stats?period=7d" -H "Authorization: Bearer rl_..."

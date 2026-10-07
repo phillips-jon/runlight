@@ -5,13 +5,13 @@ group: Start
 order: 2
 ---
 
-Every install has the same three parts: an instance (see [Getting started](/docs/#2-create-the-instance)), its routes mounted under `/runlight`, and the script tag on your pages. Only the middle part changes between frameworks.
+Every install needs an instance (see [Getting started](/docs/#2-create-the-instance)), its routes mounted under `/runlight`, and the script tag on your pages. Only the routes change between frameworks.
 
 `rl.routes()` returns a Fetch handler, `handler(request)`, plus the same function under each method name, so any framework built on web `Request` and `Response` can use it directly. Change the path with `rl.routes({ basePath: "/stats" })`, and the script tag becomes `/stats/s.js`.
 
 ## Next.js
 
-App Router, with a catch-all route:
+In the App Router, add a catch-all route.
 
 ```ts file=app/runlight/[[...path]]/route.ts
 import { rl } from "@/lib/runlight";
@@ -19,7 +19,7 @@ import { rl } from "@/lib/runlight";
 export const { GET, POST, PUT, PATCH, DELETE, OPTIONS } = rl.routes();
 ```
 
-Add the script to your root layout:
+Add the script to your root layout.
 
 ```tsx file=app/layout.tsx
 <head>
@@ -31,7 +31,7 @@ Runlight needs the Node runtime (it uses SQLite or Postgres), which is the defau
 
 ## Express and plain Node
 
-`@runlight/sdk/node` adapts the handler to Node's `http` module, and so to Express, Connect, and Koa (through `ctx.req` and `ctx.res`):
+`@runlight/sdk/node` adapts the handler to Node's `http` module, and so to Express, Connect, and Koa (through `ctx.req` and `ctx.res`).
 
 ```ts file=server.ts
 import express from "express";
@@ -43,11 +43,11 @@ app.use(observer(rl)); // AI agents reading your pages; optional
 app.use(toNodeHandler(rl.routes().handler));
 ```
 
-Mount it before any body parser that would consume the request, or after: the adapter reads a body Express has already parsed.
+It can go before or after any body parser, because the adapter also reads a body that Express has already parsed.
 
 ## NestJS
 
-Nest runs on Express by default, so the same middleware goes in `main.ts`, before `listen`:
+Nest runs on Express by default, so the same middleware goes in `main.ts`, before `listen`.
 
 ```ts file=src/main.ts
 import { NestFactory } from "@nestjs/core";
@@ -62,7 +62,7 @@ await app.listen(3000);
 
 ## Fastify
 
-Fastify reads request bodies itself, so give Runlight its own plugin scope with no body parsers, and hand the raw request over:
+Fastify reads request bodies itself, so give Runlight its own plugin scope with no body parsers, and hand it the raw request.
 
 ```ts
 import Fastify from "fastify";
@@ -111,13 +111,13 @@ app.all("/runlight", (c) => runlight(c.req.raw));
 
 ## Nuxt and Nitro
 
-Put the instance in `server/utils/runlight.ts` (Nitro imports everything there for you), then:
+Put the instance in `server/utils/runlight.ts` (Nitro imports everything there for you), then add this route.
 
 ```ts file=server/routes/runlight/[...path].ts
 export default defineEventHandler((event) => rl.routes().handler(toWebRequest(event)));
 ```
 
-Add the same file as `server/routes/runlight.ts` so `/runlight` itself answers too, and the script tag to `app.head` in `nuxt.config.ts`:
+Add the same file as `server/routes/runlight.ts` so `/runlight` itself answers too. The script tag goes in `app.head` in `nuxt.config.ts`.
 
 ```ts file=nuxt.config.ts
 export default defineNuxtConfig({
@@ -141,7 +141,7 @@ export const OPTIONS = GET;
 
 ## Astro
 
-With an adapter for server output:
+Astro needs an adapter for server output.
 
 ```ts file=src/pages/runlight/[...path].ts
 import { rl } from "../../lib/runlight";
@@ -162,7 +162,7 @@ export const action = ({ request }) => handler(request);
 
 ## Bun
 
-Bun cannot load `better-sqlite3`, so use its built-in SQLite through `@runlight/sdk/bun`:
+Bun cannot load `better-sqlite3`, so use its built-in SQLite through `@runlight/sdk/bun`.
 
 ```ts file=server.ts
 import { runlight } from "@runlight/sdk";
@@ -185,7 +185,7 @@ Elysia and other Bun frameworks pass `request` the same way.
 
 ## Deno
 
-Deno serves web Requests directly. Use [libSQL](/docs/configuration/#libsql-and-turso) (a local file or Turso) or Postgres for the store:
+Deno serves web Requests directly. Use [libSQL](/docs/configuration/#libsql-and-turso) (a local file or Turso) or Postgres for the store.
 
 ```ts file=main.ts
 import { runlight } from "npm:@runlight/sdk";
@@ -229,4 +229,4 @@ If your server gives you a web `Request`, pass it to `rl.routes().handler` and r
 
 ## Behind a proxy
 
-Runlight reads the visitor's address from `CF-Connecting-IP`, `X-Real-IP`, then the first `X-Forwarded-For`, which is right behind Vercel, Cloudflare, Netlify, and most load balancers. The address is only used for the [daily visitor hash](/docs/privacy/) and is never stored. If your app is exposed directly with no proxy, set `trustProxy: false`.
+Runlight reads the visitor's address from `CF-Connecting-IP`, `X-Real-IP`, then the first `X-Forwarded-For`, an order that is correct behind Vercel, Cloudflare, Netlify, and most load balancers. The address is only used for the [daily visitor hash](/docs/privacy/) and is never stored. If your app is exposed directly with no proxy, set `trustProxy: false`.

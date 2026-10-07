@@ -1,10 +1,10 @@
-Add Runlight analytics to this app. Runlight is an npm package (@runlight/sdk) that runs inside the app: it stores visits in the app's own database and serves its dashboard at /runlight. Docs: https://runlight.sh/docs/ (each page is also Markdown at index.md, list at https://runlight.sh/llms.txt).
+Add Runlight analytics to this app. Runlight is an npm package (@runlight/sdk) that runs inside the app. It stores visits in the app's own database and serves its dashboard at /runlight. The docs are at https://runlight.sh/docs/, where each page is also available as Markdown at index.md, and https://runlight.sh/llms.txt lists every page.
 
-1. Install: npm install @runlight/sdk better-sqlite3
-   (For Postgres instead: npm install @runlight/sdk pg, and use postgres({ url: process.env.DATABASE_URL }) from "@runlight/sdk/postgres".
-    On Bun use bunSqlite from "@runlight/sdk/bun"; on Cloudflare Workers use d1 from "@runlight/sdk/d1"; for Turso use libsql from "@runlight/sdk/libsql".)
+1. Install the package with npm install @runlight/sdk better-sqlite3
+   (For Postgres, run npm install @runlight/sdk pg and use postgres({ url: process.env.DATABASE_URL }) from "@runlight/sdk/postgres".
+    On Bun use bunSqlite from "@runlight/sdk/bun", on Cloudflare Workers use d1 from "@runlight/sdk/d1", and for Turso use libsql from "@runlight/sdk/libsql".)
 
-2. Create lib/runlight.ts (or the project's equivalent):
+2. Create lib/runlight.ts (or the project's equivalent).
 
    import { runlight } from "@runlight/sdk";
    import { sqlite } from "@runlight/sdk/sqlite";
@@ -17,19 +17,19 @@ Add Runlight analytics to this app. Runlight is an npm package (@runlight/sdk) t
    Make sure ./data is gitignored if it is new.
 
 3. Mount the routes under /runlight, for every HTTP method.
-   Next.js App Router: app/runlight/[[...path]]/route.ts
+   For the Next.js App Router, create app/runlight/[[...path]]/route.ts with this content.
      import { rl } from "@/lib/runlight";
      export const { GET, POST, PUT, PATCH, DELETE, OPTIONS } = rl.routes();
-   Express or Node: app.use(toNodeHandler(rl.routes().handler)) with toNodeHandler from "@runlight/sdk/node".
-   Any framework with web Request objects: pass the request to rl.routes().handler and return its Response.
-   Other frameworks: https://runlight.sh/docs/install/
+   For Express or Node, use app.use(toNodeHandler(rl.routes().handler)) with toNodeHandler from "@runlight/sdk/node".
+   For any framework with web Request objects, pass the request to rl.routes().handler and return its Response.
+   The install guide at https://runlight.sh/docs/install/ covers other frameworks.
 
 4. Add <script defer src="/runlight/s.js"></script> to every page, before </head> (the root layout in Next.js).
 
 5. Add RUNLIGHT_TOKEN (a long random string) and CRON_SECRET to the environment and to .env.example. Do not commit real values.
 
-6. Schedule GET or POST /runlight/api/check hourly with "Authorization: Bearer $CRON_SECRET". On Vercel, add to vercel.json: { "crons": [{ "path": "/runlight/api/check", "schedule": "0 * * * *" }] }
+6. Schedule GET or POST /runlight/api/check hourly with "Authorization: Bearer $CRON_SECRET". On Vercel, add { "crons": [{ "path": "/runlight/api/check", "schedule": "0 * * * *" }] } to vercel.json.
 
-7. Optional: count AI agents reading pages by calling rl.observe(request) (not awaited) in middleware (proxy.ts in Next.js 16+, middleware.ts before).
+7. Optionally, count AI agents reading pages by calling rl.observe(request) without awaiting it in middleware (proxy.ts in Next.js 16+, middleware.ts before).
 
-Then tell the user to open /runlight/?token=<their RUNLIGHT_TOKEN> to sign in. Do not add cookie banners for Runlight: it sets no cookies and stores no personal data.
+Then tell the user to open /runlight/?token=<their RUNLIGHT_TOKEN> to sign in. Runlight sets no cookies and stores no personal data, so do not add cookie banners for it.

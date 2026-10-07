@@ -145,7 +145,7 @@ ${body}
   </main>
   <footer>
     <div class="foot-top">
-      <div class="foot-about"><a class="brand" href="/">${MARK}<span translate="no">Runlight</span></a><p>Web analytics that lives inside your app. Open source, no cookies, and nothing personal stored.</p></div>
+      <div class="foot-about"><a class="brand" href="/">${MARK}<span translate="no">Runlight</span></a><p>Runlight is open source web analytics that lives inside your app. It sets no cookies and stores nothing personal.</p></div>
       <nav class="foot-cols" aria-label="Footer">
         ${col("Docs", [["Getting started", "/docs/"], ["Install", "/docs/install/"], ["Tracking", "/docs/tracking/"], ["The dashboard", "/docs/dashboard/"], ["Scheduled check", "/docs/cron/"]])}
         ${col("Features", [["Goals", "/docs/goals/"], ["Short links", "/docs/links/"], ["AI sources", "/docs/ai/"], ["Email reports", "/docs/reports/"]])}
@@ -240,7 +240,7 @@ function buildPages(assets) {
     description: "Send a message to the maintainer of Runlight.",
     body: solo("Contact", `<h1>Contact</h1>
 <p>Write here with a question, a bug report, an idea, or a request to delete something you sent. A person reads every message and replies to the address you give.</p>
-<p>Bugs and feature requests are often quicker as <a href="${GITHUB}/issues">GitHub issues</a>, which are public. What you send here is used only to reply to you; the <a href="/privacy/">privacy page</a> says what happens to it.</p>
+<p>Bugs and feature requests are often quicker as <a href="${GITHUB}/issues">GitHub issues</a>, which are public. What you send here is used only to reply to you, and the <a href="/privacy/">privacy page</a> says what happens to it.</p>
 ${CONTACT_FORM}`),
   });
   routes.push("/contact/");
@@ -248,14 +248,14 @@ ${CONTACT_FORM}`),
     title: "Message sent",
     description: "Your message was sent.",
     body: solo("Contact", `<h1>Sent</h1>
-<p class="notice ok" role="status">Thank you. Your message is on its way, and the reply will come to the email address you gave.</p>
+<p class="notice ok" role="status">Thank you for writing. Your message is on its way, and the reply will come to the email address you gave.</p>
 <p><a href="/">Back to the start</a></p>`),
   });
   write("/contact/error/", {
     title: "Message not sent",
     description: "Your message was not sent.",
     body: solo("Contact", `<h1>Not sent</h1>
-<p class="notice bad" role="alert">Your message did not go through, so nothing was sent. Check that each field is filled in and the email address is complete, then try again. If it keeps failing, wait a minute, or open an issue on <a href="${GITHUB}/issues">GitHub</a>.</p>
+<p class="notice bad" role="alert">Your message did not go through, so nothing was sent. Check that each field is filled in and the email address is complete, then try again. If it keeps failing, wait a minute and try once more, or open an issue on <a href="${GITHUB}/issues">GitHub</a>.</p>
 ${CONTACT_FORM}`),
   });
   return routes;
@@ -278,7 +278,7 @@ function build() {
   const landing = readFileSync(path.join(SRC, "landing.html"), "utf8");
   writeFileSync(
     path.join(DIST, "index.html"),
-    layout({ title: "Runlight", description: "Open source web analytics that installs into your app like any other package. Your database, your domain, no cookies.", body: curly(landing), pagePath: "/", assets }),
+    layout({ title: "Runlight", description: "Runlight is open source web analytics that installs into your app like any other package and keeps its numbers in your own database, without cookies.", body: curly(landing), pagePath: "/", assets }),
   );
 
   const pages = buildPages(assets);
@@ -293,7 +293,7 @@ function build() {
   writeFileSync(path.join(DIST, "prompt.txt"), prompt);
   writeFileSync(
     path.join(DIST, "llms.txt"),
-    `# Runlight\n\n> Open source web analytics that lives inside your app: a package, a route, and a script tag. Docs below are plain Markdown.\n\n## Docs\n\n${docs.map((d) => `- [${d.meta.title}](${SITE}${d.path}index.md): ${d.meta.description ?? ""}`).join("\n")}\n\n## Setup prompt\n\n- [prompt.txt](${SITE}/prompt.txt): instructions a coding agent can follow to add Runlight to an app\n`,
+    `# Runlight\n\n> Runlight is open source web analytics that you install into your own app as a package with one route and a script tag. Every doc below is plain Markdown.\n\n## Docs\n\n${docs.map((d) => `- [${d.meta.title}](${SITE}${d.path}index.md): ${d.meta.description ?? ""}`).join("\n")}\n\n## Setup prompt\n\n- [prompt.txt](${SITE}/prompt.txt): instructions a coding agent can follow to add Runlight to an app\n`,
   );
   // Each doc as Markdown too, for agents.
   for (const doc of docs) writeFileSync(path.join(DIST, doc.path, "index.md"), `# ${doc.meta.title}\n\n${doc.meta.description ? `${doc.meta.description}\n\n` : ""}${doc.body}`);

@@ -1,7 +1,7 @@
 ---
 title: Privacy Policy
 label: Privacy
-description: What runlight.sh collects, which is very little, and what happens to it.
+description: This page explains what runlight.sh collects, which is very little, and what happens to it.
 updated: October 7, 2026
 ---
 
@@ -21,11 +21,11 @@ If you run Runlight on your own site, you are the one collecting your visitors�
 
 This site sets no cookies. If you switch between light and dark, your choice is saved in your browser’s local storage under one key, `runlight_site_theme`, so the next page opens the same way. It never leaves your browser, and clearing your site data removes it.
 
-The pages load their styles, scripts, and images from runlight.sh itself. The fonts come from Adobe Fonts (use.typekit.net), which sees your IP address and browser when it serves them; nothing else is loaded from another site.
+The pages load their styles, scripts, and images from runlight.sh itself. The fonts come from Adobe Fonts (use.typekit.net), which sees your IP address and browser when it serves them. Nothing else is loaded from another site.
 
 ## Server logs
 
-Like most web servers, the one behind runlight.sh writes a standard access log line for each request: your IP address, the time, the page requested, the response, the referring page, and your browser’s user agent. The logs are used to keep the site running and to deal with abuse. They are kept for a limited time and then deleted, and they are not shared or used to build profiles.
+Like most web servers, the one behind runlight.sh writes a standard access log line for each request, which records your IP address, the time, the page requested, the response, the referring page, and your browser’s user agent. The logs are used to keep the site running and to deal with abuse. They are kept for a limited time and then deleted, and they are not shared or used to build profiles.
 
 ## The contact form
 

@@ -5,19 +5,19 @@ group: Features
 order: 9
 ---
 
-Runlight does a little upkeep once an hour: it makes the day’s new salt for [counting visitors](/docs/privacy/), deletes old ones, and sends any [email reports](/docs/reports/) that are due. It happens when something calls the check:
+Once an hour, Runlight makes the day’s new salt for [counting visitors](/docs/privacy/) and deletes the old ones. The same run sends any [email reports](/docs/reports/) that are due. This upkeep happens when something calls the check.
 
 ```bash
 curl -X POST https://example.com/runlight/api/check -H "Authorization: Bearer $CRON_SECRET"
 ```
 
-The check accepts `CRON_SECRET` (or the dashboard token) as a bearer token, and both GET and POST. Calling it more often is harmless.
+The check accepts GET or POST, with `CRON_SECRET` (or the dashboard token) as a bearer token. Calling it more often does no harm.
 
-Visits are counted correctly without it (the salt is also made on the first visit of the day), but reports are only sent by the check.
+Visits are counted correctly without the check, because the first visit of the day also makes the salt. Reports go out only when the check runs.
 
 ## Vercel
 
-Set `CRON_SECRET` in the project’s environment, then:
+Set `CRON_SECRET` in the project’s environment, then add the cron to `vercel.json`.
 
 ```json file=vercel.json
 {
@@ -29,10 +29,10 @@ Vercel calls it with GET and the secret as a bearer token, which is what Runligh
 
 ## Anywhere else
 
-Any scheduler that can make an HTTPS request will do: a crontab line, GitHub Actions, Cloudflare Cron Triggers, or your platform’s scheduler.
+Any scheduler that can make an HTTPS request will work, including a crontab line, GitHub Actions, Cloudflare Cron Triggers, or your platform’s scheduler.
 
 ```bash
 0 * * * * curl -fsS -X POST https://example.com/runlight/api/check -H "Authorization: Bearer YOUR_CRON_SECRET" > /dev/null
 ```
 
-Or call it from code you already run on a timer: `await rl.check()`.
+You can also call `await rl.check()` from code you already run on a timer.

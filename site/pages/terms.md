@@ -1,17 +1,17 @@
 ---
 title: Terms of Service
 label: Terms
-description: The terms for using runlight.sh and the Runlight software.
+description: These are the terms for using runlight.sh and the Runlight software.
 updated: October 7, 2026
 ---
 
 # Terms of Service
 
-These are the terms for runlight.sh and the Runlight software. They are short because there is not much to them: this is the website of an open source project, not a service you sign up for.
+These are the terms for runlight.sh and the Runlight software. They are short because runlight.sh is the website of an open source project, and there is nothing to sign up for.
 
 ## 1. The software
 
-Runlight (the `@runlight/sdk` package on npm and the code on GitHub) is released under the [MIT License](https://github.com/phillips-jon/runlight/blob/main/LICENSE). That license, not this page, governs how you use, copy, change, and share the code.
+Runlight (the `@runlight/sdk` package on npm and the code on GitHub) is released under the [MIT License](https://github.com/phillips-jon/runlight/blob/main/LICENSE). That license alone governs how you use, copy, change, and share the code.
 
 ## 2. Your installation, your data
 
@@ -27,7 +27,7 @@ The software is provided as is, without warranty of any kind. Numbers are counte
 
 ## 5. This website
 
-runlight.sh hosts the landing page and the documentation. It has no accounts, holds none of your data, and counts none of your visitors. You may read it, link to it, and quote it. Please do not try to break it or overload it, and do not use the contact form to send spam.
+runlight.sh hosts the landing page and the documentation. It has no accounts, and it neither holds your data nor counts your visitors. You may read and quote it, and you may link to it. Please do not try to break it or overload it, and do not use the contact form to send spam.
 
 ## 6. Liability
 
@@ -39,4 +39,4 @@ These terms may change as the project does. The date at the top says when they l
 
 ## 8. Questions
 
-Use the [contact page](/contact/). runlight.sh and Runlight are maintained by Jon C. Phillips.
+Send questions through the [contact page](/contact/). runlight.sh and Runlight are maintained by Jon C. Phillips.

@@ -1,15 +1,15 @@
 ---
 title: Email reports
-description: Weekly or monthly summaries by email, sent through your own email service, in each reader's language.
+description: Runlight emails weekly or monthly summaries through your own email service, in each reader's language.
 group: Features
 order: 8
 ---
 
-Runlight can email a summary of a site every week or month: the headline sentence, the six numbers against the period before, top pages, sources, and countries, and conversions with their revenue. It is sent from your own address, through an email service you already use.
+Runlight can email a summary of a site every week or month. Each summary has the headline sentence, the six numbers against the period before, top pages, sources, and countries, and conversions with their revenue. It is sent from your own address, through an email service you already use.
 
 ## 1. Set up the mail service
 
-In Settings, Email reports, pick a service, enter its keys, and the address reports come from. **Send test** checks it works. One mail service serves every site in the install.
+In Settings, Email reports, pick a service and enter its keys along with the address reports come from. **Send test** checks that it works. One mail service serves every site in the install.
 
 | Service | What it needs |
 | --- | --- |
@@ -27,9 +27,9 @@ In Settings, Email reports, pick a service, enter its keys, and the address repo
 
 The from address has to be one your service lets you send from, usually on a domain you have verified with it.
 
-Keys are stored encrypted with a key derived from `RUNLIGHT_SECRET` (or, without it, `RUNLIGHT_TOKEN`), and never sent back to the browser: to keep a saved key, leave its field blank. If neither variable is set, keys are stored as typed and Settings tells you so.
+Keys are stored encrypted with a key derived from `RUNLIGHT_SECRET` (or, without it, `RUNLIGHT_TOKEN`) and are never sent back to the browser, so leave a field blank to keep its saved key. If neither variable is set, keys are stored as typed and Settings tells you so.
 
-To set the service in code instead, pass `mail`; Settings then shows it and cannot change it:
+You can also set the service in code by passing `mail`, and Settings then shows it without being able to change it.
 
 ```ts
 runlight({
@@ -40,11 +40,11 @@ runlight({
 
 ### The webhook
 
-The webhook gets a POST with JSON: `to`, `from`, `fromName`, `subject`, `html`, `text`, and `headers`. With a signing secret, the `x-runlight-signature` header is `sha256=` and the HMAC-SHA256 of the raw body, in hex. The URL must use https (or be localhost).
+The webhook gets a POST whose JSON body has `to`, `from`, `fromName`, `subject`, `html`, `text`, and `headers`. With a signing secret set, the `x-runlight-signature` header holds `sha256=` followed by the HMAC-SHA256 of the raw body in hex. The URL must use https (or be localhost).
 
 ## 2. Add who gets reports
 
-Under **Who gets reports**, add an address, weekly or monthly, and the language the email should be in. **Send a sample now** sends the latest report straight away.
+Under **Who gets reports**, add an address with its schedule (weekly or monthly) and the language the email should be in. **Send a sample now** sends the latest report straight away.
 
 - Weekly reports cover Monday to Sunday and go out from 8am on Monday.
 - Monthly reports cover the calendar month and go out from 8am on the 1st.
@@ -53,7 +53,7 @@ Both use the site’s timezone, and each period is sent once. If sending fails, 
 
 ## 3. Schedule the check
 
-Reports are sent by the [hourly check](/docs/cron/). Without it, nothing goes out.
+Reports are sent by the [hourly check](/docs/cron/), so nothing goes out until it is scheduled.
 
 ## Unsubscribing
 

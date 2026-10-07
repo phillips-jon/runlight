@@ -1,34 +1,34 @@
 ---
 title: Tracking
-description: What the script counts on its own, how to send your own events, and the settings on the script tag.
+description: The script counts some things on its own, and this page shows how to send your own events and change the settings on the script tag.
 group: Start
 order: 3
 ---
 
 ## What it counts by itself
 
-With just the script tag, Runlight records:
+With just the script tag, Runlight records these on its own.
 
 - **Pageviews**, including page changes in single page apps (it follows `history.pushState`, `replaceState`, and the back button).
 - **Engaged time and scroll depth** for each pageview. Time only counts while the tab is visible and focused.
-- **Outbound links**: a click on a link to another site is an `Outbound link` event with the `url`.
-- **File downloads**: a click on a link to a PDF, zip, disk image, document, audio, or video file is a `File download` event.
+- **Outbound links**, recorded as an `Outbound link` event with the `url` when someone clicks a link to another site.
+- **File downloads**, recorded as a `File download` event when someone clicks a link to a PDF, zip, disk image, document, audio, or video file.
 - **404s**, when the page says so (see below).
 
-Visits from browsers driven by automation (Playwright, Selenium, Puppeteer) and from known bots are not counted.
+Runlight skips visits from known bots and from browsers driven by automation, such as Playwright, Selenium, and Puppeteer.
 
 ## Your own events
 
-Call `runlight` with a name, and optionally some properties:
+Call `runlight` with a name, and optionally some properties.
 
 ```js
 runlight("Newsletter signup", { source: "footer" });
 runlight("Purchase", { plan: "pro", revenue: 49 });
 ```
 
-Properties are strings, numbers, or booleans: up to 30 per event, names up to 60 characters, values up to 500. Events count toward visits and can be [goals](/docs/goals/).
+Properties can be strings, numbers, or booleans. Each event takes up to 30 of them, with names up to 60 characters and values up to 500. Events count toward visits and can be [goals](/docs/goals/).
 
-If your code may run before the script has loaded, queue the calls:
+If your code may run before the script has loaded, queue the calls.
 
 ```html
 <script>
@@ -38,13 +38,13 @@ If your code may run before the script has loaded, queue the calls:
 
 ## Clicks with no JavaScript
 
-Give any element a `data-runlight` attribute and a click on it sends that event. Extra `data-runlight-*` attributes become properties:
+Give any element a `data-runlight` attribute and a click on it sends that event. Extra `data-runlight-*` attributes become properties.
 
 ```html
 <button data-runlight="Signup" data-runlight-plan="pro">Sign up</button>
 ```
 
-To count clicks on something you cannot edit, add a [click goal](/docs/goals/#click-goals) in the dashboard instead: no code at all.
+To count clicks on something you cannot edit, add a [click goal](/docs/goals/#click-goals) in the dashboard, which needs no code at all.
 
 ## Settings on the script tag
 
@@ -52,11 +52,11 @@ To count clicks on something you cannot edit, add a [click goal](/docs/goals/#cl
 | --- | --- |
 | `data-site="id"` | Which site, when one install counts several and hostnames are not enough. |
 | `data-hash` | Count changes to `location.hash` as pageviews (for hash routers). |
-| `data-404` | This page is a 404: record a `404` event with its path. |
-| `data-dnt` | Respect Do Not Track. Off by default, since Runlight keeps nothing personal. |
+| `data-404` | Treat this page as a 404 and record a `404` event with its path. |
+| `data-dnt` | Respect Do Not Track. It is off by default, since Runlight keeps nothing personal. |
 | `data-outbound="false"` | Do not record outbound link clicks. |
 | `data-downloads="false"` | Do not record file downloads. |
 
 ## Leaving yourself out
 
-In the dashboard, Settings, Install has an **Ignore this browser** switch. If your dashboard is on a different domain from the site, open any page of the site with `?runlight=ignore` once in each browser you use; `?runlight=track` undoes it. This is the only thing the script ever stores, and it is your choice, not a visitor id.
+In the dashboard, Settings, Install has an **Ignore this browser** switch. If your dashboard is on a different domain from the site, open any page of the site with `?runlight=ignore` once in each browser you use; `?runlight=track` undoes it. This flag is the only thing the script ever stores, and it exists only in browsers where you chose to set it.
