@@ -348,5 +348,6 @@
   "import.soFar_one": "{n} lien importé pour l'instant",
   "import.soFar_other": "{n} liens importés pour l'instant",
   "import.moveNote": "Les liens sur le domaine du service (bit.ly, dub.sh, rebrand.ly, short.gy) passent sur {fallback} avec le même identifiant ; les domaines personnalisés sont ajoutés dans Domaines personnalisés.",
-  "prompt.title": "Vous utilisez un assistant de code ?"
+  "prompt.title": "Vous utilisez un assistant de code ?",
+  "compare.allTime": "Rien ne précède le début : il n'y a rien à comparer."
 }

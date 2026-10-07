@@ -348,5 +348,6 @@
   "import.soFar_one": "{n} enlace importado hasta ahora",
   "import.soFar_other": "{n} enlaces importados hasta ahora",
   "import.moveNote": "Los enlaces en el dominio del servicio (bit.ly, dub.sh, rebrand.ly, short.gy) pasan a {fallback} con el mismo identificador; los dominios propios se añaden en Dominios personalizados.",
-  "prompt.title": "¿Usas un asistente de código?"
+  "prompt.title": "¿Usas un asistente de código?",
+  "compare.allTime": "No hay nada antes de todo el tiempo con qué comparar."
 }

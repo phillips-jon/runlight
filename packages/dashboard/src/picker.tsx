@@ -215,8 +215,10 @@ export type CompareMode = "previous" | "year" | "custom" | "off";
 export const COMPARES: CompareMode[] = ["previous", "year", "custom", "off"];
 
 /** What the current range is compared with. */
-export function ComparePicker({ mode, from, to, today, onChange }: {
+export function ComparePicker({ mode, from, to, today, allTime, onChange }: {
   mode: CompareMode;
+  /** All time has nothing before it to compare with, so only "No comparison" can be picked. */
+  allTime?: boolean;
   from: string;
   to: string;
   today: string;
@@ -251,6 +253,7 @@ export function ComparePicker({ mode, from, to, today, onChange }: {
                 <button
                   type="button"
                   class={(custom ? value === "custom" : mode === value) ? "preset on" : "preset"}
+                  disabled={allTime && value !== "off"}
                   onClick={() => {
                     if (value === "custom") return setCustom(true);
                     onChange(value);
@@ -261,8 +264,9 @@ export function ComparePicker({ mode, from, to, today, onChange }: {
                 </button>
               </li>
             ))}
+            {allTime ? <li class="presets-note">{t("compare.allTime")}</li> : null}
           </ul>
-          {custom ? (
+          {custom && !allTime ? (
             <Calendar
               from={from}
               to={to}

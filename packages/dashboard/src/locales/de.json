@@ -348,5 +348,6 @@
   "import.soFar_one": "Bisher {n} Link importiert",
   "import.soFar_other": "Bisher {n} Links importiert",
   "import.moveNote": "Links auf der Domain des Dienstes (bit.ly, dub.sh, rebrand.ly, short.gy) ziehen mit gleichem Kürzel nach {fallback}; eigene Domains werden unter Eigene Domains hinzugefügt.",
-  "prompt.title": "Nutzt du einen Coding-Assistenten?"
+  "prompt.title": "Nutzt du einen Coding-Assistenten?",
+  "compare.allTime": "Vor dem gesamten Zeitraum gibt es nichts zum Vergleichen."
 }

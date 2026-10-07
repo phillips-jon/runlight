@@ -33,7 +33,7 @@ function readView(): View {
     from: q.get("from") ?? "",
     to: q.get("to") ?? "",
     filters,
-    compare: compare === "custom" && !(compareFrom && compareTo) ? DEFAULT_COMPARE : compare,
+    compare: q.get("period") === "all" ? "off" : compare === "custom" && !(compareFrom && compareTo) ? DEFAULT_COMPARE : compare,
     compareFrom,
     compareTo,
   };
@@ -272,7 +272,7 @@ function App() {
               from={view.from}
               to={view.to}
               today={today}
-              onPeriod={(period) => update({ period, from: "", to: "" })}
+              onPeriod={(period) => update(period === "all" ? { period, from: "", to: "", compare: "off", compareFrom: "", compareTo: "" } : { period, from: "", to: "" })}
               onRange={(from, to) => update({ from, to })}
             />
             <ComparePicker
@@ -280,6 +280,7 @@ function App() {
               from={view.compareFrom}
               to={view.compareTo}
               today={today}
+              allTime={view.period === "all" && !view.from}
               onChange={(compare, compareFrom = "", compareTo = "") => update({ compare, compareFrom, compareTo })}
             />
           </div>

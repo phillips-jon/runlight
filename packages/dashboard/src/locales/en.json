@@ -348,5 +348,6 @@
   "import.soFar_one": "Imported {n} link so far",
   "import.soFar_other": "Imported {n} links so far",
   "import.moveNote": "Links on the service's own domain (bit.ly, dub.sh, rebrand.ly, short.gy) move to {fallback} with the same slug; branded domains are added under Custom domains.",
-  "prompt.title": "Using a coding assistant?"
+  "prompt.title": "Using a coding assistant?",
+  "compare.allTime": "There is nothing before all time to compare with."
 }
