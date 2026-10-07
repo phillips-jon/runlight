@@ -121,3 +121,39 @@ test("Umami visit history stops where Runlight's own visits begin", async () => 
   } while (cursor);
   assert.equal(pageviews, 3, "March 2nd is left to Runlight");
 });
+
+test("a step that failed part way can run again without counting anything twice", async () => {
+  fakeUmami();
+  const credentials = { url: "https://umami.example.com", apiKey: "key" };
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["blog.example.com"], timezone: "UTC" }, now: () => Date.parse("2026-03-04T00:00:00Z") });
+  // A database with no transactions fails after writing half of the first step.
+  const store = rl.store;
+  const realTransaction = store.transaction.bind(store);
+  let failNext = true;
+  store.transaction = (async (fn: (s: typeof store) => Promise<unknown>) => {
+    if (!failNext) return realTransaction(fn as never);
+    failNext = false;
+    let writes = 0;
+    const realInsert = store.insertEvent.bind(store);
+    store.insertEvent = (async (row: Parameters<typeof realInsert>[0]) => {
+      if (++writes > 2) throw new Error("connection lost");
+      return realInsert(row);
+    }) as typeof store.insertEvent;
+    try {
+      return await fn(store);
+    } finally {
+      store.insertEvent = realInsert;
+    }
+  }) as typeof store.transaction;
+  await assert.rejects(importUmamiVisits(rl, "default", credentials, "w1", null), /connection lost/);
+
+  let cursor: string | null = null;
+  do cursor = (await importUmamiVisits(rl, "default", credentials, "w1", cursor)).cursor;
+  while (cursor);
+  const { GET } = rl.routes({ token: null });
+  const stats = (await (await GET(new Request("https://x.com/runlight/api/stats?from=2026-03-01&to=2026-03-03&compare=off"))).json()) as any;
+  assert.equal(stats.stats.pageviews, 4);
+  assert.equal(stats.stats.visits, 3);
+  const totals = await rl.store.db.all<{ pageviews: number; events: number }>(`SELECT SUM(pageviews) AS pageviews, SUM(events) AS events FROM rl_sessions`);
+  assert.deepEqual({ pageviews: Number(totals[0]!.pageviews), events: Number(totals[0]!.events) }, { pageviews: 4, events: 1 });
+});

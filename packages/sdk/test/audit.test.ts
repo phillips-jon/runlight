@@ -163,3 +163,20 @@ test("a mail service's reply shows only its own message, and a webhook only its 
   assert.equal(serviceMessage("<ErrorResponse><Error><Message>Email address is not verified.</Message></Error></ErrorResponse>"), "Email address is not verified.");
   assert.equal(serviceMessage("<html><body>internal admin page with secrets</body></html>"), "");
 });
+
+test("each site's tracker carries only its own click rules on the standalone server", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true });
+  await rl.addSite({ hostnames: "client-a.com" });
+  await rl.addSite({ hostnames: "client-b.com" });
+  const { GET, POST } = rl.routes({ token: "secret" });
+  for (const [site, name] of [["client-a.com", "Upgrade to Pro"], ["client-b.com", "Book a demo"]]) {
+    await POST(new Request(`https://stats.x.com/runlight/api/goals?site=${site}`, { method: "POST", headers: auth, body: JSON.stringify({ name, kind: "click", clickBy: "selector", match: ".cta" }) }));
+  }
+  const script = async (query: string) => (await GET(new Request(`https://stats.x.com/runlight/s.js${query}`))).text();
+  const a = await script("?site=client-a.com");
+  assert.ok(a.includes("Upgrade to Pro"));
+  assert.ok(!a.includes("Book a demo") && !a.includes("client-b.com"), "another site's goals and domain stay hidden");
+  const bare = await script("");
+  assert.ok(!bare.includes("Upgrade to Pro") && !bare.includes("Book a demo"), "a script that names no site carries no rules");
+  assert.ok(!(await script("?site=nobody")).includes("client-"));
+});

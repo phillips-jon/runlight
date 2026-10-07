@@ -60,17 +60,11 @@ export async function writeLink(
   // Nothing in the transaction is one link's own problem (those are checked above),
   // so a failure in it is the database's, and it stops the import rather than marking the link.
   await runlight.store.transaction(async (store) => {
-    if (domain) await store.addLinkDomain(domain, site, now);
-    await store.insertLink({
-      id,
-      site,
-      domain,
-      slug: foreign.slug,
-      name: (foreign.name || foreign.slug).slice(0, 100),
-      url: foreign.url,
-      createdAt: foreign.createdAt || now,
-      updatedAt: foreign.createdAt || now,
-    });
+    // On a database without transactions (D1), a failed earlier try can have left
+    // some of this link's clicks behind. Clear them, then write the link row last,
+    // so a link only counts as imported once all of its history is in.
+    await store.db.run(`DELETE FROM rl_sessions WHERE id IN (SELECT DISTINCT session FROM rl_events WHERE link = ? AND session <> '')`, [id]);
+    await store.db.run(`DELETE FROM rl_events WHERE link = ?`, [id]);
 
     const made = new Set<string>();
     for (const c of history.clicks ?? []) {
@@ -81,6 +75,7 @@ export async function writeLink(
       const visitor = await hexId(`${source}:${visitKey}:${new Date(c.ts).toISOString().slice(0, 10)}`, 16);
       if (!made.has(session)) {
         made.add(session);
+        await store.db.run(`DELETE FROM rl_sessions WHERE id = ?`, [session]);
         const host = domain || "link.invalid";
         let page;
         try {
@@ -136,6 +131,17 @@ export async function writeLink(
         clicks++;
       }
     }
+    if (domain) await store.addLinkDomain(domain, site, now);
+    await store.insertLink({
+      id,
+      site,
+      domain,
+      slug: foreign.slug,
+      name: (foreign.name || foreign.slug).slice(0, 100),
+      url: foreign.url,
+      createdAt: foreign.createdAt || now,
+      updatedAt: foreign.createdAt || now,
+    });
   });
   if (domain) runlight.forgetLinkDomains();
   return { status: "created", clicks };

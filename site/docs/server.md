@@ -46,7 +46,7 @@ docker exec runlight node node_modules/runlight.sh/dist/cli.js password someone@
 After you sign in, the dashboard asks for your first site's domain. The next screen gives you the script tag for that site's pages, with the server's address and the site's id filled in.
 
 ```html
-<script defer src="https://stats.example.com/s.js" data-site="example.com"></script>
+<script defer src="https://stats.example.com/s.js?site=example.com" data-site="example.com"></script>
 ```
 
 Add more sites from the menu beside the site's name. In **Settings**, **General**, you can change a site's domains, name, and timezone, or delete the site along with everything recorded for it.

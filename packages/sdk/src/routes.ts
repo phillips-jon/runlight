@@ -426,16 +426,25 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return json({ error: "Not found" }, 404);
   }
 
-  // The tracker with each site's click rules inside, rebuilt when goals change.
-  let tracker: { body: string; etag: string; at: number } | null = null;
-  async function trackerScript(): Promise<{ body: string; etag: string }> {
-    if (tracker && runlight.now() - tracker.at < 60_000) return tracker;
+  // The tracker with click rules inside, rebuilt when goals change. With ?site= it
+  // carries only that site's rules, so one site's visitors never see another
+  // site's domains or goals. The standalone server's snippet always names the
+  // site; without a name it serves no rules, and an app's own install, whose
+  // sites all belong to one owner, serves every site's.
+  const trackers = new Map<string, { body: string; etag: string; at: number }>();
+  async function trackerScript(siteId: string | null): Promise<{ body: string; etag: string }> {
+    const key = siteId ?? "";
+    const cached = trackers.get(key);
+    if (cached && runlight.now() - cached.at < 60_000) return cached;
     await runlight.init();
-    const rules = JSON.stringify(clickRules(runlight.sites, await runlight.store.goals()));
+    const sites = siteId !== null ? runlight.sites.filter((s) => s.id === siteId) : runlight.managedSites ? [] : runlight.sites;
+    const rules = JSON.stringify(clickRules(sites, await runlight.store.goals()));
     // A function, not a string: "$'" or "$&" in a selector must not be read as a replacement pattern.
     const body = TRACKER.replace(RULES_PLACEHOLDER, () => rules);
-    tracker = { body, etag: `"${TRACKER_HASH}-${(await sha256(rules)).slice(0, 8)}"`, at: runlight.now() };
-    return tracker;
+    const script = { body, etag: `"${TRACKER_HASH}-${(await sha256(rules)).slice(0, 8)}"`, at: runlight.now() };
+    // One entry per site at most; a query naming no real site gets the empty script without filling the map.
+    if (siteId === null || sites.length) trackers.set(key, script);
+    return script;
   }
 
   async function goalWrites(request: Request, path: string, url: URL): Promise<Response> {
@@ -445,7 +454,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     const existing = await runlight.store.goals(site.id);
     const id = path === "/api/goals" ? undefined : decodeURIComponent(path.slice("/api/goals/".length));
     if (id !== undefined && !existing.some((g) => g.id === id)) return json({ error: "Unknown goal" }, 404);
-    tracker = null;
+    trackers.clear();
     if (request.method === "DELETE") {
       await runlight.store.deleteGoal(id!);
       return json({ ok: true });
@@ -876,18 +885,19 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const goals = await runlight.store.goals(site.id);
       const visitors = await runlight.store.visitors(query);
       const previousVisitors = compared ? await runlight.store.visitors({ ...query, from: compared.from, to: compared.to }) : 0;
-      const rows = await Promise.all(
-        goals.map(async (goal) => {
-          const now = await runlight.store.goalTotals(query, goal);
-          const before = compared ? await runlight.store.goalTotals({ ...query, from: compared.from, to: compared.to }, goal) : undefined;
-          return {
-            ...goal,
-            ...now,
-            rate: visitors ? now.visitors / visitors : 0,
-            previous: before ? { ...before, rate: previousVisitors ? before.visitors / previousVisitors : 0 } : undefined,
-          };
-        }),
-      );
+      // Every goal in one pass for the range, and one more for the comparison.
+      const nowAll = await runlight.store.goalTotalsAll(query, goals);
+      const beforeAll = compared ? await runlight.store.goalTotalsAll({ ...query, from: compared.from, to: compared.to }, goals) : null;
+      const rows = goals.map((goal) => {
+        const now = nowAll.get(goal.id)!;
+        const before = beforeAll?.get(goal.id);
+        return {
+          ...goal,
+          ...now,
+          rate: visitors ? now.visitors / visitors : 0,
+          previous: before ? { ...before, rate: previousVisitors ? before.visitors / previousVisitors : 0 } : undefined,
+        };
+      });
       return json({ site: site.id, range: rangeOut, compare: compareOut, visitors, goals: rows });
     }
 
@@ -966,7 +976,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     try {
       if (path === "/s.js" && request.method === "GET") {
-        const script = await trackerScript();
+        const script = await trackerScript(url.searchParams.get("site"));
         const headers = {
           "content-type": "application/javascript; charset=utf-8",
           // Short, so a new click goal reaches visitors within minutes; the etag makes rechecks cheap.

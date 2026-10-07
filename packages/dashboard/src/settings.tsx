@@ -221,7 +221,9 @@ export function Install({ site, sites }: { site: Site; sites: Site[] }) {
   const origin = location.origin;
   // The standalone server always names the site, since its script serves many.
   const several = sites.length > 1 || install.managed;
-  const script = `<script defer src="${origin}${base}/s.js"${several ? ` data-site="${site.id}"` : ""}></script>`;
+  // The standalone server's script names its site, so it carries only that site's click rules.
+  const src = `${origin}${base}/s.js${install.managed ? `?site=${encodeURIComponent(site.id)}` : ""}`;
+  const script = `<script defer src="${src}"${several ? ` data-site="${site.id}"` : ""}></script>`;
   const host = site.hostnames[0];
   const ignoreLink = host ? `https://${host}/?runlight=ignore` : "";
 

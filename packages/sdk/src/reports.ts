@@ -84,7 +84,8 @@ export async function buildReport(
     store.breakdown(query, "country", 5, 0),
     store.goals(site.id),
   ]);
-  const goalRows = await Promise.all(goals.map(async (g) => ({ goal: g, totals: await store.goalTotals(query, g) })));
+  const totals = await store.goalTotalsAll(query, goals);
+  const goalRows = goals.map((g) => ({ goal: g, totals: totals.get(g.id)! }));
 
   const number = new Intl.NumberFormat(code);
   const percent = new Intl.NumberFormat(code, { style: "percent", maximumFractionDigits: 0 });

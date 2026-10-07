@@ -299,6 +299,8 @@ function schema(dialect: Db["dialect"]): string[] {
       path ${text}, hostname ${text}, title ${text}, name ${text}, props TEXT,
       engaged_ms BIGINT NOT NULL DEFAULT 0, scroll INTEGER, link ${text})`,
     `CREATE INDEX IF NOT EXISTS rl_events_site_ts ON rl_events (site, ts)`,
+    // Goals and events read one kind of row in a range; created on start for older databases too.
+    `CREATE INDEX IF NOT EXISTS rl_events_site_kind_ts ON rl_events (site, kind, ts)`,
     `CREATE INDEX IF NOT EXISTS rl_events_pageview ON rl_events (site, pageview)`,
     // Version 3: short links; "" is the app's own domain. Version 4: a slug is unique
     // across every domain, so a link whose domain is removed can fall back to the
@@ -790,11 +792,11 @@ export class SqlStore {
     return { sql: `e.kind = 'event' AND e.name = ?`, params: [goal.kind === "click" ? goal.name : goal.match] };
   }
 
-  /** Sum of a numeric event property, as SQL. Property names are checked before they get here. */
-  private propSum(prop: string): { sql: string; params: unknown[] } {
+  /** A numeric event property for one row, as SQL (0 when it is not a number). Property names are checked before they get here. */
+  private propValue(prop: string): { sql: string; params: unknown[] } {
     if (this.db.dialect === "postgres") {
       return {
-        sql: `SUM(CASE WHEN (e.props::jsonb ->> ?) ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN (e.props::jsonb ->> ?)::numeric ELSE 0 END)`,
+        sql: `(CASE WHEN (e.props::jsonb ->> ?) ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN (e.props::jsonb ->> ?)::numeric ELSE 0 END)`,
         params: [prop, prop],
       };
     }
@@ -802,7 +804,7 @@ export class SqlStore {
     const path = `$."${prop}"`;
     const text = `CAST(json_extract(e.props, ?) AS TEXT)`;
     return {
-      sql: `SUM(CASE
+      sql: `(CASE
         WHEN json_type(e.props, ?) IN ('integer', 'real') THEN json_extract(e.props, ?)
         WHEN json_type(e.props, ?) = 'text' AND ${text} GLOB '[0-9]*' AND ${text} NOT GLOB '*[^0-9.]*' AND ${text} NOT GLOB '*.*.*' AND ${text} NOT GLOB '*.' THEN CAST(${text} AS REAL)
         WHEN json_type(e.props, ?) = 'text' AND ${text} GLOB '-[0-9]*' AND substr(${text}, 2) NOT GLOB '*[^0-9.]*' AND ${text} NOT GLOB '*.*.*' AND ${text} NOT GLOB '*.' THEN CAST(${text} AS REAL)
@@ -847,8 +849,53 @@ export class SqlStore {
     return rows.map((r) => ({ value: String(r.value), events: num(r.events), visitors: num(r.visitors) }));
   }
 
+  /** A goal's worth for one converting row, as SQL. */
+  private revenueValue(goal: GoalRow): { sql: string; params: unknown[] } {
+    if (goal.valueMode === "prop" && goal.valueProp) return this.propValue(goal.valueProp);
+    if (goal.valueMode === "fixed") return { sql: `CAST(? AS DOUBLE PRECISION)`, params: [goal.value] };
+    return { sql: `0`, params: [] };
+  }
+
+  /**
+   * Every goal's totals in one pass over the range's events, instead of a query
+   * per goal: each goal adds a conditional count, distinct count, and sum.
+   */
+  async goalTotalsAll(query: Query, goals: GoalRow[]): Promise<Map<string, GoalTotals>> {
+    const out = new Map<string, GoalTotals>();
+    const f = filterSql(query.filters);
+    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    // A few dozen goals per query keeps the statement a sensible size.
+    for (let start = 0; start < goals.length; start += 40) {
+      const chunk = goals.slice(start, start + 40);
+      const columns: string[] = [];
+      const params: unknown[] = [];
+      chunk.forEach((goal, i) => {
+        const scope = this.goalScope(goal);
+        const value = this.revenueValue(goal);
+        columns.push(
+          `SUM(CASE WHEN ${scope.sql} THEN 1 ELSE 0 END) AS c${i}`,
+          `COUNT(DISTINCT CASE WHEN ${scope.sql} THEN e.visitor END) AS v${i}`,
+          `SUM(CASE WHEN ${scope.sql} THEN ${value.sql} ELSE 0 END) AS r${i}`,
+        );
+        params.push(...scope.params, ...scope.params, ...scope.params, ...value.params);
+      });
+      const [row] = await this.db.all(
+        `SELECT ${columns.join(", ")} FROM rl_events e ${join}
+         WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind IN ('pageview', 'event')${f.sql}`,
+        [...params, query.site, query.from, query.to, ...f.params],
+      );
+      chunk.forEach((goal, i) =>
+        out.set(goal.id, { conversions: num(row?.[`c${i}`]), visitors: num(row?.[`v${i}`]), revenue: Math.round(num(row?.[`r${i}`]) * 100) / 100 }),
+      );
+    }
+    return out;
+  }
+
   private revenueSql(goal: GoalRow): { sql: string; params: unknown[] } {
-    if (goal.valueMode === "prop" && goal.valueProp) return this.propSum(goal.valueProp);
+    if (goal.valueMode === "prop" && goal.valueProp) {
+      const value = this.propValue(goal.valueProp);
+      return { sql: `SUM(${value.sql})`, params: value.params };
+    }
     // Cast, so Postgres does not read the bound value as a bigint and refuse 9.99.
     if (goal.valueMode === "fixed") return { sql: `COUNT(*) * CAST(? AS DOUBLE PRECISION)`, params: [goal.value] };
     return { sql: `0`, params: [] };

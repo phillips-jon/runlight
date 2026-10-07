@@ -153,12 +153,31 @@ export async function importUmamiVisits(
     .filter((e) => Number.isFinite(e.ts) && e.ts < state.end)
     .sort((a, b) => a.ts - b.ts);
   await runlight.store.transaction(async (store) => {
+    // A failed earlier try at these days (on D1, which has no transactions) can
+    // have left part of them behind. Clear it, so every step can safely run again.
+    const imported = `SELECT id FROM rl_sessions WHERE site = ? AND imported = 1`;
+    await store.db.run(`DELETE FROM rl_events WHERE site = ? AND ts >= ? AND ts < ? AND kind IN ('pageview', 'event') AND session IN (${imported})`, [siteId, from, to, siteId]);
+    await store.db.run(
+      `DELETE FROM rl_sessions WHERE site = ? AND imported = 1 AND started_at >= ? AND started_at < ? AND NOT EXISTS (SELECT 1 FROM rl_events e WHERE e.session = rl_sessions.id)`,
+      [siteId, from, to],
+    );
     for (const e of visits) {
       const made = await writeEvent(store, site, website, e, info.get(e.sessionId));
       if (made) counts.visits++;
       if (e.eventType === PAGEVIEW) counts.pageviews++;
       else counts.events++;
     }
+    // A visit that began in an earlier step and went on into this one is counted
+    // again from its events, so a repeated step cannot leave it with doubled totals.
+    await store.db.run(
+      `UPDATE rl_sessions SET
+         pageviews = (SELECT COUNT(*) FROM rl_events e WHERE e.session = rl_sessions.id AND e.kind = 'pageview'),
+         events = (SELECT COUNT(*) FROM rl_events e WHERE e.session = rl_sessions.id AND e.kind = 'event'),
+         last_at = (SELECT MAX(e.ts) FROM rl_events e WHERE e.session = rl_sessions.id),
+         exit_path = COALESCE((SELECT e.path FROM rl_events e WHERE e.session = rl_sessions.id AND e.kind = 'pageview' ORDER BY e.ts DESC LIMIT 1), exit_path)
+       WHERE site = ? AND imported = 1 AND started_at < ? AND id IN (SELECT DISTINCT session FROM rl_events WHERE site = ? AND ts >= ? AND ts < ?)`,
+      [siteId, from, siteId, from, to],
+    );
     await store.setSetting(progressKey(siteId, website), String(to));
   });
 
@@ -193,6 +212,7 @@ async function writeEvent(store: SqlStore, site: { id: string; hostnames: string
   let id = open?.id;
   if (!id) {
     id = await hexId(`umami-visits:${website}:${e.sessionId}:${e.ts}`);
+    await store.db.run(`DELETE FROM rl_sessions WHERE id = ?`, [id]);
     const referrer = e.referrerDomain ? `https://${e.referrerDomain}${e.referrerPath || "/"}${e.referrerQuery ? `?${e.referrerQuery.replace(/^\?/, "")}` : ""}` : "";
     const country = (e.country || "").toUpperCase().slice(0, 2);
     const rawRegion = session?.subdivision1 || session?.region || "";
