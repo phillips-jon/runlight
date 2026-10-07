@@ -4,6 +4,7 @@ import { count, countryName, duration, flag, hourLabel, percent, weekdays } from
 import type { RhythmCell } from "./api.js";
 import { t, tn, type Key } from "./i18n.js";
 import { MapOverlay, WorldMap } from "./map.js";
+import { Icon } from "./icons.js";
 
 export interface Tab {
   /** The API dimension. */
@@ -356,6 +357,7 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
           <Rows rows={all.slice(0, SHORT)} tab={tab} onFilter={onFilter} />
           {all.length > SHORT ? (
             <button type="button" class="more" onClick={() => setShowAll(true)}>
+              <Icon name="expand" />
               {t("panel.more")}
             </button>
           ) : null}

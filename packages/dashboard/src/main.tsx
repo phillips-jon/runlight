@@ -12,6 +12,7 @@ import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type Compare
 import { SettingsModal } from "./settings.js";
 import { applyTheme, isDark, onThemeChange, setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 import "./style.css";
+import { Icon } from "./icons.js";
 
 /** A fresh dashboard compares with nothing; the cards show changes once a comparison is picked. */
 const DEFAULT_COMPARE: CompareMode = "off";
@@ -297,6 +298,7 @@ function App() {
             ))}
             {view.filters.length > 1 ? (
               <button type="button" class="clear" onClick={() => update({ filters: [] })}>
+                <Icon name="x" />
                 {t("common.clearAll")}
               </button>
             ) : null}

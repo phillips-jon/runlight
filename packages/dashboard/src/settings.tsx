@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, base, type Site } from "./api.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
+import { Icon } from "./icons.js";
 import { domainPrompt, installPrompt } from "./prompts.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
@@ -46,6 +47,7 @@ function Copy({ text, label, class: extra }: { text: string; label?: string; cla
           .catch(() => {});
       }}
     >
+      <Icon name={done ? "check" : label ? "sparkle" : "copy"} />
       {done ? t("install.copied") : (label ?? t("install.copy"))}
     </button>
   );
@@ -114,6 +116,7 @@ function General({ site, onSaved, onLanguage }: { site: Site; onSaved: (site: Si
           {error ? <span class="settings-error">{error}</span> : null}
           {state === "saved" && !changed ? <span class="settings-ok">{t("settings.saved")}</span> : null}
           <button type="submit" class="solid" disabled={!changed || state === "saving" || !name.trim()}>
+            <Icon name="save" />
             {t(state === "saving" ? "settings.saving" : "settings.save")}
           </button>
         </div>
@@ -203,6 +206,7 @@ export function proxy(request: Request) {
           <span class="settings-text">{t(ignored ? "install.ignored" : "install.counted")}</span>
           <div>
             <button type="button" class="ghost" onClick={toggle}>
+              <Icon name={ignored ? "refresh" : "x"} />
               {t(ignored ? "install.trackButton" : "install.ignoreButton")}
             </button>
           </div>
@@ -240,6 +244,7 @@ function DomainStatus({ site, domain }: { site: string; domain: string }) {
       {state.working ? t("links.working") : t("links.notWorking", { reason: state.reason })}
       {state.working ? null : (
         <button type="button" class="copy inline" onClick={check}>
+          <Icon name="refresh" />
           {t("links.recheck")}
         </button>
       )}
@@ -304,6 +309,7 @@ function LinkDomains({ site }: { site: Site }) {
                   .catch((err: Error) => setError(err.message))
               }
             >
+              <Icon name="trash" />
               {t("links.removeDomain")}
             </button>
           </li>
@@ -313,6 +319,7 @@ function LinkDomains({ site }: { site: Site }) {
       <form class="domain-add" onSubmit={add}>
         <input class="value" type="text" placeholder={t("links.domainPlaceholder")} value={draft} onInput={(e) => setDraft((e.target as HTMLInputElement).value)} />
         <button type="submit" class="solid" disabled={!draft.trim()}>
+          <Icon name="globe" />
           {t("links.addDomain")}
         </button>
       </form>

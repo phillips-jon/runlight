@@ -3,6 +3,7 @@ import { api, type Filter, type Row, type View } from "./api.js";
 import { count } from "./format.js";
 import { t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
+import { Icon } from "./icons.js";
 
 export const FIELDS: Array<{ group: Key; fields: string[] }> = [
   { group: "group.pages", fields: ["page", "entry", "exit", "hostname"] },
@@ -140,12 +141,14 @@ export function FilterDrawer({ view, onApply, onClose }: { view: View; onApply: 
             />
           ))}
           <button type="button" class="add" onClick={() => setDrafts([...drafts, { dimension: "country", op: "is", value: "", id: nextId++ }])}>
-            {t("filter.add")}
+            <Icon name="plus" />
+            {t("filter.add").replace(/^\+\s*/, "")}
           </button>
           <p class="drawer-note">{t("filter.note")}</p>
         </div>
         <footer class="drawer-foot">
           <button type="button" class="ghost" onClick={() => setDrafts([])}>
+            <Icon name="x" />
             {t("common.clearAll")}
           </button>
           <span class="grow" />
@@ -160,6 +163,7 @@ export function FilterDrawer({ view, onApply, onClose }: { view: View; onApply: 
               onClose();
             }}
           >
+            <Icon name="check" />
             {ready.length ? tn("filter.apply", ready.length) : t("filter.everything")}
           </button>
         </footer>

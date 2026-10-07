@@ -2060,25 +2060,26 @@ h1 .home:hover {
 
 /* Settings */
 
+/* Sits right after the site name; hover only darkens the icon. */
 .gear {
   display: grid;
   place-items: center;
   flex: none;
-  width: 32px;
-  height: 32px;
-  margin-left: 2px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  width: 22px;
+  height: 22px;
+  margin: 3px 0 0 -8px;
+  padding: 0;
+  border: 0;
   background: none;
   color: var(--faint);
   cursor: pointer;
   align-self: flex-start;
+  transition: color 0.15s;
 }
 
-.gear:hover {
+.gear:hover,
+.gear:focus-visible {
   color: var(--ink);
-  border-color: var(--line);
-  background: var(--card);
 }
 
 .gear svg {
@@ -2745,4 +2746,54 @@ h1 .home:hover {
 
 .more-row .more {
   margin-top: 0;
+}
+
+/* One height for every text box and dropdown, so pairs always line up. */
+
+.value,
+.field,
+select.field,
+.link-tools .field,
+.slug-row .field,
+.slug-row .value,
+.domain-add .value {
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.field {
+  line-height: normal;
+}
+
+/* Buttons with an icon in front of their label. */
+
+.icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.solid,
+.ghost,
+.more,
+.copy,
+.box-button,
+.add,
+.clear,
+.prompt-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.copy .icon,
+.box-button .icon {
+  width: 12px;
+  height: 12px;
 }

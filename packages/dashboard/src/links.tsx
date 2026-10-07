@@ -5,6 +5,7 @@ import { smooth } from "./chart.js";
 import { bucketLabel, count, countryName, flag } from "./format.js";
 import { t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
+import { Icon } from "./icons.js";
 
 /**
  * The address people click: at the root of the link's domain while that
@@ -34,6 +35,7 @@ function Copy({ text, small }: { text: string; small?: boolean }) {
           .catch(() => {});
       }}
     >
+      <Icon name={done ? "check" : "copy"} />
       {t(done ? "links.copied" : "links.copy")}
     </button>
   );
@@ -129,6 +131,7 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
                 setSlug("");
               }}
             >
+              <Icon name="plus" />
               {t("links.another")}
             </button>
             <button type="button" class="solid" onClick={onClose}>
@@ -179,6 +182,7 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
             {t("common.cancel")}
           </button>
           <button type="submit" class="solid" disabled={busy || !url.trim()}>
+            <Icon name={link ? "save" : "plus"} />
             {t(link ? "links.save" : "links.create")}
           </button>
         </div>
@@ -316,6 +320,7 @@ function DeleteButton({ name, onDelete }: { name: string; onDelete: () => void }
       title={armed ? t("links.confirmDelete", { name }) : undefined}
       onClick={() => (armed ? onDelete() : setArmed(true))}
     >
+      <Icon name="trash" />
       {armed ? t("links.confirm") : t("links.delete")}
     </button>
   );
@@ -394,6 +399,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
           <option value="name">{t("links.sortName")}</option>
         </select>
         <button type="button" class="ghost" title={t("links.importHelp")} onClick={() => file.current?.click()}>
+          <Icon name="upload" />
           {t("links.import")}
         </button>
         <input
@@ -408,7 +414,8 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
           }}
         />
         <button type="button" class="solid" onClick={() => setEditing("new")}>
-          + {t("links.new")}
+          <Icon name="plus" />
+          {t("links.new")}
         </button>
       </div>
       {message ? (
@@ -441,6 +448,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
                   <td class="numeric link-actions">
                     <Copy text={address} small />
                     <button type="button" class="copy inline" onClick={() => setEditing(l)}>
+                      <Icon name="edit" />
                       {t("links.editButton")}
                     </button>
                     <DeleteButton name={l.name} onDelete={() => api.deleteLink(site, l.id).then(changed)} />
@@ -454,6 +462,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
           <div class="more-row">
             <span class="field-hint">{t("links.showing", { shown: count(limit), total: count(shown.length) })}</span>
             <button type="button" class="more" onClick={() => setLimit(limit + PAGE)}>
+              <Icon name="plus" />
               {t("links.showMore", { n: PAGE })}
             </button>
           </div>
@@ -510,10 +519,12 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
             </button>
           </nav>
           <button type="button" class="box-button" onClick={() => setOpen("manage")}>
+            <Icon name="list" />
             {t("links.manage")}
           </button>
           <button type="button" class="box-button solid" onClick={() => setOpen("new")}>
-            + {t("links.new")}
+            <Icon name="plus" />
+            {t("links.new")}
           </button>
         </div>
       </header>
@@ -537,6 +548,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
       </ol>
       {links && links.length > top.length ? (
         <button type="button" class="more" onClick={() => setOpen("manage")}>
+          <Icon name="expand" />
           {t("panel.more")}
         </button>
       ) : null}

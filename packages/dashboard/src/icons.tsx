@@ -1,0 +1,28 @@
+/** Small line icons for buttons, drawn on a 16px grid in the dashboard's stroke style. */
+const PATHS = {
+  plus: "M8 3.5v9M3.5 8h9",
+  copy: "M5.5 5.5V3.8c0-.7.6-1.3 1.3-1.3h5.4c.7 0 1.3.6 1.3 1.3v5.4c0 .7-.6 1.3-1.3 1.3h-1.7M3.8 5.5h5.4c.7 0 1.3.6 1.3 1.3v5.4c0 .7-.6 1.3-1.3 1.3H3.8c-.7 0-1.3-.6-1.3-1.3V6.8c0-.7.6-1.3 1.3-1.3z",
+  check: "M3.5 8.5l3 3 6-7",
+  edit: "M10.5 3l2.5 2.5-7 7H3.5V10z M9 4.5l2.5 2.5",
+  trash: "M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.3c0 .4.4.7.8.7h4.2c.4 0 .8-.3.8-.7l.6-8.3M6.8 7v4M9.2 7v4",
+  upload: "M8 10.5V3M5 6l3-3 3 3M3 10.5v1.7c0 .7.6 1.3 1.3 1.3h7.4c.7 0 1.3-.6 1.3-1.3v-1.7",
+  chart: "M3 13V8M6.3 13V5M9.7 13V9.5M13 13V3",
+  refresh: "M12.5 6A4.8 4.8 0 1 0 13 9.5M12.5 2.8V6H9.3",
+  list: "M5.5 4.5h7M5.5 8h7M5.5 11.5h7M3 4.5h.01M3 8h.01M3 11.5h.01",
+  expand: "M9.5 3H13v3.5M6.5 13H3V9.5M13 3L9 7M3 13l4-4",
+  x: "M4.5 4.5l7 7M11.5 4.5l-7 7",
+  save: "M3.5 8.5l3 3 6-7",
+  sparkle: "M8 2.5l1.3 3.2 3.2 1.3-3.2 1.3L8 11.5 6.7 8.3 3.5 7l3.2-1.3zM12.5 11l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z",
+  globe: "M8 2.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11zM2.5 8h11M8 2.5c1.5 1.6 2.2 3.4 2.2 5.5S9.5 11.9 8 13.5M8 2.5C6.5 4.1 5.8 5.9 5.8 8s.7 3.9 2.2 5.5",
+  external: "M9.5 3H13v3.5M13 3L7.5 8.5M11 9.5v2.7c0 .7-.6 1.3-1.3 1.3H4.3c-.7 0-1.3-.6-1.3-1.3V6.8c0-.7.6-1.3 1.3-1.3H7",
+} as const;
+
+export type IconName = keyof typeof PATHS;
+
+export function Icon({ name }: { name: IconName }) {
+  return (
+    <svg class="icon" viewBox="0 0 16 16" aria-hidden="true">
+      <path d={PATHS[name]} />
+    </svg>
+  );
+}
