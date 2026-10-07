@@ -296,7 +296,7 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
    only at the corners and drifting gently. */
 .opening { position: relative; }
 .opening > :not(.floaters) { position: relative; z-index: 1; }
-.opening .say { max-width: 15em; }
+.opening .say { max-width: 16em; }
 .opening .then { max-width: 46ch; }
 .floaters { position: absolute; z-index: 0; top: 100px; right: -56px; width: 470px; height: 500px; pointer-events: none; user-select: none; }
 .floaters-scene { position: absolute; inset: 0; }
