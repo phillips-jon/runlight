@@ -57,8 +57,9 @@ export async function writeLink(
   if (SHORTENER_DOMAINS.has(domain)) domain = "";
   const now = runlight.now();
   let clicks = 0;
-  try {
-    await runlight.store.transaction(async (store) => {
+  // Nothing in the transaction is one link's own problem (those are checked above),
+  // so a failure in it is the database's, and it stops the import rather than marking the link.
+  await runlight.store.transaction(async (store) => {
     if (domain) await store.addLinkDomain(domain, site, now);
     await store.insertLink({
       id,
@@ -135,10 +136,7 @@ export async function writeLink(
         clicks++;
       }
     }
-    });
-    if (domain) runlight.forgetLinkDomains();
-    return { status: "created", clicks };
-  } catch (error) {
-    return { status: "failed", clicks: 0, reason: error instanceof Error ? error.message : String(error) };
-  }
+  });
+  if (domain) runlight.forgetLinkDomains();
+  return { status: "created", clicks };
 }

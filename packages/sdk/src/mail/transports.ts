@@ -70,7 +70,22 @@ export const SERVICES: Array<{ id: string; name: string; fields: ServiceField[] 
 
 const address = (m: Message) => (m.fromName ? `${m.fromName.replace(/["\\\r\n]/g, "")} <${m.from}>` : m.from);
 
-async function post(url: string, init: { headers: Record<string, string>; body: string }): Promise<void> {
+/**
+ * The error a mail service explains itself with, from its JSON or XML reply,
+ * and never the raw body: a reply is shown to the dashboard, so an address
+ * that is not a mail service must not be able to put its page there.
+ */
+export function serviceMessage(reply: string): string {
+  try {
+    const parsed = JSON.parse(reply) as Record<string, unknown>;
+    const first = (v: unknown): string => (typeof v === "string" ? v : Array.isArray(v) ? first(v[0]) : v && typeof v === "object" ? first((v as Record<string, unknown>).message) : "");
+    return (first(parsed.message) || first(parsed.Message) || first(parsed.error) || first(parsed.errors) || first(parsed.ErrorMessage)).slice(0, 200);
+  } catch {
+    return (/<Message>([^<]{1,200})<\/Message>/.exec(reply)?.[1] ?? "").trim();
+  }
+}
+
+async function post(url: string, init: { headers: Record<string, string>; body: string }, explains = true): Promise<void> {
   let response: Response;
   try {
     response = await fetch(url, { method: "POST", headers: init.headers, body: init.body, signal: AbortSignal.timeout(20_000) });
@@ -78,8 +93,8 @@ async function post(url: string, init: { headers: Record<string, string>; body: 
     throw new MailError(`Could not reach ${new URL(url).host}: ${(error as Error).message}`);
   }
   if (response.ok) return;
-  const body = (await response.text().catch(() => "")).slice(0, 300);
-  throw new MailError(`${new URL(url).host} answered ${response.status}${body ? `: ${body}` : ""}`);
+  const message = explains ? serviceMessage(await response.text().catch(() => "")) : "";
+  throw new MailError(`${new URL(url).host} answered ${response.status}${message ? `: ${message}` : ""}`);
 }
 
 const json = (headers: Record<string, string> = {}) => ({ "content-type": "application/json", ...headers });
@@ -178,7 +193,8 @@ export async function send(config: MailConfig, m: Message): Promise<void> {
     case "webhook": {
       const body = JSON.stringify({ to: m.to, from: m.from, fromName: m.fromName ?? "", subject: m.subject, html: m.html, text: m.text, headers });
       const signature: Record<string, string> = config.secret ? { "x-runlight-signature": `sha256=${await hmacHex(config.secret, body)}` } : {};
-      return post(config.url!, { headers: json(signature), body });
+      // A webhook can be any address, so only its status comes back.
+      return post(config.url!, { headers: json(signature), body }, false);
     }
   }
   throw new MailError(`Unknown mail service "${config.service}"`);

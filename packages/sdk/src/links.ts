@@ -135,7 +135,9 @@ export class Links {
         });
         created++;
       } catch (error) {
-        failed.push({ row: i + 1, reason: error instanceof Error ? error.message : String(error) });
+        // A bad row is reported and skipped; a failing database stops the whole import.
+        if (!(error instanceof LinkError)) throw error;
+        failed.push({ row: i + 1, reason: error.message });
       }
     }
     return { created, failed };

@@ -40,6 +40,31 @@ function suite(kind: StoreKind) {
     assert.equal(clash.status, 400);
   });
 
+  test("page goal wildcards and revenue from properties count the same on every database", async () => {
+    const t = setup(kind);
+    await t.send({ k: "pageview", u: "https://example.com/thanks/a" });
+    for (const amount of [5, "2.5", "-1", "12abc", "1e3", "abc", ".5"]) {
+      await t.send({ k: "event", u: "https://example.com/", n: "Paid", p: { amount } }, { ip: "203.0.113.20" });
+    }
+    await write(t, "POST", "/api/goals", { name: "Lower", kind: "page", match: "/thanks*" });
+    await write(t, "POST", "/api/goals", { name: "Upper", kind: "page", match: "/Thanks*" });
+    await write(t, "POST", "/api/goals", { name: "Paid", kind: "event", match: "Paid", valueMode: "prop", valueProp: "amount" });
+    const goals = Object.fromEntries((await t.get("/api/goals?period=today&compare=off")).goals.map((g: any) => [g.name, g]));
+    assert.equal(goals.Lower.conversions, 1);
+    assert.equal(goals.Upper.conversions, 0, "paths are case-sensitive, as exact goals already were");
+    assert.ok(Math.abs(goals.Paid.revenue - 6.5) < 1e-9, `numbers and plain numeric text count, nothing else (got ${goals.Paid.revenue})`);
+  });
+
+  test("the heatmap puts a half-hour timezone's visits in the right local hour", async () => {
+    const t = setup(kind, { site: { timezone: "Asia/Kolkata" } });
+    // 12:40 UTC on Tuesday, October 6th is 18:10 in Kolkata.
+    t.advance(40 * 60_000);
+    await t.send({ k: "pageview", u: "https://example.com/" });
+    const rhythm = await t.get("/api/rhythm?from=2026-10-06&to=2026-10-06");
+    assert.equal(rhythm.grid[1][18], 1);
+    assert.equal(rhythm.grid[1][17], 0);
+  });
+
   test("a JSON body must be JSON by its media type, so a no-cors text/plain post cannot pass", async () => {
     const t = setup(kind);
     const sneaky = await write(t, "POST", "/api/goals", { name: "X", kind: "event", match: "X" }, { authorization: "Bearer secret", "content-type": "text/plain; application/json" });
@@ -129,4 +154,12 @@ test("a saved SMTP password is kept only while the server it goes to stays the s
   assert.equal((await rl.mailSettings())?.password, "hunter2-long", "same server, blank field: kept");
   await rl.saveMailSettings({ ...base, host: "evil.example", password: "", from: "reports@example.com" });
   assert.equal((await rl.mailSettings())?.password ?? "", "", "a new host needs the password typed again");
+});
+
+test("a mail service's reply shows only its own message, and a webhook only its status", async () => {
+  const { serviceMessage } = await import("../src/mail/transports.js");
+  assert.equal(serviceMessage(JSON.stringify({ message: "The domain is not verified" })), "The domain is not verified");
+  assert.equal(serviceMessage(JSON.stringify({ errors: [{ message: "Bad key", field: "x" }] })), "Bad key");
+  assert.equal(serviceMessage("<ErrorResponse><Error><Message>Email address is not verified.</Message></Error></ErrorResponse>"), "Email address is not verified.");
+  assert.equal(serviceMessage("<html><body>internal admin page with secrets</body></html>"), "");
 });

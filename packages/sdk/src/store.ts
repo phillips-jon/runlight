@@ -348,6 +348,9 @@ function goalRow(r: Record<string, unknown>): GoalRow {
   };
 }
 
+/** A `*` pattern as SQLite GLOB, everything else taken literally ([ and ? are GLOB's own). */
+const globPattern = (pattern: string): string => pattern.split("*").map((part) => part.replace(/[[?]/g, (c) => `[${c}]`)).join("*");
+
 /** A `*` pattern as SQL LIKE, everything else taken literally. */
 const likePattern = (pattern: string): string => pattern.split("*").map(escapeLike).join("%");
 
@@ -777,7 +780,10 @@ export class SqlStore {
   private goalScope(goal: GoalRow): { sql: string; params: unknown[] } {
     if (goal.kind === "page") {
       return goal.match.includes("*")
-        ? { sql: `e.kind = 'pageview' AND e.path LIKE ? ESCAPE '\\'`, params: [likePattern(goal.match)] }
+        ? this.db.dialect === "postgres"
+          ? { sql: `e.kind = 'pageview' AND e.path LIKE ? ESCAPE '\\'`, params: [likePattern(goal.match)] }
+          : // SQLite's LIKE ignores case; GLOB does not, so both databases agree with each other and with exact matches.
+            { sql: `e.kind = 'pageview' AND e.path GLOB ?`, params: [globPattern(goal.match)] }
         : { sql: `e.kind = 'pageview' AND e.path = ?`, params: [goal.match] };
     }
     // Event goals count the named event; click goals count the event the tracker sends for them.
@@ -792,7 +798,17 @@ export class SqlStore {
         params: [prop, prop],
       };
     }
-    return { sql: `SUM(COALESCE(CAST(json_extract(e.props, ?) AS REAL), 0))`, params: [`$."${prop}"`] };
+    // As Postgres's pattern: a JSON number, or text of digits with an optional sign and one decimal point.
+    const path = `$."${prop}"`;
+    const text = `CAST(json_extract(e.props, ?) AS TEXT)`;
+    return {
+      sql: `SUM(CASE
+        WHEN json_type(e.props, ?) IN ('integer', 'real') THEN json_extract(e.props, ?)
+        WHEN json_type(e.props, ?) = 'text' AND ${text} GLOB '[0-9]*' AND ${text} NOT GLOB '*[^0-9.]*' AND ${text} NOT GLOB '*.*.*' AND ${text} NOT GLOB '*.' THEN CAST(${text} AS REAL)
+        WHEN json_type(e.props, ?) = 'text' AND ${text} GLOB '-[0-9]*' AND substr(${text}, 2) NOT GLOB '*[^0-9.]*' AND ${text} NOT GLOB '*.*.*' AND ${text} NOT GLOB '*.' THEN CAST(${text} AS REAL)
+        ELSE 0 END)`,
+      params: new Array(14).fill(path),
+    };
   }
 
   /** The property names sent with an event in a query's range, most used first. */
@@ -1188,14 +1204,18 @@ export class SqlStore {
    * caller folds them into local weekdays and hours, which keeps time zones
    * (DST included) out of SQL.
    */
-  async hourly(query: Query): Promise<Array<{ hour: number; visits: number; visitors: number; pageviews: number; bounced: number }>> {
+  /**
+   * Visits by quarter hour since the epoch. Quarters, not hours, so a site in a
+   * half-hour or 45-minute timezone (India, Nepal) folds each into the right local hour.
+   */
+  async hourly(query: Query): Promise<Array<{ quarter: number; visits: number; visitors: number; pageviews: number; bounced: number }>> {
     const f = filterSql(query.filters);
     const matching = query.filters.length
       ? ` AND s.id IN (SELECT DISTINCT e.session FROM rl_events e JOIN rl_sessions s ON s.id = e.session
            WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
       : "";
     const rows = await this.db.all(
-      `SELECT s.started_at / 3600000 AS hour, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
+      `SELECT s.started_at / 900000 AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
          SUM(s.pageviews) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
        FROM rl_sessions s
        WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ?${matching}
@@ -1203,7 +1223,7 @@ export class SqlStore {
       [query.site, query.from, query.to, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : [])],
     );
     return rows.map((row) => ({
-      hour: Math.floor(num(row.hour)),
+      quarter: Math.floor(num(row.quarter)),
       visits: num(row.visits),
       visitors: num(row.visitors),
       pageviews: num(row.pageviews),

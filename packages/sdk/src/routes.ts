@@ -920,7 +920,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const grid = Array.from({ length: 7 }, () => new Array<number>(24).fill(0));
       const cells = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ visits: 0, visitors: 0, pageviews: 0, bounced: 0 })));
       for (const row of await runlight.store.hourly(query)) {
-        const [weekday, h] = localWeekdayHour(row.hour * 3_600_000, site.timezone);
+        const [weekday, h] = localWeekdayHour(row.quarter * 900_000, site.timezone);
         grid[weekday]![h]! += row.visits;
         const cell = cells[weekday]![h]!;
         cell.visits += row.visits;

@@ -1,5 +1,5 @@
 import type { MailConfig, Message } from "./transports.js";
-import { MailError } from "./transports.js";
+import { MailError, serviceMessage } from "./transports.js";
 
 /**
  * Amazon SES (API v2) with a hand-rolled Signature Version 4, so there is no
@@ -85,5 +85,8 @@ export async function sesSend(config: MailConfig, m: Message, from: string): Pro
   } catch (error) {
     throw new MailError(`Could not reach Amazon SES: ${(error as Error).message}`);
   }
-  if (!response.ok) throw new MailError(`Amazon SES answered ${response.status}: ${(await response.text().catch(() => "")).slice(0, 300)}`);
+  if (!response.ok) {
+    const message = serviceMessage(await response.text().catch(() => ""));
+    throw new MailError(`Amazon SES answered ${response.status}${message ? `: ${message}` : ""}`);
+  }
 }
