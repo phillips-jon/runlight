@@ -325,7 +325,7 @@ function App() {
             ))}
           </div>
           <span class="chart-note">
-            {shownMetrics.length > 1 ? t("chart.scaled") : t("chart.pick", { n: MAX_CHARTED })}
+            {shownMetrics.length > 1 ? t("chart.scaled") : t("chart.pick")}
             {stats?.compare ? ` ${t("chart.dashed", { range: rangeText(stats.compare.from, stats.compare.to) })}` : ""}
           </span>
         </div>

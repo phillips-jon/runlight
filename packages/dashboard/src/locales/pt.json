@@ -84,7 +84,7 @@
   "delta.none": "sem mudança",
   "chart.label": "{metrics} ao longo do tempo",
   "chart.scaled": "Cada linha usa sua própria escala. Passe o cursor para ver os valores.",
-  "chart.pick": "Escolha até {n} cartões para comparar.",
+  "chart.pick": "Clique nos cartões para adicioná-los ao gráfico.",
   "chart.dashed": "Tracejado: {range}.",
   "chart.then": "antes: {when}",
   "panel.pages": "Páginas",

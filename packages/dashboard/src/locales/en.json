@@ -84,7 +84,7 @@
   "delta.none": "no change",
   "chart.label": "{metrics} over time",
   "chart.scaled": "Each line is scaled to its own peak. Hover for values.",
-  "chart.pick": "Pick up to {n} cards to compare.",
+  "chart.pick": "Click cards to add them to the chart.",
   "chart.dashed": "Dashed: {range}.",
   "chart.then": "then: {when}",
   "panel.pages": "Pages",

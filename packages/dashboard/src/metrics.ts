@@ -25,8 +25,10 @@ export const metricLabel = (m: MetricDef): string => t(`metric.${m.key}`);
 /** One line for anyone unsure what a metric counts. */
 export const metricHint = (m: MetricDef): string => t(`hint.${m.key}`);
 
-/** At most this many metrics share the chart; more overlapping areas stop being readable. */
-export const MAX_CHARTED = 3;
+/** Every metric can share the chart. */
+export const MAX_CHARTED = 6;
+/** Past this many, the chart drops its area fills and draws lines only, so the shapes stay readable. */
+export const MAX_FILLED = 3;
 
 export function metric(key: string): MetricDef | undefined {
   return METRICS.find((m) => m.key === key);

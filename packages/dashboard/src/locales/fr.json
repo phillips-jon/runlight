@@ -84,7 +84,7 @@
   "delta.none": "stable",
   "chart.label": "{metrics} au fil du temps",
   "chart.scaled": "Chaque courbe suit sa propre échelle. Survolez pour voir les valeurs.",
-  "chart.pick": "Choisissez jusqu'à {n} cartes à comparer.",
+  "chart.pick": "Cliquez sur les cartes pour les ajouter au graphique.",
   "chart.dashed": "En pointillés : {range}.",
   "chart.then": "avant : {when}",
   "panel.pages": "Pages",

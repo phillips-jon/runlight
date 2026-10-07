@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { Point } from "./api.js";
 import { bucketLabel } from "./format.js";
 import { t } from "./i18n.js";
-import { metricLabel, type MetricDef } from "./metrics.js";
+import { MAX_FILLED, metricLabel, type MetricDef } from "./metrics.js";
 
 interface Props {
   points: Point[];
@@ -96,7 +96,7 @@ export function Chart({ points, previous, metrics, interval, timezone }: Props) 
           const area = points.length ? `${line}L${x(points.length - 1).toFixed(1)},${baseline}L${x(0).toFixed(1)},${baseline}Z` : "";
           return (
             <g class={`series s${m.slot}`}>
-              <path class="area" d={area} />
+              {metrics.length <= MAX_FILLED ? <path class="area" d={area} /> : null}
               <path class="line" d={line} />
             </g>
           );

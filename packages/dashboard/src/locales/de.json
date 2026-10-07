@@ -84,7 +84,7 @@
   "delta.none": "unverändert",
   "chart.label": "{metrics} im Zeitverlauf",
   "chart.scaled": "Jede Linie hat ihre eigene Skala. Für Werte darüberfahren.",
-  "chart.pick": "Wähle bis zu {n} Karten zum Vergleichen.",
+  "chart.pick": "Klicke auf Karten, um sie zum Diagramm hinzuzufügen.",
   "chart.dashed": "Gestrichelt: {range}.",
   "chart.then": "damals: {when}",
   "panel.pages": "Seiten",
