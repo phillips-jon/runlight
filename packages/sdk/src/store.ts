@@ -426,6 +426,15 @@ export class SqlStore {
     return out;
   }
 
+  /** Deletes a site and everything recorded for it. Used by the standalone server's "Delete site". */
+  async deleteSite(id: string): Promise<void> {
+    await this.transaction(async (store) => {
+      for (const table of ["rl_events", "rl_sessions", "rl_links", "rl_link_domains", "rl_shares", "rl_goals", "rl_reports", "rl_tokens", "rl_sites"]) {
+        await store.db.run(`DELETE FROM ${table} WHERE ${table === "rl_sites" ? "id" : "site"} = ?`, [id]);
+      }
+    });
+  }
+
   async setSiteOverrides(id: string, overrides: SiteOverrides): Promise<void> {
     await this.db.run(`UPDATE rl_sites SET overrides = ? WHERE id = ?`, [JSON.stringify(overrides), id]);
   }

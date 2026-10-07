@@ -19,6 +19,7 @@ export function runlight(options: RunlightOptions): Runlight {
 export { Runlight, SESSION_IDLE_MS } from "./runlight.js";
 export type { RunlightOptions, SiteOptions, RequestContext } from "./runlight.js";
 export type { Routes, RoutesOptions, FetchHandler } from "./routes.js";
+export { RUNLIGHT_ICON } from "./routes.js";
 export type { GeoLookup, Location } from "./geo.js";
 export { SqlStore, BOUNCE_MS } from "./store.js";
 export { Links, LinkError, SLUG_PATTERN } from "./links.js";

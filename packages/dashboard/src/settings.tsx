@@ -1,12 +1,13 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { api, base, type Site, type View } from "./api.js";
+import { api, base, install, type Site, type View } from "./api.js";
 import { EmailReports } from "./email.js";
 import { Goals } from "./goals.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { ImportLinks } from "./importer.js";
-import { domainPrompt, installPrompt } from "./prompts.js";
+import { domainPrompt, installPrompt, scriptPrompt } from "./prompts.js";
+import { DeleteButton } from "./links.js";
 import { Sharing } from "./sharing.js";
 import { Tokens } from "./tokens.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
@@ -84,21 +85,23 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function General({ site, onSaved, onLanguage }: { site: Site; onSaved: (site: Site) => void; onLanguage: (code: string) => void }) {
+function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved: (site: Site) => void; onLanguage: (code: string) => void; onDeleted: (id: string) => void }) {
   const [name, setName] = useState(site.name);
+  const [hostnames, setHostnames] = useState(site.hostnames.join(", "));
   const [timezone, setTimezone] = useState(site.timezone);
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
   const [theme, setThemeChoice] = useState<ThemeChoice>(themeChoice());
   const zones = timezones();
-  const changed = name.trim() !== site.name || timezone !== site.timezone;
+  const hostsChanged = install.managed && hostnames.split(/[\s,]+/).filter(Boolean).join(",") !== site.hostnames.join(",");
+  const changed = name.trim() !== site.name || timezone !== site.timezone || hostsChanged;
 
   const save = (e: Event) => {
     e.preventDefault();
     setState("saving");
     setError("");
     api
-      .updateSite(site.id, { name: name.trim(), timezone })
+      .updateSite(site.id, { name: name.trim(), timezone, ...(hostsChanged ? { hostnames } : {}) })
       .then((r) => {
         onSaved(r.site);
         setState("saved");
@@ -115,6 +118,11 @@ function General({ site, onSaved, onLanguage }: { site: Site; onSaved: (site: Si
         <Field label={t("settings.siteName")}>
           <input class="value" type="text" maxLength={80} value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
         </Field>
+        {install.managed ? (
+          <Field label={t("sites.domains")} hint={t("sites.domainsHint")}>
+            <input class="value" type="text" value={hostnames} onInput={(e) => setHostnames((e.target as HTMLInputElement).value)} />
+          </Field>
+        ) : null}
         <Field label={t("settings.timezone")} hint={t("settings.timezoneHint")}>
           <select class="field" value={timezone} onChange={(e) => setTimezone((e.target as HTMLSelectElement).value)}>
             {(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => (
@@ -160,6 +168,25 @@ function General({ site, onSaved, onLanguage }: { site: Site; onSaved: (site: Si
           <span class="field-hint">{t("settings.languageHint")}</span>
         </div>
       </div>
+      {install.managed ? (
+        <div class="settings-group">
+          <div class="field-row">
+            <span class="field-label">{t("sites.delete")}</span>
+            <span class="field-hint">{t("sites.deleteHint")}</span>
+            <div>
+              <DeleteButton
+                name={site.name}
+                onDelete={() =>
+                  void api
+                    .deleteSite(site.id)
+                    .then(() => onDeleted(site.id))
+                    .catch((err: Error) => setError(err.message))
+                }
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 }
@@ -173,7 +200,8 @@ export function Install({ site, sites }: { site: Site; sites: Site[] }) {
     }
   });
   const origin = location.origin;
-  const several = sites.length > 1;
+  // The standalone server always names the site, since its script serves many.
+  const several = sites.length > 1 || install.managed;
   const script = `<script defer src="${origin}${base}/s.js"${several ? ` data-site="${site.id}"` : ""}></script>`;
   const host = site.hostnames[0];
   const ignoreLink = host ? `https://${host}/?runlight=ignore` : "";
@@ -200,7 +228,7 @@ export function Install({ site, sites }: { site: Site; sites: Site[] }) {
           <strong>{t("prompt.title")}</strong>
           {t("prompt.installHint")}
         </span>
-        <Copy class="prompt-button" label={t("prompt.copy")} text={installPrompt({ origin: location.origin, base, site: several ? site.id : undefined })} />
+        <Copy class="prompt-button" label={t("prompt.copy")} text={install.managed ? scriptPrompt({ script, host }) : installPrompt({ origin: location.origin, base, site: several ? site.id : undefined })} />
       </div>
       <div class="settings-group">
         <p class="settings-text">{rich("install.script", { tag: <code>{"</head>"}</code> })}</p>
@@ -209,12 +237,16 @@ export function Install({ site, sites }: { site: Site; sites: Site[] }) {
         <Code>{`<button data-runlight="Signup" data-runlight-plan="pro">Sign up</button>`}</Code>
         <p class="settings-text">{t("install.eventsJs")}</p>
         <Code>{`runlight("Newsletter signup", { source: "footer" })`}</Code>
-        <p class="settings-text">{t("install.agents")}</p>
-        <Code>{`// proxy.ts (middleware.ts before Next.js 16)
+        {install.managed ? null : (
+          <>
+            <p class="settings-text">{t("install.agents")}</p>
+            <Code>{`// proxy.ts (middleware.ts before Next.js 16)
 import { rl } from "@/lib/runlight";
 export function proxy(request: Request) {
   void rl.observe(request);
 }`}</Code>
+          </>
+        )}
       </div>
       <div class="settings-group">
         <div class="field-row">
@@ -359,7 +391,7 @@ function LinkDomains({ site }: { site: Site }) {
   );
 }
 
-export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLanguage }: {
+export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLanguage, onDeleted }: {
   site: Site;
   view: View;
   start?: Section;
@@ -367,6 +399,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   onClose: () => void;
   onSaved: (site: Site) => void;
   onLanguage: (code: string) => void;
+  onDeleted: (id: string) => void;
 }) {
   const [section, setSection] = useState<Section>(start ?? "general");
   const panel = useRef<HTMLDivElement>(null);
@@ -404,7 +437,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
           </header>
           <div class="settings-content">
             {section === "general" ? (
-              <General site={site} onSaved={onSaved} onLanguage={onLanguage} />
+              <General site={site} onSaved={onSaved} onLanguage={onLanguage} onDeleted={onDeleted} />
             ) : section === "install" ? (
               <Install site={site} sites={sites} />
             ) : section === "goals" ? (

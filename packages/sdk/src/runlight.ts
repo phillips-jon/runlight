@@ -30,6 +30,11 @@ export interface RunlightOptions {
   site?: SiteOptions;
   /** Several sites in one install, told apart by hostname. */
   sites?: SiteOptions[];
+  /**
+   * Sites are added, changed, and deleted in the dashboard and kept in the
+   * database, as the standalone server does. `site` and `sites` are ignored.
+   */
+  managedSites?: boolean;
   /** Looks up a location for an IP when the platform sends no location headers. */
   geo?: GeoLookup;
   /**
@@ -96,8 +101,10 @@ const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 
 export class Runlight {
   readonly store: SqlStore;
-  /** The sites as configured in code. */
-  private readonly configured: SiteRow[];
+  /** The sites as configured in code, or as kept in the database when they are managed. */
+  private configured: SiteRow[];
+  /** Whether sites are managed in the dashboard. */
+  readonly managedSites: boolean;
   private overrides = new Map<string, SiteOverrides>();
   private readonly geo: GeoLookup | undefined;
   private readonly trustProxy: boolean;
@@ -115,7 +122,8 @@ export class Runlight {
   constructor(options: RunlightOptions) {
     if (!options?.store) throw new Error("Runlight: pass a store, such as sqlite({ path: \"./data/runlight.db\" })");
     this.store = options.store;
-    const configured = options.sites?.length ? options.sites : [options.site ?? {}];
+    this.managedSites = options.managedSites ?? false;
+    const configured = this.managedSites ? [] : options.sites?.length ? options.sites : [options.site ?? {}];
     this.configured = configured.map(siteRow);
     if (this.configured.length > 1 && this.configured.some((site) => site.hostnames.length === 0)) {
       throw new Error("Runlight: with several sites, give each one its hostnames");
@@ -219,6 +227,7 @@ export class Runlight {
   init(): Promise<void> {
     this.ready ??= (async () => {
       await this.store.migrate();
+      if (this.managedSites) this.configured = await this.store.sites();
       for (const site of this.configured) await this.store.upsertSite(site, this.now());
       this.overrides = await this.store.siteOverrides();
     })().catch((error) => {
@@ -237,13 +246,74 @@ export class Runlight {
     return this.configured.map((site) => ({ ...site, ...this.overrides.get(site.id) }));
   }
 
+  /** Checks a list of hostnames for a managed site: at least one, each a domain, none taken. */
+  private hostnamesFor(input: unknown, except?: string): string[] {
+    const list = (Array.isArray(input) ? input : String(input ?? "").split(/[\s,]+/))
+      .map((h) => stripWww(String(h).trim().replace(/^https?:\/\//, "").replace(/[/:].*$/, "")))
+      .filter(Boolean);
+    const hostnames = [...new Set(list)];
+    if (hostnames.length === 0) throw new RangeError("Add the site's domain, like example.com");
+    for (const host of hostnames) {
+      if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host) && host !== "localhost") throw new RangeError(`"${host}" is not a domain name`);
+      const owner = this.configured.find((site) => site.id !== except && site.hostnames.includes(host));
+      if (owner) throw new RangeError(`${host} already belongs to ${owner.name}`);
+    }
+    return hostnames;
+  }
+
+  /** Adds a site, when sites are managed in the dashboard. */
+  async addSite(input: { name?: unknown; hostnames?: unknown; timezone?: unknown }): Promise<SiteRow> {
+    await this.init();
+    if (!this.managedSites) throw new RangeError("Sites are set in code");
+    const hostnames = this.hostnamesFor(input.hostnames);
+    const name = String(input.name ?? "").trim() || hostnames[0]!;
+    if (name.length > 80) throw new RangeError("A site name is 1 to 80 characters");
+    const timezone = String(input.timezone ?? "UTC");
+    if (!isTimezone(timezone)) throw new RangeError(`Unknown timezone "${timezone}"`);
+    const stem = hostnames[0]!.replace(/[^a-z0-9._-]/g, "-").slice(0, 56);
+    let id = stem;
+    for (let n = 2; this.configured.some((site) => site.id === id); n++) id = `${stem}-${n}`;
+    const site: SiteRow = { id, name, hostnames, timezone };
+    await this.store.upsertSite(site, this.now());
+    this.configured = [...this.configured, site].sort((a, b) => a.name.localeCompare(b.name));
+    return site;
+  }
+
+  /** Deletes a site and everything recorded for it, when sites are managed in the dashboard. */
+  async deleteSite(id: string): Promise<void> {
+    await this.init();
+    if (!this.managedSites) throw new RangeError("Sites are set in code");
+    if (!this.configured.some((site) => site.id === id)) throw new RangeError("Unknown site");
+    await this.store.deleteSite(id);
+    this.configured = this.configured.filter((site) => site.id !== id);
+    this.overrides.delete(id);
+  }
+
   /**
    * Changes a site's name or timezone from the dashboard. Stored apart from
-   * the settings in code, which keep being written on every start.
+   * the settings in code, which keep being written on every start. A managed
+   * site has no settings in code, so its changes, hostnames too, go to its row.
    */
-  async updateSite(id: string, patch: SiteOverrides): Promise<SiteRow> {
+  async updateSite(id: string, patch: SiteOverrides & { hostnames?: unknown }): Promise<SiteRow> {
     await this.init();
-    if (!this.configured.some((site) => site.id === id)) throw new RangeError("Unknown site");
+    const current = this.configured.find((site) => site.id === id);
+    if (!current) throw new RangeError("Unknown site");
+    if (this.managedSites) {
+      const next: SiteRow = { ...current };
+      if (patch.name !== undefined) {
+        const name = String(patch.name).trim();
+        if (!name || name.length > 80) throw new RangeError("A site name is 1 to 80 characters");
+        next.name = name;
+      }
+      if (patch.timezone !== undefined) {
+        if (!isTimezone(String(patch.timezone))) throw new RangeError(`Unknown timezone "${patch.timezone}"`);
+        next.timezone = String(patch.timezone);
+      }
+      if (patch.hostnames !== undefined) next.hostnames = this.hostnamesFor(patch.hostnames, id);
+      await this.store.upsertSite(next, this.now());
+      this.configured = this.configured.map((site) => (site.id === id ? next : site));
+      return this.site(id)!;
+    }
     const next: SiteOverrides = { ...this.overrides.get(id) };
     if (patch.name !== undefined) {
       const name = String(patch.name).trim();

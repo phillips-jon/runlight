@@ -1,13 +1,14 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import { ApiError, api, base, share, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
+import { ApiError, api, base, install, share, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, Spark, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
 import { Icon } from "./icons.js";
 import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type Key } from "./i18n.js";
 import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey } from "./metrics.js";
-import { LinksPanel } from "./links.js";
+import { LinksPanel, Sheet } from "./links.js";
+import { AddSiteForm, FirstSite } from "./sites.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
 import { RealtimeModal } from "./realtime.js";
@@ -173,6 +174,7 @@ function App() {
   const [failure, setFailure] = useState("");
   const [filtering, setFiltering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState<Section | null>(null);
+  const [addingSite, setAddingSite] = useState(false);
 
   const fail = (e: Error) =>
     setFailure(e instanceof ApiError && e.status === 401 ? "signed-out" : share && e instanceof ApiError && e.status === 404 ? t("share.gone") : e.message);
@@ -266,6 +268,14 @@ function App() {
     );
   }
 
+  const added = (s: Site) => {
+    setSites((all) => [...(all ?? []), s].sort((a, b) => a.name.localeCompare(b.name)));
+    setAddingSite(false);
+    setView((v) => ({ ...v, site: s.id, filters: [] }));
+  };
+  // A standalone server with no sites yet asks for the first one.
+  if (sites && sites.length === 0 && install.managed) return <FirstSite onAdded={added} />;
+
   const shownMetrics = METRICS.filter((m) => charted.includes(m.key));
 
   return (
@@ -277,13 +287,23 @@ function App() {
               {site ? <Avatar site={site} /> : <span class="avatar letter" />}
             </button>
             <div class="identity-text">
-              {sites && sites.length > 1 ? (
+              {sites && (sites.length > 1 || (install.managed && !share)) ? (
                 <label class="site-select">
                   <span class="visually-hidden">{t("app.site")}</span>
-                  <select value={site?.id} onChange={(e) => update({ site: (e.target as HTMLSelectElement).value, filters: [] })}>
+                  <select
+                    value={site?.id}
+                    onChange={(e) => {
+                      const select = e.target as HTMLSelectElement;
+                      if (select.value === "__add") {
+                        select.value = site?.id ?? "";
+                        setAddingSite(true);
+                      } else update({ site: select.value, filters: [] });
+                    }}
+                  >
                     {sites.map((x) => (
                       <option value={x.id}>{x.name}</option>
                     ))}
+                    {install.managed && !share ? <option value="__add">{t("sites.addOption")}</option> : null}
                   </select>
                 </label>
               ) : (
@@ -376,7 +396,18 @@ function App() {
             setView((v) => ({ ...v }));
           }}
           onLanguage={changeLanguage}
+          onDeleted={(id) => {
+            setSettingsOpen(null);
+            const rest = (sites ?? []).filter((x) => x.id !== id);
+            setSites(rest);
+            setView((v) => ({ ...v, site: rest[0]?.id ?? "", filters: [] }));
+          }}
         />
+      ) : null}
+      {addingSite ? (
+        <Sheet title={t("sites.addTitle")} onClose={() => setAddingSite(false)}>
+          <AddSiteForm onAdded={added} onCancel={() => setAddingSite(false)} />
+        </Sheet>
       ) : null}
       {filtering ? <FilterDrawer view={view} onApply={(filters) => update({ filters })} onClose={() => setFiltering(false)} /> : null}
 
@@ -464,6 +495,11 @@ function App() {
           </select>
         </label>
         <Theme />
+        {signOut ? (
+          <a class="sign-out" href={signOut}>
+            {t("app.signOut")}
+          </a>
+        ) : null}
       </footer>
     </main>
   );

@@ -3422,3 +3422,37 @@ button.live:hover {
   width: auto;
   height: 40px;
 }
+
+/* The standalone server with no sites yet: one card in the middle of the page. */
+.first-site {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+}
+
+.first-site-card {
+  width: min(480px, 100%);
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.first-site-card h1 {
+  margin: 0 0 8px;
+  font-size: 22px;
+}
+
+.first-site-card .sheet-body {
+  padding: 16px 0 0;
+}
+
+.foot .sign-out {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.foot .sign-out:hover {
+  color: var(--ink);
+}

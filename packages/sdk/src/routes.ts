@@ -41,6 +41,8 @@ export interface RoutesOptions {
    * Defaults to process.env.RUNLIGHT_OBSERVE_KEY. The token works too.
    */
   observeKey?: string;
+  /** A link to sign out, shown in the dashboard's footer. The standalone server sets it. */
+  signOut?: string;
 }
 
 export type FetchHandler = (request: Request, context?: RequestContext) => Promise<Response>;
@@ -118,7 +120,7 @@ function localeUrls(base: string): string {
 /** The Runlight mark for the dashboard's tab: an R in a rounded lamp housing, one corner lit. */
 export const RUNLIGHT_ICON = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cstyle%3E.h%7Bfill%3A%23000%7D.r%7Bstroke%3A%23fff%7D%40media%20%28prefers-color-scheme%3Adark%29%7B.h%7Bfill%3A%23fff%7D.r%7Bstroke%3A%23000%7D%7D%3C/style%3E%3Crect%20class%3D%22h%22%20x%3D%222.5%22%20y%3D%222.5%22%20width%3D%2227%22%20height%3D%2227%22%20rx%3D%227%22/%3E%3Cpath%20class%3D%22r%22%20d%3D%22M11%2023V9h6.2a4.3%204.3%200%200%201%200%208.6H11m6%200%205%205.4%22%20fill%3D%22none%22%20stroke-width%3D%222.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3Ccircle%20cx%3D%2223.6%22%20cy%3D%228.4%22%20r%3D%222.6%22%20fill%3D%22%2322c55e%22/%3E%3C/svg%3E";
 
-const DASHBOARD = (base: string, share = "") => `<!doctype html>
+const DASHBOARD = (base: string, share = "", signOut = "") => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -129,7 +131,7 @@ const DASHBOARD = (base: string, share = "") => `<!doctype html>
 <link rel="stylesheet" href="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.css">
 </head>
 <body>
-<div id="app" data-base="${escapeAttr(base)}"${share ? ` data-share="${escapeAttr(share)}"` : ""} data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json" data-locales="${escapeAttr(localeUrls(base))}"></div>
+<div id="app" data-base="${escapeAttr(base)}"${share ? ` data-share="${escapeAttr(share)}"` : ""}${signOut ? ` data-sign-out="${escapeAttr(signOut)}"` : ""} data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json" data-locales="${escapeAttr(localeUrls(base))}"></div>
 <script type="module" src="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.js"></script>
 </body>
 </html>
@@ -693,18 +695,44 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return sharesApi(request, path, url);
     }
 
+    // Adding and deleting sites, when they are managed in the dashboard.
+    if (path === "/api/sites" && request.method === "POST") {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      try {
+        return json({ site: await runlight.addSite(body) }, 201);
+      } catch (error) {
+        if (error instanceof RangeError) return json({ error: error.message }, 400);
+        throw error;
+      }
+    }
+
     const siteMatch = /^\/api\/sites\/([^/]+)$/.exec(path);
+    if (siteMatch && request.method === "DELETE") {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      try {
+        await runlight.deleteSite(decodeURIComponent(siteMatch[1]!));
+        return json({ ok: true });
+      } catch (error) {
+        if (error instanceof RangeError) return json({ error: error.message }, error.message === "Unknown site" ? 404 : 400);
+        throw error;
+      }
+    }
     if (siteMatch && request.method === "PATCH") {
       const access = await canRead(request);
       if (access !== true) return denied(access);
       // A form posted from another site cannot carry this content type without CORS.
       if (!(request.headers.get("content-type") ?? "").includes("application/json")) return json({ error: "Send JSON" }, 415);
-      const body = (await request.json().catch(() => null)) as { name?: unknown; timezone?: unknown } | null;
+      const body = (await request.json().catch(() => null)) as { name?: unknown; timezone?: unknown; hostnames?: unknown } | null;
       if (!body || typeof body !== "object") return json({ error: "Send a JSON object" }, 400);
       try {
         const site = await runlight.updateSite(decodeURIComponent(siteMatch[1]!), {
           ...(body.name !== undefined ? { name: String(body.name) } : {}),
           ...(body.timezone !== undefined ? { timezone: String(body.timezone) } : {}),
+          ...(body.hostnames !== undefined && runlight.managedSites ? { hostnames: body.hostnames } : {}),
         });
         return json({ site });
       } catch (error) {
@@ -745,7 +773,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           lastSeen: await runlight.store.lastSeen(site.id),
         })),
       );
-      return json({ sites });
+      // A share never learns how the install is run.
+      return json(shared ? { sites } : { sites, managed: runlight.managedSites });
     }
 
     const site = shared ? runlight.site(shared.site) : only ? runlight.site(url.searchParams.get("site") ?? only) : await querySite(url);
@@ -978,7 +1007,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         }
         // The page itself holds no data; the API it calls checks access and
         // the page explains how to sign in when it is refused.
-        return new Response(DASHBOARD(base), {
+        return new Response(DASHBOARD(base, "", options.signOut), {
           headers: {
             "content-type": "text/html; charset=utf-8",
             "cache-control": "no-store",

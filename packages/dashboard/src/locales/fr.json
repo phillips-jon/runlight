@@ -531,5 +531,18 @@
   "tokens.once": "Copiez ce jeton maintenant. Il n’est affiché qu’une fois, et Runlight n’en garde qu’une empreinte.",
   "tokens.claudeCode": "Pour Claude Code, lancez :",
   "tokens.json": "Pour Cursor et les autres applications qui prennent une configuration JSON mcpServers :",
-  "tokens.done": "C’est fait, je l’ai copié"
+  "tokens.done": "C’est fait, je l’ai copié",
+  "sites.domains": "Domaines",
+  "sites.domainsHint": "Saisissez le domaine du site, par exemple example.com, et séparez-en plusieurs par des virgules.",
+  "sites.name": "Nom",
+  "sites.namePlaceholder": "Mon blog",
+  "sites.timezoneHint": "Les jours sont comptés selon {zone}, que vous pourrez changer plus tard dans les réglages.",
+  "sites.add": "Ajouter le site",
+  "sites.addOption": "Ajouter un site…",
+  "sites.addTitle": "Ajouter un site",
+  "sites.firstTitle": "Ajoutez votre premier site",
+  "sites.firstLead": "Runlight compte chaque site que vous ajoutez ici. Saisissez le domaine du site, et l’écran suivant affiche la balise de script à placer sur ses pages.",
+  "sites.delete": "Supprimer ce site",
+  "sites.deleteHint": "Supprimer un site efface chaque visite, lien, objectif et rapport enregistré pour lui, sans retour possible.",
+  "app.signOut": "Se déconnecter"
 }

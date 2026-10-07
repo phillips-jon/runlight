@@ -531,5 +531,18 @@
   "tokens.once": "Copia este token ahora. Solo se muestra una vez, y Runlight guarda solo una huella de él.",
   "tokens.claudeCode": "Para Claude Code, ejecuta:",
   "tokens.json": "Para Cursor y otras aplicaciones que usan una configuración JSON mcpServers:",
-  "tokens.done": "Listo, ya lo copié"
+  "tokens.done": "Listo, ya lo copié",
+  "sites.domains": "Dominios",
+  "sites.domainsHint": "Escribe el dominio del sitio, como example.com, y separa varios con comas.",
+  "sites.name": "Nombre",
+  "sites.namePlaceholder": "Mi blog",
+  "sites.timezoneHint": "Los días se cuentan en {zone}, y puedes cambiarlo luego en Ajustes.",
+  "sites.add": "Añadir sitio",
+  "sites.addOption": "Añadir un sitio…",
+  "sites.addTitle": "Añadir un sitio",
+  "sites.firstTitle": "Añade tu primer sitio",
+  "sites.firstLead": "Runlight cuenta cada sitio que añadas aquí. Escribe el dominio del sitio y la siguiente pantalla te mostrará la etiqueta de script para sus páginas.",
+  "sites.delete": "Eliminar este sitio",
+  "sites.deleteHint": "Eliminar un sitio borra todas sus visitas, enlaces, objetivos e informes, y no se puede deshacer.",
+  "app.signOut": "Cerrar sesión"
 }

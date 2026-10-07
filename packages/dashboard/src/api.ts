@@ -106,6 +106,10 @@ export interface View {
 export const base = document.getElementById("app")?.dataset.base ?? "";
 /** Set when this page is a shared, read-only dashboard; every request carries it. */
 export const share = document.getElementById("app")?.dataset.share ?? "";
+/** Where the standalone server signs people out; empty in library mode. */
+export const signOut = document.getElementById("app")?.dataset.signOut ?? "";
+/** How this install is run, learned from the sites list: sites managed in the dashboard (the standalone server) or set in code. */
+export const install = { managed: false };
 
 export interface Goal {
   id: string;
@@ -286,8 +290,14 @@ export const api = {
   checkLinkDomain: (site: string, domain: string) =>
     get<{ domain: string; working: boolean; reason: string }>(`link-domains/${encodeURIComponent(domain)}/check`, new URLSearchParams(site ? { site } : {})),
   removeLinkDomain: (site: string, domain: string) => del(`link-domains/${encodeURIComponent(domain)}${siteQuery(site)}`),
-  updateSite: (id: string, patch: { name?: string; timezone?: string }) => send<{ site: Site }>("PATCH", `sites/${encodeURIComponent(id)}`, patch),
-  sites: () => get<{ sites: Site[] }>("sites", new URLSearchParams()),
+  updateSite: (id: string, patch: { name?: string; timezone?: string; hostnames?: string }) => send<{ site: Site }>("PATCH", `sites/${encodeURIComponent(id)}`, patch),
+  sites: () =>
+    get<{ sites: Site[]; managed?: boolean }>("sites", new URLSearchParams()).then((r) => {
+      install.managed = Boolean(r.managed);
+      return r;
+    }),
+  addSite: (site: { name: string; hostnames: string; timezone: string }) => send<{ site: Site }>("POST", "sites", site),
+  deleteSite: (id: string) => del(`sites/${encodeURIComponent(id)}`),
   stats: (view: View) => get<{ range: Range; compare?: { from: string; to: string }; stats: Stats; previous?: Stats }>("stats", viewParams(view)),
   series: (view: View) => get<{ range: Range; points: Point[]; previous?: Point[] }>("series", viewParams(view)),
   breakdown: (view: View, dimension: string, limit: number) => {

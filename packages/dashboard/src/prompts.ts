@@ -34,6 +34,20 @@ Do not change anything else about how links or analytics work.
 `;
 }
 
+/** For a site counted by a standalone Runlight server: only the script tag goes on the site. */
+export function scriptPrompt(opts: { script: string; host?: string }): string {
+  return `Add Runlight, privacy friendly web analytics, to this site${opts.host ? ` (${opts.host})` : ""}.
+
+Add this script tag to every page, just before </head>, in the shared layout or template so it is on every page:
+
+   ${opts.script}
+
+Runlight sets no cookies and stores no personal data, so do not add a cookie banner for it. To count a custom event, add data-runlight="Event name" to an element, or call runlight("Event name") in JavaScript.
+
+Keep the site's existing behaviour unchanged otherwise.
+`;
+}
+
 export function installPrompt(opts: { origin: string; base: string; site?: string }): string {
   const { origin, base, site } = opts;
   return `Add Runlight, privacy friendly web analytics, to this project.

@@ -1,0 +1,51 @@
+{
+  "name": "runlight.sh",
+  "version": "0.0.0",
+  "description": "Runlight as its own server: privacy friendly web analytics for any number of sites, with a login, short links on your own domains, and email reports.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phillips-jon/runlight.git",
+    "directory": "packages/server"
+  },
+  "homepage": "https://runlight.sh",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "runlight.sh": "dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "TZ=UTC node --import tsx --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@runlight/sdk": "*",
+    "better-sqlite3": "^13.0.3",
+    "pg": "^8.23.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.20.4",
+    "@types/pg": "^8.23.1",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.3"
+  }
+}
