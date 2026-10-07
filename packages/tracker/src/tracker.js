@@ -25,8 +25,12 @@
   var useHash = attr("hash") !== null;
   var queued = (w.runlight && w.runlight.q) || [];
 
+  // ?runlight=ignore stops counting this browser on this site;
+  // ?runlight=track starts again. The owner's opt-out, never a visitor id.
   var ignored = false;
   try {
+    var flag = /[?&]runlight=(ignore|track)\b/.exec(location.search);
+    if (flag) flag[1] === "ignore" ? localStorage.setItem("runlight_ignore", "1") : localStorage.removeItem("runlight_ignore");
     ignored = localStorage.getItem("runlight_ignore") === "1";
   } catch (e) {}
   if (n.webdriver || ignored || (attr("dnt") !== null && (n.doNotTrack === "1" || w.doNotTrack === "1"))) {

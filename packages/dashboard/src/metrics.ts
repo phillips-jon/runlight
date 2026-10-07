@@ -7,7 +7,7 @@ export type MetricKey = keyof Stats;
 export interface MetricDef {
   key: MetricKey;
   /** Categorical slot, fixed per metric so a metric keeps its colour whatever else is shown. */
-  slot: 1 | 2 | 3 | 4 | 5 | 6;
+  slot: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   format: (n: number) => string;
   lowerIsBetter?: boolean;
 }
@@ -18,7 +18,8 @@ export const METRICS: MetricDef[] = [
   { key: "pageviews", slot: 3, format: count },
   { key: "viewsPerVisit", slot: 4, format: decimal },
   { key: "bounceRate", slot: 5, format: percent, lowerIsBetter: true },
-  { key: "visitDuration", slot: 6, format: duration },
+  // Violet, not slot 6's green, which sat too close to Pageviews' aqua on the cards.
+  { key: "visitDuration", slot: 7, format: duration },
 ];
 
 export const metricLabel = (m: MetricDef): string => t(`metric.${m.key}`);

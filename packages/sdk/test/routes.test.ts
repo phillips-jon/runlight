@@ -119,3 +119,37 @@ test("icon links are ranked: touch icon, then SVG, then PNG, then anything", asy
     "https://example.com/favicon.ico",
   ]);
 });
+
+test("a site's name and timezone can be changed, and survive a restart", async () => {
+  const store = sqlite({ path: ":memory:" });
+  const first = runlight({ store, site: { name: "From code", timezone: "UTC" } });
+  const { PATCH, GET } = first.routes({ token: null });
+  const patch = (body: unknown, type = "application/json") =>
+    PATCH(req("/runlight/api/sites/default", { method: "PATCH", body: JSON.stringify(body), headers: { "content-type": type } }));
+  assert.equal((await patch({ name: "Jon's site", timezone: "America/Toronto" })).status, 200);
+  assert.equal((await patch({ timezone: "Mars/Olympus" })).status, 400);
+  assert.equal((await patch({ name: "" })).status, 400);
+  assert.equal((await patch({ name: "x" }, "text/plain")).status, 415);
+  assert.equal((await PATCH(req("/runlight/api/sites/nope", { method: "PATCH", body: "{}", headers: { "content-type": "application/json" } }))).status, 404);
+  const listed = await (await GET(req("/runlight/api/sites"))).json();
+  assert.equal(listed.sites[0].name, "Jon's site");
+  assert.equal(listed.sites[0].lastSeen, null);
+
+  // Code still says "From code"; the dashboard's change wins after a restart.
+  const again = runlight({ store, site: { name: "From code", timezone: "UTC" } });
+  await again.init();
+  assert.equal(again.site("default")!.name, "Jon's site");
+  assert.equal(again.site("default")!.timezone, "America/Toronto");
+});
+
+test("a version 1 database gains the overrides column", async () => {
+  const store = sqlite({ path: ":memory:" });
+  await store.db.run("CREATE TABLE rl_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+  await store.db.run("INSERT INTO rl_meta (key, value) VALUES ('schema', '1')");
+  await store.db.run("CREATE TABLE rl_sites (id TEXT PRIMARY KEY, name TEXT NOT NULL DEFAULT '', hostnames TEXT NOT NULL DEFAULT '[]', timezone TEXT NOT NULL DEFAULT 'UTC', created_at BIGINT NOT NULL)");
+  const rl = runlight({ store });
+  await rl.updateSite("default", { name: "Upgraded" });
+  assert.equal(rl.site("default")!.name, "Upgraded");
+  const [meta] = await store.db.all<{ value: string }>("SELECT value FROM rl_meta WHERE key = 'schema'");
+  assert.equal(meta!.value, "2");
+});

@@ -32,6 +32,12 @@ export interface SiteRow {
   timezone: string;
 }
 
+/** What the dashboard may change about a site. */
+export interface SiteOverrides {
+  name?: string;
+  timezone?: string;
+}
+
 export interface SessionRow {
   id: string;
   site: string;
@@ -134,7 +140,7 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 1;
+const SCHEMA_VERSION = 2;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -143,7 +149,8 @@ function schema(dialect: Db["dialect"]): string[] {
     `CREATE TABLE IF NOT EXISTS rl_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS rl_sites (
       id TEXT PRIMARY KEY, name ${text}, hostnames TEXT NOT NULL DEFAULT '[]',
-      timezone TEXT NOT NULL DEFAULT 'UTC', created_at BIGINT NOT NULL)`,
+      timezone TEXT NOT NULL DEFAULT 'UTC', created_at BIGINT NOT NULL,
+      overrides TEXT NOT NULL DEFAULT '{}')`,
     `CREATE TABLE IF NOT EXISTS rl_salts (day TEXT PRIMARY KEY, salt TEXT NOT NULL)`,
     `CREATE TABLE IF NOT EXISTS rl_sessions (
       id TEXT PRIMARY KEY, site TEXT NOT NULL, visitor TEXT NOT NULL,
@@ -204,7 +211,12 @@ export class SqlStore {
   /** Creates the tables on first use. Safe to call any number of times. */
   migrate(): Promise<void> {
     const create = async (db: Db) => {
+      await db.run(`CREATE TABLE IF NOT EXISTS rl_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
+      const [found] = await db.all<{ value: string }>(`SELECT value FROM rl_meta WHERE key = 'schema'`);
+      const from = found ? Number(found.value) : SCHEMA_VERSION;
       for (const statement of schema(db.dialect)) await db.run(statement);
+      // Version 2: settings changed in the dashboard, kept apart from the ones in code.
+      if (from < 2) await db.run(`ALTER TABLE rl_sites ADD COLUMN overrides TEXT NOT NULL DEFAULT '{}'`);
       await db.run(
         `INSERT INTO rl_meta (key, value) VALUES ('schema', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
         [String(SCHEMA_VERSION)],
@@ -229,6 +241,30 @@ export class SqlStore {
        ON CONFLICT (id) DO UPDATE SET name = excluded.name, hostnames = excluded.hostnames, timezone = excluded.timezone`,
       [site.id, site.name, JSON.stringify(site.hostnames), site.timezone, now],
     );
+  }
+
+  /** Settings changed in the dashboard, by site. They win over the ones in code. */
+  async siteOverrides(): Promise<Map<string, SiteOverrides>> {
+    const rows = await this.db.all<{ id: string; overrides: string }>(`SELECT id, overrides FROM rl_sites`);
+    const out = new Map<string, SiteOverrides>();
+    for (const row of rows) {
+      try {
+        out.set(row.id, JSON.parse(row.overrides) as SiteOverrides);
+      } catch {
+        out.set(row.id, {});
+      }
+    }
+    return out;
+  }
+
+  async setSiteOverrides(id: string, overrides: SiteOverrides): Promise<void> {
+    await this.db.run(`UPDATE rl_sites SET overrides = ? WHERE id = ?`, [JSON.stringify(overrides), id]);
+  }
+
+  /** When the site last recorded a visit, or null if it never has. */
+  async lastSeen(site: string): Promise<number | null> {
+    const [row] = await this.db.all(`SELECT MAX(ts) AS t FROM rl_events WHERE site = ? AND kind IN ('pageview', 'event')`, [site]);
+    return row?.t === null || row?.t === undefined ? null : num(row.t);
   }
 
   async sites(): Promise<SiteRow[]> {

@@ -8,6 +8,8 @@ import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type K
 import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey } from "./metrics.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
+import { SettingsModal } from "./settings.js";
+import { applyTheme, isDark, onThemeChange, setTheme } from "./theme.js";
 import "./style.css";
 
 /** A fresh dashboard compares with nothing; the cards show changes once a comparison is picked. */
@@ -152,6 +154,7 @@ function App() {
   const [previousPoints, setPreviousPoints] = useState<Point[] | undefined>(undefined);
   const [failure, setFailure] = useState("");
   const [filtering, setFiltering] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const fail = (e: Error) => setFailure(e instanceof ApiError && e.status === 401 ? "signed-out" : e.message);
 
@@ -245,6 +248,14 @@ function App() {
               )}
               {site ? <Live site={site.id} /> : null}
             </div>
+            {site ? (
+              <button type="button" class="gear" aria-label={t("settings.open")} title={t("settings.open")} onClick={() => setSettingsOpen(true)}>
+                <svg viewBox="0 0 20 20" aria-hidden="true">
+                  <circle cx="10" cy="10" r="2.6" />
+                  <path d="M10 1.8l1.3 2.3 2.6-.6.8 2.5 2.5.8-.6 2.6 2.3 1.3-2.3 1.3.6 2.6-2.5.8-.8 2.5-2.6-.6L10 18.2l-1.3-2.3-2.6.6-.8-2.5-2.5-.8.6-2.6L1.8 10l2.3-1.3-.6-2.6 2.5-.8.8-2.5 2.6.6z" />
+                </svg>
+              </button>
+            ) : null}
           </div>
           <div class="actions">
             <button type="button" class={view.filters.length ? "filter-button on" : "filter-button"} onClick={() => setFiltering(true)}>
@@ -293,6 +304,19 @@ function App() {
       </header>
 
       {failure ? <p class="failure">{failure}</p> : null}
+      {settingsOpen && site && sites ? (
+        <SettingsModal
+          site={site}
+          sites={sites}
+          onClose={() => setSettingsOpen(false)}
+          onSaved={(saved) => {
+            setSites((all) => (all ?? []).map((x) => (x.id === saved.id ? { ...x, ...saved } : x)));
+            // A new timezone moves every day boundary, so reload the numbers.
+            setView((v) => ({ ...v }));
+          }}
+          onLanguage={changeLanguage}
+        />
+      ) : null}
       {filtering ? <FilterDrawer view={view} onApply={(filters) => update({ filters })} onClose={() => setFiltering(false)} /> : null}
 
       <section class="overview">
@@ -437,26 +461,10 @@ function layout(): Array<{ title: Key; tabs: Tab[]; wide?: boolean }> {
 }
 
 function Theme() {
-  const stored = (() => {
-    try {
-      return localStorage.getItem("runlight_theme");
-    } catch {
-      return null;
-    }
-  })();
-  const [theme, setTheme] = useState<string | null>(stored);
-  useEffect(() => {
-    if (theme) document.documentElement.dataset.theme = theme;
-    else delete document.documentElement.dataset.theme;
-  }, [theme]);
-  const dark = theme ? theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  const toggle = () => {
-    const next = dark ? "light" : "dark";
-    setTheme(next);
-    try {
-      localStorage.setItem("runlight_theme", next);
-    } catch {}
-  };
+  const [, rerender] = useState(0);
+  useEffect(() => onThemeChange(() => rerender((n) => n + 1)), []);
+  const dark = isDark();
+  const toggle = () => setTheme(isDark() ? "light" : "dark");
   // Cmd+Shift+D on a Mac, Ctrl+Shift+D elsewhere.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -467,7 +475,7 @@ function Theme() {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  });
+  }, []);
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
   return (
     <button
@@ -475,7 +483,7 @@ function Theme() {
       class="theme"
       aria-label={t(dark ? "theme.toLight" : "theme.toDark")}
       aria-keyshortcuts={mac ? "Meta+Shift+D" : "Control+Shift+D"}
-      title={`${t(dark ? "theme.light" : "theme.dark")} (${mac ? "⌘⇧D" : "Ctrl+Shift+D"})`}
+      title={`${t(dark ? "theme.light" : "theme.dark")} (${mac ? "\u2318\u21e7D" : "Ctrl+Shift+D"})`}
       onClick={toggle}
     >
       {dark ? (
@@ -492,6 +500,7 @@ function Theme() {
   );
 }
 
+applyTheme();
 const root = document.getElementById("app")!;
 setLocale(initialLocale())
   .catch(() => setLocale("en"))

@@ -3,7 +3,7 @@ import { randomId, randomSalt, visitorHash } from "./hash.js";
 import { parsePayload, MAX_BODY, type Payload } from "./payload.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww } from "./sources.js";
-import type { SiteRow, SqlStore } from "./store.js";
+import type { SiteOverrides, SiteRow, SqlStore } from "./store.js";
 import { isTimezone } from "./time.js";
 import { aiAgent, isBot, parseClient } from "./ua.js";
 
@@ -67,7 +67,9 @@ function siteRow(options: SiteOptions, index: number): SiteRow {
 
 export class Runlight {
   readonly store: SqlStore;
-  readonly sites: SiteRow[];
+  /** The sites as configured in code. */
+  private readonly configured: SiteRow[];
+  private overrides = new Map<string, SiteOverrides>();
   private readonly geo: GeoLookup | undefined;
   private readonly trustProxy: boolean;
   readonly now: () => number;
@@ -78,11 +80,11 @@ export class Runlight {
     if (!options?.store) throw new Error("Runlight: pass a store, such as sqlite({ path: \"./data/runlight.db\" })");
     this.store = options.store;
     const configured = options.sites?.length ? options.sites : [options.site ?? {}];
-    this.sites = configured.map(siteRow);
-    if (this.sites.length > 1 && this.sites.some((site) => site.hostnames.length === 0)) {
+    this.configured = configured.map(siteRow);
+    if (this.configured.length > 1 && this.configured.some((site) => site.hostnames.length === 0)) {
       throw new Error("Runlight: with several sites, give each one its hostnames");
     }
-    if (new Set(this.sites.map((site) => site.id)).size !== this.sites.length) {
+    if (new Set(this.configured.map((site) => site.id)).size !== this.configured.length) {
       throw new Error("Runlight: two sites share an id");
     }
     this.geo = options.geo;
@@ -94,7 +96,8 @@ export class Runlight {
   init(): Promise<void> {
     this.ready ??= (async () => {
       await this.store.migrate();
-      for (const site of this.sites) await this.store.upsertSite(site, this.now());
+      for (const site of this.configured) await this.store.upsertSite(site, this.now());
+      this.overrides = await this.store.siteOverrides();
     })().catch((error) => {
       this.ready = null;
       throw error;
@@ -104,6 +107,33 @@ export class Runlight {
 
   routes(options: RoutesOptions = {}): Routes {
     return createRoutes(this, options);
+  }
+
+  /** The sites, with any settings changed in the dashboard applied. */
+  get sites(): SiteRow[] {
+    return this.configured.map((site) => ({ ...site, ...this.overrides.get(site.id) }));
+  }
+
+  /**
+   * Changes a site's name or timezone from the dashboard. Stored apart from
+   * the settings in code, which keep being written on every start.
+   */
+  async updateSite(id: string, patch: SiteOverrides): Promise<SiteRow> {
+    await this.init();
+    if (!this.configured.some((site) => site.id === id)) throw new RangeError("Unknown site");
+    const next: SiteOverrides = { ...this.overrides.get(id) };
+    if (patch.name !== undefined) {
+      const name = String(patch.name).trim();
+      if (!name || name.length > 80) throw new RangeError("A site name is 1 to 80 characters");
+      next.name = name;
+    }
+    if (patch.timezone !== undefined) {
+      if (!isTimezone(String(patch.timezone))) throw new RangeError(`Unknown timezone "${patch.timezone}"`);
+      next.timezone = String(patch.timezone);
+    }
+    await this.store.setSiteOverrides(id, next);
+    this.overrides.set(id, next);
+    return this.site(id)!;
   }
 
   site(id: string | null | undefined): SiteRow | null {

@@ -34,6 +34,7 @@ export interface Routes {
   handler: FetchHandler;
   GET: FetchHandler;
   POST: FetchHandler;
+  PATCH: FetchHandler;
   OPTIONS: FetchHandler;
 }
 
@@ -194,6 +195,26 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return json(await runlight.check());
     }
 
+    const siteMatch = /^\/api\/sites\/([^/]+)$/.exec(path);
+    if (siteMatch && request.method === "PATCH") {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      // A form posted from another site cannot carry this content type without CORS.
+      if (!(request.headers.get("content-type") ?? "").includes("application/json")) return json({ error: "Send JSON" }, 415);
+      const body = (await request.json().catch(() => null)) as { name?: unknown; timezone?: unknown } | null;
+      if (!body || typeof body !== "object") return json({ error: "Send a JSON object" }, 400);
+      try {
+        const site = await runlight.updateSite(decodeURIComponent(siteMatch[1]!), {
+          ...(body.name !== undefined ? { name: String(body.name) } : {}),
+          ...(body.timezone !== undefined ? { timezone: String(body.timezone) } : {}),
+        });
+        return json({ site });
+      } catch (error) {
+        if (error instanceof RangeError) return json({ error: error.message }, error.message === "Unknown site" ? 404 : 400);
+        throw error;
+      }
+    }
+
     if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
 
     const access = await canRead(request);
@@ -201,7 +222,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     await runlight.init();
 
     if (path === "/api/sites") {
-      return json({ sites: runlight.sites });
+      const sites = await Promise.all(runlight.sites.map(async (site) => ({ ...site, lastSeen: await runlight.store.lastSeen(site.id) })));
+      return json({ sites });
     }
 
     const site = await querySite(url);
@@ -371,5 +393,5 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     }
   };
 
-  return { handler, GET: handler, POST: handler, OPTIONS: handler };
+  return { handler, GET: handler, POST: handler, PATCH: handler, OPTIONS: handler };
 }

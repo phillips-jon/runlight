@@ -3,6 +3,8 @@ export interface Site {
   name: string;
   hostnames: string[];
   timezone: string;
+  /** When the site last recorded a visit, epoch milliseconds. */
+  lastSeen?: number | null;
 }
 
 export interface Stats {
@@ -111,7 +113,22 @@ export function viewParams(view: View): URLSearchParams {
   return params;
 }
 
+async function send<T>(method: string, path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${base}/api/${path}`, {
+    method,
+    credentials: "same-origin",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new ApiError(response.status, result?.error ?? response.statusText);
+  }
+  return response.json() as Promise<T>;
+}
+
 export const api = {
+  updateSite: (id: string, patch: { name?: string; timezone?: string }) => send<{ site: Site }>("PATCH", `sites/${encodeURIComponent(id)}`, patch),
   sites: () => get<{ sites: Site[] }>("sites", new URLSearchParams()),
   stats: (view: View) => get<{ range: Range; compare?: { from: string; to: string }; stats: Stats; previous?: Stats }>("stats", viewParams(view)),
   series: (view: View) => get<{ range: Range; points: Point[]; previous?: Point[] }>("series", viewParams(view)),

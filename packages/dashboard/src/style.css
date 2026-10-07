@@ -604,10 +604,11 @@ main {
   transition: border-color 0.15s, transform 0.15s;
 }
 
+/* A straight-ended strip, inset to where the card's corners begin. */
 .metric::before {
   content: "";
   position: absolute;
-  inset: 0 0 auto;
+  inset: 0 10px auto;
   height: 3px;
   background: var(--c);
   opacity: 0;
@@ -2054,4 +2055,264 @@ h1 .home:hover {
   margin-top: 5px;
   font: 11px var(--mono);
   color: var(--muted);
+}
+
+/* Settings */
+
+.gear {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-left: 2px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--faint);
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.gear:hover {
+  color: var(--ink);
+  border-color: var(--line);
+  background: var(--card);
+}
+
+.gear svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.settings {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  width: min(920px, 100%);
+  height: min(680px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  animation: fade 0.15s ease-out;
+}
+
+.settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 22px 12px;
+  background: var(--sunk);
+  border-right: 1px solid var(--line);
+}
+
+.settings-nav h2 {
+  margin: 0 10px;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.settings-site {
+  margin: 2px 10px 16px;
+  font: 12px var(--mono);
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-tab {
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.settings-tab:hover {
+  color: var(--ink);
+  background: var(--bar);
+}
+
+.settings-tab.on {
+  color: var(--ink);
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--line);
+  font-weight: 600;
+}
+
+.settings-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px 6px;
+}
+
+.settings-head h3 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.settings-content {
+  flex: 1;
+  overflow: auto;
+  padding: 6px 24px 28px;
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px dashed var(--line);
+}
+
+.settings-group:last-child {
+  border-bottom: 0;
+}
+
+.field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.field-hint a {
+  font-family: var(--mono);
+  word-break: break-all;
+}
+
+.field-row .value,
+.field-row .field {
+  max-width: 420px;
+}
+
+.field-row .ops {
+  align-self: flex-start;
+}
+
+.settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.settings-error {
+  font-size: 13px;
+  color: var(--down);
+}
+
+.settings-ok {
+  font: 12px var(--mono);
+  color: var(--up);
+}
+
+.settings-text {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.settings-text code {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sunk);
+  font: 14px var(--sans);
+}
+
+.status.live {
+  border-color: color-mix(in srgb, var(--up) 40%, var(--line));
+}
+
+.code {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sunk);
+}
+
+.code pre {
+  margin: 0;
+  padding: 12px 84px 12px 14px;
+  overflow-x: auto;
+  font: 12.5px/1.55 var(--mono);
+}
+
+.copy {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  font: 11px var(--mono);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.copy:hover {
+  color: var(--ink);
+  border-color: var(--faint);
+}
+
+@media (max-width: 720px) {
+  .settings {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    height: 100%;
+  }
+
+  .settings-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 14px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .settings-nav h2,
+  .settings-site {
+    display: none;
+  }
 }
