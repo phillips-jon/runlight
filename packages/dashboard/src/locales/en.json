@@ -351,5 +351,6 @@
   "prompt.title": "Using a coding assistant?",
   "compare.allTime": "There is nothing before all time to compare with.",
   "view.reset": "Reset",
-  "view.resetHint": "Back to the last 30 days, with no filters or comparison"
+  "view.resetHint": "Back to the last 30 days, with no filters or comparison",
+  "headline.fromNone": "{who} {verb} {when}, up from none in {against}."
 }

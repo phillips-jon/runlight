@@ -142,7 +142,17 @@ function Headline({ view, stats, previous, compare }: { view: View; stats: Stats
     change:
       c === null ? "" : <span class={c > 0 ? "up" : "down"}>{t(c > 0 ? "headline.more" : "headline.fewer", { pct: Math.abs(Math.round(c * 100)) })}</span>,
   };
-  const key: Key = c === null || !against ? "headline.plain" : Math.abs(c) < 0.005 ? "headline.same" : c > 0 ? "headline.up" : "headline.down";
+  // Nobody in the compared range (a site younger than a year, say) has no percentage, but is still worth saying.
+  const fromNone = Boolean(against) && previous?.visitors === 0 && stats.visitors > 0;
+  const key: Key = fromNone
+    ? "headline.fromNone"
+    : c === null || !against
+      ? "headline.plain"
+      : Math.abs(c) < 0.005
+        ? "headline.same"
+        : c > 0
+          ? "headline.up"
+          : "headline.down";
   return <p class="headline">{rich(key, parts)}</p>;
 }
 

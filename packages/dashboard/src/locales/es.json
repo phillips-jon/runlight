@@ -351,5 +351,6 @@
   "prompt.title": "¿Usas un asistente de código?",
   "compare.allTime": "No hay nada antes de todo el tiempo con qué comparar.",
   "view.reset": "Restablecer",
-  "view.resetHint": "Volver a los últimos 30 días, sin filtros ni comparación"
+  "view.resetHint": "Volver a los últimos 30 días, sin filtros ni comparación",
+  "headline.fromNone": "{who} {verb} {when}, frente a nadie {against}."
 }
