@@ -4,10 +4,11 @@ import { api, base, type Site } from "./api.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
-type Section = "general" | "install";
+type Section = "general" | "install" | "links";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
+  ["links", "settings.links"],
 ];
 
 function timezones(): string[] {
@@ -217,6 +218,65 @@ export function proxy(request: Request) {
   );
 }
 
+/** Custom domains for short links, such as t.example.com. */
+function LinkDomains({ site }: { site: Site }) {
+  const [domains, setDomains] = useState<string[] | null>(null);
+  const [draft, setDraft] = useState("");
+  const [error, setError] = useState("");
+  const load = () => api.linkDomains(site.id).then((r) => setDomains(r.domains)).catch((e: Error) => setError(e.message));
+  useEffect(() => {
+    void load();
+  }, [site.id]);
+  const add = (e: Event) => {
+    e.preventDefault();
+    setError("");
+    api
+      .addLinkDomain(site.id, draft)
+      .then(() => {
+        setDraft("");
+        return load();
+      })
+      .catch((err: Error) => setError(err.message));
+  };
+  return (
+    <div class="settings-group">
+      <div class="field-row">
+        <span class="field-label">{t("links.domains")}</span>
+        <span class="settings-text">{t("links.domainsHelp")}</span>
+      </div>
+      <ul class="domain-list">
+        <li>
+          <span class="domain-name">{t("links.ownDomain", { prefix: `${location.host}/go` })}</span>
+        </li>
+        {(domains ?? []).map((d) => (
+          <li>
+            <span class="domain-name">{d}</span>
+            <button
+              type="button"
+              class="copy inline danger"
+              onClick={() =>
+                api
+                  .removeLinkDomain(site.id, d)
+                  .then(load)
+                  .catch((err: Error) => setError(err.message))
+              }
+            >
+              {t("links.removeDomain")}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <form class="domain-add" onSubmit={add}>
+        <input class="value" type="text" placeholder={t("links.domainPlaceholder")} value={draft} onInput={(e) => setDraft((e.target as HTMLInputElement).value)} />
+        <button type="submit" class="solid" disabled={!draft.trim()}>
+          {t("links.addDomain")}
+        </button>
+      </form>
+      {error ? <span class="settings-error">{error}</span> : null}
+    </div>
+  );
+}
+
 export function SettingsModal({ site, sites, onClose, onSaved, onLanguage }: {
   site: Site;
   sites: Site[];
@@ -259,7 +319,13 @@ export function SettingsModal({ site, sites, onClose, onSaved, onLanguage }: {
             </button>
           </header>
           <div class="settings-content">
-            {section === "general" ? <General site={site} onSaved={onSaved} onLanguage={onLanguage} /> : <Install site={site} sites={sites} />}
+            {section === "general" ? (
+              <General site={site} onSaved={onSaved} onLanguage={onLanguage} />
+            ) : section === "install" ? (
+              <Install site={site} sites={sites} />
+            ) : (
+              <LinkDomains site={site} />
+            )}
           </div>
         </div>
       </div>

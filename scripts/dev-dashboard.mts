@@ -24,8 +24,10 @@ mkdirSync(new URL("../data/", import.meta.url).pathname, { recursive: true });
 const rl = runlight({ store: sqlite({ path: FILE }), site: { name: "joncphillips.com", hostnames: ["joncphillips.com"], timezone: "America/Toronto" } });
 await rl.init();
 if (fresh) await seed();
+if ((await rl.store.db.all("SELECT id FROM rl_links LIMIT 1")).length === 0) await seedLinks();
 
 const routes = toNodeHandler(rl.routes({ token: null }).handler);
+const links = toNodeHandler(rl.linkHandler());
 
 createServer(async (req, res) => {
   const path = (req.url ?? "/").split("?")[0]!;
@@ -60,6 +62,7 @@ createServer(async (req, res) => {
     res.end(world());
     return;
   }
+  if (path.startsWith("/go/")) return void links(req, res);
   if (path.startsWith("/runlight")) return void routes(req, res);
   res.writeHead(302, { location: "/runlight/" }).end();
 }).listen(PORT, () => console.log(`Runlight dev dashboard: http://localhost:${PORT}/runlight/`));
@@ -187,4 +190,73 @@ async function seed() {
   }
   await store.db.run("COMMIT");
   console.log(`Seeded ${sessions} visits.`);
+}
+
+/** Made-up short links with four months of clicks, most on a custom link domain. */
+async function seedLinks() {
+  console.log("Seeding short links...");
+  const store = rl.store;
+  await store.addLinkDomain("t.thedailypreset.com", "default", Date.now());
+  const names = [
+    "Golden hour preset", "Moody film pack", "Free presets", "Portrait glow", "Black and white set", "Winter blues",
+    "Lightroom mobile guide", "Newsletter issue 52", "Instagram bio", "YouTube description", "Podcast episode 12",
+    "Spring sale", "Black Friday", "Preset bundle", "Desert tones", "City nights", "Cinematic pack", "Faded film",
+    "Travel collection", "Wedding pack", "Product launch", "Affiliate: camera bag", "Affiliate: tripod", "Gear list",
+    "Workshop signup", "Course waitlist", "Discord invite", "Feedback form", "Behind the scenes", "Brand kit",
+  ];
+  const now = Date.now();
+  const made: Array<{ id: string; weight: number; created: number }> = [];
+  for (const [i, name] of names.entries()) {
+    const own = i % 5 === 4;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24);
+    const created = now - Math.floor((DAYS - (i % 9) * 3) * 86_400_000);
+    const id = randomHex(24);
+    await store.insertLink({
+      id, site: "default", domain: own ? "" : "t.thedailypreset.com", slug, name,
+      url: own ? `https://joncphillips.com/${slug}` : `https://thedailypreset.com/${slug}?ref=link`,
+      createdAt: created, updatedAt: created,
+    });
+    made.push({ id, weight: Math.max(0.2, 6 / (i + 1)), created });
+  }
+  const refs: Array<[[string, string, string], number]> = [
+    [["instagram.com", "Instagram", "Social"], 30], [["", "", "Direct"], 25], [["youtube.com", "YouTube", "Social"], 12],
+    [["", "Newsletter", "Email"], 15], [["t.co", "X", "Social"], 6], [["pinterest.com", "Pinterest", "Social"], 8],
+  ];
+  const places: Array<[[string, string, string], number]> = [
+    [["US", "US-CA", "Los Angeles"], 30], [["CA", "CA-ON", "Toronto"], 15], [["GB", "GB-ENG", "London"], 12],
+    [["DE", "DE-BY", "Munich"], 8], [["AU", "AU-VIC", "Melbourne"], 6], [["BR", "BR-SP", "São Paulo"], 5],
+  ];
+  const devices: Array<[[string, string, string, string, string], number]> = [
+    [["Safari", "18", "iOS", "18", "mobile"], 45], [["Chrome", "129", "Android", "14", "mobile"], 20],
+    [["Chrome", "129", "macOS", "", "desktop"], 20], [["Chrome", "129", "Windows", "10", "desktop"], 15],
+  ];
+  await store.db.run("BEGIN");
+  let clicks = 0;
+  for (let day = 0; day < DAYS; day++) {
+    const dayStart = Math.floor((now - (DAYS - day) * 86_400_000) / 86_400_000) * 86_400_000;
+    for (const link of made) {
+      if (dayStart < link.created) continue;
+      const n = Math.round(link.weight * (2 + Math.random() * 6) * (day > DAYS - 30 ? 1.4 : 1));
+      for (let k = 0; k < n; k++) {
+        const ts = dayStart + Math.floor(Math.random() * 86_400_000);
+        if (ts > now) continue;
+        const [refHost, source, channel] = pick(refs);
+        const [country, region, city] = pick(places);
+        const [browser, browserVersion, os, osVersion, device] = pick(devices);
+        const session = randomHex(24);
+        const visitor = randomHex(16);
+        await store.insertSession({
+          id: session, site: "default", visitor, startedAt: ts, hostname: "t.thedailypreset.com",
+          referrerHost: refHost, referrerPath: refHost ? "/" : "", source, channel,
+          utmSource: source === "Newsletter" ? "newsletter" : "", utmMedium: source === "Newsletter" ? "email" : "", utmCampaign: "", utmTerm: "", utmContent: "",
+          country, region, city, browser, browserVersion, os, osVersion, device, screen: "", language: "en-US",
+        });
+        await store.touchSession(session, ts, "click", "/");
+        await store.insertEvent({ site: "default", ts, kind: "click", visitor, session, pageview: "", path: "/", hostname: "t.thedailypreset.com", title: "", name: "", props: null, engagedMs: 0, scroll: null, link: link.id });
+        clicks++;
+      }
+    }
+  }
+  await store.db.run("COMMIT");
+  console.log(`Seeded ${made.length} links and ${clicks} clicks.`);
 }

@@ -53,6 +53,30 @@ export interface RhythmCell {
   bounceRate: number;
 }
 
+export interface Link {
+  id: string;
+  site: string;
+  domain: string;
+  slug: string;
+  name: string;
+  url: string;
+  createdAt: number;
+  clicks?: number;
+  visitors?: number;
+}
+
+export interface LinkStats {
+  link: Link;
+  range: Range;
+  clicks: number;
+  series: Array<{ start: number; clicks: number; visitors: number }>;
+  sources: Row[];
+  referrers: Row[];
+  countries: Row[];
+  devices: Row[];
+  browsers: Row[];
+}
+
 export interface Realtime {
   visitors: number;
   pages: Array<{ value: string; visitors: number }>;
@@ -127,7 +151,27 @@ async function send<T>(method: string, path: string, body: unknown): Promise<T> 
   return response.json() as Promise<T>;
 }
 
+const del = async (path: string) => {
+  const response = await fetch(`${base}/api/${path}`, { method: "DELETE", credentials: "same-origin" });
+  if (!response.ok) {
+    const result = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new ApiError(response.status, result?.error ?? response.statusText);
+  }
+};
+
+const siteQuery = (site: string) => (site ? `?site=${encodeURIComponent(site)}` : "");
+
 export const api = {
+  links: (view: View) => get<{ prefix: string; links: Link[] }>("links", viewParams(view)),
+  link: (view: View, id: string) => get<LinkStats>(`links/${id}`, viewParams(view)),
+  createLink: (site: string, input: { url: string; name?: string; slug?: string; domain?: string }) => send<{ link: Link }>("POST", `links${siteQuery(site)}`, input),
+  updateLink: (site: string, id: string, input: { url?: string; name?: string; slug?: string; domain?: string }) => send<{ link: Link }>("PATCH", `links/${id}${siteQuery(site)}`, input),
+  deleteLink: (site: string, id: string) => del(`links/${id}${siteQuery(site)}`),
+  importLinks: (site: string, rows: Array<Record<string, string>>) =>
+    send<{ created: number; failed: Array<{ row: number; reason: string }> }>("POST", `links/import${siteQuery(site)}`, { rows }),
+  linkDomains: (site: string) => get<{ domains: string[] }>("link-domains", new URLSearchParams(site ? { site } : {})),
+  addLinkDomain: (site: string, domain: string) => send<{ domain: string }>("POST", `link-domains${siteQuery(site)}`, { domain }),
+  removeLinkDomain: (site: string, domain: string) => del(`link-domains/${encodeURIComponent(domain)}${siteQuery(site)}`),
   updateSite: (id: string, patch: { name?: string; timezone?: string }) => send<{ site: Site }>("PATCH", `sites/${encodeURIComponent(id)}`, patch),
   sites: () => get<{ sites: Site[] }>("sites", new URLSearchParams()),
   stats: (view: View) => get<{ range: Range; compare?: { from: string; to: string }; stats: Stats; previous?: Stats }>("stats", viewParams(view)),

@@ -6,6 +6,7 @@ import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
 import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type Key } from "./i18n.js";
 import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey } from "./metrics.js";
+import { LinksPanel } from "./links.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
 import { SettingsModal } from "./settings.js";
@@ -360,6 +361,7 @@ function App() {
             <Panel title={panel.title} tabs={panel.tabs} view={view} onFilter={addFilter} wide={panel.wide} map={panel.title === "panel.locations"} key={i} />
           ),
         )}
+        {site ? <LinksPanel view={view} site={site.id} /> : null}
       </div>
 
       <footer class="foot">

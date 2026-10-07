@@ -2321,3 +2321,293 @@ h1 .home:hover {
   display: flex;
   margin-top: 2px;
 }
+
+/* Links */
+
+.panel.full {
+  grid-column: span 12;
+}
+
+.link-slug {
+  margin-left: 8px;
+  font: 12px var(--mono);
+  color: var(--faint);
+  flex: none;
+}
+
+.list-sheet.small {
+  width: min(560px, 100%);
+  height: auto;
+  max-height: 90vh;
+}
+
+.link-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-bottom: 22px;
+}
+
+.link-form .value,
+.link-form .field {
+  max-width: none;
+}
+
+.slug-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slug-row .value {
+  flex: 1;
+  min-width: 0;
+}
+
+.slug-row .field {
+  flex: none;
+  max-width: 55%;
+  font-weight: 500;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+.slug-prefix {
+  flex: none;
+  font: 13px var(--mono);
+  color: var(--muted);
+}
+
+.made {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sunk);
+}
+
+.made a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 15px var(--mono);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.made .copy {
+  position: static;
+}
+
+.copy.inline {
+  position: static;
+  height: 26px;
+}
+
+.copy.danger:hover,
+.copy.armed {
+  color: var(--down);
+  border-color: var(--down);
+}
+
+.link-tools {
+  display: flex;
+  gap: 8px;
+}
+
+.link-tools .value {
+  flex: 1;
+  width: auto;
+  padding-right: 12px;
+}
+
+.link-tools .field,
+.link-tools .ghost,
+.link-tools .solid {
+  flex: none;
+  height: 40px;
+}
+
+.import-result {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0 24px 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sunk);
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.import-result strong {
+  color: var(--ink);
+}
+
+.links-table td {
+  border-bottom: 1px solid var(--line);
+}
+
+.links-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.link-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 10px 10px 10px 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.link-cell > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.link-cell:hover .link-name {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link-short {
+  font: 12px var(--mono);
+  color: var(--ink);
+}
+
+.link-dest {
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.link-unit {
+  display: block;
+  font: 10px var(--mono);
+  font-weight: 400;
+  color: var(--faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.link-actions {
+  white-space: nowrap;
+}
+
+.link-actions .copy + .copy {
+  margin-left: 6px;
+}
+
+.link-head {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 18px;
+}
+
+.link-head .field-hint a {
+  font-family: var(--sans);
+  word-break: break-all;
+}
+
+.mini-title,
+.mini h3 {
+  margin: 0 0 8px;
+  font: 11px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  font-weight: 400;
+}
+
+.link-chart {
+  display: block;
+  width: 100%;
+  height: 150px;
+}
+
+.link-chart .spark-area {
+  fill-opacity: 0.12;
+}
+
+.link-chart .spark-line {
+  stroke-opacity: 0.9;
+  stroke-width: 2;
+}
+
+.link-axis {
+  display: flex;
+  justify-content: space-between;
+  margin: 4px 0 22px;
+  font: 11px var(--mono);
+  color: var(--faint);
+}
+
+.mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 22px 28px;
+}
+
+@media (max-width: 720px) {
+  .mini-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .link-tools {
+    flex-wrap: wrap;
+  }
+}
+
+.domain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.domain-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.domain-list li:last-child {
+  border-bottom: 0;
+}
+
+.domain-name {
+  font: 13px var(--mono);
+}
+
+.domain-add {
+  display: flex;
+  gap: 8px;
+}
+
+.domain-add .value {
+  flex: 1;
+  max-width: 420px;
+}
