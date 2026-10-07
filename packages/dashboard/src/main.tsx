@@ -4,6 +4,7 @@ import { ApiError, api, base, type Filter, type Point, type Range, type Site, ty
 import { Chart, Spark, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
+import { Icon } from "./icons.js";
 import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type Key } from "./i18n.js";
 import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey } from "./metrics.js";
 import { LinksPanel } from "./links.js";
@@ -12,7 +13,6 @@ import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type Compare
 import { SettingsModal } from "./settings.js";
 import { applyTheme, isDark, onThemeChange, setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 import "./style.css";
-import { Icon } from "./icons.js";
 
 /** A fresh dashboard compares with nothing; the cards show changes once a comparison is picked. */
 const DEFAULT_COMPARE: CompareMode = "off";
@@ -196,8 +196,20 @@ function App() {
       const next = [...current, key];
       return next.length > MAX_CHARTED ? next.slice(next.length - MAX_CHARTED) : next;
     });
+  const isDefault =
+    !view.from && view.period === DEFAULT_PERIOD && !view.filters.length && view.compare === DEFAULT_COMPARE && charted.join(",") === "visitors";
+  // The URL follows the view without adding history, except on a reset, so Back brings the old view back.
+  useEffect(() => {
+    const restore = () => {
+      setView(readView());
+      setCharted(readCharted());
+    };
+    window.addEventListener("popstate", restore);
+    return () => window.removeEventListener("popstate", restore);
+  }, []);
   /** Back to the start: the default range and comparison, no filters, visitors charted. */
   const reset = () => {
+    if (!isDefault) history.pushState(null, "", location.href);
     setView((v) => ({ site: v.site, period: DEFAULT_PERIOD, from: "", to: "", filters: [], compare: DEFAULT_COMPARE, compareFrom: "", compareTo: "" }));
     setCharted(["visitors"]);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -260,6 +272,12 @@ function App() {
             ) : null}
           </div>
           <div class="actions">
+            {isDefault ? null : (
+              <button type="button" class="reset-button" onClick={reset} title={t("view.resetHint")}>
+                <Icon name="reset" />
+                {t("view.reset")}
+              </button>
+            )}
             <button type="button" class={view.filters.length ? "filter-button on" : "filter-button"} onClick={() => setFiltering(true)}>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2.5 3.5h11M4.5 8h7M6.5 12.5h3" />

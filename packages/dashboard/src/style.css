@@ -1306,6 +1306,30 @@ button.name:hover {
   border-color: var(--faint);
 }
 
+/* Shown only when the view differs from the default; quieter than the controls beside it. */
+.reset-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.reset-button:hover {
+  color: var(--ink);
+  background: var(--sunk);
+}
+
+.reset-button .icon {
+  width: 15px;
+  height: 15px;
+}
+
 .filter-button.on {
   border-color: var(--ink);
 }

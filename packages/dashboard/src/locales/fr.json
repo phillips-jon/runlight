@@ -349,5 +349,7 @@
   "import.soFar_other": "{n} liens importés pour l'instant",
   "import.moveNote": "Les liens sur le domaine du service (bit.ly, dub.sh, rebrand.ly, short.gy) passent sur {fallback} avec le même identifiant ; les domaines personnalisés sont ajoutés dans Domaines personnalisés.",
   "prompt.title": "Vous utilisez un assistant de code ?",
-  "compare.allTime": "Rien ne précède le début : il n'y a rien à comparer."
+  "compare.allTime": "Rien ne précède le début : il n'y a rien à comparer.",
+  "view.reset": "Réinitialiser",
+  "view.resetHint": "Revenir aux 30 derniers jours, sans filtre ni comparaison"
 }
