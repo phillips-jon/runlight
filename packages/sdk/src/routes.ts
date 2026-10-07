@@ -5,6 +5,7 @@ import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
 import { LINK_DOMAIN_CHECK, type RequestContext, type Runlight } from "./runlight.js";
 import type { ShareRow, SiteRow, TokenRow } from "./store.js";
 import { mcpResponse } from "./mcp.js";
+import { oauthResponse, resourceMetadataUrl } from "./oauth.js";
 import { csv, zip } from "./zip.js";
 import { DIMENSIONS } from "./query.js";
 import { randomId } from "./hash.js";
@@ -52,6 +53,8 @@ export interface RoutesOptions {
   observeKey?: string;
   /** A link to sign out, shown in the dashboard's footer. The standalone server sets it. */
   signOut?: string;
+  /** Where an app connecting over OAuth sends the owner to sign in first. The standalone server sets it. */
+  signIn?: string;
   /** The standalone server's accounts: the dashboard offers an Account sheet and, to owners, a People section. */
   accounts?: boolean;
   /** Credits DB-IP in the dashboard's footer, as its free location data asks. The standalone server sets it. */
@@ -1115,8 +1118,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return json({ error: "Not found" }, 404);
   }
 
+  const oauth = { runlight, base, isOwner: async (request: Request) => (await canRead(request)) === true, ...(options.signIn ? { signIn: options.signIn } : {}) };
+
   const handler: FetchHandler = async (request, context = {}) => {
     const url = new URL(request.url);
+    // OAuth clients look for these at the site's root; an app routes them here when it wants OAuth.
+    if (base && url.pathname.startsWith("/.well-known/oauth-")) return (await oauthResponse(oauth, request, url.pathname, url)) ?? json({ error: "Not found" }, 404);
     if (base && url.pathname !== base && !url.pathname.startsWith(`${base}/`)) return json({ error: "Not found" }, 404);
     const path = url.pathname.slice(base.length) || "/";
 
@@ -1180,13 +1187,19 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
       if (path === "/api" || path.startsWith("/api/")) return await api(request, path, url);
 
+      if (path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-")) {
+        const answer = await oauthResponse(oauth, request, path, url);
+        if (answer) return answer;
+      }
+
       if (path === "/mcp") {
         // No server-sent stream and no sessions: every message is one POST.
         if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
         const access = await reader(request);
         if (access === false || access === "unconfigured") {
           const refused = denied(access);
-          refused.headers.set("www-authenticate", 'Bearer realm="runlight"');
+          // Points an OAuth client at the metadata that starts the sign-in.
+          refused.headers.set("www-authenticate", `Bearer realm="runlight", resource_metadata="${resourceMetadataUrl(url.origin, base)}"`);
           return refused;
         }
         // Each tool reads the HTTP API with the caller's own headers, so it sees what they may.

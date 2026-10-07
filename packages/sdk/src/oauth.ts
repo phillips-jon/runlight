@@ -1,0 +1,202 @@
+/**
+ * OAuth for the MCP server, so apps that connect only through OAuth (the
+ * Claude and ChatGPT web connectors) can reach it. Runlight is both the
+ * resource and the authorization server:
+ *
+ * - /.well-known/oauth-protected-resource names the MCP endpoint and this server.
+ * - /.well-known/oauth-authorization-server lists the endpoints below.
+ * - POST /oauth/register lets a client register itself (public clients, no secret).
+ * - /oauth/authorize asks the signed-in owner to allow the client, every site or one.
+ * - POST /oauth/token swaps the one-time code, checked with PKCE, for a token.
+ *
+ * The token is an ordinary read-only API token, so it appears in Settings,
+ * API and AI, beside the others, and deleting it there disconnects the app.
+ */
+import { randomId, sha256 } from "./hash.js";
+import type { Runlight } from "./runlight.js";
+import type { TokenRow } from "./store.js";
+
+interface Client {
+  name: string;
+  redirects: string[];
+  createdAt: number;
+}
+
+interface Code {
+  client: string;
+  redirect: string;
+  challenge: string;
+  site: string;
+  expires: number;
+}
+
+const CODE_MS = 5 * 60_000;
+const MAX_CLIENTS = 200;
+
+const esc = (value: string) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+
+const CORS = { "access-control-allow-origin": "*", "access-control-allow-headers": "authorization, content-type, mcp-protocol-version", "access-control-allow-methods": "GET, POST, OPTIONS" };
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...CORS } });
+}
+
+const oauthError = (error: string, description: string, status = 400) => json({ error, error_description: description }, status);
+
+/** base64url of SHA-256, as PKCE's S256 method compares. */
+async function s256(verifier: string): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  let text = "";
+  for (const b of digest) text += String.fromCharCode(b);
+  return btoa(text).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/** Redirect addresses a client may register: https, or a local app's own loopback address. */
+const allowedRedirect = (value: string) => /^https:\/\/[^/]+/.test(value) || /^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//.test(value);
+
+export interface OAuthContext {
+  runlight: Runlight;
+  base: string;
+  /** Whether the request comes from the signed-in owner. */
+  isOwner: (request: Request) => Promise<boolean>;
+  /** Where to send someone to sign in, when there is such a page (the standalone server's). */
+  signIn?: string;
+}
+
+/** The URL that a 401 from the MCP endpoint points clients at, to start OAuth. */
+export const resourceMetadataUrl = (origin: string, base: string) => `${origin}${base}/.well-known/oauth-protected-resource`;
+
+/**
+ * Answers the OAuth paths, or returns null for anything else. `path` is
+ * relative to the routes' base; the two well-known documents are also answered
+ * at the site's root (`/.well-known/...`) for clients that look there.
+ */
+export async function oauthResponse(ctx: OAuthContext, request: Request, path: string, url: URL): Promise<Response | null> {
+  const { runlight, base } = ctx;
+  const issuer = `${url.origin}${base}`;
+  const known = path;
+  if (request.method === "OPTIONS" && (known.startsWith("/.well-known/oauth-") || path.startsWith("/oauth/"))) return new Response(null, { status: 204, headers: CORS });
+
+  if (known.startsWith("/.well-known/oauth-protected-resource")) {
+    return json({ resource: `${issuer}/mcp`, authorization_servers: [issuer], scopes_supported: ["read"], bearer_methods_supported: ["header"] });
+  }
+  if (known.startsWith("/.well-known/oauth-authorization-server") || known.startsWith("/.well-known/openid-configuration")) {
+    return json({
+      issuer,
+      authorization_endpoint: `${issuer}/oauth/authorize`,
+      token_endpoint: `${issuer}/oauth/token`,
+      registration_endpoint: `${issuer}/oauth/register`,
+      response_types_supported: ["code"],
+      grant_types_supported: ["authorization_code"],
+      code_challenge_methods_supported: ["S256"],
+      token_endpoint_auth_methods_supported: ["none"],
+      scopes_supported: ["read"],
+    });
+  }
+
+  if (path === "/oauth/register" && request.method === "POST") {
+    await runlight.init();
+    const body = (await request.json().catch(() => null)) as { client_name?: unknown; redirect_uris?: unknown } | null;
+    const redirects = Array.isArray(body?.redirect_uris) ? body!.redirect_uris.map(String).filter(allowedRedirect).slice(0, 10) : [];
+    if (!redirects.length) return oauthError("invalid_redirect_uri", "Register at least one https redirect address");
+    const clients = await runlight.store.settingsStartingWith("oauth-client:");
+    if (clients.length >= MAX_CLIENTS) return oauthError("invalid_client_metadata", "This Runlight has too many registered apps", 429);
+    const id = randomId(16);
+    const client: Client = { name: String(body?.client_name ?? "An app").trim().slice(0, 80) || "An app", redirects, createdAt: runlight.now() };
+    await runlight.store.setSetting(`oauth-client:${id}`, JSON.stringify(client));
+    return json({ client_id: id, client_name: client.name, redirect_uris: redirects, token_endpoint_auth_method: "none", grant_types: ["authorization_code"], response_types: ["code"] }, 201);
+  }
+
+  if (path === "/oauth/authorize" && (request.method === "GET" || request.method === "POST")) {
+    await runlight.init();
+    const form = request.method === "POST" ? new URLSearchParams(await request.text()) : url.searchParams;
+    const clientId = form.get("client_id") ?? "";
+    const stored = /^[a-f0-9]{32}$/.test(clientId) ? await runlight.store.setting(`oauth-client:${clientId}`) : null;
+    const client = stored ? (JSON.parse(stored) as Client) : null;
+    const redirect = form.get("redirect_uri") ?? "";
+    // Without a known client and one of its own addresses there is nowhere safe to send an answer.
+    if (!client || !client.redirects.includes(redirect)) return page("This app is not registered", "<p>Start connecting again from the app.</p>", 400);
+    const back = (params: Record<string, string>) => {
+      const to = new URL(redirect);
+      for (const [k, v] of Object.entries(params)) to.searchParams.set(k, v);
+      const state = form.get("state");
+      if (state) to.searchParams.set("state", state);
+      return new Response(null, { status: 303, headers: { location: to.toString(), "cache-control": "no-store" } });
+    };
+    if (form.get("response_type") !== "code") return back({ error: "unsupported_response_type" });
+    const challenge = form.get("code_challenge") ?? "";
+    if (form.get("code_challenge_method") !== "S256" || !/^[A-Za-z0-9_-]{43,128}$/.test(challenge)) return back({ error: "invalid_request", error_description: "PKCE with S256 is required" });
+
+    if (!(await ctx.isOwner(request))) {
+      const here = `${url.pathname}?${new URLSearchParams([...form.entries()].filter(([k]) => k !== "decision" && k !== "site")).toString()}`;
+      if (ctx.signIn) return new Response(null, { status: 303, headers: { location: `${ctx.signIn}?next=${encodeURIComponent(here)}`, "cache-control": "no-store" } });
+      return page("Sign in first", `<p>Open your Runlight dashboard at <a href="${esc(base || "/")}">${esc(url.host + (base || "/"))}</a> and sign in, then connect ${esc(client.name)} again.</p>`, 401);
+    }
+
+    if (request.method === "GET") {
+      const hidden = ["response_type", "client_id", "redirect_uri", "code_challenge", "code_challenge_method", "state", "scope", "resource"]
+        .map((k) => (form.get(k) !== null ? `<input type="hidden" name="${k}" value="${esc(form.get(k)!)}">` : ""))
+        .join("");
+      const options = runlight.sites.map((s) => `<option value="${esc(s.id)}">${esc(s.name)} only</option>`).join("");
+      return page(
+        `Connect ${esc(client.name)}`,
+        `<p><strong>${esc(client.name)}</strong> wants to read your Runlight stats so it can answer questions about them. It will be able to read and never to change anything.</p>
+<form method="post" action="${esc(base)}/oauth/authorize">${hidden}
+<label>Which sites it can read<select name="site"><option value="">Every site</option>${runlight.sites.length > 1 ? options : ""}</select></label>
+<p class="note">Its token appears in Settings, API and AI, where deleting it disconnects the app.</p>
+<div class="buttons"><button type="submit" name="decision" value="deny" class="ghost">Deny</button><button type="submit" name="decision" value="allow">Allow</button></div></form>`,
+      );
+    }
+    // The consent form posts here from this page only; a form from another site is refused.
+    const origin = request.headers.get("origin");
+    if (origin && origin !== url.origin) return page("This request came from another site", "<p>Start connecting again from the app.</p>", 403);
+    if (form.get("decision") !== "allow") return back({ error: "access_denied" });
+    const site = form.get("site") ?? "";
+    if (site && !runlight.site(site)) return back({ error: "invalid_request", error_description: "Unknown site" });
+    const code = randomId(32);
+    const grant: Code = { client: clientId, redirect, challenge, site, expires: runlight.now() + CODE_MS };
+    await runlight.store.setSetting(`oauth-code:${await sha256(code)}`, JSON.stringify(grant));
+    return back({ code });
+  }
+
+  if (path === "/oauth/token" && request.method === "POST") {
+    await runlight.init();
+    const type = (request.headers.get("content-type") ?? "").split(";")[0]!.trim();
+    const form = type === "application/json" ? new URLSearchParams(Object.entries(((await request.json().catch(() => ({}))) as Record<string, string>) ?? {})) : new URLSearchParams(await request.text());
+    if (form.get("grant_type") !== "authorization_code") return oauthError("unsupported_grant_type", "Only authorization_code is supported");
+    const key = `oauth-code:${await sha256(form.get("code") ?? "")}`;
+    const stored = await runlight.store.setting(key);
+    // A code works once: it is gone before anything else is checked.
+    if (stored) await runlight.store.setSetting(key, null);
+    const grant = stored ? (JSON.parse(stored) as Code) : null;
+    if (!grant || grant.expires < runlight.now()) return oauthError("invalid_grant", "The code has expired or was already used");
+    if (grant.client !== form.get("client_id") || grant.redirect !== form.get("redirect_uri")) return oauthError("invalid_grant", "The code was issued to another app");
+    if ((await s256(form.get("code_verifier") ?? "")) !== grant.challenge) return oauthError("invalid_grant", "The code verifier does not match");
+    const client = JSON.parse((await runlight.store.setting(`oauth-client:${grant.client}`)) ?? "{}") as Partial<Client>;
+    const secret = `rl_${randomId(20)}`;
+    const row: TokenRow = { id: randomId(), name: `${client.name ?? "An app"} (OAuth)`.slice(0, 100), site: grant.site, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
+    await runlight.store.insertToken(row);
+    return json({ access_token: secret, token_type: "Bearer", scope: "read" });
+  }
+
+  return null;
+}
+
+function page(title: string, body: string, status = 200): Response {
+  return new Response(
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${title} | Runlight</title>
+<style>:root{color-scheme:light dark;--page:#f4f4f5;--card:#fff;--ink:#111827;--muted:#4b5563;--line:#e5e7eb}@media (prefers-color-scheme:dark){:root{--page:#09090b;--card:#141417;--ink:#fafafa;--muted:#a1a1aa;--line:#27272a}}body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--page);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}main{width:min(440px,calc(100% - 32px));padding:28px;background:var(--card);border:1px solid var(--line);border-radius:14px}h1{font-size:20px;margin:0 0 12px}p{margin:0 0 16px;color:var(--muted)}p strong{color:var(--ink)}a{color:inherit}label{display:block;margin:0 0 14px;font-size:13px;font-weight:600}select{display:block;width:100%;height:40px;margin-top:6px;padding:0 36px 0 12px;border:1px solid var(--line);border-radius:8px;background:var(--card) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4' fill='none' stroke='%238a8a93' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") right 12px center/14px no-repeat;color:var(--ink);font:inherit;font-weight:400;appearance:none;cursor:pointer}.note{font-size:13px}.buttons{display:flex;justify-content:flex-end;gap:8px}button{height:40px;padding:0 18px;border:0;border-radius:8px;background:var(--ink);color:var(--card);font:inherit;font-weight:600;cursor:pointer}button.ghost{background:none;color:var(--ink);border:1px solid var(--line)}</style></head><body><main><h1>${title}</h1>${body}</main></body></html>`,
+    {
+      status,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        // No form-action rule: browsers apply it to the redirect back to the app after Allow.
+        "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; frame-ancestors 'none'",
+        "x-frame-options": "DENY",
+        // same-origin, not no-referrer: under no-referrer a form post carries Origin: null, which the consent check refuses.
+        "referrer-policy": "same-origin",
+      },
+    },
+  );
+}

@@ -101,6 +101,7 @@ export function createServer(options: ServerOptions): RunlightServer {
     // The cron route is never needed: the server runs the check itself.
     cronSecret: randomBytes(32).toString("hex"),
     signOut: "/logout",
+    signIn: "/login",
     geoCredit: options.geoCredit ?? false,
     accounts: true,
     authorize: async (request) => {

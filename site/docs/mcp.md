@@ -68,7 +68,19 @@ For **VS Code**, add this to `.vscode/mcp.json`.
 }
 ```
 
-Any other client that speaks MCP over Streamable HTTP and can send a header works the same way. Apps that only connect with OAuth, like the connectors in the Claude and ChatGPT web apps, cannot send a token yet.
+Any other client that speaks MCP over Streamable HTTP and can send a header works the same way.
+
+## Connecting with OAuth
+
+The connectors in the Claude and ChatGPT web apps sign in with OAuth instead of a pasted token, and Runlight supports that too. Add your MCP server address as a custom connector. The app sends you to a Runlight page that asks you to allow it, after you sign in if you need to, and lets you limit it to one site. It then gets a read-only token of its own, which appears in **Settings**, **API and AI** with "(OAuth)" after its name. Deleting it there disconnects the app.
+
+The standalone server needs nothing more. Inside your own app, OAuth clients also look for two documents at your site's root, so route `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource` to Runlight as well. In Next.js that is one more route file.
+
+```ts file=app/.well-known/[...path]/route.ts
+import { rl } from "@/lib/runlight";
+export const { GET, OPTIONS } = rl.routes();
+```
+
 
 ## What it can answer
 
