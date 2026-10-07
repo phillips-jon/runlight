@@ -291,26 +291,40 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .chip .glyph { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 :root[data-theme="dark"] .chip img.inv { filter: invert(1); }
 
-/* The opening's art: pieces of a real dashboard, stacked a little askew and
-   running out past the sheet's edge, the way preflight.sh's rocket flies out. */
+/* The opening's art: four small cards of what Runlight notices, floating in
+   perspective and slightly overlapping, after activebuilders.dev's hero. */
 .opening { position: relative; }
-.opening > :not(.stack) { position: relative; z-index: 1; }
-.opening .say { max-width: 15.5em; }
+.opening > :not(.floaters) { position: relative; z-index: 1; }
+.opening .say { max-width: 16em; }
 .opening .then { max-width: 46ch; }
-.stack { position: absolute; z-index: 0; top: 56px; right: calc(-1 * clamp(20px, 4vw, 56px) - 260px); width: 760px; height: 560px; pointer-events: none; user-select: none; }
-.piece { position: absolute; margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--rule-2); box-shadow: 0 24px 60px rgba(0, 0, 0, .18), 0 2px 6px rgba(0, 0, 0, .08); }
-:root[data-theme="dark"] .piece { box-shadow: 0 24px 60px rgba(0, 0, 0, .55), 0 2px 6px rgba(0, 0, 0, .4); }
-.piece img { display: block; width: 100%; height: auto; }
-.piece.back { top: 0; left: 120px; width: 640px; transform: rotate(-2.5deg); }
-.piece.side { top: 214px; left: 50px; width: 262px; transform: rotate(1.5deg); }
-.piece.front { top: 150px; left: 0; width: 210px; transform: rotate(-4deg); }
-@media (prefers-reduced-motion: no-preference) {
-  .piece { animation: piece-in .9s cubic-bezier(.2, .7, .2, 1) both; }
-  .piece.side { animation-delay: .12s; }
-  .piece.front { animation-delay: .24s; }
-  @keyframes piece-in { from { opacity: 0; translate: 40px 24px; } }
+.floaters { position: absolute; z-index: 0; top: 40px; right: 0; width: 470px; height: 520px; pointer-events: none; user-select: none; perspective: 1400px; perspective-origin: 85% 15%; }
+.floaters-scene { position: absolute; inset: 0; transform-style: preserve-3d; animation: float-scene 22s ease-in-out infinite; }
+.floater { position: absolute; right: 0; top: 0; width: 250px; transform-style: preserve-3d; border: 1px solid var(--rule-2); border-radius: 6px; background: var(--sheet); overflow: hidden; box-shadow: 0 20px 40px -20px rgba(0, 0, 0, .25); }
+:root[data-theme="dark"] .floater { box-shadow: 0 24px 50px -18px rgba(0, 0, 0, .7); }
+.floater.f0 { transform: translate3d(0, 0, 0) rotateY(-22deg) rotateX(8deg) rotateZ(-5deg); box-shadow: 0 30px 60px -20px rgba(0, 0, 0, .3); animation: float-bob 6s ease-in-out infinite; }
+.floater.f1 { transform: translate3d(-46px, 96px, -70px) rotateY(-22deg) rotateX(8deg) rotateZ(-5deg); opacity: .96; animation: float-bob 6.4s ease-in-out .45s infinite; }
+.floater.f2 { transform: translate3d(-92px, 210px, -140px) rotateY(-22deg) rotateX(8deg) rotateZ(-5deg); opacity: .92; animation: float-bob 6.8s ease-in-out .9s infinite; }
+.floater.f3 { transform: translate3d(-138px, 312px, -210px) rotateY(-22deg) rotateX(8deg) rotateZ(-5deg); opacity: .88; animation: float-bob 7.2s ease-in-out 1.35s infinite; }
+.floater-head { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-bottom: 1px solid var(--rule); font-size: 13px; }
+.floater-label { font-weight: 700; }
+.floater-sub { color: var(--muted); flex: 1; }
+.dot { position: relative; width: 7px; height: 7px; border-radius: 50%; background: var(--rule-2); flex: none; }
+.dot.on { background: #22c55e; box-shadow: 0 0 0 3px rgba(34, 197, 94, .25); animation: float-pulse 2.4s ease-in-out infinite; }
+.floater-body { padding: 11px 14px 12px; }
+.floater-line { margin: 0; font-size: 14px; line-height: 1.35; color: var(--body); }
+.floater-line b { color: var(--ink); font-weight: 700; }
+.floater-line .big { font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+.floater-line .up { font: 400 12px var(--mono); color: var(--ok); }
+.floater .spark { display: block; width: 100%; height: 28px; margin-top: 6px; }
+.floater .spark path { fill: none; stroke: #2a78d6; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
+.floater-tag { margin: 8px 0 0; font: 400 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+@keyframes float-scene { 0%, 100% { transform: rotateX(2deg) rotateY(-3deg); } 50% { transform: rotateX(-1deg) rotateY(4deg); } }
+@keyframes float-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+@keyframes float-pulse { 50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, .08); } }
+@media (prefers-reduced-motion: reduce) {
+  .floaters-scene, .floater, .dot.on { animation: none; }
 }
 @media (max-width: 1100px) {
-  .stack { display: none; }
+  .floaters { display: none; }
   .opening .say { max-width: 21em; }
 }
