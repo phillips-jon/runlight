@@ -131,7 +131,7 @@ export function Calendar({ from, to, today, onApply, onCancel, applyLabel }: {
   );
 }
 
-function useFlyout() {
+export function useFlyout() {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -149,7 +149,7 @@ function useFlyout() {
   return { open, setOpen, root };
 }
 
-const Chevron = () => (
+export const Chevron = () => (
   <svg class="chev" viewBox="0 0 16 16" aria-hidden="true">
     <path d="M4 6l4 4 4-4" />
   </svg>

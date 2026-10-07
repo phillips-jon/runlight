@@ -538,7 +538,6 @@
   "sites.namePlaceholder": "Mi blog",
   "sites.timezoneHint": "Los días se cuentan en {zone}, y puedes cambiarlo luego en Ajustes.",
   "sites.add": "Añadir sitio",
-  "sites.addOption": "Añadir un sitio…",
   "sites.addTitle": "Añadir un sitio",
   "sites.firstTitle": "Añade tu primer sitio",
   "sites.firstLead": "Runlight cuenta cada sitio que añadas aquí. Escribe el dominio del sitio y la siguiente pantalla te mostrará la etiqueta de script para sus páginas.",

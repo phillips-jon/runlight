@@ -8,7 +8,7 @@ import { Icon } from "./icons.js";
 import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type Key } from "./i18n.js";
 import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey } from "./metrics.js";
 import { LinksPanel, Sheet } from "./links.js";
-import { AddSiteForm, FirstSite } from "./sites.js";
+import { AddSiteForm, FirstSite, SiteMenu } from "./sites.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
 import { RealtimeModal } from "./realtime.js";
@@ -90,15 +90,17 @@ function Delta({ now, before, lowerIsBetter }: { now: number; before: number | u
 }
 
 function Avatar({ site }: { site: Site }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [site.id]);
+  // Remembers which site's icon failed. A failure cached by the browser can fire
+  // before any effect runs, so resetting a flag in an effect would lose it.
+  const [failedFor, setFailedFor] = useState<string | null>(null);
+  const failed = failedFor === site.id;
   const letter = (site.name.replace(/^www\./, "")[0] ?? "R").toUpperCase();
   return failed ? (
     <span class="avatar letter" aria-hidden="true">
       {letter}
     </span>
   ) : (
-    <img class="avatar" src={`${base}/api/icon?site=${encodeURIComponent(site.id)}`} alt="" width={40} height={40} onError={() => setFailed(true)} />
+    <img class="avatar" src={`${base}/api/icon?site=${encodeURIComponent(site.id)}`} alt="" width={40} height={40} onError={() => setFailedFor(site.id)} />
   );
 }
 
@@ -288,24 +290,13 @@ function App() {
             </button>
             <div class="identity-text">
               {sites && (sites.length > 1 || (install.managed && !share)) ? (
-                <label class="site-select">
-                  <span class="visually-hidden">{t("app.site")}</span>
-                  <select
-                    value={site?.id}
-                    onChange={(e) => {
-                      const select = e.target as HTMLSelectElement;
-                      if (select.value === "__add") {
-                        select.value = site?.id ?? "";
-                        setAddingSite(true);
-                      } else update({ site: select.value, filters: [] });
-                    }}
-                  >
-                    {sites.map((x) => (
-                      <option value={x.id}>{x.name}</option>
-                    ))}
-                    {install.managed && !share ? <option value="__add">{t("sites.addOption")}</option> : null}
-                  </select>
-                </label>
+                <SiteMenu
+                  sites={sites}
+                  current={site}
+                  canAdd={install.managed && !share}
+                  onPick={(id) => update({ site: id, filters: [] })}
+                  onAdd={() => setAddingSite(true)}
+                />
               ) : (
                 <h1>
                   <button type="button" class="home" title={t("app.home")} onClick={reset}>
