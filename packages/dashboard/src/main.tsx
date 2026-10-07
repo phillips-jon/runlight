@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import { ApiError, api, base, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
-import { Chart, Spark } from "./chart.js";
+import { Chart, Spark, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
 import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type Key } from "./i18n.js";
@@ -349,7 +349,13 @@ function App() {
           </span>
         </div>
         {stats ? (
-          <Chart points={points} previous={previousPoints} metrics={shownMetrics} interval={stats.range.interval} timezone={stats.range.timezone} />
+          <Chart
+            points={points as unknown as Array<{ start: number } & Record<string, number>>}
+            previous={previousPoints as unknown as Array<{ start: number } & Record<string, number>> | undefined}
+            metrics={shownMetrics.map(asSeries)}
+            interval={stats.range.interval}
+            timezone={stats.range.timezone}
+          />
         ) : (
           <div class="chart" />
         )}

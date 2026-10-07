@@ -4,16 +4,30 @@ import { bucketLabel } from "./format.js";
 import { t } from "./i18n.js";
 import { MAX_FILLED, metricLabel, type MetricDef } from "./metrics.js";
 
-interface Props {
-  points: Point[];
-  /** The comparison period's points, by position, drawn dashed behind. */
-  previous?: Point[];
-  metrics: MetricDef[];
-  interval: string;
-  timezone: string;
+/** One line on the chart: which value of each point, its colour slot, and how to show it. */
+export interface Series {
+  key: string;
+  slot: number;
+  label: string;
+  format: (n: number) => string;
 }
 
-const HEIGHT = 300;
+type ChartPoint = { start: number } & Record<string, number>;
+
+interface Props {
+  points: ChartPoint[];
+  /** The comparison period's points, by position, drawn dashed behind. */
+  previous?: ChartPoint[];
+  metrics: Series[];
+  interval: string;
+  timezone: string;
+  /** Several lines on one axis, for series in the same unit (clicks and visitors). */
+  shared?: boolean;
+  height?: number;
+}
+
+/** A dashboard metric as a chart series. */
+export const asSeries = (m: MetricDef): Series => ({ key: m.key, slot: m.slot, label: metricLabel(m), format: m.format });
 const PAD = { top: 18, right: 14, bottom: 30, left: 52 };
 
 /** A round top for the axis. */
@@ -32,7 +46,8 @@ function niceMax(value: number): number {
  * that visitors and a bounce rate share a unit; the tooltip gives the
  * real values.
  */
-export function Chart({ points, previous, metrics, interval, timezone }: Props) {
+export function Chart({ points, previous, metrics, interval, timezone, shared, height = 300 }: Props) {
+  const HEIGHT = height;
   const box = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
   const [hover, setHover] = useState<number | null>(null);
@@ -45,15 +60,18 @@ export function Chart({ points, previous, metrics, interval, timezone }: Props) 
     return () => observer.disconnect();
   }, []);
 
-  const single = metrics.length === 1 ? metrics[0] : undefined;
+  // One axis when there is one line, or several in the same unit.
+  const single = metrics.length === 1 || shared ? metrics[0] : undefined;
   const pad = { ...PAD, left: single ? PAD.left : 16 };
   const innerW = width - pad.left - pad.right;
   const innerH = HEIGHT - pad.top - pad.bottom;
   const step = points.length > 1 ? innerW / (points.length - 1) : 0;
   const x = (i: number) => pad.left + (points.length > 1 ? i * step : innerW / 2);
   const before = previous ?? [];
-  const tops = new Map(metrics.map((m) => [m.key, niceMax(Math.max(0, ...points.map((p) => p[m.key]), ...before.map((p) => p[m.key])))]));
-  const y = (m: MetricDef, v: number) => pad.top + innerH - (v / (tops.get(m.key) ?? 1)) * innerH;
+  const peak = (m: Series) => Math.max(0, ...points.map((p) => p[m.key] ?? 0), ...before.map((p) => p[m.key] ?? 0));
+  const common = niceMax(Math.max(0, ...metrics.map(peak)));
+  const tops = new Map(metrics.map((m) => [m.key, shared ? common : niceMax(peak(m))]));
+  const y = (m: Series, v: number) => pad.top + innerH - ((v ?? 0) / (tops.get(m.key) ?? 1)) * innerH;
   const baseline = pad.top + innerH;
   const labelEvery = Math.max(1, Math.ceil(points.length / Math.max(2, Math.floor(innerW / 92))));
 
@@ -68,7 +86,7 @@ export function Chart({ points, previous, metrics, interval, timezone }: Props) 
 
   return (
     <div class="chart" ref={box}>
-      <svg width={width} height={HEIGHT} role="img" aria-label={t("chart.label", { metrics: metrics.map(metricLabel).join(", ") })} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
+      <svg width={width} height={HEIGHT} role="img" aria-label={t("chart.label", { metrics: metrics.map((m) => m.label).join(", ") })} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
         {gridFractions.map((f) => (
           <line class={f === 0 ? "gridline base" : "gridline"} x1={pad.left} x2={width - pad.right} y1={baseline - f * innerH} y2={baseline - f * innerH} />
         ))}
@@ -88,15 +106,15 @@ export function Chart({ points, previous, metrics, interval, timezone }: Props) 
         )}
         {metrics.map((m) => {
           if (before.length < 2) return null;
-          const then = smooth(before.map((_, i) => x(i)), before.map((p) => y(m, p[m.key])));
+          const then = smooth(before.map((_, i) => x(i)), before.map((p) => y(m, p[m.key]!)));
           return <path class={`then s${m.slot}`} d={then} />;
         })}
         {metrics.map((m) => {
-          const line = smooth(points.map((_, i) => x(i)), points.map((p) => y(m, p[m.key])));
+          const line = smooth(points.map((_, i) => x(i)), points.map((p) => y(m, p[m.key]!)));
           const area = points.length ? `${line}L${x(points.length - 1).toFixed(1)},${baseline}L${x(0).toFixed(1)},${baseline}Z` : "";
           return (
             <g class={`series s${m.slot}`}>
-              {metrics.length <= MAX_FILLED ? <path class="area" d={area} /> : null}
+              {metrics.length <= MAX_FILLED && (!shared || m === metrics[0]) ? <path class="area" d={area} /> : null}
               <path class="line" d={line} />
             </g>
           );
@@ -105,7 +123,7 @@ export function Chart({ points, previous, metrics, interval, timezone }: Props) 
           <g>
             <line class="cursor" x1={x(hover)} x2={x(hover)} y1={pad.top} y2={baseline} />
             {metrics.map((m) => (
-              <circle class={`dot s${m.slot}`} cx={x(hover)} cy={y(m, hovered[m.key])} r={4.5} />
+              <circle class={`dot s${m.slot}`} cx={x(hover)} cy={y(m, hovered[m.key]!)} r={4.5} />
             ))}
           </g>
         ) : null}
@@ -118,9 +136,9 @@ export function Chart({ points, previous, metrics, interval, timezone }: Props) 
             return (
               <span class="tip-row">
                 <span class={`swatch s${m.slot}`} />
-                <span class="tip-label">{metricLabel(m)}</span>
-                <strong>{m.format(hovered[m.key])}</strong>
-                {then ? <span class="tip-then">{m.format(then[m.key])}</span> : null}
+                <span class="tip-label">{m.label}</span>
+                <strong>{m.format(hovered[m.key] ?? 0)}</strong>
+                {then ? <span class="tip-then">{m.format(then[m.key] ?? 0)}</span> : null}
               </span>
             );
           })}

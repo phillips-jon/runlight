@@ -311,5 +311,6 @@
   "prompt.domainHint": "¿Usas un asistente de código? Copia estos pasos, con tus direcciones ya puestas, y pégaselos.",
   "prompt.installHint": "¿Usas un asistente de código? Copia los pasos de instalación y pégaselos.",
   "links.showing": "Mostrando {shown} de {total}",
-  "links.showMore": "Mostrar {n} más"
+  "links.showMore": "Mostrar {n} más",
+  "links.clicksLabel": "Clics"
 }

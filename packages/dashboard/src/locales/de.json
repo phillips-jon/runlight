@@ -311,5 +311,6 @@
   "prompt.domainHint": "Nutzt du einen Coding-Assistenten? Kopiere diese Schritte mit deinen Adressen und füge sie dort ein.",
   "prompt.installHint": "Nutzt du einen Coding-Assistenten? Kopiere die Einrichtungsschritte und füge sie dort ein.",
   "links.showing": "{shown} von {total} angezeigt",
-  "links.showMore": "{n} weitere anzeigen"
+  "links.showMore": "{n} weitere anzeigen",
+  "links.clicksLabel": "Klicks"
 }

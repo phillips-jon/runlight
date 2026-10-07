@@ -2541,26 +2541,11 @@ h1 .home:hover {
 }
 
 .link-chart {
-  display: block;
-  width: 100%;
-  height: 150px;
+  margin: 0 -4px 20px;
 }
 
-.link-chart .spark-area {
-  fill-opacity: 0.12;
-}
-
-.link-chart .spark-line {
-  stroke-opacity: 0.9;
-  stroke-width: 2;
-}
-
-.link-axis {
-  display: flex;
-  justify-content: space-between;
-  margin: 4px 0 22px;
-  font: 11px var(--mono);
-  color: var(--faint);
+.link-chart .chart {
+  min-height: 240px;
 }
 
 .mini-grid {

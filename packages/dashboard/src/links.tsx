@@ -1,8 +1,8 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { api, type Link, type LinkStats, type Row, type View } from "./api.js";
-import { smooth } from "./chart.js";
-import { bucketLabel, count, countryName, flag } from "./format.js";
+import { Chart } from "./chart.js";
+import { count, countryName, flag } from "./format.js";
 import { t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
 import { Icon } from "./icons.js";
@@ -220,12 +220,10 @@ export function LinkDetail({ view, id, prefix, domains, onClose }: { view: View;
     api.link(view, id).then(setStats).catch((e: Error) => setError(e.message));
   }, [view, id]);
   const address = stats ? shortUrl(stats.link, prefix, domains) : "";
-  const w = 640;
-  const h = 150;
-  const max = stats ? Math.max(1, ...stats.series.map((p) => p.clicks)) : 1;
-  const xs = stats ? stats.series.map((_, i) => (i / Math.max(1, stats.series.length - 1)) * w) : [];
-  const ys = stats ? stats.series.map((p) => h - 4 - (p.clicks / max) * (h - 16)) : [];
-  const line = smooth(xs, ys);
+  const series = [
+    { key: "clicks", slot: 1, label: t("links.clicksLabel"), format: count },
+    { key: "visitors", slot: 2, label: t("metric.visitors"), format: count },
+  ];
   return (
     <Sheet title={stats?.link.name ?? t("common.loading")} sub={stats ? tn("links.total", stats.clicks, { n: count(stats.clicks) }) : undefined} wide onClose={onClose}>
       <div class="sheet-body">
@@ -247,13 +245,8 @@ export function LinkDetail({ view, id, prefix, domains, onClose }: { view: View;
               </p>
             </div>
             <h3 class="mini-title">{t("links.clicksOverTime")}</h3>
-            <svg class="link-chart s1" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label={t("links.clicksOverTime")}>
-              <path class="spark-area" d={`${line}L${w},${h}L0,${h}Z`} />
-              <path class="spark-line" d={line} vector-effect="non-scaling-stroke" />
-            </svg>
-            <div class="link-axis">
-              <span>{stats.series[0] ? bucketLabel(stats.series[0].start, stats.range.interval, stats.range.timezone) : ""}</span>
-              <span>{stats.series.length ? bucketLabel(stats.series[stats.series.length - 1]!.start, stats.range.interval, stats.range.timezone) : ""}</span>
+            <div class="link-chart">
+              <Chart points={stats.series} metrics={series} interval={stats.range.interval} timezone={stats.range.timezone} shared height={240} />
             </div>
             <div class="mini-grid">
               <MiniList title="links.sources" rows={stats.sources} dimension="source" />
