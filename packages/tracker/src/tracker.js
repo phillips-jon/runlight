@@ -10,6 +10,8 @@
 //   data-dnt               honour Do Not Track
 //   data-outbound="false"  do not record outbound link clicks
 //   data-downloads="false" do not record file downloads
+//
+// The server swaps the string below for each site's click goals.
 (function () {
   var w = window;
   var d = document;
@@ -24,6 +26,17 @@
   var site = attr("site");
   var useHash = attr("hash") !== null;
   var queued = (w.runlight && w.runlight.q) || [];
+  var all = "__RUNLIGHT_RULES__";
+  var rules = (typeof all === "object" && (all[site] || all[location.hostname.replace(/^www\./, "")] || all["*"])) || [];
+
+  // ?runlight=pick, opened from the dashboard, loads the element picker and counts nothing.
+  if (/[?&]runlight=pick\b/.test(location.search) && w.opener) {
+    var picker = d.createElement("script");
+    picker.src = script.src.replace(/s\.js(\?.*)?$/, "pick.js");
+    d.head.appendChild(picker);
+    w.runlight = function () {};
+    return;
+  }
 
   // ?runlight=ignore stops counting this browser on this site;
   // ?runlight=track starts again. The owner's opt-out, never a visitor id.
@@ -157,6 +170,22 @@
       var target = event.target;
       if (!target || !target.closest) return;
 
+      var link = target.closest("a[href]");
+      // Click goals from the dashboard: a CSS selector, or a link whose address matches.
+      for (var r = 0; r < rules.length; r++) {
+        try {
+          var rule = rules[r];
+          var match = rule[1];
+          if (
+            rule[0] === "s"
+              ? target.closest(match)
+              : link &&
+                new RegExp("^" + match.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$").test(match.charAt(0) === "/" ? link.pathname : link.href)
+          )
+            track(rule[2]);
+        } catch (e) {}
+      }
+
       var tagged = target.closest("[data-runlight]");
       if (tagged) {
         var props = {};
@@ -167,7 +196,6 @@
         track(tagged.getAttribute("data-runlight"), props);
       }
 
-      var link = target.closest("a[href]");
       if (!link || tagged) return;
       var href = link.href;
       if (!/^https?:/.test(href)) return;

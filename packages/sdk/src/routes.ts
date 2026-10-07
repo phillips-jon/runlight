@@ -1,10 +1,11 @@
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
-import { TRACKER, TRACKER_HASH } from "./generated/tracker.js";
+import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
 import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
 import { LINK_DOMAIN_CHECK, type RequestContext, type Runlight } from "./runlight.js";
 import type { ShareRow, SiteRow } from "./store.js";
 import { randomId } from "./hash.js";
+import { GoalError, clickRules, goalFrom } from "./goals.js";
 import { fetchIcon } from "./icon.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { LinkError } from "./links.js";
@@ -118,7 +119,10 @@ const DASHBOARD = (base: string, share = "") => `<!doctype html>
 /** The header a shared dashboard sends its share id in. */
 const SHARE_HEADER = "x-runlight-share";
 /** What a share can read: one site's reports, nothing that changes anything. */
-const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown"]);
+const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals"]);
+const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[a-f0-9]{24}$/.test(path);
+/** Where the tracker's click rules go; the script ships with this string in their place. */
+const RULES_PLACEHOLDER = '"__RUNLIGHT_RULES__"';
 const SHARE_ID = /^[a-f0-9]{32}$/;
 
 const DASHBOARD_CSP =
@@ -342,6 +346,41 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return json({ error: "Not found" }, 404);
   }
 
+  // The tracker with each site's click rules inside, rebuilt when goals change.
+  let tracker: { body: string; etag: string; at: number } | null = null;
+  async function trackerScript(): Promise<{ body: string; etag: string }> {
+    if (tracker && runlight.now() - tracker.at < 60_000) return tracker;
+    await runlight.init();
+    const rules = JSON.stringify(clickRules(runlight.sites, await runlight.store.goals()));
+    const body = TRACKER.replace(RULES_PLACEHOLDER, rules);
+    tracker = { body, etag: `"${TRACKER_HASH}-${(await sha256(rules)).slice(0, 8)}"`, at: runlight.now() };
+    return tracker;
+  }
+
+  async function goalWrites(request: Request, path: string, url: URL): Promise<Response> {
+    await runlight.init();
+    const site = await querySite(url);
+    if (site instanceof Response) return site;
+    const existing = await runlight.store.goals(site.id);
+    const id = path === "/api/goals" ? undefined : decodeURIComponent(path.slice("/api/goals/".length));
+    if (id !== undefined && !existing.some((g) => g.id === id)) return json({ error: "Unknown goal" }, 404);
+    tracker = null;
+    if (request.method === "DELETE") {
+      await runlight.store.deleteGoal(id!);
+      return json({ ok: true });
+    }
+    const body = await readJson(request);
+    if (body instanceof Response) return body;
+    try {
+      const goal = goalFrom(body, site.id, existing, runlight.now(), id);
+      await runlight.store.saveGoal(goal);
+      return json({ goal }, id ? 200 : 201);
+    } catch (error) {
+      if (error instanceof GoalError) return json({ error: error.message }, 400);
+      throw error;
+    }
+  }
+
   async function sharesApi(request: Request, path: string, url: URL): Promise<Response> {
     await runlight.init();
     const site = await querySite(url);
@@ -396,6 +435,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return linksApi(request, path, url);
     }
 
+    if ((path === "/api/goals" && request.method === "POST") || (/^\/api\/goals\/[^/]+$/.test(path) && (request.method === "PATCH" || request.method === "DELETE"))) {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      return goalWrites(request, path, url);
+    }
+
     if (path === "/api/shares" || path.startsWith("/api/shares/")) {
       const access = await canRead(request);
       if (access !== true) return denied(access);
@@ -431,7 +476,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (shareId !== null) {
       shared = SHARE_ID.test(shareId) ? await runlight.store.shareById(shareId) : null;
       if (!shared) return json({ error: "This share link no longer works" }, 404);
-      if (!SHARED_PATHS.has(path)) return json({ error: "Not available on a shared dashboard" }, 403);
+      if (!sharedPath(path)) return json({ error: "Not available on a shared dashboard" }, 403);
     } else {
       const access = await canRead(request);
       if (access !== true) return denied(access);
@@ -485,6 +530,40 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return json({ site: site.id, range: rangeOut, compare: compareOut, stats, previous });
     }
 
+    if (path === "/api/goals") {
+      const goals = await runlight.store.goals(site.id);
+      const visitors = (await runlight.store.stats(query)).visitors;
+      const previousVisitors = compared ? (await runlight.store.stats({ ...query, from: compared.from, to: compared.to })).visitors : 0;
+      const rows = await Promise.all(
+        goals.map(async (goal) => {
+          const now = await runlight.store.goalTotals(query, goal);
+          const before = compared ? await runlight.store.goalTotals({ ...query, from: compared.from, to: compared.to }, goal) : undefined;
+          return {
+            ...goal,
+            ...now,
+            rate: visitors ? now.visitors / visitors : 0,
+            previous: before ? { ...before, rate: previousVisitors ? before.visitors / previousVisitors : 0 } : undefined,
+          };
+        }),
+      );
+      return json({ site: site.id, range: rangeOut, compare: compareOut, visitors, goals: rows });
+    }
+
+    const goalMatch = /^\/api\/goals\/([a-f0-9]{24})$/.exec(path);
+    if (goalMatch) {
+      const goal = await runlight.store.goalById(goalMatch[1]!);
+      if (!goal || goal.site !== site.id) return json({ error: "Unknown goal" }, 404);
+      const visitors = (await runlight.store.stats(query)).visitors;
+      const totals = await runlight.store.goalTotals(query, goal);
+      const [series, sources, channels, pages] = await Promise.all([
+        runlight.store.goalSeries(query, goal, buckets(range, site.timezone)),
+        runlight.store.goalBreakdown(query, goal, "source"),
+        runlight.store.goalBreakdown(query, goal, "channel"),
+        runlight.store.goalBreakdown(query, goal, "path"),
+      ]);
+      return json({ site: site.id, range: rangeOut, goal, totals: { ...totals, rate: visitors ? totals.visitors / visitors : 0 }, series, sources, channels, pages });
+    }
+
     if (path === "/api/series") {
       const points = await runlight.store.series(query, buckets(range, site.timezone));
       // Comparison points line up with the main ones by position.
@@ -532,14 +611,19 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     try {
       if (path === "/s.js" && request.method === "GET") {
-        const etag = `"${TRACKER_HASH}"`;
+        const script = await trackerScript();
         const headers = {
           "content-type": "application/javascript; charset=utf-8",
-          "cache-control": "public, max-age=3600",
-          etag,
+          // Short, so a new click goal reaches visitors within minutes; the etag makes rechecks cheap.
+          "cache-control": "public, max-age=300",
+          etag: script.etag,
         };
-        if (request.headers.get("if-none-match") === etag) return new Response(null, { status: 304, headers });
-        return new Response(TRACKER, { headers });
+        if (request.headers.get("if-none-match") === script.etag) return new Response(null, { status: 304, headers });
+        return new Response(script.body, { headers });
+      }
+
+      if (path === "/pick.js" && request.method === "GET") {
+        return new Response(PICKER, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
       }
 
       if (path === `/assets/world.${WORLD_HASH}.json` && request.method === "GET") {

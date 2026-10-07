@@ -45,6 +45,35 @@ export interface SiteOverrides {
   timezone?: string;
 }
 
+/**
+ * Something worth counting. An event goal counts a named event; a page goal
+ * counts pageviews of a path or pattern (`/thanks*`); a click goal is a rule
+ * the tracker applies itself, sending an event named after the goal. Goals are
+ * worked out when stats are read, so a new goal counts past visits too.
+ */
+export interface GoalRow {
+  id: string;
+  site: string;
+  name: string;
+  kind: "event" | "page" | "click";
+  /** The event name, the path pattern, or for a click goal a CSS selector or URL pattern. */
+  match: string;
+  /** For click goals: what `match` is. */
+  clickBy: "selector" | "link" | "";
+  /** No money, the same amount each time, or the amount sent in an event property. */
+  valueMode: "none" | "fixed" | "prop";
+  value: number;
+  valueProp: string;
+  currency: string;
+  createdAt: number;
+}
+
+export interface GoalTotals {
+  conversions: number;
+  visitors: number;
+  revenue: number;
+}
+
 /** A public, read-only view of one site's stats, opened by its unguessable id. */
 export interface ShareRow {
   id: string;
@@ -175,7 +204,7 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 5;
+const SCHEMA_VERSION = 6;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -220,8 +249,32 @@ function schema(dialect: Db["dialect"]): string[] {
     `CREATE TABLE IF NOT EXISTS rl_link_domains (domain TEXT PRIMARY KEY, site TEXT NOT NULL, created_at BIGINT NOT NULL)`,
     // Version 5: share links.
     `CREATE TABLE IF NOT EXISTS rl_shares (id TEXT PRIMARY KEY, site TEXT NOT NULL, name ${text}, created_at BIGINT NOT NULL)`,
+    // Version 6: goals.
+    `CREATE TABLE IF NOT EXISTS rl_goals (
+      id TEXT PRIMARY KEY, site TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL, match TEXT NOT NULL,
+      click_by ${text}, value_mode TEXT NOT NULL DEFAULT 'none', value REAL NOT NULL DEFAULT 0,
+      value_prop ${text}, currency TEXT NOT NULL DEFAULT 'USD', created_at BIGINT NOT NULL)`,
   ];
 }
+
+function goalRow(r: Record<string, unknown>): GoalRow {
+  return {
+    id: String(r.id),
+    site: String(r.site),
+    name: String(r.name),
+    kind: String(r.kind) as GoalRow["kind"],
+    match: String(r.match),
+    clickBy: String(r.click_by ?? "") as GoalRow["clickBy"],
+    valueMode: String(r.value_mode) as GoalRow["valueMode"],
+    value: Number(r.value ?? 0),
+    valueProp: String(r.value_prop ?? ""),
+    currency: String(r.currency ?? "USD"),
+    createdAt: Number(r.created_at),
+  };
+}
+
+/** A `*` pattern as SQL LIKE, everything else taken literally. */
+const likePattern = (pattern: string): string => pattern.split("*").map(escapeLike).join("%");
 
 function linkRow(row: Record<string, unknown>): LinkRow {
   return {
@@ -488,6 +541,121 @@ export class SqlStore {
   /** Deleting a share is how it is revoked: the link stops working at once. */
   async deleteShare(id: string): Promise<void> {
     await this.db.run(`DELETE FROM rl_shares WHERE id = ?`, [id]);
+  }
+
+  // Goals
+
+  async goals(site?: string): Promise<GoalRow[]> {
+    const rows = site
+      ? await this.db.all(`SELECT * FROM rl_goals WHERE site = ? ORDER BY created_at`, [site])
+      : await this.db.all(`SELECT * FROM rl_goals ORDER BY created_at`);
+    return rows.map(goalRow);
+  }
+
+  async goalById(id: string): Promise<GoalRow | null> {
+    const [row] = await this.db.all(`SELECT * FROM rl_goals WHERE id = ?`, [id]);
+    return row ? goalRow(row) : null;
+  }
+
+  async saveGoal(g: GoalRow): Promise<void> {
+    await this.db.run(
+      `INSERT INTO rl_goals (id, site, name, kind, match, click_by, value_mode, value, value_prop, currency, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (id) DO UPDATE SET name = excluded.name, kind = excluded.kind, match = excluded.match,
+         click_by = excluded.click_by, value_mode = excluded.value_mode, value = excluded.value,
+         value_prop = excluded.value_prop, currency = excluded.currency`,
+      [g.id, g.site, g.name, g.kind, g.match, g.clickBy, g.valueMode, g.value, g.valueProp, g.currency, g.createdAt],
+    );
+  }
+
+  async deleteGoal(id: string): Promise<void> {
+    await this.db.run(`DELETE FROM rl_goals WHERE id = ?`, [id]);
+  }
+
+  /** The events a goal counts, as a WHERE fragment over rl_events e. */
+  private goalScope(goal: GoalRow): { sql: string; params: unknown[] } {
+    if (goal.kind === "page") {
+      return goal.match.includes("*")
+        ? { sql: `e.kind = 'pageview' AND e.path LIKE ? ESCAPE '\\'`, params: [likePattern(goal.match)] }
+        : { sql: `e.kind = 'pageview' AND e.path = ?`, params: [goal.match] };
+    }
+    // Event goals count the named event; click goals count the event the tracker sends for them.
+    return { sql: `e.kind = 'event' AND e.name = ?`, params: [goal.kind === "click" ? goal.name : goal.match] };
+  }
+
+  /** Sum of a numeric event property, as SQL. Property names are checked before they get here. */
+  private propSum(prop: string): { sql: string; params: unknown[] } {
+    if (this.db.dialect === "postgres") {
+      return {
+        sql: `SUM(CASE WHEN (e.props::jsonb ->> ?) ~ '^-?[0-9]+(\\.[0-9]+)?$' THEN (e.props::jsonb ->> ?)::numeric ELSE 0 END)`,
+        params: [prop, prop],
+      };
+    }
+    return { sql: `SUM(COALESCE(CAST(json_extract(e.props, ?) AS REAL), 0))`, params: [`$."${prop}"`] };
+  }
+
+  private revenueSql(goal: GoalRow): { sql: string; params: unknown[] } {
+    if (goal.valueMode === "prop" && goal.valueProp) return this.propSum(goal.valueProp);
+    if (goal.valueMode === "fixed") return { sql: `COUNT(*) * ?`, params: [goal.value] };
+    return { sql: `0`, params: [] };
+  }
+
+  /** One goal's conversions, converting visitors, and revenue for a query's range and filters. */
+  async goalTotals(query: Query, goal: GoalRow): Promise<GoalTotals> {
+    const f = filterSql(query.filters);
+    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    const scope = this.goalScope(goal);
+    const revenue = this.revenueSql(goal);
+    const [row] = await this.db.all(
+      `SELECT COUNT(*) AS conversions, COUNT(DISTINCT e.visitor) AS visitors, ${revenue.sql} AS revenue
+       FROM rl_events e ${join}
+       WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${scope.sql}${f.sql}`,
+      [...revenue.params, query.site, query.from, query.to, ...scope.params, ...f.params],
+    );
+    return { conversions: num(row?.conversions), visitors: num(row?.visitors), revenue: Math.round(num(row?.revenue) * 100) / 100 };
+  }
+
+  /** A goal's conversions split by where the visit came from, or by the page it happened on. */
+  async goalBreakdown(query: Query, goal: GoalRow, by: "source" | "channel" | "path", limit = 10): Promise<Array<{ value: string } & GoalTotals>> {
+    const f = filterSql(query.filters);
+    const session = by !== "path" || f.needsSession;
+    const col = by === "path" ? "e.path" : `s.${by}`;
+    const scope = this.goalScope(goal);
+    const revenue = this.revenueSql(goal);
+    const rows = await this.db.all(
+      `SELECT ${col} AS value, COUNT(*) AS conversions, COUNT(DISTINCT e.visitor) AS visitors, ${revenue.sql} AS revenue
+       FROM rl_events e ${session ? "JOIN rl_sessions s ON s.id = e.session" : ""}
+       WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${scope.sql}${f.sql}
+       GROUP BY ${col} ORDER BY conversions DESC, value LIMIT ?`,
+      [...revenue.params, query.site, query.from, query.to, ...scope.params, ...f.params, limit],
+    );
+    return rows.map((r) => ({
+      value: String(r.value ?? ""),
+      conversions: num(r.conversions),
+      visitors: num(r.visitors),
+      revenue: Math.round(num(r.revenue) * 100) / 100,
+    }));
+  }
+
+  /** A goal's conversions and revenue in each bucket. */
+  async goalSeries(query: Omit<Query, "from" | "to">, goal: GoalRow, buckets: Bucket[]): Promise<Array<{ start: number; conversions: number; revenue: number }>> {
+    if (buckets.length === 0) return [];
+    const f = filterSql(query.filters);
+    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    const cast = this.db.dialect === "postgres";
+    const values = buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ");
+    const scope = this.goalScope(goal);
+    const revenue = this.revenueSql(goal);
+    const rows = await this.db.all(
+      `WITH b (i, bs, be) AS (VALUES ${values})
+       SELECT b.i AS i, COUNT(*) AS conversions, ${revenue.sql} AS revenue
+       FROM b JOIN rl_events e ON e.site = ? AND e.ts >= b.bs AND e.ts < b.be ${join}
+       WHERE ${scope.sql}${f.sql}
+       GROUP BY b.i`,
+      [...buckets.flatMap((b, i) => [i, b.start, b.end]), ...revenue.params, query.site, ...scope.params, ...f.params],
+    );
+    const found = new Map(rows.map((r) => [num(r.i), r]));
+    return buckets.map((b, i) => ({ start: b.start, conversions: num(found.get(i)?.conversions), revenue: Math.round(num(found.get(i)?.revenue) * 100) / 100 }));
   }
 
   async linkDomains(): Promise<Array<{ domain: string; site: string }>> {

@@ -14,7 +14,9 @@ test("the tracker is public, cached, and answers 304 to its etag", async () => {
   assert.equal(first.status, 200);
   assert.match(first.headers.get("content-type") ?? "", /javascript/);
   assert.match(await first.text(), /sendBeacon/);
-  const again = await GET(req("/runlight/s.js", { headers: { "if-none-match": `"${TRACKER_HASH}"` } }));
+  const etag = first.headers.get("etag") ?? "";
+  assert.ok(etag.startsWith(`"${TRACKER_HASH}-`), "the etag covers the script and its click rules");
+  const again = await GET(req("/runlight/s.js", { headers: { "if-none-match": etag } }));
   assert.equal(again.status, 304);
 });
 
@@ -151,7 +153,7 @@ test("a version 1 database upgrades to the current schema", async () => {
   await rl.updateSite("default", { name: "Upgraded" });
   assert.equal(rl.site("default")!.name, "Upgraded");
   const [meta] = await store.db.all<{ value: string }>("SELECT value FROM rl_meta WHERE key = 'schema'");
-  assert.equal(meta!.value, "5");
+  assert.equal(meta!.value, "6");
 });
 
 test("a share reads one site's reports and nothing else, until it is deleted", async () => {
