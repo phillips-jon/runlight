@@ -16,6 +16,12 @@ export interface Db {
   dialect: "sqlite" | "postgres";
   all<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
   run(sql: string, params?: unknown[]): Promise<void>;
+  /**
+   * Runs `fn` while holding a database-wide lock, so two processes starting
+   * at once do not race to create the same tables. Optional: SQLite's file
+   * lock already serialises its writers.
+   */
+  exclusive?<T>(fn: (db: Db) => Promise<T>): Promise<T>;
   close?(): Promise<void>;
 }
 
@@ -187,13 +193,14 @@ export class SqlStore {
 
   /** Creates the tables on first use. Safe to call any number of times. */
   migrate(): Promise<void> {
-    this.ready ??= (async () => {
-      for (const statement of schema(this.db.dialect)) await this.db.run(statement);
-      await this.db.run(
+    const create = async (db: Db) => {
+      for (const statement of schema(db.dialect)) await db.run(statement);
+      await db.run(
         `INSERT INTO rl_meta (key, value) VALUES ('schema', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
         [String(SCHEMA_VERSION)],
       );
-    })().catch((error) => {
+    };
+    this.ready ??= (this.db.exclusive ? this.db.exclusive(create) : create(this.db)).catch((error) => {
       this.ready = null;
       throw error;
     });

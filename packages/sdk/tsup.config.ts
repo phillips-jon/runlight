@@ -4,6 +4,7 @@ export default defineConfig({
   entry: {
     index: "src/index.ts",
     sqlite: "src/stores/sqlite.ts",
+    postgres: "src/stores/postgres.ts",
     node: "src/node.ts",
   },
   format: ["esm", "cjs"],
@@ -14,5 +15,5 @@ export default defineConfig({
   treeshake: true,
   target: "node22",
   platform: "node",
-  external: ["better-sqlite3"],
+  external: ["better-sqlite3", "pg"],
 });

@@ -43,6 +43,16 @@
         "default": "./dist/sqlite.cjs"
       }
     },
+    "./postgres": {
+      "import": {
+        "types": "./dist/postgres.d.ts",
+        "default": "./dist/postgres.js"
+      },
+      "require": {
+        "types": "./dist/postgres.d.cts",
+        "default": "./dist/postgres.cjs"
+      }
+    },
     "./node": {
       "import": {
         "types": "./dist/node.d.ts",
@@ -61,17 +71,23 @@
     "test": "TZ=UTC node --import tsx --test test/*.test.ts"
   },
   "peerDependencies": {
-    "better-sqlite3": ">=11"
+    "better-sqlite3": ">=11",
+    "pg": ">=8"
   },
   "peerDependenciesMeta": {
     "better-sqlite3": {
+      "optional": true
+    },
+    "pg": {
       "optional": true
     }
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.20.4",
+    "@types/pg": "^8.23.1",
     "better-sqlite3": "^13.0.3",
+    "pg": "^8.23.1",
     "tsup": "^8.5.1",
     "tsx": "^4.23.0",
     "typescript": "^5.9.3"

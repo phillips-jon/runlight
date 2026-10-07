@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
-import { SAFARI_IPHONE, setup } from "./helpers.js";
+import { after, describe, test } from "node:test";
+import { SAFARI_IPHONE, STORES, cleanup, setup as setupFor, type StoreKind } from "./helpers.js";
+
+after(cleanup);
+
+for (const kind of STORES) describe(kind, () => suite(kind));
+
+function suite(kind: StoreKind) {
+const setup = (options?: Parameters<typeof setupFor>[1]) => setupFor(kind, options);
 
 const MIN = 60_000;
 
@@ -167,3 +174,4 @@ test("several sites in one install, told apart by hostname", async () => {
   assert.equal((await t.get("/api/sites")).sites.length, 2);
   await assert.rejects(t.get("/api/stats?site=brand-c"));
 });
+}
