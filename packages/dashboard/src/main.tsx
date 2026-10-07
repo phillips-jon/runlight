@@ -8,7 +8,7 @@ import { Icon } from "./icons.js";
 import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type Key } from "./i18n.js";
 import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey } from "./metrics.js";
 import { LinksPanel, Sheet } from "./links.js";
-import { AddSiteForm, FirstSite, SiteMenu } from "./sites.js";
+import { AddSiteForm, AllSites, FirstSite, SiteMenu } from "./sites.js";
 import { AccountSheet } from "./account.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
@@ -190,6 +190,7 @@ function App() {
   /** Who is signed in, on the standalone server. */
   const [me, setMe] = useState<Person | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [allOpen, setAllOpen] = useState(false);
   useEffect(() => {
     if (accounts) api.account().then((r) => setMe(r.account)).catch(() => {});
   }, []);
@@ -270,7 +271,10 @@ function App() {
   const site = sites?.find((s) => s.id === view.site) ?? sites?.[0];
 
   // A site with no visits yet shows the install steps, and checks every few seconds for its first visit.
-  const waiting = Boolean(site && site.lastSeen == null && !share);
+  // A connected site is counted by its own install, so it never waits here for setup.
+  const waiting = Boolean(site && site.lastSeen == null && !share && !site.remote);
+  /** Counted by another install: its numbers show here and nothing about it can be changed. */
+  const elsewhere = Boolean(site?.remote);
   useEffect(() => {
     if (!waiting) return;
     const timer = setInterval(() => {
@@ -322,6 +326,7 @@ function App() {
                   canAdd={install.managed && !readOnly}
                   onPick={(id) => update({ site: id, filters: [] })}
                   onAdd={() => setAddingSite(true)}
+                  onAll={() => setAllOpen(true)}
                 />
               ) : (
                 <h1>
@@ -422,6 +427,17 @@ function App() {
           }}
         />
       ) : null}
+      {allOpen && sites ? (
+        <AllSites
+          sites={sites}
+          view={view}
+          onClose={() => setAllOpen(false)}
+          onPick={(id) => {
+            setAllOpen(false);
+            update({ site: id, filters: [] });
+          }}
+        />
+      ) : null}
       {accountOpen && me ? <AccountSheet me={me} onClose={() => setAccountOpen(false)} /> : null}
       {addingSite ? (
         <Sheet title={t("sites.addTitle")} onClose={() => setAddingSite(false)}>
@@ -491,8 +507,8 @@ function App() {
           ),
         )}
         {/* The last row: Conversions narrow, Links wide, so the zigzag carries on. */}
-        {site ? <ConversionsPanel view={view} readOnly={readOnly} onAdd={() => setSettingsOpen("goals")} /> : null}
-        {site && !readOnly ? <LinksPanel view={view} site={site.id} /> : null}
+        {site ? <ConversionsPanel view={view} readOnly={readOnly || elsewhere} onAdd={() => setSettingsOpen("goals")} /> : null}
+        {site && !readOnly && !elsewhere ? <LinksPanel view={view} site={site.id} /> : null}
       </div>
 
       <footer class="foot">

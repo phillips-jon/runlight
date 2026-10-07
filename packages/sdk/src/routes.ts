@@ -103,6 +103,30 @@ function isJson(request: Request): boolean {
   return (request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase() === "application/json";
 }
 
+/**
+ * Answers a read for a site counted by another install by asking that install,
+ * with its token and its own id for the site, and handing back what it says.
+ */
+async function passThrough(remote: { url: string; token: string; site: string }, path: string, url: URL): Promise<Response> {
+  const target = new URL(`${remote.url}${path}`);
+  url.searchParams.forEach((value, key) => target.searchParams.append(key, value));
+  target.searchParams.set("site", remote.site);
+  let answer: Response;
+  try {
+    answer = await fetch(target, { headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(15_000) });
+  } catch {
+    return json({ error: `Could not reach ${new URL(remote.url).host}` }, 502);
+  }
+  const headers: Record<string, string> = { "cache-control": "private, no-store" };
+  for (const name of ["content-type", "content-disposition"]) {
+    const value = answer.headers.get(name);
+    if (value) headers[name] = value;
+  }
+  // The install's own errors say what went wrong there; a refused token is this server's problem to report.
+  if (answer.status === 401) return json({ error: `${new URL(remote.url).host} refused the token. Connect it again with a new one.` }, 502);
+  return new Response(answer.body, { status: answer.status, headers });
+}
+
 /** Rows of objects as CSV, with a column for every key the first row has. */
 function rowsCsv(rows: ReadonlyArray<object>): string {
   const header = rows.length ? Object.keys(rows[0]!) : ["value"];
@@ -723,6 +747,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return json(await runlight.check());
     }
 
+    // A site counted by another install is read there; nothing about it can be changed from here.
+    const asked = url.searchParams.get("site");
+    const connected = asked ? runlight.remote(asked) : null;
+    if (connected && !(request.method === "GET" && (sharedPath(path) || path === "/api/links"))) {
+      return json({ error: "This site is counted by its own Runlight. Change it there." }, 400);
+    }
+
     // Visit history from Umami: list the account's websites, then import one a step at a time.
     if ((path === "/api/import/umami/websites" || path === "/api/import/umami/visits") && request.method === "POST") {
       const access = await canRead(request);
@@ -792,6 +823,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const access = await canRead(request);
       if (access !== true) return denied(access);
       return tokensApi(request, path);
+    }
+
+    if (connected && path === "/api/links") {
+      const access = await reader(request);
+      if (access === false || access === "unconfigured") return denied(access);
+      return passThrough(connected, path, url);
     }
 
     // An API token may list links and their clicks, but not change them.
@@ -902,9 +939,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const sites = await Promise.all(
         visible.map(async (site) => ({
           ...site,
+          // A connected install's address, so the dashboard can say where the site is counted.
+          ...(runlight.remote(site.id) && !shared ? { remote: runlight.remote(site.id)!.url } : {}),
           // Hostnames say where the site lives; a share shows only its name.
           ...(shared ? { hostnames: [] } : {}),
-          lastSeen: await runlight.store.lastSeen(site.id),
+          lastSeen: runlight.remote(site.id) ? await runlight.remoteLastSeen(site.id) : await runlight.store.lastSeen(site.id),
         })),
       );
       // A share never learns how the install is run.
@@ -914,6 +953,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     const site = shared ? runlight.site(shared.site) : only ? runlight.site(url.searchParams.get("site") ?? only) : await querySite(url);
     if (site instanceof Response) return site;
     if (!site || (only && site.id !== only)) return json({ error: "Unknown site" }, 404);
+    const remote = runlight.remote(site.id);
+    if (remote) return passThrough(remote, path, url);
 
     if (path === "/api/icon") {
       const host = site.hostnames[0];

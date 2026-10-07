@@ -3793,3 +3793,41 @@ button.sign-out {
   flex: 1;
   min-width: 0;
 }
+
+.add-mode {
+  justify-self: start;
+}
+
+/* All sites: one row per site, the six numbers across. */
+.all-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.all-table th {
+  padding: 0 8px 8px;
+  font: 11px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.all-table th:first-child,
+.all-table td:first-child {
+  text-align: left;
+}
+
+.all-table td {
+  padding: 8px;
+  border-top: 1px solid var(--line);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.all-table .name {
+  padding: 0;
+  font-weight: 600;
+}

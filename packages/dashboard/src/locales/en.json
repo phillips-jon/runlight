@@ -602,5 +602,16 @@
   "funnels.stepEvent": "Event {match}",
   "funnels.wentOn": "{pct} went on",
   "funnels.tab": "Funnels",
-  "funnels.goalsTab": "Goals"
+  "funnels.goalsTab": "Goals",
+  "sites.modeHere": "Count it here",
+  "sites.modeConnect": "Connect another Runlight",
+  "sites.connectIntro": "For a site that already counts itself with Runlight inside its own app. Its numbers stay there, and this server reads them so all your sites are in one place.",
+  "sites.connectUrl": "Its Runlight address",
+  "sites.connectToken": "API token",
+  "sites.connectTokenHint": "Make a token on that install, in Settings, API and AI. It can only read.",
+  "sites.connect": "Connect",
+  "sites.all": "All sites",
+  "sites.remoteNote": "This site is counted by its own Runlight at {url}. Its numbers show here, and its settings and goals are changed there.",
+  "sites.disconnect": "Disconnect this site",
+  "sites.disconnectHint": "Disconnecting removes the site from this server. Its own Runlight and everything it has counted stay as they are."
 }

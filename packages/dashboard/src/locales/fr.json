@@ -602,5 +602,16 @@
   "funnels.stepEvent": "Événement {match}",
   "funnels.wentOn": "{pct} ont continué",
   "funnels.tab": "Entonnoirs",
-  "funnels.goalsTab": "Objectifs"
+  "funnels.goalsTab": "Objectifs",
+  "sites.modeHere": "Le compter ici",
+  "sites.modeConnect": "Connecter un autre Runlight",
+  "sites.connectIntro": "Pour un site qui se compte déjà avec Runlight dans sa propre application. Ses chiffres restent là-bas, et ce serveur les lit pour réunir tous vos sites au même endroit.",
+  "sites.connectUrl": "Son adresse Runlight",
+  "sites.connectToken": "Jeton d’API",
+  "sites.connectTokenHint": "Créez un jeton sur cette installation, dans Réglages, API et IA. Il ne peut que lire.",
+  "sites.connect": "Connecter",
+  "sites.all": "Tous les sites",
+  "sites.remoteNote": "Ce site est compté par son propre Runlight à {url}. Ses chiffres s’affichent ici, et ses réglages et objectifs se modifient là-bas.",
+  "sites.disconnect": "Déconnecter ce site",
+  "sites.disconnectHint": "La déconnexion retire le site de ce serveur. Son propre Runlight et tout ce qu’il a compté restent tels quels."
 }

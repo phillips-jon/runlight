@@ -5,6 +5,8 @@ export interface Site {
   timezone: string;
   /** When the site last recorded a visit, epoch milliseconds. */
   lastSeen?: number | null;
+  /** The address of the Runlight install this site is counted by, when it is connected rather than counted here. */
+  remote?: string;
 }
 
 export interface Stats {
@@ -360,7 +362,7 @@ export const api = {
       install.managed = Boolean(r.managed);
       return r;
     }),
-  addSite: (site: { name: string; hostnames: string; timezone: string }) => send<{ site: Site }>("POST", "sites", site),
+  addSite: (site: { name: string; hostnames?: string; timezone?: string; remote?: { url: string; token: string } }) => send<{ site: Site }>("POST", "sites", site),
   deleteSite: (id: string) => del(`sites/${encodeURIComponent(id)}`),
   stats: (view: View) => get<{ range: Range; compare?: { from: string; to: string }; stats: Stats; previous?: Stats }>("stats", viewParams(view)),
   series: (view: View) => get<{ range: Range; points: Point[]; previous?: Point[] }>("series", viewParams(view)),

@@ -70,6 +70,14 @@ export interface RequestContext {
 }
 
 /** A path on every link domain that answers when the domain reaches this Runlight. */
+/** Another Runlight install a site is read from: its address, a read-only token, and its own id for the site. */
+export interface Remote {
+  url: string;
+  token: string;
+  site: string;
+  hostnames: string[];
+}
+
 export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
 
 /** Thirty minutes without a request ends a session. */
@@ -105,6 +113,9 @@ export class Runlight {
   private configured: SiteRow[];
   /** Whether sites are managed in the dashboard. */
   readonly managedSites: boolean;
+  /** Sites counted by another Runlight install, read through its API with a read-only token. */
+  private readonly remotes = new Map<string, Remote>();
+  private readonly remoteSeen = new Map<string, { at: number; lastSeen: number | null }>();
   private overrides = new Map<string, SiteOverrides>();
   private readonly geo: GeoLookup | undefined;
   private readonly trustProxy: boolean;
@@ -236,7 +247,10 @@ export class Runlight {
   init(): Promise<void> {
     this.ready ??= (async () => {
       await this.store.migrate();
-      if (this.managedSites) this.configured = await this.store.sites();
+      if (this.managedSites) {
+        this.configured = await this.store.sites();
+        await this.loadRemotes();
+      }
       for (const site of this.configured) await this.store.upsertSite(site, this.now());
       this.overrides = await this.store.siteOverrides();
     })().catch((error) => {
@@ -270,10 +284,76 @@ export class Runlight {
     return hostnames;
   }
 
-  /** Adds a site, when sites are managed in the dashboard. */
-  async addSite(input: { name?: unknown; hostnames?: unknown; timezone?: unknown }): Promise<SiteRow> {
+  private async loadRemotes(): Promise<void> {
+    this.remotes.clear();
+    for (const { key, value } of await this.store.settingsStartingWith("remote:")) {
+      const opened = await unseal(value, this.secret);
+      if (opened) this.remotes.set(key.slice("remote:".length), JSON.parse(opened) as Remote);
+    }
+  }
+
+  /** The install a site is read from, when it is counted elsewhere. */
+  remote(id: string): Remote | null {
+    return this.remotes.get(id) ?? null;
+  }
+
+  /** When a connected install's site last had a visit, asked at most once a minute. */
+  async remoteLastSeen(id: string): Promise<number | null> {
+    const remote = this.remotes.get(id);
+    if (!remote) return null;
+    const cached = this.remoteSeen.get(id);
+    if (cached && this.now() - cached.at < 60_000) return cached.lastSeen;
+    let lastSeen: number | null = null;
+    try {
+      const answer = await fetch(`${remote.url}/api/sites`, { headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(8000) });
+      const body = (await answer.json().catch(() => null)) as { sites?: Array<{ id: string; lastSeen: number | null }> } | null;
+      lastSeen = body?.sites?.find((s) => s.id === remote.site)?.lastSeen ?? null;
+    } catch {
+      lastSeen = cached?.lastSeen ?? null;
+    }
+    this.remoteSeen.set(id, { at: this.now(), lastSeen });
+    return lastSeen;
+  }
+
+  /**
+   * Connects a site counted by another Runlight (an app's own install) so this
+   * server shows it too. Takes the install's address, as its dashboard is
+   * (https://example.com/runlight), and an API token made there.
+   */
+  private async addRemoteSite(input: { url?: unknown; token?: unknown; site?: unknown; name?: unknown }): Promise<SiteRow> {
+    const url = String(input.url ?? "").trim().replace(/\/+$/, "");
+    if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) throw new RangeError("Enter the install's address, like https://example.com/runlight");
+    const token = String(input.token ?? "").trim();
+    if (!token) throw new RangeError("Enter an API token from that install");
+    let answer: Response;
+    try {
+      answer = await fetch(`${url}/api/sites`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
+    } catch {
+      throw new RangeError(`Could not reach ${url}`);
+    }
+    if (answer.status === 401 || answer.status === 403) throw new RangeError("That install refused the token");
+    const body = (await answer.json().catch(() => null)) as { sites?: Array<{ id: string; name: string; timezone: string; hostnames: string[] }> } | null;
+    if (!answer.ok || !body?.sites?.length) throw new RangeError(`${url} did not answer like a Runlight install`);
+    const there = body.sites.find((s) => s.id === input.site) ?? body.sites[0]!;
+    const host = (there.hostnames[0] ?? new URL(url).host).replace(/[^a-z0-9._-]/gi, "-").toLowerCase();
+    let id = host.slice(0, 56);
+    for (let n = 2; this.configured.some((site) => site.id === id); n++) id = `${host.slice(0, 56)}-${n}`;
+    const name = String(input.name ?? "").trim().slice(0, 80) || there.name;
+    // No hostnames: tracker hits never land on a site that is counted elsewhere.
+    const site: SiteRow = { id, name, hostnames: [], timezone: isTimezone(there.timezone) ? there.timezone : "UTC" };
+    const remote: Remote = { url, token, site: there.id, hostnames: there.hostnames };
+    await this.store.upsertSite(site, this.now());
+    await this.store.setSetting(`remote:${id}`, await seal(JSON.stringify(remote), this.secret));
+    this.remotes.set(id, remote);
+    this.configured = [...this.configured, site].sort((a, b) => a.name.localeCompare(b.name));
+    return site;
+  }
+
+  /** Adds a site, when sites are managed in the dashboard: one counted here, or one connected from another install. */
+  async addSite(input: { name?: unknown; hostnames?: unknown; timezone?: unknown; remote?: unknown }): Promise<SiteRow> {
     await this.init();
     if (!this.managedSites) throw new RangeError("Sites are set in code");
+    if (input.remote && typeof input.remote === "object") return this.addRemoteSite({ ...(input.remote as Record<string, unknown>), name: input.name });
     const hostnames = this.hostnamesFor(input.hostnames);
     const name = String(input.name ?? "").trim() || hostnames[0]!;
     if (name.length > 80) throw new RangeError("A site name is 1 to 80 characters");
@@ -294,6 +374,8 @@ export class Runlight {
     if (!this.managedSites) throw new RangeError("Sites are set in code");
     if (!this.configured.some((site) => site.id === id)) throw new RangeError("Unknown site");
     await this.store.deleteSite(id);
+    // A connected install keeps its own data; only the connection goes.
+    if (this.remotes.delete(id)) await this.store.setSetting(`remote:${id}`, null);
     this.configured = this.configured.filter((site) => site.id !== id);
     this.overrides.delete(id);
   }
@@ -318,7 +400,7 @@ export class Runlight {
         if (!isTimezone(String(patch.timezone))) throw new RangeError(`Unknown timezone "${patch.timezone}"`);
         next.timezone = String(patch.timezone);
       }
-      if (patch.hostnames !== undefined) next.hostnames = this.hostnamesFor(patch.hostnames, id);
+      if (patch.hostnames !== undefined && !this.remotes.has(id)) next.hostnames = this.hostnamesFor(patch.hostnames, id);
       await this.store.upsertSite(next, this.now());
       this.configured = this.configured.map((site) => (site.id === id ? next : site));
       return this.site(id)!;
@@ -346,15 +428,25 @@ export class Runlight {
   /** The site a page belongs to, or null if it belongs to none. */
   siteFor(hostname: string, id?: string): SiteRow | null {
     const host = stripWww(hostname);
+    // A site counted by another install never takes hits here.
+    if (this.remotes.size) {
+      const local = this.sites.filter((site) => !this.remotes.has(site.id));
+      if (id) return this.remotes.has(id) ? null : this.siteForAmong(local, host, id);
+      return this.siteForAmong(local, host);
+    }
+    return this.siteForAmong(this.sites, host, id);
+  }
+
+  private siteForAmong(sites: SiteRow[], host: string, id?: string): SiteRow | null {
     if (id) {
-      const site = this.site(id);
+      const site = sites.find((s) => s.id === id) ?? null;
       return site && (site.hostnames.length === 0 || site.hostnames.includes(host)) ? site : null;
     }
-    if (this.sites.length === 1) {
-      const only = this.sites[0]!;
+    if (sites.length === 1) {
+      const only = sites[0]!;
       return only.hostnames.length === 0 || only.hostnames.includes(host) ? only : null;
     }
-    return this.sites.find((site) => site.hostnames.includes(host)) ?? null;
+    return sites.find((site) => site.hostnames.includes(host)) ?? null;
   }
 
   /**
@@ -367,7 +459,7 @@ export class Runlight {
     const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
     if (!(host === "localhost" || host === "127.0.0.1" || host === "::1" || /\.(localhost|local|test)$/.test(host))) return null;
     const site = id ? this.site(id) : this.sites.length === 1 ? this.sites[0]! : null;
-    if (!site) return null;
+    if (!site || this.remotes.has(site.id)) return null;
     return (await this.store.lastSeen(site.id)) === null ? site : null;
   }
 

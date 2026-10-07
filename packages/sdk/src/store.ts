@@ -757,6 +757,12 @@ export class SqlStore {
     return row ? String(row.value) : null;
   }
 
+  /** Every setting whose key starts with a prefix, such as each connected install's. */
+  async settingsStartingWith(prefix: string): Promise<Array<{ key: string; value: string }>> {
+    const rows = await this.db.all(`SELECT key, value FROM rl_settings WHERE key LIKE ? ESCAPE '\\'`, [`${escapeLike(prefix)}%`]);
+    return rows.map((r) => ({ key: String(r.key), value: String(r.value) }));
+  }
+
   async setSetting(key: string, value: string | null): Promise<void> {
     if (value === null) await this.db.run(`DELETE FROM rl_settings WHERE key = ?`, [key]);
     else await this.db.run(`INSERT INTO rl_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`, [key, value]);

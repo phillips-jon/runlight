@@ -120,7 +120,8 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
         <Field label={t("settings.siteName")}>
           <input class="value" type="text" maxLength={80} value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
         </Field>
-        {install.managed ? (
+        {site.remote ? <p class="settings-text">{t("sites.remoteNote", { url: site.remote })}</p> : null}
+        {install.managed && !site.remote ? (
           <Field label={t("sites.domains")} hint={t("sites.domainsHint")}>
             <input class="value" type="text" value={hostnames} onInput={(e) => setHostnames((e.target as HTMLInputElement).value)} />
           </Field>
@@ -173,8 +174,8 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
       {install.managed ? (
         <div class="settings-group">
           <div class="field-row">
-            <span class="field-label">{t("sites.delete")}</span>
-            <span class="field-hint">{t("sites.deleteHint")}</span>
+            <span class="field-label">{t(site.remote ? "sites.disconnect" : "sites.delete")}</span>
+            <span class="field-hint">{t(site.remote ? "sites.disconnectHint" : "sites.deleteHint")}</span>
             <div>
               <DeleteButton
                 name={site.name}
@@ -463,7 +464,8 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   /** Who is signed in, on the standalone server; owners also manage People there. */
   me?: Person | null;
 }) {
-  const sections: Array<[Section, Key]> = me?.role === "owner" ? [...SECTIONS, ["people", "settings.people"]] : SECTIONS;
+  // A connected site is managed on its own install; here it has a name, a timezone, and a way to disconnect.
+  const sections: Array<[Section, Key]> = site.remote ? [["general", "settings.general"]] : me?.role === "owner" ? [...SECTIONS, ["people", "settings.people"]] : SECTIONS;
   const [section, setSection] = useState<Section>(start ?? "general");
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {

@@ -602,5 +602,16 @@
   "funnels.stepEvent": "Evento {match}",
   "funnels.wentOn": "{pct} siguió",
   "funnels.tab": "Embudos",
-  "funnels.goalsTab": "Objetivos"
+  "funnels.goalsTab": "Objetivos",
+  "sites.modeHere": "Contarlo aquí",
+  "sites.modeConnect": "Conectar otro Runlight",
+  "sites.connectIntro": "Para un sitio que ya se cuenta con Runlight dentro de su propia aplicación. Sus números se quedan allí, y este servidor los lee para reunir todos tus sitios en un solo lugar.",
+  "sites.connectUrl": "Su dirección de Runlight",
+  "sites.connectToken": "Token de API",
+  "sites.connectTokenHint": "Crea un token en esa instalación, en Ajustes, API e IA. Solo puede leer.",
+  "sites.connect": "Conectar",
+  "sites.all": "Todos los sitios",
+  "sites.remoteNote": "Este sitio lo cuenta su propio Runlight en {url}. Sus números se muestran aquí, y sus ajustes y objetivos se cambian allí.",
+  "sites.disconnect": "Desconectar este sitio",
+  "sites.disconnectHint": "Al desconectarlo se quita el sitio de este servidor. Su propio Runlight y todo lo que ha contado se quedan como están."
 }

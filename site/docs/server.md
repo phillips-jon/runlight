@@ -51,6 +51,12 @@ After you sign in, the dashboard asks for your first site's domain. The next scr
 
 Add more sites from the menu beside the site's name. In **Settings**, **General**, you can change a site's domains, name, and timezone, or delete the site along with everything recorded for it.
 
+## Connect sites that count themselves
+
+A site with Runlight inside its own app can join this server too, so every site is in one dashboard. On that app's install, make a token in **Settings**, **API and AI**. Then on this server choose **Add a site**, **Connect another Runlight**, and enter the app's Runlight address (such as `https://example.com/runlight`) with the token.
+
+The site's numbers stay in the app's own database. This server reads them through the app's API each time you look, so they are always current, and it can never change anything there. Goals, links, and settings for that site are changed on the app's own dashboard. **All sites** in the site menu lines every site up side by side for the dates you pick.
+
 ## Put it on the internet
 
 The server speaks plain HTTP, so run it behind a proxy that adds HTTPS. With [Caddy](https://caddyserver.com), the whole setup for a server at `stats.example.com` is this.
@@ -106,4 +112,4 @@ Back up the data folder. It holds the SQLite file and the `secret` file, and wit
 
 ## What comes next
 
-One database should have one server process for now, because a site added in one process only appears in another after a restart. Two more pieces are planned. The first brings stats from library installs into this dashboard, and the second imports visit history from an Umami database.
+One database should have one server process for now, because a site added in one process only appears in another after a restart. A log reader that counts AI agents on sites without Runlight inside them is planned.
