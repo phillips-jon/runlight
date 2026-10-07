@@ -291,37 +291,26 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .chip .glyph { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 :root[data-theme="dark"] .chip img.inv { filter: invert(1); }
 
-/* The firefly: Runlight's mascot, drawn in the same hand as preflight.sh's rocket,
-   flying in from the empty right of the opening and out past the sheet's edge. */
+/* The opening's art: pieces of a real dashboard, stacked a little askew and
+   running out past the sheet's edge, the way preflight.sh's rocket flies out. */
 .opening { position: relative; }
-.opening > :not(.flyby) { position: relative; z-index: 1; }
-.flyby { position: absolute; z-index: 0; top: 70px; right: calc(-1 * clamp(20px, 4vw, 56px) - 150px); width: 640px; height: auto; pointer-events: none; user-select: none; transform: rotate(-6deg); }
-.flyby * { stroke: #303030; stroke-linecap: round; stroke-linejoin: round; }
-.fly-lines path { fill: #303030; stroke: none; }
-.fly-glow { fill: #d9f99d; fill-opacity: .5; stroke: none; }
-.fly-wing { fill: #f4faf9; fill-opacity: .94; stroke-width: 9; }
-.fly-wing.back { fill: #e3eeec; fill-opacity: .88; }
-.fly-dark { fill: #4b5563; stroke-width: 10; }
-.fly-head-shade { fill: #374151; stroke: none; }
-.fly-tail { fill: #bef264; stroke-width: 10; }
-.fly-tail-shade { fill: #a3e635; stroke: none; }
-.fly-shine { fill: none; stroke: #fff; stroke-width: 12; stroke-opacity: .85; }
-.fly-seam, .fly-limb { fill: none; stroke-width: 10; }
-.fly-limb.thin { stroke-width: 8; stroke-opacity: .7; }
-.fly-shield { fill: #e8763a; stroke-width: 10; }
-.fly-shield-shade { fill: #c95a26; stroke: none; }
-.fly-eye { fill: #fff; stroke-width: 9; }
-.fly-pupil, .fly-tip { fill: #303030; stroke: none; }
-.fly-glint { fill: #fff; stroke: none; }
-.fly-smile { fill: none; stroke: #fff; stroke-width: 9; }
-.fly-vein { fill: none; stroke: #bcd9d6; stroke-width: 9; }
-:root[data-theme="dark"] .fly-lines path { fill: #52525b; }
-:root[data-theme="dark"] .fly-glow { fill: #bef264; fill-opacity: .22; }
+.opening > :not(.stack) { position: relative; z-index: 1; }
+.opening .say { max-width: 15.5em; }
+.opening .then { max-width: 46ch; }
+.stack { position: absolute; z-index: 0; top: 56px; right: calc(-1 * clamp(20px, 4vw, 56px) - 260px); width: 760px; height: 560px; pointer-events: none; user-select: none; }
+.piece { position: absolute; margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--rule-2); box-shadow: 0 24px 60px rgba(0, 0, 0, .18), 0 2px 6px rgba(0, 0, 0, .08); }
+:root[data-theme="dark"] .piece { box-shadow: 0 24px 60px rgba(0, 0, 0, .55), 0 2px 6px rgba(0, 0, 0, .4); }
+.piece img { display: block; width: 100%; height: auto; }
+.piece.back { top: 0; left: 120px; width: 640px; transform: rotate(-2.5deg); }
+.piece.side { top: 214px; left: 50px; width: 262px; transform: rotate(1.5deg); }
+.piece.front { top: 150px; left: 0; width: 210px; transform: rotate(-4deg); }
 @media (prefers-reduced-motion: no-preference) {
-  .flyby { animation: fly-in 1.1s cubic-bezier(.2, .7, .2, 1) both, fly-drift 5s ease-in-out 1.1s infinite alternate; }
-  .fly-glow { animation: fly-blink 2.4s ease-in-out 1.1s infinite; }
-  @keyframes fly-in { from { transform: translate(-260px, 120px) rotate(-6deg); opacity: 0; } }
-  @keyframes fly-drift { to { transform: translate(12px, -14px) rotate(-8deg); } }
-  @keyframes fly-blink { 50% { fill-opacity: .12; } }
+  .piece { animation: piece-in .9s cubic-bezier(.2, .7, .2, 1) both; }
+  .piece.side { animation-delay: .12s; }
+  .piece.front { animation-delay: .24s; }
+  @keyframes piece-in { from { opacity: 0; translate: 40px 24px; } }
 }
-@media (max-width: 1100px) { .flyby { display: none; } }
+@media (max-width: 1100px) {
+  .stack { display: none; }
+  .opening .say { max-width: 21em; }
+}
