@@ -1,0 +1,34 @@
+Add Runlight analytics to this app. Runlight is an npm package (@runlight/sdk) that runs inside the app: it stores visits in the app's own database and serves its dashboard at /runlight. Docs: https://runlight.sh/docs/ (each page is also Markdown at index.md, list at https://runlight.sh/llms.txt).
+
+1. Install: npm install @runlight/sdk better-sqlite3
+   (For Postgres instead: npm install @runlight/sdk pg, and use postgres({ url: process.env.DATABASE_URL }) from "@runlight/sdk/postgres".)
+
+2. Create lib/runlight.ts (or the project's equivalent):
+
+   import { runlight } from "@runlight/sdk";
+   import { sqlite } from "@runlight/sdk/sqlite";
+
+   export const rl = runlight({
+     store: sqlite({ path: "./data/runlight.db" }),
+     site: { name: "<site name>", hostnames: ["<production hostname>"], timezone: "<IANA timezone>" },
+   });
+
+   Make sure ./data is gitignored if it is new.
+
+3. Mount the routes under /runlight, for every HTTP method.
+   Next.js App Router: app/runlight/[[...path]]/route.ts
+     import { rl } from "@/lib/runlight";
+     export const { GET, POST, PUT, PATCH, DELETE, OPTIONS } = rl.routes();
+   Express or Node: app.use(toNodeHandler(rl.routes().handler)) with toNodeHandler from "@runlight/sdk/node".
+   Any framework with web Request objects: pass the request to rl.routes().handler and return its Response.
+   Other frameworks: https://runlight.sh/docs/install/
+
+4. Add <script defer src="/runlight/s.js"></script> to every page, before </head> (the root layout in Next.js).
+
+5. Add RUNLIGHT_TOKEN (a long random string) and CRON_SECRET to the environment and to .env.example. Do not commit real values.
+
+6. Schedule GET or POST /runlight/api/check hourly with "Authorization: Bearer $CRON_SECRET". On Vercel, add to vercel.json: { "crons": [{ "path": "/runlight/api/check", "schedule": "0 * * * *" }] }
+
+7. Optional: count AI agents reading pages by calling rl.observe(request) (not awaited) in middleware (proxy.ts in Next.js 16+, middleware.ts before).
+
+Then tell the user to open /runlight/?token=<their RUNLIGHT_TOKEN> to sign in. Do not add cookie banners for Runlight: it sets no cookies and stores no personal data.

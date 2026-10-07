@@ -4,7 +4,8 @@
   "description": "Runlight: privacy friendly web analytics that lives inside your app.",
   "license": "MIT",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "site"
   ],
   "engines": {
     "node": ">=22"
@@ -15,7 +16,8 @@
     "test": "npm run check:dashes && npm test --workspaces --if-present",
     "build": "npm run check:dashes && npm run build --workspaces --if-present",
     "check": "npm run check:dashes && npm run typecheck && npm test",
-    "dev:dashboard": "node --import tsx scripts/dev-dashboard.mts"
+    "dev:dashboard": "node --import tsx scripts/dev-dashboard.mts",
+    "dev:site": "npm run dev --workspace site"
   },
   "overrides": {
     "esbuild": "^0.28.2"
