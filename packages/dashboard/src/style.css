@@ -3583,8 +3583,15 @@ button.live:hover {
   color: var(--ink);
 }
 
-.foot .geo-credit {
-  color: var(--muted);
-  font-size: 12px;
+.geo-credit {
+  display: block;
+  margin-top: 12px;
+  font-size: 11.5px;
+  color: var(--faint);
+  text-align: right;
   text-decoration: none;
+}
+
+.geo-credit:hover {
+  color: var(--muted);
 }

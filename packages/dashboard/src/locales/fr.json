@@ -544,6 +544,6 @@
   "sites.delete": "Supprimer ce site",
   "sites.deleteHint": "Supprimer un site efface chaque visite, lien, objectif et rapport enregistré pour lui, sans retour possible.",
   "app.signOut": "Se déconnecter",
-  "foot.geoCredit": "Lieux par {name}",
-  "install.ignoreServer": "Pour ne plus compter vos propres visites, ouvrez {link} une fois dans chaque navigateur que vous utilisez."
+  "install.ignoreServer": "Pour ne plus compter vos propres visites, ouvrez {link} une fois dans chaque navigateur que vous utilisez.",
+  "panel.geoCredit": "Lieux par {name}"
 }

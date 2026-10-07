@@ -544,6 +544,6 @@
   "sites.delete": "Excluir este site",
   "sites.deleteHint": "Excluir um site apaga todas as visitas, links, metas e relatórios dele, e isso não pode ser desfeito.",
   "app.signOut": "Sair",
-  "foot.geoCredit": "Localizações por {name}",
-  "install.ignoreServer": "Para parar de contar suas próprias visitas, abra {link} uma vez em cada navegador que você usa."
+  "install.ignoreServer": "Para parar de contar suas próprias visitas, abra {link} uma vez em cada navegador que você usa.",
+  "panel.geoCredit": "Localizações por {name}"
 }

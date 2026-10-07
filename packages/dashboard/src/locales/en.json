@@ -544,6 +544,6 @@
   "sites.delete": "Delete this site",
   "sites.deleteHint": "Deleting a site removes every visit, link, goal, and report recorded for it, and it cannot be undone.",
   "app.signOut": "Sign out",
-  "foot.geoCredit": "Locations by {name}",
-  "install.ignoreServer": "To stop counting your own visits, open {link} once in each browser you use."
+  "install.ignoreServer": "To stop counting your own visits, open {link} once in each browser you use.",
+  "panel.geoCredit": "Locations by {name}"
 }

@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { api, type Row, type View } from "./api.js";
+import { api, geoCredit, type Row, type View } from "./api.js";
 import { count, countryName, duration, flag, hourLabel, percent, weekdays } from "./format.js";
 import type { RhythmCell } from "./api.js";
-import { t, tn, type Key } from "./i18n.js";
+import { rich, t, tn, type Key } from "./i18n.js";
 import { MapOverlay, WorldMap } from "./map.js";
 import { Icon } from "./icons.js";
 
@@ -363,6 +363,12 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
           ) : null}
         </>
       )}
+      {/* DB-IP's free data asks for credit where its locations are shown. */}
+      {map && geoCredit ? (
+        <a class="geo-credit" href="https://db-ip.com" rel="noopener">
+          {rich("panel.geoCredit", { name: <span>DB-IP</span> })}
+        </a>
+      ) : null}
     </section>
   );
 }

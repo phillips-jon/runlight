@@ -544,6 +544,6 @@
   "sites.delete": "Diese Website löschen",
   "sites.deleteHint": "Beim Löschen einer Website verschwinden alle Besuche, Links, Ziele und Berichte dazu, und das lässt sich nicht rückgängig machen.",
   "app.signOut": "Abmelden",
-  "foot.geoCredit": "Standorte von {name}",
-  "install.ignoreServer": "Damit deine eigenen Besuche nicht mehr zählen, öffne {link} einmal in jedem Browser, den du nutzt."
+  "install.ignoreServer": "Damit deine eigenen Besuche nicht mehr zählen, öffne {link} einmal in jedem Browser, den du nutzt.",
+  "panel.geoCredit": "Standorte von {name}"
 }
