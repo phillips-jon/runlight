@@ -28,7 +28,7 @@ export const SOURCES: KnownSource[] = [
   { name: "Phind", kind: "ai", hosts: ["phind.com"], aliases: ["phind"] },
 
   // Search
-  { name: "Google", kind: "search", hosts: ["google.com", "google.co.uk", "google.ca", "google.com.au", "google.de", "google.fr", "google.es", "google.it", "google.nl", "google.co.in", "google.co.jp", "google.com.br", "google.com.mx", "google.ie", "google.co.nz", "google.ch", "google.at", "google.be", "google.se", "google.dk", "google.no", "google.fi", "google.pl", "google.pt"], aliases: ["google"] },
+  { name: "Google", kind: "search", hosts: ["com.google.android.googlequicksearchbox", "google.com", "google.co.uk", "google.ca", "google.com.au", "google.de", "google.fr", "google.es", "google.it", "google.nl", "google.co.in", "google.co.jp", "google.com.br", "google.com.mx", "google.ie", "google.co.nz", "google.ch", "google.at", "google.be", "google.se", "google.dk", "google.no", "google.fi", "google.pl", "google.pt"], aliases: ["google"] },
   { name: "Bing", kind: "search", hosts: ["bing.com"], aliases: ["bing"] },
   { name: "DuckDuckGo", kind: "search", hosts: ["duckduckgo.com"], aliases: ["duckduckgo", "ddg"] },
   { name: "Yahoo", kind: "search", hosts: ["yahoo.com", "search.yahoo.com"], aliases: ["yahoo"] },
@@ -45,8 +45,8 @@ export const SOURCES: KnownSource[] = [
   { name: "Facebook", kind: "social", hosts: ["facebook.com", "fb.com", "m.facebook.com", "l.facebook.com", "lm.facebook.com"], aliases: ["facebook", "fb"] },
   { name: "Instagram", kind: "social", hosts: ["instagram.com", "l.instagram.com"], aliases: ["instagram", "ig"] },
   { name: "X", kind: "social", hosts: ["x.com", "twitter.com", "t.co"], aliases: ["twitter", "x", "x.com"] },
-  { name: "LinkedIn", kind: "social", hosts: ["linkedin.com", "lnkd.in"], aliases: ["linkedin"] },
-  { name: "Reddit", kind: "social", hosts: ["reddit.com", "old.reddit.com", "out.reddit.com"], aliases: ["reddit"] },
+  { name: "LinkedIn", kind: "social", hosts: ["linkedin.com", "lnkd.in", "com.linkedin.android"], aliases: ["linkedin"] },
+  { name: "Reddit", kind: "social", hosts: ["reddit.com", "old.reddit.com", "out.reddit.com", "com.reddit.frontpage"], aliases: ["reddit"] },
   { name: "Hacker News", kind: "social", hosts: ["news.ycombinator.com"], aliases: ["hackernews", "hn", "news.ycombinator.com"] },
   { name: "YouTube", kind: "social", hosts: ["youtube.com", "youtu.be", "m.youtube.com"], aliases: ["youtube", "yt"] },
   { name: "Pinterest", kind: "social", hosts: ["pinterest.com", "pin.it"], aliases: ["pinterest"] },
@@ -60,15 +60,30 @@ export const SOURCES: KnownSource[] = [
   { name: "Medium", kind: "social", hosts: ["medium.com"], aliases: ["medium"] },
   { name: "Substack", kind: "social", hosts: ["substack.com"], aliases: ["substack"] },
   { name: "Discord", kind: "social", hosts: ["discord.com", "discordapp.com"], aliases: ["discord"] },
-  { name: "Slack", kind: "social", hosts: ["slack.com"], aliases: ["slack"] },
+  { name: "Slack", kind: "social", hosts: ["slack.com", "com.slack"], aliases: ["slack"] },
   { name: "Telegram", kind: "social", hosts: ["t.me", "telegram.org"], aliases: ["telegram"] },
   { name: "WhatsApp", kind: "social", hosts: ["whatsapp.com", "wa.me"], aliases: ["whatsapp"] },
 
   // Email
-  { name: "Gmail", kind: "email", hosts: ["mail.google.com"], aliases: ["gmail"] },
+  { name: "Gmail", kind: "email", hosts: ["mail.google.com", "com.google.android.gm"], aliases: ["gmail"] },
+  { name: "Kit", kind: "email", hosts: ["kit.com", "convertkit.com", "ck.page", "kit-mail.com"], aliases: ["kit", "convertkit"] },
   { name: "Outlook", kind: "email", hosts: ["outlook.live.com", "outlook.office.com", "outlook.office365.com"], aliases: ["outlook"] },
   { name: "Yahoo Mail", kind: "email", hosts: ["mail.yahoo.com"], aliases: ["yahoomail"] },
   { name: "Fastmail", kind: "email", hosts: ["app.fastmail.com", "fastmail.com"], aliases: ["fastmail"] },
   { name: "Proton Mail", kind: "email", hosts: ["mail.proton.me"], aliases: ["protonmail"] },
   { name: "Newsletter", kind: "email", hosts: [], aliases: ["newsletter", "email", "e-mail", "mailchimp", "kit", "convertkit", "beehiiv", "buttondown"] },
+];
+
+/**
+ * Hosts known by their shape rather than their name: email services' click
+ * trackers (Kit sends clicks through numbered hosts like
+ * 15a992bb.click.convertkit-mail4.com) and webmail (mail.aol.com,
+ * mail01.orange.fr, webmail.example.net).
+ */
+export const SOURCE_PATTERNS: Array<{ pattern: RegExp; name: string | null; kind: SourceKind }> = [
+  { pattern: /(^|\.)convertkit-mail\d*\.com$|(^|\.)kit-mail\d*\.com$/, name: "Kit", kind: "email" },
+  { pattern: /(^|\.)(list-manage|mailchi)\.(com|mp)$/, name: "Mailchimp", kind: "email" },
+  { pattern: /(^|\.)beehiiv\.com$/, name: "beehiiv", kind: "email" },
+  { pattern: /(^|\.)substack\.com$/, name: "Substack", kind: "email" },
+  { pattern: /^(web)?mail\d*\.|(^|\.)webmail\./, name: null, kind: "email" },
 ];

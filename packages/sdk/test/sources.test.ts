@@ -61,3 +61,15 @@ test("only the path and campaign parameters are kept from a URL", () => {
   assert.ok(!JSON.stringify(page).includes("x@y.z"));
   assert.ok(!JSON.stringify(page).includes("123"));
 });
+
+test("app referrers, email click trackers, and webmail are named", () => {
+  assert.equal(sourceForHost("com.google.android.gm")?.name, "Gmail");
+  assert.equal(visit("https://example.com/", "android-app://com.google.android.gm/").source, "Gmail");
+  assert.equal(visit("https://example.com/", "https://com.google.android.gm/").channel, "Email");
+  assert.equal(visit("https://example.com/", "https://15a992bb.click.convertkit-mail4.com/x").source, "Kit");
+  assert.equal(visit("https://example.com/", "https://15a992bb.click.convertkit-mail4.com/x").channel, "Email");
+  assert.equal(visit("https://example.com/", "https://mail01.orange.fr/").source, "mail01.orange.fr");
+  assert.equal(visit("https://example.com/", "https://mail01.orange.fr/").channel, "Email");
+  assert.equal(visit("https://example.com/", "https://mail.aol.com/").channel, "Email");
+  assert.equal(visit("https://example.com/", "https://mailbox.org/").channel, "Referral", "only mail. or webmail. prefixes count");
+});

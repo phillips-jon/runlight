@@ -1,4 +1,4 @@
-import { SOURCES, type KnownSource, type SourceKind } from "./data/sources.js";
+import { SOURCE_PATTERNS, SOURCES, type KnownSource, type SourceKind } from "./data/sources.js";
 
 export type Channel = "Direct" | "Organic Search" | "Paid Search" | "Social" | "Email" | "AI" | "Referral" | "Campaign";
 
@@ -45,13 +45,22 @@ export function stripWww(host: string): string {
   return host.toLowerCase().replace(/^www\./, "");
 }
 
-/** The most specific known source for a host: mail.google.com before google.com. */
+/**
+ * The most specific known source for a host: mail.google.com before
+ * google.com. Android apps send their package name as the referrer
+ * (com.google.android.gm for Gmail), which is matched the same way. Hosts
+ * known only by their shape (click trackers, webmail) come last.
+ */
 export function sourceForHost(host: string): KnownSource | null {
-  let candidate = stripWww(host);
+  const clean = stripWww(host);
+  let candidate = clean;
   while (candidate.includes(".")) {
     const found = byHost.get(candidate);
     if (found) return found;
     candidate = candidate.slice(candidate.indexOf(".") + 1);
+  }
+  for (const rule of SOURCE_PATTERNS) {
+    if (rule.pattern.test(clean)) return { name: rule.name ?? clean, kind: rule.kind, hosts: [] };
   }
   return null;
 }
@@ -91,11 +100,12 @@ export function attribute(page: Page, referrer: string, internalHosts: string[])
   if (referrer) {
     try {
       const url = new URL(referrer);
-      if (url.protocol === "http:" || url.protocol === "https:") {
+      // Android apps refer as android-app://<package>/.
+      if (url.protocol === "http:" || url.protocol === "https:" || url.protocol === "android-app:") {
         const host = stripWww(url.hostname);
         if (host !== page.hostname && !internalHosts.includes(host)) {
           referrerHost = host;
-          referrerPath = url.pathname.slice(0, 500);
+          referrerPath = url.protocol === "android-app:" ? "" : url.pathname.slice(0, 500);
         }
       }
     } catch {
