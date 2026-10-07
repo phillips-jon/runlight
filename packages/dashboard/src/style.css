@@ -2611,3 +2611,84 @@ h1 .home:hover {
   flex: 1;
   max-width: 420px;
 }
+
+/* Equal heights for the controls that sit side by side. */
+
+.domain-add .value,
+.domain-add .solid {
+  height: 40px;
+}
+
+.box-button {
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  font: 12px var(--mono);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.box-button:hover {
+  border-color: var(--faint);
+}
+
+.box-button.solid {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--card);
+}
+
+.head-tools .tabs + .box-button {
+  margin-left: 6px;
+}
+
+.steps {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.steps li::marker {
+  font: 12px var(--mono);
+  color: var(--ink);
+}
+
+.steps code {
+  font: 12px var(--mono);
+  color: var(--ink);
+}
+
+.domain-list li {
+  flex-wrap: wrap;
+}
+
+.domain-name {
+  flex: 1;
+}
+
+.domain-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.domain-status.ok {
+  color: var(--up);
+}
+
+.domain-status.bad {
+  color: var(--down);
+}
+
+.beat.off {
+  background: var(--down);
+}

@@ -171,6 +171,8 @@ export const api = {
     send<{ created: number; failed: Array<{ row: number; reason: string }> }>("POST", `links/import${siteQuery(site)}`, { rows }),
   linkDomains: (site: string) => get<{ domains: string[] }>("link-domains", new URLSearchParams(site ? { site } : {})),
   addLinkDomain: (site: string, domain: string) => send<{ domain: string }>("POST", `link-domains${siteQuery(site)}`, { domain }),
+  checkLinkDomain: (site: string, domain: string) =>
+    get<{ domain: string; working: boolean; reason: string }>(`link-domains/${encodeURIComponent(domain)}/check`, new URLSearchParams(site ? { site } : {})),
   removeLinkDomain: (site: string, domain: string) => del(`link-domains/${encodeURIComponent(domain)}${siteQuery(site)}`),
   updateSite: (id: string, patch: { name?: string; timezone?: string }) => send<{ site: Site }>("PATCH", `sites/${encodeURIComponent(id)}`, patch),
   sites: () => get<{ sites: Site[] }>("sites", new URLSearchParams()),

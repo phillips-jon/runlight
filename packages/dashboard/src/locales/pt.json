@@ -289,12 +289,20 @@
   "links.total_one": "{n} clique",
   "links.total_other": "{n} cliques",
   "links.domains": "Domínios de links",
-  "links.domainsHelp": "Aponte o DNS de um domínio para o servidor do Runlight e adicione-o aqui. Os links ficam na raiz, como t.exemplo.com/promo.",
+  "links.domainsHelp": "Use um domínio ou subdomínio seu para os links curtos, como t.exemplo.com. Os links ficam na raiz: t.exemplo.com/promo.",
   "links.addDomain": "Adicionar domínio",
   "links.domainPlaceholder": "t.exemplo.com",
   "links.ownDomain": "Este site ({prefix})",
   "links.removeDomain": "Remover",
   "settings.links": "Links",
   "links.confirm": "Confirmar",
-  "links.editButton": "Editar"
+  "links.editButton": "Editar",
+  "links.step1": "No seu provedor de DNS, adicione um registro CNAME para o subdomínio apontando para {host}, onde este painel roda. Para um domínio sem subdomínio, use um registro A ou ALIAS para o mesmo servidor.",
+  "links.step2": "Faça seu provedor de hospedagem aceitar o domínio com HTTPS: adicione-o aos domínios do seu projeto na Vercel ou Netlify, ou à configuração e ao certificado do seu servidor. Se o Runlight roda dentro do seu app, passe as requisições para rl.linkDomainResponse() no seu middleware.",
+  "links.step3": "Adicione o domínio abaixo. O Runlight então verifica se ele chega a este painel.",
+  "links.checking": "Verificando",
+  "links.working": "Funcionando",
+  "links.notWorking": "Ainda não chega ao Runlight: {reason}",
+  "links.recheck": "Verificar de novo",
+  "links.sortBy": "Ordenar links"
 }

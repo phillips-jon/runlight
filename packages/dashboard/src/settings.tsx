@@ -218,7 +218,31 @@ export function proxy(request: Request) {
   );
 }
 
-/** Custom domains for short links, such as t.example.com. */
+function DomainStatus({ site, domain }: { site: string; domain: string }) {
+  const [state, setState] = useState<{ working: boolean; reason: string } | null>(null);
+  const check = () => {
+    setState(null);
+    api
+      .checkLinkDomain(site, domain)
+      .then((r) => setState(r))
+      .catch((e: Error) => setState({ working: false, reason: e.message }));
+  };
+  useEffect(check, [domain]);
+  if (!state) return <span class="domain-status">{t("links.checking")}</span>;
+  return (
+    <span class={state.working ? "domain-status ok" : "domain-status bad"}>
+      <span class={state.working ? "beat on" : "beat off"} aria-hidden="true" />
+      {state.working ? t("links.working") : t("links.notWorking", { reason: state.reason })}
+      {state.working ? null : (
+        <button type="button" class="copy inline" onClick={check}>
+          {t("links.recheck")}
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** Custom domains for short links, such as t.example.com, with the steps to set one up. */
 function LinkDomains({ site }: { site: Site }) {
   const [domains, setDomains] = useState<string[] | null>(null);
   const [draft, setDraft] = useState("");
@@ -244,6 +268,11 @@ function LinkDomains({ site }: { site: Site }) {
         <span class="field-label">{t("links.domains")}</span>
         <span class="settings-text">{t("links.domainsHelp")}</span>
       </div>
+      <ol class="steps">
+        <li>{rich("links.step1", { host: <code>{location.host}</code> })}</li>
+        <li>{t("links.step2")}</li>
+        <li>{t("links.step3")}</li>
+      </ol>
       <ul class="domain-list">
         <li>
           <span class="domain-name">{t("links.ownDomain", { prefix: `${location.host}/go` })}</span>
@@ -251,6 +280,7 @@ function LinkDomains({ site }: { site: Site }) {
         {(domains ?? []).map((d) => (
           <li>
             <span class="domain-name">{d}</span>
+            <DomainStatus site={site.id} domain={d} />
             <button
               type="button"
               class="copy inline danger"

@@ -83,6 +83,8 @@ function suite(kind: StoreKind) {
     assert.equal((await at("t.thedailypreset.com", "/b"))?.status, 404, "the main site's links are not on the link domain");
     assert.equal(await at("example.com", "/a"), null, "other hosts carry on as normal");
     assert.equal((await t.rl.linkHandler()(new Request("https://example.com/go/a", { headers: { "user-agent": CHROME_MAC } }))).status, 404);
+    const check = await at("t.thedailypreset.com", "/.well-known/runlight-link-domain");
+    assert.deepEqual(await check?.json(), { runlight: true, domain: "t.thedailypreset.com" });
 
     const remove = await t.routes.DELETE(new Request("https://example.com/runlight/api/link-domains/t.thedailypreset.com", json("DELETE", {})));
     assert.equal(remove.status, 409, "a domain with live links stays");

@@ -289,12 +289,20 @@
   "links.total_one": "{n} Klick",
   "links.total_other": "{n} Klicks",
   "links.domains": "Link-Domains",
-  "links.domainsHelp": "Richte den DNS einer Domain auf den Server mit Runlight und füge sie hier hinzu. Ihre Links liegen im Stammverzeichnis, etwa t.beispiel.de/sale.",
+  "links.domainsHelp": "Nutze eine eigene Domain oder Subdomain für Kurzlinks, etwa t.beispiel.de. Ihre Links liegen im Stammverzeichnis: t.beispiel.de/sale.",
   "links.addDomain": "Domain hinzufügen",
   "links.domainPlaceholder": "t.beispiel.de",
   "links.ownDomain": "Diese Website ({prefix})",
   "links.removeDomain": "Entfernen",
   "settings.links": "Links",
   "links.confirm": "Wirklich löschen",
-  "links.editButton": "Bearbeiten"
+  "links.editButton": "Bearbeiten",
+  "links.step1": "Lege bei deinem DNS-Anbieter einen CNAME-Eintrag für die Subdomain an, der auf {host} zeigt, wo dieses Dashboard läuft. Für eine Domain ohne Subdomain nimm stattdessen einen A- oder ALIAS-Eintrag auf denselben Server.",
+  "links.step2": "Sorge dafür, dass dein Hosting die Domain mit HTTPS annimmt: füge sie bei Vercel oder Netlify zu den Domains deines Projekts hinzu, oder zur Konfiguration und zum Zertifikat deines Servers. Läuft Runlight in deiner App, gib die Anfragen in deiner Middleware an rl.linkDomainResponse() weiter.",
+  "links.step3": "Füge die Domain unten hinzu. Runlight prüft dann, ob sie dieses Dashboard erreicht.",
+  "links.checking": "Wird geprüft",
+  "links.working": "Funktioniert",
+  "links.notWorking": "Erreicht Runlight noch nicht: {reason}",
+  "links.recheck": "Erneut prüfen",
+  "links.sortBy": "Links sortieren"
 }

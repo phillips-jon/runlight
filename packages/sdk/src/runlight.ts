@@ -48,6 +48,9 @@ export interface RequestContext {
   ip?: string;
 }
 
+/** A path on every link domain that answers when the domain reaches this Runlight. */
+export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
+
 /** Thirty minutes without a request ends a session. */
 export const SESSION_IDLE_MS = 30 * 60 * 1000;
 
@@ -312,6 +315,12 @@ export class Runlight {
     const host = stripWww((request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host).split(":")[0] ?? "");
     await this.init();
     if (!(await this.store.linkDomains()).some((d) => d.domain === host)) return null;
+    // Lets the dashboard confirm that requests to this domain reach Runlight.
+    if (url.pathname === LINK_DOMAIN_CHECK) {
+      return new Response(JSON.stringify({ runlight: true, domain: host }), {
+        headers: { "content-type": "application/json", "cache-control": "no-store" },
+      });
+    }
     const slug = decodeURIComponent(url.pathname.slice(1));
     const found = slug && !slug.includes("/") ? await this.redirect(request, slug, host, context) : null;
     return found ?? new Response("Not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });

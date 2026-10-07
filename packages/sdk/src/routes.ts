@@ -2,7 +2,7 @@ import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WOR
 import { TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
 import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
-import type { RequestContext, Runlight } from "./runlight.js";
+import { LINK_DOMAIN_CHECK, type RequestContext, type Runlight } from "./runlight.js";
 import type { SiteRow } from "./store.js";
 import { fetchIcon } from "./icon.js";
 import { LinkError } from "./links.js";
@@ -208,6 +208,23 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           return json({ domain }, 201);
         }
       }
+      const checkMatch = /^\/api\/link-domains\/([^/]+)\/check$/.exec(path);
+      if (checkMatch && request.method === "GET") {
+        const domain = decodeURIComponent(checkMatch[1]!);
+        if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return json({ error: "Unknown domain" }, 404);
+        let working = false;
+        let reason = "";
+        try {
+          const answer = await fetch(`https://${domain}${LINK_DOMAIN_CHECK}`, { signal: AbortSignal.timeout(5000), redirect: "manual" });
+          const body = (await answer.json().catch(() => null)) as { runlight?: boolean; domain?: string } | null;
+          working = answer.ok && body?.runlight === true && body.domain === domain;
+          if (!working) reason = answer.ok ? "answered, but not from Runlight" : `answered ${answer.status}`;
+        } catch (error) {
+          reason = error instanceof Error && error.name === "TimeoutError" ? "timed out" : "could not connect over HTTPS";
+        }
+        return json({ domain, working, reason });
+      }
+
       const domainMatch = /^\/api\/link-domains\/([^/]+)$/.exec(path);
       if (domainMatch && request.method === "DELETE") {
         const removed = await runlight.store.removeLinkDomain(decodeURIComponent(domainMatch[1]!));

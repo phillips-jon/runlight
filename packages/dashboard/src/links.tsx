@@ -316,7 +316,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
   const [prefix, setPrefix] = useState("");
   const [domains, setDomains] = useState<string[]>([]);
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<Sort>("clicks");
+  const [sort, setSort] = useState<Sort>("newest");
   const [editing, setEditing] = useState<Link | "new" | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; failures: Array<{ row: number; reason: string }> } | null>(null);
@@ -369,9 +369,9 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
     <Sheet title={t("panel.links")} sub={links ? count(links.length) : undefined} wide onClose={onClose}>
       <div class="sheet-search link-tools">
         <input class="value" type="search" placeholder={t("links.search")} aria-label={t("links.search")} value={query} onInput={(e) => setQuery((e.target as HTMLInputElement).value)} />
-        <select class="field" aria-label={t("links.sortClicks")} value={sort} onChange={(e) => setSort((e.target as HTMLSelectElement).value as Sort)}>
-          <option value="clicks">{t("links.sortClicks")}</option>
+        <select class="field" aria-label={t("links.sortBy")} value={sort} onChange={(e) => setSort((e.target as HTMLSelectElement).value as Sort)}>
           <option value="newest">{t("links.sortNewest")}</option>
+          <option value="clicks">{t("links.sortClicks")}</option>
           <option value="name">{t("links.sortName")}</option>
         </select>
         <button type="button" class="ghost" title={t("links.importHelp")} onClick={() => file.current?.click()}>
@@ -443,6 +443,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
   const [domains, setDomains] = useState<string[]>([]);
   const [open, setOpen] = useState<"new" | "manage" | { id: string } | null>(null);
   const [version, setVersion] = useState(0);
+  const [order, setOrder] = useState<"newest" | "clicks">("newest");
 
   useEffect(() => {
     let live = true;
@@ -460,7 +461,9 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
     };
   }, [view, version]);
 
-  const top = (links ?? []).filter((l) => (l.clicks ?? 0) > 0).sort((a, b) => (b.clicks ?? 0) - (a.clicks ?? 0)).slice(0, 8);
+  const top = [...(links ?? [])]
+    .sort((a, b) => (order === "newest" ? b.createdAt - a.createdAt : (b.clicks ?? 0) - (a.clicks ?? 0) || b.createdAt - a.createdAt))
+    .slice(0, 8);
   const max = Math.max(1, ...top.map((l) => l.clicks ?? 0));
   const total = (links ?? []).reduce((sum, l) => sum + (l.clicks ?? 0), 0);
 
@@ -471,10 +474,18 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
           {t("panel.links")} {links ? <span class="aside">{tn("links.total", total, { n: count(total) })}</span> : null}
         </h2>
         <div class="head-tools">
-          <button type="button" class="tab" onClick={() => setOpen("manage")}>
+          <nav class="tabs" aria-label={t("links.sortBy")}>
+            <button type="button" class={order === "newest" ? "tab on" : "tab"} aria-pressed={order === "newest"} onClick={() => setOrder("newest")}>
+              {t("links.sortNewest")}
+            </button>
+            <button type="button" class={order === "clicks" ? "tab on" : "tab"} aria-pressed={order === "clicks"} onClick={() => setOrder("clicks")}>
+              {t("links.sortClicks")}
+            </button>
+          </nav>
+          <button type="button" class="box-button" onClick={() => setOpen("manage")}>
             {t("links.manage")}
           </button>
-          <button type="button" class="tab on" onClick={() => setOpen("new")}>
+          <button type="button" class="box-button solid" onClick={() => setOpen("new")}>
             + {t("links.new")}
           </button>
         </div>
@@ -483,7 +494,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
         <span>{t("panel.links")}</span>
         <span>{t("links.clicks")}</span>
       </div>
-      {links && top.length === 0 ? <p class="empty">{links.length ? t("panel.empty") : t("links.empty")}</p> : null}
+      {links && top.length === 0 ? <p class="empty">{t("links.empty")}</p> : null}
       {!links ? <p class="empty">{t("common.loading")}</p> : null}
       <ol class="rows">
         {top.map((l) => (
