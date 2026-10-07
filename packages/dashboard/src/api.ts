@@ -162,7 +162,7 @@ const del = async (path: string) => {
 const siteQuery = (site: string) => (site ? `?site=${encodeURIComponent(site)}` : "");
 
 export const api = {
-  links: (view: View) => get<{ prefix: string; links: Link[] }>("links", viewParams(view)),
+  links: (view: View) => get<{ prefix: string; domains: string[]; links: Link[] }>("links", viewParams(view)),
   link: (view: View, id: string) => get<LinkStats>(`links/${id}`, viewParams(view)),
   createLink: (site: string, input: { url: string; name?: string; slug?: string; domain?: string }) => send<{ link: Link }>("POST", `links${siteQuery(site)}`, input),
   updateLink: (site: string, id: string, input: { url?: string; name?: string; slug?: string; domain?: string }) => send<{ link: Link }>("PATCH", `links/${id}${siteQuery(site)}`, input),

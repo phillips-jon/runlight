@@ -304,5 +304,7 @@
   "links.working": "Funcionando",
   "links.notWorking": "Ainda não chega ao Runlight: {reason}",
   "links.recheck": "Verificar de novo",
-  "links.sortBy": "Ordenar links"
+  "links.sortBy": "Ordenar links",
+  "links.removeNote": "Remover um domínio mantém os links, cliques e estatísticas: eles passam para {fallback} até você adicionar o domínio de novo, e então voltam para ele.",
+  "links.removedDomain": "{domain}/ (removido)"
 }

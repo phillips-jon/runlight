@@ -82,12 +82,34 @@ function suite(kind: StoreKind) {
     assert.equal((await at("t.thedailypreset.com", "/a"))?.headers.get("location"), "https://thedailypreset.com/a");
     assert.equal((await at("t.thedailypreset.com", "/b"))?.status, 404, "the main site's links are not on the link domain");
     assert.equal(await at("example.com", "/a"), null, "other hosts carry on as normal");
-    assert.equal((await t.rl.linkHandler()(new Request("https://example.com/go/a", { headers: { "user-agent": CHROME_MAC } }))).status, 404);
+    // The app's own link path answers for every link, as a fallback that never changes.
+    assert.equal((await t.rl.linkHandler()(new Request("https://example.com/go/a", { headers: { "user-agent": CHROME_MAC } }))).status, 302);
     const check = await at("t.thedailypreset.com", "/.well-known/runlight-link-domain");
     assert.deepEqual(await check?.json(), { runlight: true, domain: "t.thedailypreset.com" });
 
+    // Removing the domain keeps its links: they fall back to the app's own path.
     const remove = await t.routes.DELETE(new Request("https://example.com/runlight/api/link-domains/t.thedailypreset.com", json("DELETE", {})));
-    assert.equal(remove.status, 409, "a domain with live links stays");
+    assert.equal(remove.status, 200);
+    assert.equal(await at("t.thedailypreset.com", "/a"), null, "the removed domain is no longer answered");
+    const fallback = await t.rl.linkHandler()(new Request("https://example.com/go/a", { headers: { "user-agent": CHROME_MAC } }));
+    assert.equal(fallback.headers.get("location"), "https://thedailypreset.com/a");
+    let list = await t.get("/api/links?period=today");
+    assert.deepEqual(list.domains, []);
+    assert.equal(list.links.find((l: { slug: string }) => l.slug === "a").domain, "t.thedailypreset.com", "the link remembers its domain");
+
+    // Adding it back brings the links home again.
+    await t.routes.POST(new Request("https://example.com/runlight/api/link-domains", json("POST", { domain: "t.thedailypreset.com" })));
+    assert.equal((await at("t.thedailypreset.com", "/a"))?.headers.get("location"), "https://thedailypreset.com/a");
+    list = await t.get("/api/links?period=today");
+    assert.deepEqual(list.domains, ["t.thedailypreset.com"]);
+  });
+
+  test("a slug is unique across every domain", async () => {
+    const t = setup(kind);
+    await t.routes.POST(new Request("https://example.com/runlight/api/link-domains", json("POST", { domain: "t.a.com" })));
+    const post = (body: unknown) => t.routes.POST(new Request("https://example.com/runlight/api/links", json("POST", body)));
+    assert.equal((await post({ url: "https://a.com/sale", slug: "sale", domain: "t.a.com" })).status, 201);
+    assert.equal((await post({ url: "https://b.com/sale", slug: "sale" })).status, 400);
   });
 
   test("CSV rows in the Umami fork's format import, and bad rows say why", async () => {

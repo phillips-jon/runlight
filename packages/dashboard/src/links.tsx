@@ -6,9 +6,13 @@ import { bucketLabel, count, countryName, flag } from "./format.js";
 import { t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
 
-/** The address people click: on a link domain at its root, otherwise under the app's link path. */
-export function shortUrl(link: Link, prefix: string): string {
-  return link.domain ? `https://${link.domain}/${link.slug}` : `${prefix}/${link.slug}`;
+/**
+ * The address people click: at the root of the link's domain while that
+ * domain is added, otherwise under the app's own link path, which answers
+ * for every link.
+ */
+export function shortUrl(link: Link, prefix: string, domains: string[]): string {
+  return link.domain && domains.includes(link.domain) ? `https://${link.domain}/${link.slug}` : `${prefix}/${link.slug}`;
 }
 
 const display = (url: string) => url.replace(/^https?:\/\//, "");
@@ -100,7 +104,7 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
   };
 
   if (made) {
-    const address = shortUrl(made, prefix);
+    const address = shortUrl(made, prefix, domains);
     return (
       <Sheet title={t("links.new")} onClose={onClose}>
         <div class="sheet-body link-form">
@@ -155,6 +159,12 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
                 {domains.map((d) => (
                   <option value={d}>{d}/</option>
                 ))}
+                {link?.domain && !domains.includes(link.domain) ? <option value={link.domain}>{t("links.removedDomain", { domain: link.domain })}</option> : null}
+                <option value="">{display(prefix)}/</option>
+              </select>
+            ) : link?.domain ? (
+              <select class="field" aria-label={t("links.domain")} value={domain} onChange={(e) => setDomain((e.target as HTMLSelectElement).value)}>
+                <option value={link.domain}>{t("links.removedDomain", { domain: link.domain })}</option>
                 <option value="">{display(prefix)}/</option>
               </select>
             ) : (
@@ -199,13 +209,13 @@ function MiniList({ title, rows, dimension }: { title: Key; rows: Row[]; dimensi
 }
 
 /** One link's clicks over the dashboard's range, and where they came from. */
-export function LinkDetail({ view, id, prefix, onClose }: { view: View; id: string; prefix: string; onClose: () => void }) {
+export function LinkDetail({ view, id, prefix, domains, onClose }: { view: View; id: string; prefix: string; domains: string[]; onClose: () => void }) {
   const [stats, setStats] = useState<LinkStats | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
     api.link(view, id).then(setStats).catch((e: Error) => setError(e.message));
   }, [view, id]);
-  const address = stats ? shortUrl(stats.link, prefix) : "";
+  const address = stats ? shortUrl(stats.link, prefix, domains) : "";
   const w = 640;
   const h = 150;
   const max = stats ? Math.max(1, ...stats.series.map((p) => p.clicks)) : 1;
@@ -326,8 +336,8 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
     api.links(view).then((r) => {
       setLinks(r.links);
       setPrefix(r.prefix);
+      setDomains(r.domains);
     });
-    api.linkDomains(site).then((r) => setDomains(r.domains)).catch(() => setDomains([]));
   };
   useEffect(load, [view]);
 
@@ -351,7 +361,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
     changed();
   };
 
-  if (detail) return <LinkDetail view={view} id={detail} prefix={prefix} onClose={() => setDetail(null)} />;
+  if (detail) return <LinkDetail view={view} id={detail} prefix={prefix} domains={domains} onClose={() => setDetail(null)} />;
   if (editing) {
     return (
       <LinkForm
@@ -405,7 +415,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
         <table class="sheet-table links-table">
           <tbody>
             {shown.map((l) => {
-              const address = shortUrl(l, prefix);
+              const address = shortUrl(l, prefix, domains);
               return (
                 <tr>
                   <td class="sheet-name">
@@ -453,9 +463,9 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
         if (!live) return;
         setLinks(r.links);
         setPrefix(r.prefix);
+        setDomains(r.domains);
       })
       .catch(() => live && setLinks([]));
-    api.linkDomains(site).then((r) => live && setDomains(r.domains)).catch(() => {});
     return () => {
       live = false;
     };
@@ -500,7 +510,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
         {top.map((l) => (
           <li>
             <span class="bar" style={{ width: `${((l.clicks ?? 0) / max) * 100}%` }} />
-            <button type="button" class="name" title={display(shortUrl(l, prefix))} onClick={() => setOpen({ id: l.id })}>
+            <button type="button" class="name" title={display(shortUrl(l, prefix, domains))} onClick={() => setOpen({ id: l.id })}>
               <span class="name-text">{l.name}</span>
               <span class="link-slug">/{l.slug}</span>
             </button>
@@ -518,7 +528,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
       ) : open === "manage" ? (
         <LinkManager view={view} site={site} onClose={() => setOpen(null)} onChanged={() => setVersion((v) => v + 1)} />
       ) : open ? (
-        <LinkDetail view={view} id={open.id} prefix={prefix} onClose={() => setOpen(null)} />
+        <LinkDetail view={view} id={open.id} prefix={prefix} domains={domains} onClose={() => setOpen(null)} />
       ) : null}
     </section>
   );

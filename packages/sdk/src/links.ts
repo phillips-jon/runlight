@@ -53,16 +53,17 @@ export class Links {
     return domain;
   }
 
-  private async freeSlug(domain: string, wanted: string | undefined, except?: string): Promise<string> {
+  /** Slugs are unique across every domain, so a link can always fall back to the app's own path. */
+  private async freeSlug(wanted: string | undefined, except?: string): Promise<string> {
     if (wanted !== undefined && wanted !== "") {
       if (!SLUG_PATTERN.test(wanted)) throw new LinkError("A slug is letters, digits, dashes, and underscores, up to 100");
-      const taken = await this.runlight.store.linkBySlug(domain, wanted);
-      if (taken && taken.id !== except) throw new LinkError(`/${wanted} is already taken${domain ? ` on ${domain}` : ""}`);
+      const taken = await this.runlight.store.linkBySlug(wanted);
+      if (taken && taken.id !== except) throw new LinkError(`/${wanted} is already taken`);
       return wanted;
     }
     for (let i = 0; i < 8; i++) {
       const slug = randomSlug();
-      if (!(await this.runlight.store.linkBySlug(domain, slug))) return slug;
+      if (!(await this.runlight.store.linkBySlug(slug))) return slug;
     }
     throw new LinkError("Could not find a free slug; try again");
   }
@@ -71,7 +72,7 @@ export class Links {
     await this.runlight.init();
     const url = cleanUrl(input.url);
     const domain = await this.domainFor(site, input.domain);
-    const slug = await this.freeSlug(domain, input.slug?.trim());
+    const slug = await this.freeSlug(input.slug?.trim());
     const now = this.runlight.now();
     const link: LinkRow = {
       id: randomId(),
@@ -94,8 +95,9 @@ export class Links {
     const next = { ...link };
     if (input.url !== undefined) next.url = cleanUrl(input.url);
     if (input.name !== undefined) next.name = String(input.name).trim().slice(0, 100) || defaultName(next.url);
-    if (input.domain !== undefined) next.domain = await this.domainFor(link.site, input.domain);
-    if (input.slug !== undefined || next.domain !== link.domain) next.slug = await this.freeSlug(next.domain, (input.slug ?? link.slug).trim(), link.id);
+    // Keeping a link's domain needs no check, even while that domain is removed.
+    if (input.domain !== undefined && stripWww(input.domain.trim()) !== link.domain) next.domain = await this.domainFor(link.site, input.domain);
+    if (input.slug !== undefined) next.slug = await this.freeSlug(input.slug.trim(), link.id);
     next.updatedAt = this.runlight.now();
     await this.runlight.store.updateLink(next);
     return next;

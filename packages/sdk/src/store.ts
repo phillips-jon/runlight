@@ -158,7 +158,7 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -191,12 +191,14 @@ function schema(dialect: Db["dialect"]): string[] {
       engaged_ms BIGINT NOT NULL DEFAULT 0, scroll INTEGER, link ${text})`,
     `CREATE INDEX IF NOT EXISTS rl_events_site_ts ON rl_events (site, ts)`,
     `CREATE INDEX IF NOT EXISTS rl_events_pageview ON rl_events (site, pageview)`,
-    // Version 3: short links. A slug is unique per domain; "" is the app's own domain.
+    // Version 3: short links; "" is the app's own domain. Version 4: a slug is unique
+    // across every domain, so a link whose domain is removed can fall back to the
+    // app's own link path without colliding with another.
     `CREATE TABLE IF NOT EXISTS rl_links (
       id TEXT PRIMARY KEY, site TEXT NOT NULL, domain ${text}, slug TEXT NOT NULL,
       name ${text}, url TEXT NOT NULL, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL,
       deleted_at BIGINT)`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS rl_links_slug ON rl_links (domain, slug) WHERE deleted_at IS NULL`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS rl_links_slug_unique ON rl_links (slug) WHERE deleted_at IS NULL`,
     `CREATE INDEX IF NOT EXISTS rl_events_link ON rl_events (link, ts)`,
     `CREATE TABLE IF NOT EXISTS rl_link_domains (domain TEXT PRIMARY KEY, site TEXT NOT NULL, created_at BIGINT NOT NULL)`,
   ];
@@ -256,6 +258,7 @@ export class SqlStore {
       for (const statement of schema(db.dialect)) await db.run(statement);
       // Version 2: settings changed in the dashboard, kept apart from the ones in code.
       if (from < 2) await db.run(`ALTER TABLE rl_sites ADD COLUMN overrides TEXT NOT NULL DEFAULT '{}'`);
+      if (from < 4) await db.run(`DROP INDEX IF EXISTS rl_links_slug`);
       await db.run(
         `INSERT INTO rl_meta (key, value) VALUES ('schema', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
         [String(SCHEMA_VERSION)],
@@ -400,8 +403,9 @@ export class SqlStore {
 
   // Links
 
-  async linkBySlug(domain: string, slug: string): Promise<LinkRow | null> {
-    const rows = await this.db.all(`SELECT * FROM rl_links WHERE domain = ? AND slug = ? AND deleted_at IS NULL LIMIT 1`, [domain, slug]);
+  /** The live link with a slug. Slugs are unique across every domain. */
+  async linkBySlug(slug: string): Promise<LinkRow | null> {
+    const rows = await this.db.all(`SELECT * FROM rl_links WHERE slug = ? AND deleted_at IS NULL LIMIT 1`, [slug]);
     return rows[0] ? linkRow(rows[0]) : null;
   }
 
@@ -436,12 +440,12 @@ export class SqlStore {
     await this.db.run(`INSERT INTO rl_link_domains (domain, site, created_at) VALUES (?, ?, ?) ON CONFLICT (domain) DO NOTHING`, [domain, site, now]);
   }
 
-  /** Removes a domain; refuses while live links still use it. */
-  async removeLinkDomain(domain: string): Promise<boolean> {
-    const [used] = await this.db.all(`SELECT COUNT(*) AS n FROM rl_links WHERE domain = ? AND deleted_at IS NULL`, [domain]);
-    if (num(used?.n) > 0) return false;
+  /**
+   * Removes a domain. Its links keep it as their home and fall back to the
+   * app's own link path until the domain is added again.
+   */
+  async removeLinkDomain(domain: string): Promise<void> {
     await this.db.run(`DELETE FROM rl_link_domains WHERE domain = ?`, [domain]);
-    return true;
   }
 
   /** A site's links, newest first, with their clicks in a range. */

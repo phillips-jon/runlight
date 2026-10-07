@@ -296,6 +296,7 @@ function LinkDomains({ site }: { site: Site }) {
           </li>
         ))}
       </ul>
+      <p class="field-hint">{t("links.removeNote", { fallback: `${location.host}/go` })}</p>
       <form class="domain-add" onSubmit={add}>
         <input class="value" type="text" placeholder={t("links.domainPlaceholder")} value={draft} onInput={(e) => setDraft((e.target as HTMLInputElement).value)} />
         <button type="submit" class="solid" disabled={!draft.trim()}>

@@ -227,8 +227,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
       const domainMatch = /^\/api\/link-domains\/([^/]+)$/.exec(path);
       if (domainMatch && request.method === "DELETE") {
-        const removed = await runlight.store.removeLinkDomain(decodeURIComponent(domainMatch[1]!));
-        return removed ? json({ ok: true }) : json({ error: "Move or delete the links on this domain first" }, 409);
+        await runlight.store.removeLinkDomain(decodeURIComponent(domainMatch[1]!));
+        return json({ ok: true });
       }
 
       if (path === "/api/links") {
@@ -236,7 +236,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           const read = await readQuery(url, site);
           if (read instanceof Response) return read;
           const links = await runlight.store.links(site.id, read.range.from, read.range.to);
-          return json({ prefix: `${url.origin}${runlight.linkPath}`, links });
+          // Links on a removed domain are served from the app's own path until it is added back.
+          const domains = (await runlight.store.linkDomains()).filter((d) => d.site === site.id).map((d) => d.domain);
+          return json({ prefix: `${url.origin}${runlight.linkPath}`, domains, links });
         }
         if (request.method === "POST") {
           const body = await readJson(request);

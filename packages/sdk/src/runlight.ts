@@ -330,15 +330,18 @@ export class Runlight {
    * Answers a request for a short link: a redirect to its destination, with
    * the click recorded like a visit (source, place, device, and any campaign
    * tags on the short URL) but kept out of visitor and pageview counts.
-   * Bots are redirected and not counted. Null when no link on that domain
-   * ("" for the app's own) has that slug.
+   * Bots are redirected and not counted. `domain` is the link domain the
+   * request came in on, or "" for the app's own link path, which answers for
+   * every link. Null when no link fits.
    */
   async redirect(request: Request, slug: string, domain: string, context: RequestContext = {}): Promise<Response | null> {
     await this.init();
     const url = new URL(request.url);
     const host = stripWww((request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host).split(":")[0] ?? "");
-    const link = await this.store.linkBySlug(domain, slug);
-    if (!link) return null;
+    const link = await this.store.linkBySlug(slug);
+    // The app's own link path answers for every link, so a link whose domain
+    // was removed keeps working; a link domain answers only for its own links.
+    if (!link || (domain !== "" && link.domain !== domain)) return null;
     const site = this.site(link.site) ?? this.sites[0];
     const ua = request.headers.get("user-agent") ?? "";
     if (site && !aiAgent(ua) && !isBot(ua) && request.method === "GET") {
