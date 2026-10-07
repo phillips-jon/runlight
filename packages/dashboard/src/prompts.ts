@@ -53,7 +53,7 @@ The dashboard should live at ${base} on this site (it is at ${origin}${base} her
 3. Mount the routes. In Next.js, app${base}/[[...path]]/route.ts:
 
    import { rl } from "@/lib/runlight";
-   export const { GET, POST, PATCH, DELETE, OPTIONS } = rl.routes(${base === "/runlight" ? "" : `{ basePath: "${base}" }`});
+   export const { GET, POST, PUT, PATCH, DELETE, OPTIONS } = rl.routes(${base === "/runlight" ? "" : `{ basePath: "${base}" }`});
 
    For Express or plain Node, use toNodeHandler(rl.routes().handler) from "@runlight/sdk/node".
 

@@ -82,7 +82,7 @@ export function addDays(date: string, days: number): string {
   return new Date(Date.UTC(y!, m! - 1, d! + days)).toISOString().slice(0, 10);
 }
 
-function addMonths(date: string, months: number): string {
+export function addMonths(date: string, months: number): string {
   const [y, m] = date.split("-").map(Number);
   return new Date(Date.UTC(y!, m! - 1 + months, 1)).toISOString().slice(0, 10);
 }

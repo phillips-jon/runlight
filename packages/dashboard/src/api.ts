@@ -140,6 +140,33 @@ export interface GoalReport {
   pages: Array<{ value: string } & Omit<GoalTotals, "rate">>;
 }
 
+export interface MailService {
+  id: string;
+  name: string;
+  fields: Array<{ name: string; label: string; secret?: boolean; options?: string[]; optional?: boolean; placeholder?: string }>;
+}
+
+export interface MailState {
+  source: "code" | "dashboard" | null;
+  service: string;
+  from: string;
+  fromName: string;
+  fields: Record<string, string>;
+  saved: string[];
+  encrypted: boolean;
+  services: MailService[];
+}
+
+export interface Report {
+  id: string;
+  site: string;
+  email: string;
+  frequency: "weekly" | "monthly";
+  lang: string;
+  lastSentAt: number | null;
+  createdAt: number;
+}
+
 export interface Share {
   id: string;
   site: string;
@@ -229,6 +256,14 @@ export const api = {
   createGoal: (site: string, input: GoalInput) => send<{ goal: Goal }>("POST", `goals${siteQuery(site)}`, input),
   updateGoal: (site: string, id: string, input: GoalInput) => send<{ goal: Goal }>("PATCH", `goals/${id}${siteQuery(site)}`, input),
   deleteGoal: (site: string, id: string) => del(`goals/${id}${siteQuery(site)}`),
+  mail: () => get<MailState>("mail", new URLSearchParams()),
+  saveMail: (input: Record<string, string>) => send<{ ok: true }>("PUT", "mail", input),
+  removeMail: () => del("mail"),
+  testMail: (to: string, lang: string) => send<{ ok: true }>("POST", "mail/test", { to, lang }),
+  reports: (site: string) => get<{ reports: Report[]; languages: string[] }>("reports", new URLSearchParams(site ? { site } : {})),
+  addReport: (site: string, input: { email: string; frequency: string; lang: string; origin: string }) => send<{ report: Report }>("POST", `reports${siteQuery(site)}`, input),
+  deleteReport: (site: string, id: string) => del(`reports/${id}${siteQuery(site)}`),
+  sendReport: (site: string, id: string) => send<{ ok: true }>("POST", `reports/${id}/send${siteQuery(site)}`, {}),
   shares: (site: string) => get<{ shares: Share[] }>("shares", new URLSearchParams(site ? { site } : {})),
   createShare: (site: string, name: string) => send<{ share: Share }>("POST", `shares${siteQuery(site)}`, { name }),
   renameShare: (site: string, id: string, name: string) => send<{ share: Share }>("PATCH", `shares/${id}${siteQuery(site)}`, { name }),

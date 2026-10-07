@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, base, type Site, type View } from "./api.js";
+import { EmailReports } from "./email.js";
 import { Goals } from "./goals.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
@@ -9,11 +10,12 @@ import { domainPrompt, installPrompt } from "./prompts.js";
 import { Sharing } from "./sharing.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
-export type Section = "general" | "install" | "goals" | "sharing" | "links" | "import";
+export type Section = "general" | "install" | "goals" | "email" | "sharing" | "links" | "import";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
   ["goals", "settings.goals"],
+  ["email", "settings.email"],
   ["sharing", "settings.sharing"],
   ["links", "settings.links"],
   ["import", "settings.import"],
@@ -405,6 +407,8 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
               <Install site={site} sites={sites} />
             ) : section === "goals" ? (
               <Goals site={site} view={view} />
+            ) : section === "email" ? (
+              <EmailReports site={site} />
             ) : section === "sharing" ? (
               <Sharing site={site} />
             ) : section === "links" ? (

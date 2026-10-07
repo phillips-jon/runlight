@@ -68,6 +68,22 @@ export interface GoalRow {
   createdAt: number;
 }
 
+/** Someone who gets a site's report by email. `token` is the unsubscribe key. */
+export interface ReportRow {
+  id: string;
+  site: string;
+  email: string;
+  frequency: "weekly" | "monthly";
+  lang: string;
+  token: string;
+  /** Where the dashboard lives, for the links in the email. */
+  origin: string;
+  /** The last period sent, like w:2026-09-28 or m:2026-09, so nothing goes out twice. */
+  lastPeriod: string;
+  lastSentAt: number | null;
+  createdAt: number;
+}
+
 export interface GoalTotals {
   conversions: number;
   visitors: number;
@@ -204,7 +220,7 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 6;
+const SCHEMA_VERSION = 7;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -254,6 +270,13 @@ function schema(dialect: Db["dialect"]): string[] {
       id TEXT PRIMARY KEY, site TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL, match TEXT NOT NULL,
       click_by ${text}, value_mode TEXT NOT NULL DEFAULT 'none', value REAL NOT NULL DEFAULT 0,
       value_prop ${text}, currency TEXT NOT NULL DEFAULT 'USD', created_at BIGINT NOT NULL)`,
+    // Version 7: install-wide settings (the mail service) and email report subscriptions.
+    `CREATE TABLE IF NOT EXISTS rl_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS rl_reports (
+      id TEXT PRIMARY KEY, site TEXT NOT NULL, email TEXT NOT NULL, frequency TEXT NOT NULL,
+      lang TEXT NOT NULL DEFAULT 'en', token TEXT NOT NULL, origin ${text},
+      last_period ${text}, last_sent_at BIGINT, created_at BIGINT NOT NULL)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS rl_reports_token ON rl_reports (token)`,
   ];
 }
 
@@ -541,6 +564,73 @@ export class SqlStore {
   /** Deleting a share is how it is revoked: the link stops working at once. */
   async deleteShare(id: string): Promise<void> {
     await this.db.run(`DELETE FROM rl_shares WHERE id = ?`, [id]);
+  }
+
+  // Settings
+
+  async setting(key: string): Promise<string | null> {
+    const [row] = await this.db.all(`SELECT value FROM rl_settings WHERE key = ?`, [key]);
+    return row ? String(row.value) : null;
+  }
+
+  async setSetting(key: string, value: string | null): Promise<void> {
+    if (value === null) await this.db.run(`DELETE FROM rl_settings WHERE key = ?`, [key]);
+    else await this.db.run(`INSERT INTO rl_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`, [key, value]);
+  }
+
+  // Email reports
+
+  private reportRow(r: Record<string, unknown>): ReportRow {
+    return {
+      id: String(r.id),
+      site: String(r.site),
+      email: String(r.email),
+      frequency: String(r.frequency) as ReportRow["frequency"],
+      lang: String(r.lang ?? "en"),
+      token: String(r.token),
+      origin: String(r.origin ?? ""),
+      lastPeriod: String(r.last_period ?? ""),
+      lastSentAt: r.last_sent_at === null || r.last_sent_at === undefined ? null : Number(r.last_sent_at),
+      createdAt: Number(r.created_at),
+    };
+  }
+
+  async reports(site?: string): Promise<ReportRow[]> {
+    const rows = site
+      ? await this.db.all(`SELECT * FROM rl_reports WHERE site = ? ORDER BY created_at`, [site])
+      : await this.db.all(`SELECT * FROM rl_reports ORDER BY created_at`);
+    return rows.map((r) => this.reportRow(r));
+  }
+
+  async reportBy(field: "id" | "token", value: string): Promise<ReportRow | null> {
+    const [row] = await this.db.all(`SELECT * FROM rl_reports WHERE ${field === "id" ? "id" : "token"} = ?`, [value]);
+    return row ? this.reportRow(row) : null;
+  }
+
+  async insertReport(r: ReportRow): Promise<void> {
+    await this.db.run(
+      `INSERT INTO rl_reports (id, site, email, frequency, lang, token, origin, last_period, last_sent_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [r.id, r.site, r.email, r.frequency, r.lang, r.token, r.origin, r.lastPeriod, r.lastSentAt, r.createdAt],
+    );
+  }
+
+  /** Records a period as sent. Only one caller wins, so two cron runs at once cannot both send it. */
+  async claimReport(id: string, period: string, now: number): Promise<boolean> {
+    // One statement, so of two cron runs at once only one gets the row back.
+    const rows = await this.db.all(
+      `UPDATE rl_reports SET last_period = ?, last_sent_at = ? WHERE id = ? AND last_period <> ? RETURNING id`,
+      [period, now, id, period],
+    );
+    return rows.length === 1;
+  }
+
+  /** Puts a period back when its email failed, so the next run tries again. */
+  async releaseReport(id: string, period: string, previous: string): Promise<void> {
+    await this.db.run(`UPDATE rl_reports SET last_period = ? WHERE id = ? AND last_period = ?`, [previous, id, period]);
+  }
+
+  async deleteReport(id: string): Promise<void> {
+    await this.db.run(`DELETE FROM rl_reports WHERE id = ?`, [id]);
   }
 
   // Goals

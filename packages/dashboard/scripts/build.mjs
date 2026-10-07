@@ -67,6 +67,8 @@ export const WORLD_HASH = ${JSON.stringify(mapHash)};
 /** Messages for each language but English, fetched when someone picks it. */
 export const LOCALES: Record<string, string> = ${JSON.stringify(langs)};
 export const LOCALES_HASH = ${JSON.stringify(langHash)};
+/** English, which the bundle carries itself; the server needs it for email. */
+export const ENGLISH = ${JSON.stringify(JSON.stringify(JSON.parse(readFileSync(new URL("../src/locales/en.json", import.meta.url), "utf8"))))};
 `;
 }
 

@@ -6,6 +6,9 @@ import { LINK_DOMAIN_CHECK, type RequestContext, type Runlight } from "./runligh
 import type { ShareRow, SiteRow } from "./store.js";
 import { randomId } from "./hash.js";
 import { GoalError, clickRules, goalFrom } from "./goals.js";
+import { MailError, SERVICES } from "./mail/transports.js";
+import { languages, translator } from "./messages.js";
+import type { ReportRow } from "./store.js";
 import { fetchIcon } from "./icon.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { LinkError } from "./links.js";
@@ -39,6 +42,7 @@ export interface Routes {
   handler: FetchHandler;
   GET: FetchHandler;
   POST: FetchHandler;
+  PUT: FetchHandler;
   PATCH: FetchHandler;
   DELETE: FetchHandler;
   OPTIONS: FetchHandler;
@@ -46,6 +50,10 @@ export interface Routes {
 
 const COOKIE = "runlight_token";
 const IMPLEMENTATION = { library: "@runlight/sdk", language: "typescript" };
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+}
 
 function env(name: string): string | undefined {
   const value = typeof process === "undefined" ? undefined : process.env[name];
@@ -381,6 +389,143 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     }
   }
 
+  const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
+  const reportView = (r: ReportRow) => ({ id: r.id, site: r.site, email: r.email, frequency: r.frequency, lang: r.lang, lastSentAt: r.lastSentAt, createdAt: r.createdAt });
+
+  async function mailApi(request: Request, path: string, url: URL): Promise<Response> {
+    await runlight.init();
+    try {
+      if (path === "/api/mail") {
+        if (request.method === "GET") {
+          const settings = await runlight.mailSettings();
+          const service = SERVICES.find((x) => x.id === settings?.service);
+          // Secret fields come back only as "saved", never as their value.
+          const fields: Record<string, string> = {};
+          const saved: string[] = [];
+          for (const f of service?.fields ?? []) {
+            if (f.secret) {
+              if (settings?.[f.name]) saved.push(f.name);
+            } else fields[f.name] = String(settings?.[f.name] ?? "");
+          }
+          return json({
+            source: settings?.source ?? null,
+            service: settings?.service ?? "",
+            from: settings?.from ?? "",
+            fromName: settings?.fromName ?? "",
+            fields,
+            saved,
+            encrypted: runlight.secret !== null,
+            services: SERVICES,
+          });
+        }
+        if (request.method === "PUT") {
+          const body = await readJson(request);
+          if (body instanceof Response) return body;
+          await runlight.saveMailSettings(body);
+          return json({ ok: true });
+        }
+        if (request.method === "DELETE") {
+          await runlight.saveMailSettings(null);
+          return json({ ok: true });
+        }
+        return json({ error: "Method not allowed" }, 405);
+      }
+
+      if (path === "/api/mail/test" && request.method === "POST") {
+        const body = await readJson(request);
+        if (body instanceof Response) return body;
+        const to = String(body.to ?? "").trim();
+        if (!EMAIL.test(to)) return json({ error: "Enter an email address to send the test to" }, 400);
+        const { t } = translator(String(body.lang ?? "en"));
+        const settings = await runlight.mailSettings();
+        const name = SERVICES.find((x) => x.id === settings?.service)?.name ?? "";
+        await runlight.sendMail({ to, subject: t("email.test.subject"), text: t("email.test.body", { service: name }), html: `<p style="font-family:sans-serif;font-size:15px">${escapeHtml(t("email.test.body", { service: name }))}</p>` });
+        return json({ ok: true });
+      }
+
+      const site = await querySite(url);
+      if (site instanceof Response) return site;
+
+      if (path === "/api/reports") {
+        if (request.method === "GET") return json({ reports: (await runlight.store.reports(site.id)).map(reportView), languages: languages() });
+        if (request.method === "POST") {
+          const body = await readJson(request);
+          if (body instanceof Response) return body;
+          const email = String(body.email ?? "").trim().toLowerCase();
+          if (!EMAIL.test(email)) return json({ error: "Enter an email address" }, 400);
+          const frequency = body.frequency === "monthly" ? "monthly" : "weekly";
+          const existing = await runlight.store.reports(site.id);
+          if (existing.some((r) => r.email === email && r.frequency === frequency)) return json({ error: `${email} already gets the ${frequency} report` }, 400);
+          if (existing.length >= 50) return json({ error: "A site can send to at most 50 addresses" }, 400);
+          // Links in the email point back to this dashboard, as the browser sees it.
+          const given = String(body.origin ?? "");
+          const origin = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${url.origin}${base}`;
+          const report: ReportRow = {
+            id: randomId(),
+            site: site.id,
+            email,
+            frequency,
+            lang: languages().includes(String(body.lang)) ? String(body.lang) : "en",
+            token: randomId(16),
+            origin,
+            lastPeriod: "",
+            lastSentAt: null,
+            createdAt: runlight.now(),
+          };
+          await runlight.store.insertReport(report);
+          return json({ report: reportView(report) }, 201);
+        }
+        return json({ error: "Method not allowed" }, 405);
+      }
+
+      const match = /^\/api\/reports\/([a-f0-9]{24})(\/send)?$/.exec(path);
+      const report = match ? await runlight.store.reportBy("id", match[1]!) : null;
+      if (!report || report.site !== site.id) return json({ error: "Unknown report" }, 404);
+      if (match![2] && request.method === "POST") {
+        await runlight.deliverReport(report, site);
+        return json({ ok: true });
+      }
+      if (!match![2] && request.method === "DELETE") {
+        await runlight.store.deleteReport(report.id);
+        return json({ ok: true });
+      }
+      return json({ error: "Method not allowed" }, 405);
+    } catch (error) {
+      if (error instanceof MailError) return json({ error: error.message }, 400);
+      throw error;
+    }
+  }
+
+  /** A plain page for unsubscribing: a button, so a link scanner opening the URL changes nothing. */
+  async function unsubscribePage(request: Request, token: string): Promise<Response> {
+    await runlight.init();
+    const report = /^[a-f0-9]{32}$/.test(token) ? await runlight.store.reportBy("token", token) : null;
+    const site = report ? runlight.site(report.site) : null;
+    const { t, lang } = translator(report?.lang ?? "en");
+    const page = (body: string, status = 200) =>
+      new Response(
+        `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Runlight</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f4f5;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#111827}main{max-width:420px;margin:24px;padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:14px}h1{font-size:20px;margin:0 0 12px}p{margin:0 0 20px;color:#4b5563}button{height:40px;padding:0 18px;border:0;border-radius:8px;background:#111827;color:#fff;font:inherit;font-weight:600;cursor:pointer}</style></head><body><main>${body}</main></body></html>`,
+        {
+          status,
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
+            "referrer-policy": "no-referrer",
+          },
+        },
+      );
+    if (!report || !site) return page(`<h1>${escapeHtml(t("email.unsub.goneTitle"))}</h1><p>${escapeHtml(t("email.unsub.gone"))}</p>`, 404);
+    if (request.method === "POST") {
+      await runlight.store.deleteReport(report.id);
+      return page(`<h1>${escapeHtml(t("email.unsub.doneTitle"))}</h1><p>${escapeHtml(t("email.unsub.done", { site: site.name, email: report.email }))}</p>`);
+    }
+    return page(
+      `<h1>${escapeHtml(t("email.unsub.title", { site: site.name }))}</h1><p>${escapeHtml(t("email.unsub.body", { email: report.email }))}</p><form method="post"><button type="submit">${escapeHtml(t("email.unsubscribe"))}</button></form>`,
+    );
+  }
+
   async function sharesApi(request: Request, path: string, url: URL): Promise<Response> {
     await runlight.init();
     const site = await querySite(url);
@@ -433,6 +578,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const access = await canRead(request);
       if (access !== true) return denied(access);
       return linksApi(request, path, url);
+    }
+
+    if (path === "/api/mail" || path === "/api/mail/test" || path === "/api/reports" || path.startsWith("/api/reports/")) {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      return mailApi(request, path, url);
     }
 
     if ((path === "/api/goals" && request.method === "POST") || (/^\/api\/goals\/[^/]+$/.test(path) && (request.method === "PATCH" || request.method === "DELETE"))) {
@@ -669,6 +820,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
       if (path === "/api" || path.startsWith("/api/")) return await api(request, path, url);
 
+      const unsubscribe = /^\/unsubscribe\/([^/]+)\/?$/.exec(path);
+      if (unsubscribe && (request.method === "GET" || request.method === "POST")) return await unsubscribePage(request, unsubscribe[1]!);
+
       const sharePage = /^\/share\/([^/]+)\/?$/.exec(path);
       if (sharePage && request.method === "GET") {
         await runlight.init();
@@ -721,5 +875,5 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     }
   };
 
-  return { handler, GET: handler, POST: handler, PATCH: handler, DELETE: handler, OPTIONS: handler };
+  return { handler, GET: handler, POST: handler, PUT: handler, PATCH: handler, DELETE: handler, OPTIONS: handler };
 }

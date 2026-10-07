@@ -1,10 +1,13 @@
 import { locate, type GeoLookup } from "./geo.js";
 import { randomId, randomSalt, visitorHash } from "./hash.js";
+import { seal, unseal } from "./mail/secret.js";
+import { MailError, SERVICES, checkConfig, send, type MailConfig, type Message } from "./mail/transports.js";
+import { buildReport, lastPeriod } from "./reports.js";
 import { parsePayload, MAX_BODY, type Payload } from "./payload.js";
 import { Links } from "./links.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww, type Page } from "./sources.js";
-import type { SiteOverrides, SiteRow, SqlStore } from "./store.js";
+import type { ReportRow, SiteOverrides, SiteRow, SqlStore } from "./store.js";
 import { isTimezone } from "./time.js";
 import { aiAgent, isBot, parseClient } from "./ua.js";
 
@@ -38,9 +41,22 @@ export interface RunlightOptions {
   trustProxy?: boolean;
   /** Where short links on the app's own domain live, as `{linkPath}/{slug}`. Default "/go". */
   linkPath?: string;
+  /**
+   * The mail service for email reports, in code. When set, the dashboard
+   * shows it and cannot change it. Otherwise it is set up in Settings.
+   */
+  mail?: MailSettings;
+  /**
+   * Encrypts the mail service's keys in the database. Default the
+   * RUNLIGHT_SECRET environment variable, then RUNLIGHT_TOKEN.
+   */
+  secret?: string;
   /** For tests. */
   now?: () => number;
 }
+
+/** A mail service and who reports come from. */
+export type MailSettings = MailConfig & { from: string; fromName?: string };
 
 /** Per request facts an adapter knows and a Fetch Request does not carry. */
 export interface RequestContext {
@@ -71,6 +87,13 @@ function siteRow(options: SiteOptions, index: number): SiteRow {
   };
 }
 
+const envValue = (name: string): string | undefined => {
+  const value = typeof process === "undefined" ? undefined : process.env[name];
+  return value?.trim() ? value.trim() : undefined;
+};
+
+const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
+
 export class Runlight {
   readonly store: SqlStore;
   /** The sites as configured in code. */
@@ -85,6 +108,9 @@ export class Runlight {
   readonly linkPath: string;
   private ready: Promise<void> | null = null;
   private salts: { day: string; today: string; yesterday: string | null } | null = null;
+  private readonly mailInCode: MailSettings | undefined;
+  /** Encrypts stored mail keys; null leaves them readable, and the dashboard says so. */
+  readonly secret: string | null;
 
   constructor(options: RunlightOptions) {
     if (!options?.store) throw new Error("Runlight: pass a store, such as sqlite({ path: \"./data/runlight.db\" })");
@@ -102,6 +128,91 @@ export class Runlight {
     this.now = options.now ?? Date.now;
     this.links = new Links(this);
     this.linkPath = `/${(options.linkPath ?? "/go").replace(/^\/+|\/+$/g, "")}`;
+    this.mailInCode = options.mail;
+    this.secret = options.secret ?? envValue("RUNLIGHT_SECRET") ?? envValue("RUNLIGHT_TOKEN") ?? null;
+  }
+
+  /** The mail service: from code, or as saved in the dashboard. Null when there is none. */
+  async mailSettings(): Promise<(MailSettings & { source: "code" | "dashboard" }) | null> {
+    if (this.mailInCode) return { ...this.mailInCode, source: "code" };
+    await this.init();
+    const sealed = await this.store.setting("mail");
+    if (!sealed) return null;
+    const opened = await unseal(sealed, this.secret);
+    if (!opened) return null;
+    return { ...(JSON.parse(opened) as MailSettings), source: "dashboard" };
+  }
+
+  /**
+   * Saves the mail service from the dashboard. A secret field left blank
+   * keeps the saved value, so the browser never needs to see it.
+   */
+  async saveMailSettings(input: Record<string, unknown> | null): Promise<void> {
+    if (this.mailInCode) throw new MailError("The mail service is set in code");
+    if (input === null) return this.store.setSetting("mail", null);
+    const before = await this.mailSettings();
+    const service = SERVICES.find((x) => x.id === input.service);
+    if (!service) throw new MailError("Pick a mail service");
+    const settings: Record<string, string> = { service: service.id };
+    for (const f of service.fields) {
+      const given = String(input[f.name] ?? "").trim();
+      settings[f.name] = !given && f.secret && before?.service === service.id ? String(before[f.name] ?? "") : given;
+    }
+    const from = String(input.from ?? "").trim();
+    if (!EMAIL.test(from)) throw new MailError("Enter the address reports come from, like reports@example.com");
+    const fromName = String(input.fromName ?? "").trim().slice(0, 80);
+    const config = { ...settings, from, ...(fromName ? { fromName } : {}) } as MailSettings;
+    checkConfig(config);
+    await this.store.setSetting("mail", await seal(JSON.stringify(config), this.secret));
+  }
+
+  /** Sends one email through the mail service. */
+  async sendMail(message: Omit<Message, "from" | "fromName">): Promise<void> {
+    const settings = await this.mailSettings();
+    if (!settings) throw new MailError("Set up a mail service first");
+    await send(settings, { ...message, from: settings.from, fromName: settings.fromName });
+  }
+
+  /**
+   * Sends every report that is due: last week's on Monday from 8am, last
+   * month's on the 1st, in each site's timezone. Safe to run often; each
+   * period goes out once. Called by check().
+   */
+  async sendReports(): Promise<{ sent: number; failed: number }> {
+    await this.init();
+    const result = { sent: 0, failed: 0 };
+    const reports = await this.store.reports();
+    if (reports.length === 0 || !(await this.mailSettings())) return result;
+    const now = this.now();
+    for (const r of reports) {
+      const site = this.site(r.site);
+      if (!site) continue;
+      const period = lastPeriod(r.frequency, now, site.timezone);
+      if (now < period.dueAt || r.lastPeriod === period.key) continue;
+      if (!(await this.store.claimReport(r.id, period.key, now))) continue;
+      try {
+        await this.deliverReport(r, site, period);
+        result.sent++;
+      } catch (error) {
+        await this.store.releaseReport(r.id, period.key, r.lastPeriod);
+        console.error(`Runlight: could not send the ${r.frequency} report for ${site.name} to ${r.email}:`, (error as Error).message);
+        result.failed++;
+      }
+    }
+    return result;
+  }
+
+  /** Builds and sends one report. Also used by "Send a sample now". */
+  async deliverReport(r: ReportRow, site: SiteRow, period = lastPeriod(r.frequency, this.now(), site.timezone)): Promise<void> {
+    const unsubscribe = `${r.origin}/unsubscribe/${r.token}`;
+    const report = await buildReport(this, site, r.frequency, period, r.lang, { dashboard: `${r.origin}/?site=${encodeURIComponent(site.id)}`, unsubscribe });
+    await this.sendMail({
+      to: r.email,
+      subject: report.subject,
+      html: report.html,
+      text: report.text,
+      headers: { "List-Unsubscribe": `<${unsubscribe}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+    });
   }
 
   /** Creates tables and records the configured sites. Runs once. */
@@ -437,10 +548,11 @@ export class Runlight {
   }
 
   /** Scheduled work: rotates salts. Idempotent; safe to call every minute. */
-  async check(): Promise<{ ok: true }> {
+  /** Hourly upkeep: rotates salts and sends the email reports that are due. */
+  async check(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
     await this.init();
     this.salts = null;
     await this.currentSalts(this.now());
-    return { ok: true };
+    return { ok: true, reports: await this.sendReports() };
   }
 }
