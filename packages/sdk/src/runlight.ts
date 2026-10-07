@@ -114,6 +114,8 @@ export class Runlight {
   /** Where links on the app's own domain are served, such as "/go". */
   readonly linkPath: string;
   private ready: Promise<void> | null = null;
+  /** Work queued per key by oneAtATime, such as one visitor's session. */
+  private readonly turns = new Map<string, Promise<void>>();
   private salts: { day: string; today: string; yesterday: string | null } | null = null;
   private readonly mailInCode: MailSettings | undefined;
   /** Encrypts stored mail keys; null leaves them readable, and the dashboard says so. */
@@ -380,6 +382,8 @@ export class Runlight {
     const ua = request.headers.get("user-agent") ?? "";
     if (aiAgent(ua) || isBot(ua)) return;
 
+    // Managed sites load from the database in init(), so it must come first.
+    await this.init();
     const site = this.siteFor(payload.url.hostname, payload.site);
     if (!site) return;
 
@@ -437,39 +441,59 @@ export class Runlight {
     const today = await visitorHash(salts.today, site.id, ip, ua);
     const candidates = [today];
     if (salts.yesterday) candidates.push(await visitorHash(salts.yesterday, site.id, ip, ua));
-    const open = await this.store.openSession(site.id, candidates, now - SESSION_IDLE_MS);
-    if (open) return open;
+    // One visitor's requests often arrive together (a pageview and the event
+    // right after it). Taking turns per visitor means only the first opens a
+    // session and the rest find it, instead of each opening its own.
+    return this.oneAtATime(`${site.id}:${today}`, async () => {
+      const open = await this.store.openSession(site.id, candidates, now - SESSION_IDLE_MS);
+      if (open) return open;
 
-    const session = { id: randomId(), visitor: today };
-    const attribution = attribute(page, referrer, site.hostnames);
-    const parsed = parseClient(
-      ua,
-      {
-        brands: request.headers.get("sec-ch-ua"),
-        mobile: request.headers.get("sec-ch-ua-mobile"),
-        platform: request.headers.get("sec-ch-ua-platform"),
-      },
-      client.screenWidth,
-    );
-    const location = await locate(request.headers, ip, this.geo);
-    await this.store.insertSession({
-      id: session.id,
-      site: site.id,
-      visitor: session.visitor,
-      startedAt: now,
-      hostname: page.hostname,
-      ...attribution,
-      utmSource: page.utm.source,
-      utmMedium: page.utm.medium,
-      utmCampaign: page.utm.campaign,
-      utmTerm: page.utm.term,
-      utmContent: page.utm.content,
-      ...location,
-      ...parsed,
-      screen: client.screen,
-      language: client.language,
+      const session = { id: randomId(), visitor: today };
+      const attribution = attribute(page, referrer, site.hostnames);
+      const parsed = parseClient(
+        ua,
+        {
+          brands: request.headers.get("sec-ch-ua"),
+          mobile: request.headers.get("sec-ch-ua-mobile"),
+          platform: request.headers.get("sec-ch-ua-platform"),
+        },
+        client.screenWidth,
+      );
+      const location = await locate(request.headers, ip, this.geo);
+      await this.store.insertSession({
+        id: session.id,
+        site: site.id,
+        visitor: session.visitor,
+        startedAt: now,
+        hostname: page.hostname,
+        ...attribution,
+        utmSource: page.utm.source,
+        utmMedium: page.utm.medium,
+        utmCampaign: page.utm.campaign,
+        utmTerm: page.utm.term,
+        utmContent: page.utm.content,
+        ...location,
+        ...parsed,
+        screen: client.screen,
+        language: client.language,
+      });
+      return session;
     });
-    return session;
+  }
+
+  /** Runs `fn` after any earlier call with the same key has finished. */
+  private oneAtATime<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const previous = this.turns.get(key) ?? Promise.resolve();
+    const result = previous.then(fn, fn);
+    const settled = result.then(
+      () => {},
+      () => {},
+    );
+    this.turns.set(key, settled);
+    void settled.then(() => {
+      if (this.turns.get(key) === settled) this.turns.delete(key);
+    });
+    return result;
   }
 
   /**
@@ -593,9 +617,9 @@ export class Runlight {
       const ext = /\.([a-z0-9]+)$/i.exec(url.pathname)?.[1]?.toLowerCase();
       if (ext && !["html", "htm", "md", "txt", "php"].includes(ext)) return;
       const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.hostname;
+      await this.init();
       const site = this.siteFor(host.split(":")[0] ?? host);
       if (!site) return;
-      await this.init();
       await this.store.insertEvent({
         site: site.id,
         ts: this.now(),
@@ -612,15 +636,20 @@ export class Runlight {
         scroll: null,
         link: "",
       });
-    } catch {
-      // Analytics must never break the page it watches.
+    } catch (error) {
+      // Analytics must never break the page it watches, but a failure should still be seen.
+      console.error("Runlight: could not record an AI agent fetch", error);
     }
   }
 
-  /** Scheduled work: rotates salts. Idempotent; safe to call every minute. */
-  /** Hourly upkeep: rotates salts and sends the email reports that are due. */
+  /**
+   * Scheduled upkeep, safe to run every minute: rotates salts, sends the email
+   * reports that are due, and rereads managed sites, so a site added by another
+   * process sharing the database shows up here too.
+   */
   async check(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
     await this.init();
+    if (this.managedSites) this.configured = await this.store.sites();
     this.salts = null;
     await this.currentSalts(this.now());
     return { ok: true, reports: await this.sendReports() };

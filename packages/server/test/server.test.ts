@@ -47,6 +47,12 @@ test("sign in, sign out, wrong passwords, throttling, and sessions that end with
   const ok = await handle(req("/login", form({ email: "JON@example.com", password: "a long password", next: "//evil.example" })));
   assert.equal(ok.status, 303);
   assert.equal(ok.headers.get("location"), "/", "a next address off this server is ignored");
+  for (const next of ["/\t/evil.example", "/\\evil.example", "/\n/evil.example", "https://evil.example"]) {
+    const bounced = await handle(req("/login", form({ email: "jon@example.com", password: "a long password", next })));
+    assert.equal(bounced.headers.get("location"), "/", `next=${JSON.stringify(next)} stays on this server`);
+  }
+  const deep = await handle(req("/login", form({ email: "jon@example.com", password: "a long password", next: "/?site=blog&period=7d" })));
+  assert.equal(deep.headers.get("location"), "/?site=blog&period=7d");
   const cookie = cookieOf(ok);
   assert.equal((await handle(req("/api/sites", { headers: { cookie } }))).status, 200);
   assert.match(await (await handle(req("/", { headers: { cookie } }))).text(), /data-sign-out="\/logout"/);

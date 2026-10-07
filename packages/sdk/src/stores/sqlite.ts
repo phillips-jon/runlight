@@ -1,5 +1,5 @@
 import Database from "better-sqlite3";
-import { SqlStore, type Db } from "../store.js";
+import { SqlStore, oneConnection, type Db } from "../store.js";
 
 export interface SqliteOptions {
   /** A file path, or ":memory:". */
@@ -37,5 +37,5 @@ export function sqlite(options: SqliteOptions): SqlStore {
       handle = null;
     },
   };
-  return new SqlStore(db);
+  return new SqlStore(oneConnection(db));
 }

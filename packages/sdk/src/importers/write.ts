@@ -76,7 +76,8 @@ export async function writeLink(
       if (!Number.isFinite(c.ts)) continue;
       const visitKey = c.visit ?? `${c.ts}:${clicks}`;
       const session = await hexId(`${source}:${foreign.sourceId}:${visitKey}`);
-      const visitor = await hexId(`${source}:${visitKey}`, 16);
+      // A visitor id lasts one day at most, as every other visitor id does.
+      const visitor = await hexId(`${source}:${visitKey}:${new Date(c.ts).toISOString().slice(0, 10)}`, 16);
       if (!made.has(session)) {
         made.add(session);
         const host = domain || "link.invalid";

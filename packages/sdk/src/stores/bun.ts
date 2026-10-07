@@ -1,4 +1,4 @@
-import { SqlStore, type Db } from "../store.js";
+import { SqlStore, oneConnection, type Db } from "../store.js";
 
 export interface BunSqliteOptions {
   /** A file path, or ":memory:". */
@@ -45,5 +45,5 @@ export function bunSqlite(options: BunSqliteOptions): SqlStore {
       handle = null;
     },
   };
-  return new SqlStore(db);
+  return new SqlStore(oneConnection(db));
 }

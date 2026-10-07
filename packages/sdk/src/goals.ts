@@ -41,6 +41,15 @@ export function goalFrom(input: Record<string, unknown>, site: string, existing:
     if (!match) throw new GoalError(clickBy === "link" ? "Enter the link's address, like https://buy.stripe.com/*" : "Enter a CSS selector, like #signup or .buy-button");
   }
 
+  // A click goal sends an event named after itself, so its name and an event goal's match must not meet.
+  const others = existing.filter((g) => g.id !== id);
+  if (kind === "click" && others.some((g) => g.kind === "event" && g.match.toLowerCase() === name.toLowerCase())) {
+    throw new GoalError(`An event goal already counts events called "${name}", so give this click goal another name`);
+  }
+  if (kind === "event" && others.some((g) => g.kind === "click" && g.name.toLowerCase() === match.toLowerCase())) {
+    throw new GoalError(`The click goal "${match}" already sends events with that name`);
+  }
+
   const valueMode = (MODES as readonly string[]).includes(String(input.valueMode)) ? (String(input.valueMode) as GoalRow["valueMode"]) : "none";
   // Page visits and click rules carry no properties, so only an event can send its own amount.
   if (valueMode === "prop" && kind !== "event") throw new GoalError("Only an event goal can take its amount from the event; use a fixed amount instead");

@@ -50,9 +50,20 @@ function equal(a: string, b: string): boolean {
   return x.length === y.length && timingSafeEqual(x, y);
 }
 
-/** Only a path on this server, so a sign-in can never send someone elsewhere. */
+/**
+ * Only a path on this server, so a sign-in can never send someone elsewhere.
+ * Browsers drop tabs and newlines from a URL and read a backslash as a slash,
+ * so "/\t/evil.example" would leave; anything with those is refused outright,
+ * and what is left must resolve to this origin.
+ */
 function safeNext(value: string | null): string {
-  return value && value.startsWith("/") && !value.startsWith("//") && !value.startsWith("/\\") ? value : "/";
+  if (!value || !value.startsWith("/") || /[\u0000-\u001f\u007f\\]/.test(value)) return "/";
+  try {
+    const url = new URL(value, "http://runlight.invalid");
+    return url.origin === "http://runlight.invalid" ? `${url.pathname}${url.search}${url.hash}` : "/";
+  } catch {
+    return "/";
+  }
 }
 
 function isSecure(request: Request): boolean {

@@ -83,6 +83,16 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
   });
 }
 
+/**
+ * Whether a request's body is JSON by its media type. A cross-site form or a
+ * no-cors fetch can only send text/plain, urlencoded, or multipart, so a JSON
+ * media type proves the request came from a page allowed to send it. A
+ * substring test would accept "text/plain; application/json", which can.
+ */
+function isJson(request: Request): boolean {
+  return (request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase() === "application/json";
+}
+
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
@@ -247,7 +257,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
   async function readJson(request: Request): Promise<Record<string, unknown> | Response> {
     // A form posted from another site cannot carry this content type without CORS.
-    if (!(request.headers.get("content-type") ?? "").includes("application/json")) return json({ error: "Send JSON" }, 415);
+    if (!isJson(request)) return json({ error: "Send JSON" }, 415);
     const body = (await request.json().catch(() => null)) as unknown;
     return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : json({ error: "Send a JSON object" }, 400);
   }
@@ -421,7 +431,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (body instanceof Response) return body;
     try {
       const goal = goalFrom(body, site.id, existing, runlight.now(), id);
-      await runlight.store.saveGoal(goal);
+      await runlight.store.saveGoal(goal, existing.find((g) => g.id === id));
       return json({ goal }, id ? 200 : 201);
     } catch (error) {
       if (error instanceof GoalError) return json({ error: error.message }, 400);
@@ -730,7 +740,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const access = await canRead(request);
       if (access !== true) return denied(access);
       // A form posted from another site cannot carry this content type without CORS.
-      if (!(request.headers.get("content-type") ?? "").includes("application/json")) return json({ error: "Send JSON" }, 415);
+      if (!isJson(request)) return json({ error: "Send JSON" }, 415);
       const body = (await request.json().catch(() => null)) as { name?: unknown; timezone?: unknown; hostnames?: unknown } | null;
       if (!body || typeof body !== "object") return json({ error: "Send a JSON object" }, 400);
       try {
@@ -819,8 +829,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     if (path === "/api/goals") {
       const goals = await runlight.store.goals(site.id);
-      const visitors = (await runlight.store.stats(query)).visitors;
-      const previousVisitors = compared ? (await runlight.store.stats({ ...query, from: compared.from, to: compared.to })).visitors : 0;
+      const visitors = await runlight.store.visitors(query);
+      const previousVisitors = compared ? await runlight.store.visitors({ ...query, from: compared.from, to: compared.to }) : 0;
       const rows = await Promise.all(
         goals.map(async (goal) => {
           const now = await runlight.store.goalTotals(query, goal);
@@ -840,7 +850,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (goalMatch) {
       const goal = await runlight.store.goalById(goalMatch[1]!);
       if (!goal || goal.site !== site.id) return json({ error: "Unknown goal" }, 404);
-      const visitors = (await runlight.store.stats(query)).visitors;
+      const visitors = await runlight.store.visitors(query);
       const totals = await runlight.store.goalTotals(query, goal);
       const [series, sources, channels, pages] = await Promise.all([
         runlight.store.goalSeries(query, goal, buckets(range, site.timezone)),

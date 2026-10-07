@@ -25,11 +25,45 @@ export interface Db {
   exclusive?<T>(fn: (db: Db) => Promise<T>): Promise<T>;
   /**
    * Runs `fn` in one transaction on one connection. Optional: without it the
-   * store sends BEGIN and COMMIT itself, which is right for a single
-   * connection such as SQLite's.
+   * store sends BEGIN and COMMIT itself, which is only safe when nothing else
+   * can run on the connection meanwhile. A store with one shared connection
+   * should wrap its Db in `oneConnection()`, which provides this.
    */
   transaction?<T>(fn: (db: Db) => Promise<T>): Promise<T>;
   close?(): Promise<void>;
+}
+
+/**
+ * For a store with one connection shared by every request (SQLite through
+ * better-sqlite3 or Bun). Statements and transactions take turns, so a
+ * request's insert can never land inside an import's open transaction, and
+ * a rollback can only undo the transaction's own writes.
+ */
+export function oneConnection(inner: Db): Db {
+  let tail: Promise<unknown> = Promise.resolve();
+  const turn = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = tail.then(fn, fn);
+    tail = result.catch(() => {});
+    return result;
+  };
+  return {
+    ...inner,
+    all: (sql, params) => turn(() => inner.all(sql, params)),
+    run: (sql, params) => turn(() => inner.run(sql, params)),
+    // Statements inside the transaction use the connection directly; they already hold the turn.
+    transaction: (fn) =>
+      turn(async () => {
+        await inner.run("BEGIN");
+        try {
+          const result = await fn(inner);
+          await inner.run("COMMIT");
+          return result;
+        } catch (error) {
+          await inner.run("ROLLBACK");
+          throw error;
+        }
+      }),
+  };
 }
 
 export interface SiteRow {
@@ -719,7 +753,12 @@ export class SqlStore {
     return row ? goalRow(row) : null;
   }
 
-  async saveGoal(g: GoalRow): Promise<void> {
+  async saveGoal(g: GoalRow, before?: GoalRow): Promise<void> {
+    // A click goal is counted by its name, which the tracker sends as the event
+    // name. Renaming one renames its past clicks too, so its history stays.
+    if (before?.kind === "click" && g.kind === "click" && before.name !== g.name) {
+      await this.db.run(`UPDATE rl_events SET name = ? WHERE site = ? AND kind = 'event' AND name = ?`, [g.name, g.site, before.name]);
+    }
     await this.db.run(
       `INSERT INTO rl_goals (id, site, name, kind, match, click_by, value_mode, value, value_prop, currency, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -892,6 +931,17 @@ export class SqlStore {
     return row?.t === null || row?.t === undefined ? null : num(row.t);
   }
 
+  /** Just the visitor count from stats(), in one query, for conversion rates. */
+  async visitors(query: Query): Promise<number> {
+    const f = filterSql(query.filters);
+    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    const [row] = await this.db.all(
+      `SELECT COUNT(DISTINCT e.visitor) AS visitors FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql}`,
+      [query.site, query.from, query.to, ...f.params],
+    );
+    return num(row?.visitors);
+  }
+
   async stats(query: Query): Promise<Stats> {
     const f = filterSql(query.filters);
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
@@ -1027,9 +1077,9 @@ export class SqlStore {
         const times = await this.db.all(
           `SELECT e.path AS value, SUM(e.engaged_ms) AS total, COUNT(DISTINCT e.pageview) AS views,
              AVG(e.scroll) AS scroll
-           FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'engagement'
+           FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'engagement'${f.sql}
            AND e.path IN (${out.map(() => "?").join(", ")}) GROUP BY e.path`,
-          [query.site, query.from, query.to, ...out.map((row) => row.value)],
+          [...params, ...out.map((row) => row.value)],
         );
         const byPath = new Map(times.map((t) => [String(t.value), t]));
         for (const row of out) {
