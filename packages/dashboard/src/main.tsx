@@ -309,21 +309,13 @@ function App() {
                 <span class="metric-value">{value === undefined ? " " : m.format(value)}</span>
                 <span class="metric-foot">
                   {stats ? <Delta now={stats.stats[m.key]} before={stats.previous?.[m.key]} lowerIsBetter={m.lowerIsBetter} /> : null}
-                  <Spark points={points} metric={m} on={on} />
                 </span>
+                <Spark points={points} metric={m} on={on} />
               </button>
             );
           })}
         </div>
         <div class="chart-head">
-          <div class="legend">
-            {shownMetrics.map((m) => (
-              <span>
-                <span class={`swatch s${m.slot}`} />
-                {metricLabel(m)}
-              </span>
-            ))}
-          </div>
           <span class="chart-note">
             {shownMetrics.length > 1 ? t("chart.scaled") : t("chart.pick")}
             {stats?.compare ? ` ${t("chart.dashed", { range: rangeText(stats.compare.from, stats.compare.to) })}` : ""}

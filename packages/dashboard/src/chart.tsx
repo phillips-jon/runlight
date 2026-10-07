@@ -88,11 +88,11 @@ export function Chart({ points, previous, metrics, interval, timezone }: Props) 
         )}
         {metrics.map((m) => {
           if (before.length < 2) return null;
-          const then = before.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(m, p[m.key]).toFixed(1)}`).join("");
+          const then = smooth(before.map((_, i) => x(i)), before.map((p) => y(m, p[m.key])));
           return <path class={`then s${m.slot}`} d={then} />;
         })}
         {metrics.map((m) => {
-          const line = points.map((p, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${y(m, p[m.key]).toFixed(1)}`).join("");
+          const line = smooth(points.map((_, i) => x(i)), points.map((p) => y(m, p[m.key])));
           const area = points.length ? `${line}L${x(points.length - 1).toFixed(1)},${baseline}L${x(0).toFixed(1)},${baseline}Z` : "";
           return (
             <g class={`series s${m.slot}`}>
@@ -135,17 +135,52 @@ export function Chart({ points, previous, metrics, interval, timezone }: Props) 
   );
 }
 
-/** A small line of one metric, for its card. */
+/**
+ * A smooth path through points (Catmull-Rom as cubic Beziers), with each
+ * control point held inside its segment's vertical range so the curve
+ * never overshoots below zero or above a peak.
+ */
+export function smooth(xs: number[], ys: number[]): string {
+  if (xs.length === 0) return "";
+  let d = `M${xs[0]!.toFixed(2)},${ys[0]!.toFixed(2)}`;
+  for (let i = 0; i < xs.length - 1; i++) {
+    const x0 = xs[i - 1] ?? xs[i]!;
+    const y0 = ys[i - 1] ?? ys[i]!;
+    const x1 = xs[i]!;
+    const y1 = ys[i]!;
+    const x2 = xs[i + 1]!;
+    const y2 = ys[i + 1]!;
+    const x3 = xs[i + 2] ?? x2;
+    const y3 = ys[i + 2] ?? y2;
+    const lo = Math.min(y1, y2);
+    const hi = Math.max(y1, y2);
+    const c1y = Math.min(hi, Math.max(lo, y1 + (y2 - y0) / 6));
+    const c2y = Math.min(hi, Math.max(lo, y2 - (y3 - y1) / 6));
+    d += `C${(x1 + (x2 - x0) / 6).toFixed(2)},${c1y.toFixed(2)} ${(x2 - (x3 - x1) / 6).toFixed(2)},${c2y.toFixed(2)} ${x2.toFixed(2)},${y2.toFixed(2)}`;
+  }
+  return d;
+}
+
+/** A faint area of one metric over the range, filling the bottom of its card. */
 export function Spark({ points, metric, on }: { points: Point[]; metric: MetricDef; on: boolean }) {
-  if (points.length < 2) return <svg class="spark" />;
+  if (points.length < 2) return null;
   const vals = points.map((p) => p[metric.key]);
-  const max = Math.max(...vals) || 1;
-  const w = 100;
-  const h = 28;
-  const d = vals.map((v, i) => `${i === 0 ? "M" : "L"}${((i / (vals.length - 1)) * w).toFixed(2)},${(h - 2 - (v / max) * (h - 4)).toFixed(2)}`).join("");
+  const max = Math.max(...vals);
+  const min = Math.min(...vals);
+  const w = 200;
+  const h = 60;
+  // Its own low to high, in the lower part of the card, so a steady metric
+  // still shows its movement without climbing behind the number.
+  // The floor sits one span below the lowest point, so small wobbles stay small.
+  const floor = Math.max(0, min - (max - min));
+  const span = max - floor || 1;
+  const xs = vals.map((_, i) => (i / (vals.length - 1)) * w);
+  const ys = vals.map((v) => h - 3 - ((v - floor) / span) * (h * 0.62));
+  const line = smooth(xs, ys);
   return (
     <svg class={`spark s${metric.slot}${on ? " on" : ""}`} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
-      <path d={d} vector-effect="non-scaling-stroke" />
+      <path class="spark-area" d={`${line}L${w},${h}L0,${h}Z`} />
+      <path class="spark-line" d={line} vector-effect="non-scaling-stroke" />
     </svg>
   );
 }
