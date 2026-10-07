@@ -229,7 +229,7 @@
   "settings.language": "Langue",
   "settings.languageHint": "Seulement pour ce navigateur.",
   "settings.theme": "Thème",
-  "settings.themeSystem": "Comme le système",
+  "settings.themeSystem": "Réglage de l'appareil",
   "settings.themeLight": "Clair",
   "settings.themeDark": "Sombre",
   "install.live": "Les visites arrivent. La dernière date de {when}.",
@@ -245,5 +245,7 @@
   "install.counted": "Vos visites depuis ce navigateur sont comptées.",
   "install.ignoreButton": "Ignorer ce navigateur",
   "install.trackButton": "Compter à nouveau ce navigateur",
-  "install.ignoreElsewhere": "Tableau de bord sur un autre domaine que le site ? Ouvrez {link} une fois dans chaque navigateur que vous utilisez."
+  "install.ignoreElsewhere": "Tableau de bord sur un autre domaine que le site ? Ouvrez {link} une fois dans chaque navigateur que vous utilisez.",
+  "theme.system": "Réglage de l'appareil",
+  "theme.cycle": "Thème : {current}. Cliquez pour {next}."
 }

@@ -229,7 +229,7 @@
   "settings.language": "Sprache",
   "settings.languageHint": "Nur für diesen Browser.",
   "settings.theme": "Design",
-  "settings.themeSystem": "Wie das System",
+  "settings.themeSystem": "Geräteeinstellung",
   "settings.themeLight": "Hell",
   "settings.themeDark": "Dunkel",
   "install.live": "Besuche kommen an. Der letzte war {when}.",
@@ -245,5 +245,7 @@
   "install.counted": "Deine Besuche aus diesem Browser werden gezählt.",
   "install.ignoreButton": "Diesen Browser ignorieren",
   "install.trackButton": "Diesen Browser wieder zählen",
-  "install.ignoreElsewhere": "Dashboard auf einer anderen Domain als die Website? Öffne {link} einmal in jedem Browser, den du nutzt."
+  "install.ignoreElsewhere": "Dashboard auf einer anderen Domain als die Website? Öffne {link} einmal in jedem Browser, den du nutzt.",
+  "theme.system": "Geräteeinstellung",
+  "theme.cycle": "Design: {current}. Klicken für {next}."
 }

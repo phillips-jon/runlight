@@ -229,7 +229,7 @@
   "settings.language": "Language",
   "settings.languageHint": "Just for this browser.",
   "settings.theme": "Theme",
-  "settings.themeSystem": "Match the system",
+  "settings.themeSystem": "Device setting",
   "settings.themeLight": "Light",
   "settings.themeDark": "Dark",
   "install.live": "Receiving visits. The last one was {when}.",
@@ -245,5 +245,7 @@
   "install.counted": "Your visits from this browser are counted.",
   "install.ignoreButton": "Ignore this browser",
   "install.trackButton": "Count this browser again",
-  "install.ignoreElsewhere": "Dashboard on a different domain from the site? Open {link} once in each browser you use."
+  "install.ignoreElsewhere": "Dashboard on a different domain from the site? Open {link} once in each browser you use.",
+  "theme.system": "Device setting",
+  "theme.cycle": "Theme: {current}. Click for {next}."
 }

@@ -9,7 +9,7 @@ import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey }
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
 import { SettingsModal } from "./settings.js";
-import { applyTheme, isDark, onThemeChange, setTheme } from "./theme.js";
+import { applyTheme, isDark, onThemeChange, setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 import "./style.css";
 
 /** A fresh dashboard compares with nothing; the cards show changes once a comparison is picked. */
@@ -460,40 +460,50 @@ function layout(): Array<{ title: Key; tabs: Tab[]; wide?: boolean }> {
   ];
 }
 
+const CYCLE: ThemeChoice[] = ["light", "dark", "system"];
+const themeName = (choice: ThemeChoice): string => t(choice === "light" ? "theme.light" : choice === "dark" ? "theme.dark" : "theme.system");
+
+/** Cycles light, dark, and the device's setting; the icon shows the current one. */
 function Theme() {
   const [, rerender] = useState(0);
   useEffect(() => onThemeChange(() => rerender((n) => n + 1)), []);
-  const dark = isDark();
-  const toggle = () => setTheme(isDark() ? "light" : "dark");
-  // Cmd+Shift+D on a Mac, Ctrl+Shift+D elsewhere.
+  const choice = themeChoice();
+  const next = CYCLE[(CYCLE.indexOf(choice) + 1) % CYCLE.length]!;
+  // Cmd+Shift+D on a Mac, Ctrl+Shift+D elsewhere, flips light and dark.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "d") {
         e.preventDefault();
-        toggle();
+        setTheme(isDark() ? "light" : "dark");
       }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, []);
   const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+  const label = t("theme.cycle", { current: themeName(choice), next: themeName(next) });
   return (
     <button
       type="button"
       class="theme"
-      aria-label={t(dark ? "theme.toLight" : "theme.toDark")}
+      aria-label={label}
       aria-keyshortcuts={mac ? "Meta+Shift+D" : "Control+Shift+D"}
-      title={`${t(dark ? "theme.light" : "theme.dark")} (${mac ? "\u2318\u21e7D" : "Ctrl+Shift+D"})`}
-      onClick={toggle}
+      title={`${label} (${mac ? "\u2318\u21e7D" : "Ctrl+Shift+D"})`}
+      onClick={() => setTheme(next)}
     >
-      {dark ? (
+      {choice === "light" ? (
         <svg viewBox="0 0 20 20" aria-hidden="true">
           <circle cx="10" cy="10" r="3.6" />
           <path d="M10 1.8v2.2M10 16v2.2M1.8 10H4M16 10h2.2M4.2 4.2l1.6 1.6M14.2 14.2l1.6 1.6M4.2 15.8l1.6-1.6M14.2 5.8l1.6-1.6" />
         </svg>
-      ) : (
+      ) : choice === "dark" ? (
         <svg viewBox="0 0 20 20" aria-hidden="true">
           <path d="M16.5 12.6A7 7 0 0 1 7.4 3.5a7 7 0 1 0 9.1 9.1z" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 20 20" aria-hidden="true">
+          <rect x="2.5" y="3.5" width="15" height="10" rx="1.6" />
+          <path d="M7 17h6M10 13.5V17" />
         </svg>
       )}
     </button>
