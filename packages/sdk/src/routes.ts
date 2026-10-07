@@ -23,9 +23,10 @@ export interface RoutesOptions {
   /**
    * Required to read stats. Send it as `Authorization: Bearer <token>`, or
    * open the dashboard once with `?token=<token>` and a cookie is set.
-   * Defaults to process.env.RUNLIGHT_TOKEN. Without one, stats are open in
-   * development and answer 503 in production. Pass `null` to leave them
-   * open everywhere, for example behind your own auth middleware.
+   * Defaults to process.env.RUNLIGHT_TOKEN. Without one, the dashboard and API
+   * are open only when NODE_ENV is "development", and answer 503 everywhere
+   * else. Pass `null` to leave them open everywhere, for example behind your
+   * own auth middleware. On an edge runtime, pass the token from its env.
    */
   token?: string | null;
   /** Your own check instead of a token. Return true to let the request read stats. */
@@ -71,8 +72,8 @@ function env(name: string): string | undefined {
   return value?.trim() ? value.trim() : undefined;
 }
 
-function isProduction(): boolean {
-  return env("NODE_ENV") === "production";
+function isDevelopment(): boolean {
+  return env("NODE_ENV") === "development";
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -165,10 +166,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (options.authorize) return Boolean(await options.authorize(request));
     if (token === null) return true;
     if (!token) {
-      if (isProduction()) return "unconfigured";
+      // Fails closed: only a process that says it is in development runs open.
+      // A plain `node` server or an edge runtime with no NODE_ENV stays locked.
+      if (!isDevelopment()) return "unconfigured";
       if (!warned) {
         warned = true;
-        console.warn("Runlight: no RUNLIGHT_TOKEN set, so stats are open. That is fine in development; production answers 503 until one is set.");
+        console.warn("Runlight: no RUNLIGHT_TOKEN set, so the dashboard is open because NODE_ENV is development. Anywhere else it answers 503 until a token is set.");
       }
       return true;
     }
@@ -198,7 +201,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
   function denied(result: false | "unconfigured"): Response {
     return result === "unconfigured"
-      ? json({ error: "Set RUNLIGHT_TOKEN, or pass token or authorize to routes()." }, 503)
+      ? json({ error: "Set RUNLIGHT_TOKEN, or pass token or authorize to routes(). Without one, Runlight only runs open when NODE_ENV is development." }, 503)
       : json({ error: "Unauthorized" }, 401);
   }
 

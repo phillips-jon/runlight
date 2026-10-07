@@ -117,7 +117,7 @@ The address is dropped after the lookup, so only the place is kept.
 | `cronSecret` | `CRON_SECRET` | A second secret the [scheduled check](/docs/cron/) accepts besides the token. |
 | `observeKey` | `RUNLIGHT_OBSERVE_KEY` | Lets a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site report AI agent fetches to `POST /api/observe` without the token. That key can only report fetches. |
 
-With no token in production, the dashboard and API answer 503 until you set one. Collecting visits, the script, short links, share links, and unsubscribe links never need the token.
+With no token, the dashboard and API answer 503 until you set one, unless `NODE_ENV` is `development`. Collecting visits, the script, short links, share links, and unsubscribe links never need the token.
 
 ## Environment variables
 

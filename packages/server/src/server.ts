@@ -62,7 +62,12 @@ function isSecure(request: Request): boolean {
 export function createServer(options: ServerOptions): RunlightServer {
   const now = options.now ?? Date.now;
   const accounts = new Accounts(options.store, options.secret);
-  const throttle = new Throttle();
+  // Wrong passwords are counted twice. Per account and address, ten tries;
+  // per account from anywhere, fifty, so a caller who invents a new address
+  // for every try still cannot guess on and on. Addresses come from
+  // forwarding headers a client can write, so they never stand alone.
+  const perAddress = new Throttle(10);
+  const perAccount = new Throttle(50);
   const setupCode = randomBytes(9).toString("base64url");
   let hasAccount = false;
 
@@ -143,14 +148,18 @@ export function createServer(options: ServerOptions): RunlightServer {
           const form = new URLSearchParams(await request.text());
           const email = form.get("email") ?? "";
           const next = safeNext(form.get("next"));
-          const ip = rl.clientIp(request, context) || "unknown";
-          if (throttle.blocked(ip, now())) return html(loginPage({ error: "Too many tries. Wait fifteen minutes and try again.", email, next }), 429);
+          const account = email.trim().toLowerCase();
+          const pair = `${account}\n${rl.clientIp(request, context) || "unknown"}`;
+          if (perAddress.blocked(pair, now()) || perAccount.blocked(account, now())) {
+            return html(loginPage({ error: "Too many tries. Wait fifteen minutes and try again.", email, next }), 429);
+          }
           const user = await accounts.signIn(email, form.get("password") ?? "");
           if (!user) {
-            throttle.fail(ip, now());
+            perAddress.fail(pair, now());
+            perAccount.fail(account, now());
             return html(loginPage({ error: "That email and password do not match an account.", email, next }), 401);
           }
-          throttle.clear(ip);
+          perAddress.clear(pair);
           return redirect(next, { "set-cookie": sessionCookie(request, accounts.sessionFor(user, now()), SESSION_MS / 1000) });
         }
       }

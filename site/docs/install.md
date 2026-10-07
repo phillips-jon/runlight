@@ -210,16 +210,18 @@ Workers have no disk, so keep the numbers in [D1](/docs/configuration/#cloudflar
 import { runlight } from "@runlight/sdk";
 import { d1 } from "@runlight/sdk/d1";
 
-let rl: ReturnType<typeof runlight> | undefined;
+let routes: ReturnType<ReturnType<typeof runlight>["routes"]> | undefined;
 
 export default {
-  fetch(request: Request, env: { DB: D1Database }) {
+  fetch(request: Request, env: { DB: D1Database; RUNLIGHT_TOKEN: string }) {
     // Made once per Worker instance, so the tables are checked once, not on every request.
-    rl ??= runlight({ store: d1({ database: env.DB }), site: { hostnames: ["example.com"] } });
-    return rl.routes().handler(request);
+    routes ??= runlight({ store: d1({ database: env.DB }), site: { hostnames: ["example.com"] } }).routes({ token: env.RUNLIGHT_TOKEN });
+    return routes.handler(request);
   },
 };
 ```
+
+A Worker keeps its secrets in `env`, which Runlight cannot read by itself, so pass the token to `routes()` as above. Set it with `wrangler secret put RUNLIGHT_TOKEN`.
 
 Route only `/runlight/*` to this Worker (or check the path first, as in the Bun example), and schedule the [hourly check](/docs/cron/) with a Cron Trigger that calls `rl.check()`.
 

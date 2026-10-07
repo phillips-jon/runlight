@@ -38,13 +38,19 @@ test("stats need the token, as a bearer or through the cookie", async () => {
   assert.equal((await GET(req("/runlight/", { headers: { cookie: value } }))).status, 200);
 });
 
-test("with no token, production refuses and development is open", async () => {
+test("with no token, everything but development refuses, writes included", async () => {
   const before = process.env.NODE_ENV;
   const warn = console.warn;
   console.warn = () => {};
   try {
-    process.env.NODE_ENV = "production";
-    assert.equal((await make().routes({ token: undefined }).GET(req("/runlight/api/stats"))).status, 503);
+    for (const value of ["production", "", "staging"]) {
+      if (value) process.env.NODE_ENV = value;
+      else delete process.env.NODE_ENV;
+      const routes = make().routes({ token: undefined });
+      assert.equal((await routes.GET(req("/runlight/api/stats"))).status, 503, `NODE_ENV=${value || "(unset)"}`);
+      const minted = await routes.POST(req("/runlight/api/tokens", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: "x" }) }));
+      assert.equal(minted.status, 503, "nobody can make a token on an install with no token");
+    }
     process.env.NODE_ENV = "development";
     assert.equal((await make().routes({ token: undefined }).GET(req("/runlight/api/stats"))).status, 200);
   } finally {

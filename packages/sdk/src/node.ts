@@ -15,7 +15,13 @@ export type NodeHandler = (req: IncomingMessage, res: ServerResponse, next?: Nod
 
 type NodeRequest = IncomingMessage & { originalUrl?: string; body?: unknown };
 
-const MAX_BODY = 16 * 1024;
+/** The collect endpoint's limit; its payloads are under 8 KB. */
+const MAX_COLLECT_BODY = 16 * 1024;
+/** Everything else, such as a link import of 5,000 rows. */
+const MAX_BODY = 10 * 1024 * 1024;
+
+/** A body past the limit, answered with 413 rather than passed on empty. */
+export class BodyTooLarge extends Error {}
 
 function toUrl(req: NodeRequest): string {
   const encrypted = (req.socket as { encrypted?: boolean } | undefined)?.encrypted === true;
@@ -38,7 +44,7 @@ function headersOf(req: IncomingMessage): Headers {
   return headers;
 }
 
-async function readBody(req: NodeRequest): Promise<string> {
+async function readBody(req: NodeRequest, limit: number): Promise<string> {
   // A body parser may have read the stream already.
   if (typeof req.body === "string") return req.body;
   if (req.body instanceof Uint8Array) return new TextDecoder().decode(req.body);
@@ -49,7 +55,7 @@ async function readBody(req: NodeRequest): Promise<string> {
   for await (const chunk of req) {
     const buffer = typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Buffer);
     size += buffer.length;
-    if (size > MAX_BODY) return "";
+    if (size > limit) throw new BodyTooLarge(`Request body over ${limit} bytes`);
     chunks.push(buffer);
   }
   return Buffer.concat(chunks).toString("utf8");
@@ -58,7 +64,10 @@ async function readBody(req: NodeRequest): Promise<string> {
 export async function toRequest(req: NodeRequest): Promise<Request> {
   const method = (req.method ?? "GET").toUpperCase();
   const init: RequestInit = { method, headers: headersOf(req) };
-  if (method !== "GET" && method !== "HEAD") init.body = await readBody(req);
+  if (method !== "GET" && method !== "HEAD") {
+    const path = (req.originalUrl ?? req.url ?? "").split("?")[0] ?? "";
+    init.body = await readBody(req, /\/e$/.test(path) ? MAX_COLLECT_BODY : MAX_BODY);
+  }
   return new Request(toUrl(req), init);
 }
 
@@ -87,6 +96,11 @@ export function toNodeHandler(handler: FetchHandler): NodeHandler {
       }
       await writeResponse(res, response);
     } catch (error) {
+      if (error instanceof BodyTooLarge) {
+        res.statusCode = 413;
+        res.setHeader("content-type", "application/json; charset=utf-8");
+        return void res.end(JSON.stringify({ error: "That request is too large" }));
+      }
       if (next) return next(error);
       res.statusCode = 500;
       res.end();

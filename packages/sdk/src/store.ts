@@ -758,7 +758,8 @@ export class SqlStore {
 
   private revenueSql(goal: GoalRow): { sql: string; params: unknown[] } {
     if (goal.valueMode === "prop" && goal.valueProp) return this.propSum(goal.valueProp);
-    if (goal.valueMode === "fixed") return { sql: `COUNT(*) * ?`, params: [goal.value] };
+    // Cast, so Postgres does not read the bound value as a bigint and refuse 9.99.
+    if (goal.valueMode === "fixed") return { sql: `COUNT(*) * CAST(? AS DOUBLE PRECISION)`, params: [goal.value] };
     return { sql: `0`, params: [] };
   }
 

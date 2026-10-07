@@ -14,6 +14,8 @@ export const SESSION_COOKIE = "runlight_session";
 /** Thirty days, renewed on every sign-in. */
 export const SESSION_MS = 30 * 86_400_000;
 export const MIN_PASSWORD = 10;
+/** The most sign-in keys the throttle remembers at once. */
+const MAX_THROTTLED = 10_000;
 
 export interface User {
   id: string;
@@ -135,7 +137,7 @@ export class Accounts {
   }
 }
 
-/** Counts failed sign-ins by address and refuses more than a few in a while. */
+/** Counts failed sign-ins under a key and refuses more than a few in a while. */
 export class Throttle {
   private readonly failures = new Map<string, { count: number; until: number }>();
 
@@ -152,10 +154,18 @@ export class Throttle {
 
   fail(key: string, now: number): void {
     const entry = this.failures.get(key);
-    if (!entry || entry.until <= now) this.failures.set(key, { count: 1, until: now + this.windowMs });
-    else entry.count++;
-    // Old entries go, so the map cannot grow without end.
-    if (this.failures.size > 10_000) for (const [k, v] of this.failures) if (v.until <= now) this.failures.delete(k);
+    if (!entry || entry.until <= now) {
+      this.failures.delete(key);
+      this.failures.set(key, { count: 1, until: now + this.windowMs });
+    } else entry.count++;
+    // Expired entries go first, then the oldest, so the map has a hard ceiling.
+    if (this.failures.size > MAX_THROTTLED) {
+      for (const [k, v] of this.failures) if (v.until <= now) this.failures.delete(k);
+      for (const k of this.failures.keys()) {
+        if (this.failures.size <= MAX_THROTTLED) break;
+        this.failures.delete(k);
+      }
+    }
   }
 
   clear(key: string): void {

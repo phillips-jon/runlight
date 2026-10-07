@@ -16,7 +16,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import { createServer as createHttpServer } from "node:http";
 import path from "node:path";
 import type { SqlStore } from "@runlight/sdk";
-import { toRequest, writeResponse } from "@runlight/sdk/node";
+import { BodyTooLarge, toRequest, writeResponse } from "@runlight/sdk/node";
 import { Geo, fileLookup } from "./geo.js";
 import { createServer } from "./server.js";
 import { VERSION } from "./version.js";
@@ -106,6 +106,7 @@ async function main(): Promise<void> {
       const response = await server.handler(await toRequest(req), { ip: req.socket.remoteAddress ?? "" });
       await writeResponse(res, response);
     } catch (error) {
+      if (error instanceof BodyTooLarge) return void (res.headersSent || res.writeHead(413, { "content-type": "application/json" }).end(JSON.stringify({ error: "That request is too large" })));
       console.error("Runlight:", error);
       if (!res.headersSent) res.writeHead(500).end();
     }

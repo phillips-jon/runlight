@@ -38,7 +38,7 @@ function suite(kind: StoreKind) {
       return ((await r.json()) as { goal: { id: string } }).goal.id;
     };
     const purchase = await made({ name: "Purchase", kind: "event", match: "Purchase", valueMode: "prop", valueProp: "revenue", currency: "usd" });
-    await made({ name: "Thank you page", kind: "page", match: "https://example.com/thanks*", valueMode: "fixed", value: 10 });
+    await made({ name: "Thank you page", kind: "page", match: "https://example.com/thanks*", valueMode: "fixed", value: 9.99 });
     await made({ name: "Buy button", kind: "click", clickBy: "selector", match: ".buy" });
 
     const report = await t.get("/api/goals?period=today&compare=off");
@@ -50,7 +50,7 @@ function suite(kind: StoreKind) {
     assert.equal(byName.Purchase.currency, "USD");
     assert.equal(byName["Thank you page"].match, "/thanks*", "a pasted URL keeps only its path");
     assert.equal(byName["Thank you page"].conversions, 2);
-    assert.equal(byName["Thank you page"].revenue, 20);
+    assert.ok(Math.abs(byName["Thank you page"].revenue - 19.98) < 1e-9, "a decimal fixed value works on every database, Postgres too");
     assert.ok(Math.abs(byName["Thank you page"].rate - 2 / 3) < 1e-9);
     assert.equal(byName["Buy button"].conversions, 0);
 

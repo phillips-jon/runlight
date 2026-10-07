@@ -65,7 +65,7 @@ The dashboard is private, so set a long random token in your environment.
 RUNLIGHT_TOKEN=a-long-random-string
 ```
 
-Then open `/runlight/?token=a-long-random-string` once. Runlight sets a cookie holding a digest of the token (never the token itself) and sends you on to the dashboard. In development, with no token set, the dashboard is open. In production it answers 503 until you set one.
+Then open `/runlight/?token=a-long-random-string` once. Runlight sets a cookie holding a digest of the token (never the token itself) and sends you on to the dashboard. With no token set, the dashboard is open only while `NODE_ENV` is `development`, as it is under `next dev`. Everywhere else it answers 503 until you set one.
 
 Visit any page of your site and you will see yourself under “here now” within seconds.
 

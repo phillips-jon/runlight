@@ -67,6 +67,15 @@ test("sign in, sign out, wrong passwords, throttling, and sessions that end with
   const later = await handle(req("/login", { ...form({ email: "jon@example.com", password: "another long password" }), headers: { ...form({}).headers, ...from } }));
   assert.equal(later.status, 303);
 
+  // Inventing a new address for every try does not escape the per-account limit.
+  let throttled = 0;
+  for (let i = 0; i < 60; i++) {
+    const r = await handle(req("/login", { ...form({ email: "jon@example.com", password: "wrong wrong" }), headers: { ...form({}).headers, "cf-connecting-ip": `10.0.${i}.1` } }));
+    if (r.status === 429) throttled++;
+  }
+  assert.ok(throttled >= 10, `rotating addresses were throttled ${throttled} times`);
+  advance(16 * 60_000);
+
   // Sessions run out after thirty days.
   const expiring = cookieOf(later);
   advance(31 * 86_400_000);
