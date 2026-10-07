@@ -319,10 +319,15 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .floater .spark { display: block; width: 100%; height: 28px; margin-top: 6px; }
 .floater .spark path { fill: none; stroke: #2a78d6; stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
 .floater-tag { margin: 8px 0 0; font: 400 10.5px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+/* Dashed wires join the cards, showing one visit becoming every number. */
+.wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; z-index: 0; }
+.wires path { fill: none; stroke: var(--muted); stroke-opacity: .7; stroke-width: 1.5; stroke-dasharray: 4 5; stroke-linecap: round; animation: wire-flow 1.6s linear infinite; }
+.wires circle { fill: var(--sheet); stroke: var(--muted); stroke-width: 1.5; }
+@keyframes wire-flow { to { stroke-dashoffset: -9; } }
 @keyframes float-bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -8px; } }
 @keyframes float-pulse { 50% { box-shadow: 0 0 0 5px rgba(34, 197, 94, .08); } }
 @media (prefers-reduced-motion: reduce) {
-  .floater, .dot.on { animation: none; }
+  .floater, .dot.on, .wires path { animation: none; }
 }
 @media (max-width: 1100px) {
   .floaters { display: none; }
