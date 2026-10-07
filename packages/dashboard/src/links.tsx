@@ -2,7 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { api, type Link, type LinkStats, type Row, type View } from "./api.js";
 import { Chart } from "./chart.js";
-import { count, countryName, flag } from "./format.js";
+import { count, countryName, day, flag } from "./format.js";
 import { t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
 import { Icon } from "./icons.js";
@@ -17,6 +17,7 @@ export function shortUrl(link: Link, prefix: string, domains: string[]): string 
 }
 
 const display = (url: string) => url.replace(/^https?:\/\//, "");
+const created = (link: Link) => day(new Date(link.createdAt).toISOString().slice(0, 10));
 
 function Copy({ text, small }: { text: string; small?: boolean }) {
   const [done, setDone] = useState(false);
@@ -242,6 +243,7 @@ export function LinkDetail({ view, id, prefix, domains, onClose }: { view: View;
                 <a href={stats.link.url} target="_blank" rel="noopener">
                   {display(stats.link.url)}
                 </a>
+                <span class="link-date-inline">{t("links.createdOn", { date: created(stats.link) })}</span>
               </p>
             </div>
             <h3 class="mini-title">{t("links.clicksOverTime")}</h3>
@@ -432,6 +434,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
                       <span class="link-name">{l.name}</span>
                       <span class="link-short">{display(address)}</span>
                       <span class="link-dest">{display(l.url)}</span>
+                      <span class="link-date">{t("links.createdOn", { date: created(l) })}</span>
                     </button>
                   </td>
                   <td class="numeric lead">
@@ -492,7 +495,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
 
   const top = [...(links ?? [])]
     .sort((a, b) => (order === "newest" ? b.createdAt - a.createdAt : (b.clicks ?? 0) - (a.clicks ?? 0) || b.createdAt - a.createdAt))
-    .slice(0, 8);
+    .slice(0, 16);
   const max = Math.max(1, ...top.map((l) => l.clicks ?? 0));
   const total = (links ?? []).reduce((sum, l) => sum + (l.clicks ?? 0), 0);
 

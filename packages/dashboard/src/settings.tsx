@@ -3,14 +3,16 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { api, base, type Site } from "./api.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
+import { ImportLinks } from "./importer.js";
 import { domainPrompt, installPrompt } from "./prompts.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
-type Section = "general" | "install" | "links";
+type Section = "general" | "install" | "links" | "import";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
   ["links", "settings.links"],
+  ["import", "settings.import"],
 ];
 
 function timezones(): string[] {
@@ -183,7 +185,13 @@ function Install({ site, sites }: { site: Site; sites: Site[] }) {
         {site.lastSeen ? t("install.live", { when: ago(site.lastSeen) }) : t("install.none")}
       </p>
       <div class="prompt-row">
-        <span class="settings-text">{t("prompt.installHint")}</span>
+        <span class="callout-icon" aria-hidden="true">
+          <Icon name="sparkle" />
+        </span>
+        <span class="callout-text settings-text">
+          <strong>{t("prompt.title")}</strong>
+          {t("prompt.installHint")}
+        </span>
         <Copy class="prompt-button" label={t("prompt.copy")} text={installPrompt({ origin: location.origin, base, site: several ? site.id : undefined })} />
       </div>
       <div class="settings-group">
@@ -227,7 +235,7 @@ export function proxy(request: Request) {
   );
 }
 
-function DomainStatus({ site, domain }: { site: string; domain: string }) {
+function useDomainCheck(site: string, domain: string) {
   const [state, setState] = useState<{ working: boolean; reason: string } | null>(null);
   const check = () => {
     setState(null);
@@ -237,18 +245,34 @@ function DomainStatus({ site, domain }: { site: string; domain: string }) {
       .catch((e: Error) => setState({ working: false, reason: e.message }));
   };
   useEffect(check, [domain]);
-  if (!state) return <span class="domain-status">{t("links.checking")}</span>;
+  return { state, check };
+}
+
+/** One domain: its name and status on the left, its actions side by side on the right. */
+function DomainRow({ site, domain, onRemove }: { site: string; domain: string; onRemove: () => void }) {
+  const { state, check } = useDomainCheck(site, domain);
   return (
-    <span class={state.working ? "domain-status ok" : "domain-status bad"}>
-      <span class={state.working ? "beat on" : "beat off"} aria-hidden="true" />
-      {state.working ? t("links.working") : t("links.notWorking", { reason: state.reason })}
-      {state.working ? null : (
-        <button type="button" class="copy inline" onClick={check}>
-          <Icon name="refresh" />
-          {t("links.recheck")}
+    <li>
+      <div class="domain-main">
+        <span class="domain-name">{domain}</span>
+        <span class={!state ? "domain-status" : state.working ? "domain-status ok" : "domain-status bad"}>
+          {state ? <span class={state.working ? "beat on" : "beat off"} aria-hidden="true" /> : null}
+          {!state ? t("links.checking") : state.working ? t("links.working") : t("links.notWorking", { reason: state.reason })}
+        </span>
+      </div>
+      <div class="domain-actions">
+        {state && !state.working ? (
+          <button type="button" class="copy inline" onClick={check}>
+            <Icon name="refresh" />
+            {t("links.recheck")}
+          </button>
+        ) : null}
+        <button type="button" class="copy inline danger" onClick={onRemove}>
+          <Icon name="trash" />
+          {t("links.removeDomain")}
         </button>
-      )}
-    </span>
+      </div>
+    </li>
   );
 }
 
@@ -279,7 +303,13 @@ function LinkDomains({ site }: { site: Site }) {
         <span class="settings-text">{t("links.domainsHelp")}</span>
       </div>
       <div class="prompt-row">
-        <span class="settings-text">{t("prompt.domainHint")}</span>
+        <span class="callout-icon" aria-hidden="true">
+          <Icon name="sparkle" />
+        </span>
+        <span class="callout-text settings-text">
+          <strong>{t("prompt.title")}</strong>
+          {t("prompt.domainHint")}
+        </span>
         <Copy
           class="prompt-button"
           label={t("prompt.copy")}
@@ -296,26 +326,19 @@ function LinkDomains({ site }: { site: Site }) {
           <span class="domain-name">{t("links.ownDomain", { prefix: `${location.host}/go` })}</span>
         </li>
         {(domains ?? []).map((d) => (
-          <li>
-            <span class="domain-name">{d}</span>
-            <DomainStatus site={site.id} domain={d} />
-            <button
-              type="button"
-              class="copy inline danger"
-              onClick={() =>
-                api
-                  .removeLinkDomain(site.id, d)
-                  .then(load)
-                  .catch((err: Error) => setError(err.message))
-              }
-            >
-              <Icon name="trash" />
-              {t("links.removeDomain")}
-            </button>
-          </li>
+          <DomainRow
+            site={site.id}
+            domain={d}
+            onRemove={() =>
+              api
+                .removeLinkDomain(site.id, d)
+                .then(load)
+                .catch((err: Error) => setError(err.message))
+            }
+          />
         ))}
       </ul>
-      <p class="field-hint">{t("links.removeNote", { fallback: `${location.host}/go` })}</p>
+      <p class="field-hint domain-note">{t("links.removeNote", { fallback: `${location.host}/go` })}</p>
       <form class="domain-add" onSubmit={add}>
         <input class="value" type="text" placeholder={t("links.domainPlaceholder")} value={draft} onInput={(e) => setDraft((e.target as HTMLInputElement).value)} />
         <button type="submit" class="solid" disabled={!draft.trim()}>
@@ -374,8 +397,10 @@ export function SettingsModal({ site, sites, onClose, onSaved, onLanguage }: {
               <General site={site} onSaved={onSaved} onLanguage={onLanguage} />
             ) : section === "install" ? (
               <Install site={site} sites={sites} />
-            ) : (
+            ) : section === "links" ? (
               <LinkDomains site={site} />
+            ) : (
+              <ImportLinks site={site} />
             )}
           </div>
         </div>

@@ -80,6 +80,20 @@ export function postgres(options: PostgresOptions): SqlStore {
         client.release();
       }
     },
+    async transaction<T>(fn: (db: Db) => Promise<T>): Promise<T> {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const result = await fn({ dialect: "postgres", ...driver((sql, params) => client.query(sql, params)) });
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        await client.query("ROLLBACK").catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
     async close(): Promise<void> {
       if (owned) await pool.end();
     },

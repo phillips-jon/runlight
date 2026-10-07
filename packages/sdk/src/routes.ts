@@ -5,6 +5,7 @@ import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
 import { LINK_DOMAIN_CHECK, type RequestContext, type Runlight } from "./runlight.js";
 import type { SiteRow } from "./store.js";
 import { fetchIcon } from "./icon.js";
+import { ImportError, importStep } from "./importers/index.js";
 import { LinkError } from "./links.js";
 import { isSessionDimension } from "./query.js";
 import { buckets, compareRange, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
@@ -250,6 +251,28 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             domain: body.domain === undefined ? undefined : String(body.domain),
           });
           return json({ link }, 201);
+        }
+      }
+
+      // One step of an import from another shortener; the page calls again with the cursor.
+      const importMatch = /^\/api\/links\/import\/([a-z]+)$/.exec(path);
+      if (importMatch && request.method === "POST") {
+        const body = await readJson(request);
+        if (body instanceof Response) return body;
+        const credentials = (body.credentials && typeof body.credentials === "object" ? body.credentials : {}) as Record<string, string>;
+        try {
+          const step = await importStep(
+            runlight,
+            site.id,
+            importMatch[1]!,
+            Object.fromEntries(Object.entries(credentials).map(([k, v]) => [k, String(v)])),
+            typeof body.cursor === "string" ? body.cursor : null,
+            Number(body.done) || 0,
+          );
+          return json(step);
+        } catch (error) {
+          if (error instanceof ImportError) return json({ error: error.message }, 400);
+          throw error;
         }
       }
 

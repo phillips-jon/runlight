@@ -23,6 +23,12 @@ export interface Db {
    * lock already serialises its writers.
    */
   exclusive?<T>(fn: (db: Db) => Promise<T>): Promise<T>;
+  /**
+   * Runs `fn` in one transaction on one connection. Optional: without it the
+   * store sends BEGIN and COMMIT itself, which is right for a single
+   * connection such as SQLite's.
+   */
+  transaction?<T>(fn: (db: Db) => Promise<T>): Promise<T>;
   close?(): Promise<void>;
 }
 
@@ -275,6 +281,20 @@ export class SqlStore {
     await this.db.close?.();
   }
 
+  /** Runs `fn` with a store whose every query is in one transaction. */
+  async transaction<T>(fn: (store: SqlStore) => Promise<T>): Promise<T> {
+    if (this.db.transaction) return this.db.transaction((db) => fn(new SqlStore(db)));
+    await this.db.run("BEGIN");
+    try {
+      const result = await fn(this);
+      await this.db.run("COMMIT");
+      return result;
+    } catch (error) {
+      await this.db.run("ROLLBACK");
+      throw error;
+    }
+  }
+
   // Sites
 
   async upsertSite(site: SiteRow, now: number): Promise<void> {
@@ -448,12 +468,15 @@ export class SqlStore {
     await this.db.run(`DELETE FROM rl_link_domains WHERE domain = ?`, [domain]);
   }
 
-  /** A site's links, newest first, with their clicks in a range. */
+  /**
+   * A site's links, newest first, with their clicks in a range. Clicks
+   * imported as daily counts have no visitor, so they add to clicks only.
+   */
   async links(site: string, from: number, to: number): Promise<Array<LinkRow & LinkStats>> {
     const rows = await this.db.all(
       `SELECT l.*, COALESCE(c.clicks, 0) AS clicks, COALESCE(c.visitors, 0) AS visitors
        FROM rl_links l LEFT JOIN (
-         SELECT link, COUNT(*) AS clicks, COUNT(DISTINCT visitor) AS visitors FROM rl_events
+         SELECT link, COUNT(*) AS clicks, COUNT(DISTINCT NULLIF(visitor, '')) AS visitors FROM rl_events
          WHERE site = ? AND kind = 'click' AND ts >= ? AND ts < ? GROUP BY link
        ) c ON c.link = l.id
        WHERE l.site = ? AND l.deleted_at IS NULL
@@ -470,7 +493,7 @@ export class SqlStore {
     const values = buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ");
     const rows = await this.db.all(
       `WITH b (i, bs, be) AS (VALUES ${values})
-       SELECT b.i AS i, COUNT(*) AS clicks, COUNT(DISTINCT e.visitor) AS visitors
+       SELECT b.i AS i, COUNT(*) AS clicks, COUNT(DISTINCT NULLIF(e.visitor, '')) AS visitors
        FROM b JOIN rl_events e ON e.link = ? AND e.ts >= b.bs AND e.ts < b.be
        WHERE e.site = ? AND e.kind = 'click' GROUP BY b.i`,
       [...buckets.flatMap((b, i) => [i, b.start, b.end]), link, site],

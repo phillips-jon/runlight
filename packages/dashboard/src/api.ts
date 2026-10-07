@@ -169,6 +169,12 @@ export const api = {
   deleteLink: (site: string, id: string) => del(`links/${id}${siteQuery(site)}`),
   importLinks: (site: string, rows: Array<Record<string, string>>) =>
     send<{ created: number; failed: Array<{ row: number; reason: string }> }>("POST", `links/import${siteQuery(site)}`, { rows }),
+  importStep: (site: string, source: string, credentials: Record<string, string>, cursor: string | null, done: number) =>
+    send<{ cursor: string | null; done: number; total: number | null; links: number; clicks: number; skipped: number; failed: Array<{ slug: string; reason: string }> }>(
+      "POST",
+      `links/import/${source}${siteQuery(site)}`,
+      { credentials, cursor, done },
+    ),
   linkDomains: (site: string) => get<{ domains: string[] }>("link-domains", new URLSearchParams(site ? { site } : {})),
   addLinkDomain: (site: string, domain: string) => send<{ domain: string }>("POST", `link-domains${siteQuery(site)}`, { domain }),
   checkLinkDomain: (site: string, domain: string) =>

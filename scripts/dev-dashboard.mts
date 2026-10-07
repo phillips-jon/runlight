@@ -1,7 +1,8 @@
 // A dashboard full of made-up traffic, for working on the UI.
 //
 //   npm run dev:dashboard            then open http://localhost:4800/runlight/
-//   npm run dev:dashboard -- --reseed
+//   npm run dev:dashboard -- --reseed           (all made-up data)
+//   npm run dev:dashboard -- --reseed-links     (only the short links)
 //
 // The bundle is rebuilt on every page load, so a refresh shows an edit.
 import { existsSync, mkdirSync, rmSync } from "node:fs";
@@ -24,6 +25,11 @@ mkdirSync(new URL("../data/", import.meta.url).pathname, { recursive: true });
 const rl = runlight({ store: sqlite({ path: FILE }), site: { name: "joncphillips.com", hostnames: ["joncphillips.com"], timezone: "America/Toronto" } });
 await rl.init();
 if (fresh) await seed();
+if (process.argv.includes("--reseed-links")) {
+  await rl.store.db.run("DELETE FROM rl_sessions WHERE id IN (SELECT session FROM rl_events WHERE kind = 'click')");
+  await rl.store.db.run("DELETE FROM rl_events WHERE kind = 'click'");
+  await rl.store.db.run("DELETE FROM rl_links");
+}
 if ((await rl.store.db.all("SELECT id FROM rl_links LIMIT 1")).length === 0) await seedLinks();
 
 const routes = toNodeHandler(rl.routes({ token: null }).handler);
@@ -232,6 +238,7 @@ async function seedLinks() {
   ];
   await store.db.run("BEGIN");
   let clicks = 0;
+  const recent: string[] = [];
   for (let day = 0; day < DAYS; day++) {
     const dayStart = Math.floor((now - (DAYS - day) * 86_400_000) / 86_400_000) * 86_400_000;
     for (const link of made) {
@@ -244,7 +251,10 @@ async function seedLinks() {
         const [country, region, city] = pick(places);
         const [browser, browserVersion, os, osVersion, device] = pick(devices);
         const session = randomHex(24);
-        const visitor = randomHex(16);
+        // About a third of clicks come from someone who clicked before that day.
+        const visitor = recent.length > 20 && Math.random() < 0.35 ? recent[Math.floor(Math.random() * recent.length)]! : randomHex(16);
+        recent.push(visitor);
+        if (recent.length > 400) recent.shift();
         await store.insertSession({
           id: session, site: "default", visitor, startedAt: ts, hostname: "t.thedailypreset.com",
           referrerHost: refHost, referrerPath: refHost ? "/" : "", source, channel,

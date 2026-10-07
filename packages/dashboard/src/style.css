@@ -2067,7 +2067,7 @@ h1 .home:hover {
   flex: none;
   width: 22px;
   height: 22px;
-  margin: 3px 0 0 -8px;
+  margin: 5px 0 0 -8px;
   padding: 0;
   border: 0;
   background: none;
@@ -2258,6 +2258,11 @@ h1 .home:hover {
   border-radius: 8px;
   background: var(--sunk);
   font: 14px var(--sans);
+}
+
+/* Breathing room before whatever follows the status, such as the assistant callout. */
+.status {
+  margin-bottom: 16px;
 }
 
 .status.live {
@@ -2597,7 +2602,7 @@ h1 .home:hover {
 
 .domain-add .value {
   flex: 1;
-  max-width: 420px;
+  max-width: none;
 }
 
 /* Equal heights for the controls that sit side by side. */
@@ -2683,14 +2688,44 @@ h1 .home:hover {
 
 /* Copy-a-prompt row */
 
+/* A callout for the copy-a-prompt helpers: filled, with an icon, not a dashed outline. */
 .prompt-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 12px 14px;
-  border: 1px dashed var(--line);
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--sunk);
+}
+
+.prompt-row .callout-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
   border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  color: var(--ink);
+}
+
+.prompt-row .callout-icon .icon {
+  width: 16px;
+  height: 16px;
+}
+
+.prompt-row .callout-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.prompt-row .callout-text strong {
+  display: block;
+  font-size: 14px;
+  color: var(--ink);
 }
 
 .prompt-row .settings-text {
@@ -2781,4 +2816,151 @@ select.field,
 .box-button .icon {
   width: 12px;
   height: 12px;
+}
+
+.link-date {
+  font: 11px var(--mono);
+  color: var(--faint);
+}
+
+.link-date-inline {
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line);
+  font: 11px var(--mono);
+  color: var(--faint);
+}
+
+/* Import links */
+
+.source-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.source {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  text-align: left;
+  cursor: pointer;
+}
+
+.source strong {
+  font-size: 14px;
+}
+
+.source span {
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.source:hover:not(:disabled) {
+  border-color: var(--faint);
+}
+
+.source.on {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 1px var(--ink);
+}
+
+.source:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.settings-actions.start {
+  justify-content: flex-start;
+}
+
+.import-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--bar);
+  overflow: hidden;
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--s1);
+  transition: width 0.3s ease-out;
+}
+
+.progress-fill.indeterminate {
+  width: 30%;
+  animation: sweep 1.2s ease-in-out infinite;
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+.settings-ok-text {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--up);
+}
+
+@media (max-width: 720px) {
+  .source-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill.indeterminate {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
+  }
+}
+
+/* A domain row: name and status stacked on the left, actions together on the right. */
+.domain-list li {
+  flex-wrap: nowrap;
+  padding: 10px 12px;
+}
+
+.domain-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.domain-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
+.domain-note {
+  margin: -8px 0 0;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
 }
