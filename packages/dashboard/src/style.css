@@ -188,21 +188,20 @@ main {
   min-width: 0;
 }
 
+/* The icon fills its square, as tall as the name and live count beside it. */
 .avatar {
   flex: none;
   width: 44px;
   height: 44px;
-  padding: 6px;
-  border: 1px solid var(--line);
   border-radius: 10px;
-  background: var(--card);
-  object-fit: contain;
+  object-fit: cover;
 }
 
 .avatar.letter {
   display: grid;
   place-items: center;
-  padding: 0;
+  border: 1px solid var(--line);
+  background: var(--card);
   font-size: 20px;
   font-weight: 700;
 }
@@ -1955,7 +1954,7 @@ h1 .home:hover {
 }
 
 .home:hover .avatar {
-  border-color: var(--faint);
+  opacity: 0.85;
 }
 
 /* Full list table */
@@ -2315,4 +2314,9 @@ h1 .home:hover {
   .settings-site {
     display: none;
   }
+}
+
+/* No line box under the icon, so it centres exactly against the name. */
+.identity > .home {
+  display: flex;
 }
