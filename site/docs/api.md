@@ -54,6 +54,7 @@ Dimensions for `breakdown` and `filter`: `page`, `entry`, `exit`, `hostname`, `e
 | `GET`, `PUT`, `DELETE /api/mail`, `POST /api/mail/test` | The mail service. Keys are never returned. |
 | `GET`, `POST /api/reports`, `DELETE /api/reports/:id`, `POST /api/reports/:id/send` | Report recipients, and sending a sample. |
 | `GET` or `POST /api/check` | The [scheduled check](/docs/cron/). |
+| `POST /api/observe` | Records a page served to an AI agent: `{ "url", "userAgent" }`. Takes the token or the observe key. Used by the CMS plugins. |
 
 ## Errors
 

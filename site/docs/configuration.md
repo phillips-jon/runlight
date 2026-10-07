@@ -115,6 +115,7 @@ The address is looked up and then dropped; only the place is kept.
 | `token` | `RUNLIGHT_TOKEN` | Protects the dashboard and API. Send it as `Authorization: Bearer <token>`, or open the dashboard once with `?token=` to get a cookie. `null` leaves everything open, for example behind your own auth. |
 | `authorize` | | Your own check instead of a token: `(request) => boolean`. |
 | `cronSecret` | `CRON_SECRET` | Also accepted by the [scheduled check](/docs/cron/). |
+| `observeKey` | `RUNLIGHT_OBSERVE_KEY` | Lets a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site report AI agent fetches to `POST /api/observe` without the token. It can report fetches and nothing else. |
 
 With no token in production, the dashboard and API answer 503 until you set one. Collecting visits, the script, short links, share links, and unsubscribe links never need the token.
 
@@ -125,3 +126,4 @@ With no token in production, the dashboard and API answer 503 until you set one.
 | `RUNLIGHT_TOKEN` | The dashboard and API token. |
 | `RUNLIGHT_SECRET` | Encrypting stored mail service keys (falls back to the token). |
 | `CRON_SECRET` | Calling the scheduled check. |
+| `RUNLIGHT_OBSERVE_KEY` | CMS plugins reporting AI agent fetches. |

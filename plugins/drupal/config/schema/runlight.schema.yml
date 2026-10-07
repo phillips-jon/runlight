@@ -1,0 +1,22 @@
+runlight.settings:
+  type: config_object
+  label: 'Runlight settings'
+  mapping:
+    address:
+      type: string
+      label: 'Runlight address'
+    site:
+      type: string
+      label: 'Site id'
+    observe_key:
+      type: string
+      label: 'Observe key'
+    skip_admins:
+      type: boolean
+      label: 'Leave out administrators'
+    outbound:
+      type: boolean
+      label: 'Count outbound links'
+    downloads:
+      type: boolean
+      label: 'Count file downloads'

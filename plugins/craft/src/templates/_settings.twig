@@ -1,0 +1,61 @@
+{% import '_includes/forms.twig' as forms %}
+
+<p>Runlight counts visitors without cookies and keeps the numbers in your own database. This plugin adds its script to every front-end page and reports AI agents that read your pages. The numbers live in your Runlight, wherever you run it.</p>
+
+{% if status %}
+  <div class="readable" style="margin: 16px 0;">
+    <p class="{{ status.ok ? 'success' : 'error' }}">
+      {{ status.message }}
+      {% if status.ok %}<a href="{{ settings.getAddress() }}/" target="_blank" rel="noopener">Open the dashboard</a>{% endif %}
+    </p>
+  </div>
+{% endif %}
+
+{{ forms.autosuggestField({
+  label: 'Runlight address',
+  instructions: 'Where Runlight is mounted: the address its dashboard opens at, such as `https://stats.example.com/runlight`. Add this site’s hostname to that Runlight’s sites, or its visits are ignored.',
+  id: 'address',
+  name: 'address',
+  value: settings.address,
+  suggestEnvVars: true,
+  placeholder: 'https://stats.example.com/runlight',
+}) }}
+
+{{ forms.textField({
+  label: 'Site id',
+  instructions: 'Optional. Only needed when that Runlight counts several sites and cannot tell this one by its hostname.',
+  id: 'site',
+  name: 'site',
+  value: settings.site,
+  errors: settings.getErrors('site'),
+}) }}
+
+{{ forms.autosuggestField({
+  label: 'Observe key',
+  instructions: 'Optional. With your Runlight’s `RUNLIGHT_OBSERVE_KEY`, the plugin reports AI agents such as ChatGPT and Claude reading your pages. They run no JavaScript, so the script cannot see them. Use an environment variable, such as `$RUNLIGHT_OBSERVE_KEY`, to keep it out of project config.',
+  id: 'observeKey',
+  name: 'observeKey',
+  value: settings.observeKey,
+  suggestEnvVars: true,
+}) }}
+
+{{ forms.lightswitchField({
+  label: 'Leave out Control Panel users’ visits',
+  id: 'skipAdmins',
+  name: 'skipAdmins',
+  on: settings.skipAdmins,
+}) }}
+
+{{ forms.lightswitchField({
+  label: 'Count clicks on links to other sites',
+  id: 'outbound',
+  name: 'outbound',
+  on: settings.outbound,
+}) }}
+
+{{ forms.lightswitchField({
+  label: 'Count file downloads',
+  id: 'downloads',
+  name: 'downloads',
+  on: settings.downloads,
+}) }}

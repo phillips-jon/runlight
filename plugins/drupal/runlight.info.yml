@@ -1,0 +1,6 @@
+name: Runlight
+type: module
+description: 'Counts visitors with Runlight: privacy friendly analytics with no cookies, kept in your own database. Adds the script, reports AI agents that read your pages, and links to your dashboard.'
+package: Statistics
+core_version_requirement: ^10.3 || ^11
+configure: runlight.settings

@@ -34,6 +34,12 @@ export interface RoutesOptions {
    * can run scheduled work. Defaults to process.env.CRON_SECRET.
    */
   cronSecret?: string;
+  /**
+   * Lets another site report AI agent fetches to POST /api/observe without
+   * the dashboard token: what the WordPress, Drupal, and Craft plugins use.
+   * Defaults to process.env.RUNLIGHT_OBSERVE_KEY. The token works too.
+   */
+  observeKey?: string;
 }
 
 export type FetchHandler = (request: Request, context?: RequestContext) => Promise<Response>;
@@ -144,6 +150,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const base = normaliseBase(options.basePath ?? "/runlight");
   const token = options.token === undefined ? env("RUNLIGHT_TOKEN") : options.token;
   const cronSecret = options.cronSecret ?? env("CRON_SECRET");
+  const observeKey = options.observeKey ?? env("RUNLIGHT_OBSERVE_KEY");
   let warned = false;
 
   async function canRead(request: Request): Promise<boolean | "unconfigured"> {
@@ -568,6 +575,24 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   async function api(request: Request, path: string, url: URL): Promise<Response> {
     if (path === "/api" && request.method === "GET") {
       return json({ name: "runlight", version: VERSION, api: API_VERSION, ...IMPLEMENTATION });
+    }
+
+    // A page another site served to an AI agent, reported by a CMS plugin.
+    if (path === "/api/observe" && request.method === "POST") {
+      const given = bearer(request);
+      const allowed = (observeKey && given && constantTimeEqual(given, observeKey)) || (await canRead(request)) === true;
+      if (!allowed) return json({ error: "Unauthorized" }, 401);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      let page: URL;
+      try {
+        page = new URL(String(body.url ?? ""));
+      } catch {
+        return json({ error: "Send the page's url" }, 400);
+      }
+      if (page.protocol !== "https:" && page.protocol !== "http:") return json({ error: "Send the page's url" }, 400);
+      await runlight.observe(new Request(page, { headers: { "user-agent": String(body.userAgent ?? "").slice(0, 500) } }));
+      return new Response(null, { status: 204 });
     }
 
     // GET too: Vercel Cron calls with GET and the cron secret as a bearer token.

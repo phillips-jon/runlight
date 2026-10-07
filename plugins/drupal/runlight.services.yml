@@ -1,0 +1,10 @@
+services:
+  # Ahead of the page cache (priority 200), so cached pages are seen too.
+  http_middleware.runlight:
+    class: Drupal\runlight\StackMiddleware\AgentObserver
+    arguments: ['@config.factory', '@http_client', '@logger.channel.runlight']
+    tags:
+      - { name: http_middleware, priority: 250, responder: false }
+  logger.channel.runlight:
+    parent: logger.channel_base
+    arguments: ['runlight']

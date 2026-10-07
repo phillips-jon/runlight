@@ -199,3 +199,19 @@ test("a share reads one site's reports and nothing else, until it is deleted", a
   assert.equal((await GET(req("/runlight/api/stats", { headers: as }))).status, 404);
   assert.equal((await GET(req(share.path))).status, 404);
 });
+
+test("a CMS plugin reports AI agent fetches with its own key, which reads nothing", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["blog.example.com"] } });
+  const { GET, POST } = rl.routes({ token: "secret", observeKey: "agents" });
+  const send = (key: string, body: unknown) =>
+    POST(req("/runlight/api/observe", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify(body) }));
+  const gpt = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot";
+  assert.equal((await send("wrong", { url: "https://blog.example.com/post", userAgent: gpt })).status, 401);
+  assert.equal((await send("agents", { url: "not a url", userAgent: gpt })).status, 400);
+  assert.equal((await send("agents", { url: "https://blog.example.com/post", userAgent: gpt })).status, 204);
+  assert.equal((await send("agents", { url: "https://blog.example.com/style.css", userAgent: gpt })).status, 204, "assets are ignored, quietly");
+  assert.equal((await send("agents", { url: "https://elsewhere.example/post", userAgent: gpt })).status, 204, "other sites are ignored, quietly");
+  assert.equal((await GET(req("/runlight/api/stats", { headers: { authorization: "Bearer agents" } }))).status, 401, "the observe key reads nothing");
+  const rows = await (await GET(req("/runlight/api/breakdown?period=today&dimension=ai_page", { headers: { authorization: "Bearer secret" } }))).json();
+  assert.deepEqual(rows.rows.map((r: { value: string }) => r.value), ["/post"]);
+});

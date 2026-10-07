@@ -1,0 +1,6 @@
+address: ''
+site: ''
+observe_key: ''
+skip_admins: true
+outbound: true
+downloads: true

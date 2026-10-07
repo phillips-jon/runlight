@@ -1,0 +1,32 @@
+{
+    "name": "runlight/craft",
+    "description": "Counts visitors with Runlight: privacy friendly analytics with no cookies, kept in your own database. Adds the script, reports AI agents that read your pages, and links to your dashboard.",
+    "type": "craft-plugin",
+    "license": "MIT",
+    "keywords": ["craft", "craftcms", "craft-plugin", "analytics", "privacy", "cookieless", "ai"],
+    "homepage": "https://runlight.sh",
+    "authors": [
+        {"name": "Jon C. Phillips"}
+    ],
+    "support": {
+        "docs": "https://runlight.sh/docs/craft/",
+        "issues": "https://github.com/phillips-jon/runlight/issues",
+        "source": "https://github.com/phillips-jon/runlight/tree/main/plugins/craft"
+    },
+    "require": {
+        "php": ">=8.2",
+        "craftcms/cms": "^5.3"
+    },
+    "autoload": {
+        "psr-4": {
+            "Runlight\\Craft\\": "src/"
+        }
+    },
+    "extra": {
+        "handle": "runlight",
+        "name": "Runlight",
+        "developer": "Jon C. Phillips",
+        "documentationUrl": "https://runlight.sh/docs/craft/",
+        "class": "Runlight\\Craft\\Plugin"
+    }
+}

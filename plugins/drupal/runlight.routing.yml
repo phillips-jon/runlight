@@ -1,0 +1,15 @@
+runlight.settings:
+  path: '/admin/config/system/runlight'
+  defaults:
+    _form: '\Drupal\runlight\Form\SettingsForm'
+    _title: 'Runlight'
+  requirements:
+    _permission: 'administer runlight'
+
+runlight.dashboard:
+  path: '/admin/reports/runlight'
+  defaults:
+    _controller: '\Drupal\runlight\Controller\DashboardController::open'
+    _title: 'Runlight'
+  requirements:
+    _permission: 'administer runlight'

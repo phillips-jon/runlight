@@ -1,0 +1,10 @@
+runlight.settings:
+  title: Runlight
+  description: 'Where your Runlight is, and what this site sends it.'
+  parent: system.admin_config_system
+  route_name: runlight.settings
+runlight.dashboard:
+  title: Runlight
+  description: 'Open the Runlight dashboard.'
+  parent: system.admin_reports
+  route_name: runlight.dashboard

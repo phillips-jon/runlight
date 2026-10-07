@@ -1,0 +1,47 @@
+<?php
+
+/**
+ * @file
+ * Adds the Runlight script to every page.
+ */
+
+declare(strict_types=1);
+
+/**
+ * Implements hook_page_attachments().
+ *
+ * The script goes in the head of every page but the admin theme's, unless
+ * the visit should not count. A 404 page says so, so broken links show up.
+ */
+function runlight_page_attachments(array &$attachments): void {
+  $config = \Drupal::config('runlight.settings');
+  $attachments['#cache']['tags'][] = 'config:runlight.settings';
+  $attachments['#cache']['contexts'][] = 'user.permissions';
+  $address = (string) $config->get('address');
+  if ($address === '' || \Drupal::service('router.admin_context')->isAdminRoute()) {
+    return;
+  }
+  if ($config->get('skip_admins') && \Drupal::currentUser()->hasPermission('administer runlight')) {
+    return;
+  }
+  $attributes = ['defer' => TRUE, 'src' => $address . '/s.js'];
+  if ((string) $config->get('site') !== '') {
+    $attributes['data-site'] = (string) $config->get('site');
+  }
+  if (!$config->get('outbound')) {
+    $attributes['data-outbound'] = 'false';
+  }
+  if (!$config->get('downloads')) {
+    $attributes['data-downloads'] = 'false';
+  }
+  $route = \Drupal::routeMatch()->getRouteName();
+  $exception = \Drupal::requestStack()->getCurrentRequest()?->attributes->get('exception');
+  if ($route === 'system.404' || ($exception && method_exists($exception, 'getStatusCode') && $exception->getStatusCode() === 404)) {
+    $attributes['data-404'] = TRUE;
+    $attachments['#cache']['contexts'][] = 'route';
+  }
+  $attachments['#attached']['html_head'][] = [
+    ['#tag' => 'script', '#attributes' => $attributes],
+    'runlight',
+  ];
+}

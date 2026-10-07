@@ -1,0 +1,11 @@
+{
+  "name": "runlight/drupal",
+  "description": "Counts visitors with Runlight: privacy friendly analytics with no cookies, kept in your own database.",
+  "type": "drupal-module",
+  "license": "GPL-2.0-or-later",
+  "homepage": "https://runlight.sh/docs/drupal/",
+  "require": {
+    "php": ">=8.1",
+    "drupal/core": "^10.3 || ^11"
+  }
+}
