@@ -8,7 +8,7 @@ import { Links } from "./links.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww, type Page } from "./sources.js";
 import type { ReportRow, SiteOverrides, SiteRow, SqlStore } from "./store.js";
-import { isTimezone } from "./time.js";
+import { addDays, isTimezone, localDate } from "./time.js";
 import { aiAgent, isBot, parseClient } from "./ua.js";
 
 export interface SiteOptions {
@@ -117,7 +117,8 @@ export class Runlight {
   private linkDomainCache: { at: number; domains: Set<string> } | null = null;
   /** Work queued per key by oneAtATime, such as one visitor's session. */
   private readonly turns = new Map<string, Promise<void>>();
-  private salts: { day: string; today: string; yesterday: string | null } | null = null;
+  /** Each timezone's salts for its current day, so a lookup is a map read until midnight there. */
+  private readonly salts = new Map<string, { day: string; today: string; yesterday: string | null }>();
   private readonly mailInCode: MailSettings | undefined;
   /** Encrypts stored mail keys; null leaves them readable, and the dashboard says so. */
   readonly secret: string | null;
@@ -365,16 +366,30 @@ export class Runlight {
     return context.ip ?? "";
   }
 
-  /** Today's salt and, if it still exists, yesterday's. Old salts are deleted on the way. */
-  private async currentSalts(now: number): Promise<{ today: string; yesterday: string | null }> {
-    const day = utcDay(now);
-    if (this.salts?.day === day) return this.salts;
-    const yesterdayDay = utcDay(now - 86_400_000);
+  /**
+   * Today's salt in a site's timezone and, if it still exists, yesterday's.
+   * Salts follow the site's own days, as its reports do, so a visitor is one
+   * visitor for the whole of that site's day. Old salts go on the way.
+   */
+  private async currentSalts(now: number, timezone: string): Promise<{ today: string; yesterday: string | null }> {
+    const day = localDate(now, timezone);
+    const cached = this.salts.get(timezone);
+    if (cached?.day === day) return cached;
     const today = await this.store.salt(day, randomSalt());
-    const yesterday = await this.store.saltIfExists(yesterdayDay);
-    await this.store.dropSaltsBefore(yesterdayDay);
-    this.salts = { day, today, yesterday };
-    return this.salts;
+    const yesterday = await this.store.saltIfExists(addDays(day, -1));
+    await this.dropOldSalts(now);
+    const salts = { day, today, yesterday };
+    this.salts.set(timezone, salts);
+    return salts;
+  }
+
+  /**
+   * Deletes salts whose day has ended everywhere. The earliest timezone is a
+   * day behind UTC and still needs its yesterday, so a salt goes two UTC days
+   * after its date.
+   */
+  private async dropOldSalts(now: number): Promise<void> {
+    await this.store.dropSaltsBefore(utcDay(now - 2 * 86_400_000));
   }
 
   /** Handles one tracker request. Always resolves; bad input is dropped quietly. */
@@ -443,7 +458,7 @@ export class Runlight {
   ): Promise<{ id: string; visitor: string }> {
     const ua = request.headers.get("user-agent") ?? "";
     const ip = this.clientIp(request, context);
-    const salts = await this.currentSalts(now);
+    const salts = await this.currentSalts(now, site.timezone);
     const today = await visitorHash(salts.today, site.id, ip, ua);
     const candidates = [today];
     if (salts.yesterday) candidates.push(await visitorHash(salts.yesterday, site.id, ip, ua));
@@ -675,8 +690,9 @@ export class Runlight {
   async check(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
     await this.init();
     if (this.managedSites) this.configured = await this.store.sites();
-    this.salts = null;
-    await this.currentSalts(this.now());
+    this.salts.clear();
+    for (const timezone of new Set(this.sites.map((s) => s.timezone))) await this.currentSalts(this.now(), timezone);
+    await this.dropOldSalts(this.now());
     return { ok: true, reports: await this.sendReports() };
   }
 }

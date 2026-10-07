@@ -130,15 +130,29 @@ test("a session that runs past midnight UTC stays one session", async () => {
   assert.equal(stats.pageviews, 2);
 });
 
-test("only today's and yesterday's salts are kept", async () => {
+test("a salt is deleted once its day has ended everywhere", async () => {
   const t = setup();
   await t.send({ k: "pageview", u: "https://example.com/", i: "s1" });
-  t.advance(24 * 60 * MIN);
-  await t.send({ k: "pageview", u: "https://example.com/", i: "s2" });
-  t.advance(24 * 60 * MIN);
+  for (let i = 0; i < 3; i++) {
+    t.advance(24 * 60 * MIN);
+    await t.send({ k: "pageview", u: "https://example.com/", i: `s${i + 2}` });
+  }
   await t.rl.check();
+  // October 9th at noon UTC: the earliest timezone is on the 8th and still needs the 7th.
   const salts = await t.rl.store.db.all<{ day: string }>("SELECT day FROM rl_salts ORDER BY day");
-  assert.deepEqual(salts.map((s) => s.day), ["2026-10-07", "2026-10-08"]);
+  assert.deepEqual(salts.map((s) => s.day), ["2026-10-07", "2026-10-08", "2026-10-09"]);
+});
+
+test("a visitor is one visitor for the whole of the site's own day", async () => {
+  // Toronto: 11pm on the 6th and 1am on the 7th UTC are both the evening of October 6th.
+  const t = setup({ site: { timezone: "America/Toronto" } });
+  t.advance(11 * 60 * MIN);
+  await t.send({ k: "pageview", u: "https://example.com/", i: "t1" });
+  t.advance(2 * 60 * MIN);
+  await t.send({ k: "pageview", u: "https://example.com/later", i: "t2" });
+  const { stats } = await t.get("/api/stats?from=2026-10-06&to=2026-10-06&compare=off");
+  assert.equal(stats.visits, 2, "two hours apart is two visits");
+  assert.equal(stats.visitors, 1, "but one visitor, since it is the same day in Toronto");
 });
 
 test("nothing identifying is stored", async () => {

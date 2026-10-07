@@ -108,7 +108,7 @@
   <p class="label">Privacy</p>
   <div class="body">
     <h2>It counts people without knowing who they are.</h2>
-    <p>Each day Runlight makes a new random salt. A visitor is a hash of that salt, your site, their IP address, and their browser’s user agent, cut to 64 bits. The address and the user agent are never written down, and salts older than yesterday are deleted, so after a day nobody, you included, can tell whether two visits came from the same person.</p>
+    <p>Each day, at midnight in your site’s timezone, Runlight makes a new random salt. A visitor is a hash of that salt, your site, their IP address, and their browser’s user agent, cut to 64 bits. The address and the user agent are never written down, and a salt is deleted once its day has ended in every timezone, so within three days nobody, you included, can tell whether two visits came from the same person.</p>
     <p>Runlight sets no cookies and writes nothing to local storage, so there is nothing to put in a banner.</p>
     <dl class="stacks">
       <div><dt>visitor</dt><dd class="mono">a6fbd78a579b03bf</dd></div>
