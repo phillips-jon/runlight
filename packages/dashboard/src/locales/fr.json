@@ -306,5 +306,8 @@
   "links.recheck": "Vérifier à nouveau",
   "links.sortBy": "Trier les liens",
   "links.removeNote": "Retirer un domaine garde ses liens, clics et statistiques : ils passent sur {fallback} jusqu'à ce que vous rajoutiez le domaine, puis y retournent.",
-  "links.removedDomain": "{domain}/ (retiré)"
+  "links.removedDomain": "{domain}/ (retiré)",
+  "prompt.copy": "Copier le prompt pour votre assistant IA",
+  "prompt.domainHint": "Vous utilisez un assistant de code ? Copiez ces étapes, avec vos adresses déjà remplies, et collez-les-lui.",
+  "prompt.installHint": "Vous utilisez un assistant de code ? Copiez les étapes d'installation et collez-les-lui."
 }

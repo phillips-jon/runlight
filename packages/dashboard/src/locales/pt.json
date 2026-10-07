@@ -306,5 +306,8 @@
   "links.recheck": "Verificar de novo",
   "links.sortBy": "Ordenar links",
   "links.removeNote": "Remover um domínio mantém os links, cliques e estatísticas: eles passam para {fallback} até você adicionar o domínio de novo, e então voltam para ele.",
-  "links.removedDomain": "{domain}/ (removido)"
+  "links.removedDomain": "{domain}/ (removido)",
+  "prompt.copy": "Copiar prompt para seu assistente de IA",
+  "prompt.domainHint": "Usa um assistente de código? Copie estes passos, já com seus endereços, e cole nele.",
+  "prompt.installHint": "Usa um assistente de código? Copie os passos de instalação e cole nele."
 }

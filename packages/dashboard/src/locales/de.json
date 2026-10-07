@@ -306,5 +306,8 @@
   "links.recheck": "Erneut prüfen",
   "links.sortBy": "Links sortieren",
   "links.removeNote": "Wenn du eine Domain entfernst, bleiben ihre Links, Klicks und Statistiken erhalten: Sie liegen unter {fallback}, bis du die Domain wieder hinzufügst, und kehren dann zurück.",
-  "links.removedDomain": "{domain}/ (entfernt)"
+  "links.removedDomain": "{domain}/ (entfernt)",
+  "prompt.copy": "Prompt für deinen KI-Assistenten kopieren",
+  "prompt.domainHint": "Nutzt du einen Coding-Assistenten? Kopiere diese Schritte mit deinen Adressen und füge sie dort ein.",
+  "prompt.installHint": "Nutzt du einen Coding-Assistenten? Kopiere die Einrichtungsschritte und füge sie dort ein."
 }

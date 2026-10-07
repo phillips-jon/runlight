@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, base, type Site } from "./api.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
+import { domainPrompt, installPrompt } from "./prompts.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
 type Section = "general" | "install" | "links";
@@ -29,12 +30,12 @@ function ago(ms: number): string {
   return f.format(Math.round(seconds / 86_400), "day");
 }
 
-function Copy({ text }: { text: string }) {
+function Copy({ text, label, class: extra }: { text: string; label?: string; class?: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
       type="button"
-      class="copy"
+      class={extra ? `copy ${extra}` : "copy"}
       onClick={() => {
         navigator.clipboard
           ?.writeText(text)
@@ -45,7 +46,7 @@ function Copy({ text }: { text: string }) {
           .catch(() => {});
       }}
     >
-      {t(done ? "install.copied" : "install.copy")}
+      {done ? t("install.copied") : (label ?? t("install.copy"))}
     </button>
   );
 }
@@ -178,6 +179,10 @@ function Install({ site, sites }: { site: Site; sites: Site[] }) {
         <span class={site.lastSeen ? "beat on" : "beat"} aria-hidden="true" />
         {site.lastSeen ? t("install.live", { when: ago(site.lastSeen) }) : t("install.none")}
       </p>
+      <div class="prompt-row">
+        <span class="settings-text">{t("prompt.installHint")}</span>
+        <Copy class="prompt-button" label={t("prompt.copy")} text={installPrompt({ origin: location.origin, base, site: several ? site.id : undefined })} />
+      </div>
       <div class="settings-group">
         <p class="settings-text">{rich("install.script", { tag: <code>{"</head>"}</code> })}</p>
         <Code>{script}</Code>
@@ -268,8 +273,16 @@ function LinkDomains({ site }: { site: Site }) {
         <span class="field-label">{t("links.domains")}</span>
         <span class="settings-text">{t("links.domainsHelp")}</span>
       </div>
+      <div class="prompt-row">
+        <span class="settings-text">{t("prompt.domainHint")}</span>
+        <Copy
+          class="prompt-button"
+          label={t("prompt.copy")}
+          text={domainPrompt({ domain: draft.trim() || domains?.[0] || "t.example.com", host: location.hostname, origin: location.origin, base, linkPath: "/go" })}
+        />
+      </div>
       <ol class="steps">
-        <li>{rich("links.step1", { host: <code>{location.host}</code> })}</li>
+        <li>{rich("links.step1", { host: <code>{location.hostname}</code> })}</li>
         <li>{t("links.step2")}</li>
         <li>{t("links.step3")}</li>
       </ol>

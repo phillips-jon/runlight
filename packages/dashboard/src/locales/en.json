@@ -306,5 +306,8 @@
   "links.recheck": "Check again",
   "links.sortBy": "Sort links",
   "links.removeNote": "Removing a domain keeps its links, clicks, and stats: they move to {fallback} until you add the domain back, then return to it.",
-  "links.removedDomain": "{domain}/ (removed)"
+  "links.removedDomain": "{domain}/ (removed)",
+  "prompt.copy": "Copy prompt for your AI assistant",
+  "prompt.domainHint": "Using a coding assistant? Copy these steps, with your addresses filled in, and paste them into it.",
+  "prompt.installHint": "Using a coding assistant? Copy the setup steps and paste them into it."
 }
