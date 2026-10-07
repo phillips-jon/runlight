@@ -299,6 +299,7 @@ export function parseCsv(text: string): Array<Record<string, string>> {
 }
 
 type Sort = "clicks" | "newest" | "name";
+const PAGE = 100;
 
 /** Two steps, so a stray click never deletes: the first arms it for a few seconds. */
 function DeleteButton({ name, onDelete }: { name: string; onDelete: () => void }) {
@@ -326,7 +327,15 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
   const [prefix, setPrefix] = useState("");
   const [domains, setDomains] = useState<string[]>([]);
   const [query, setQuery] = useState("");
+  const [typed, setTyped] = useState("");
   const [sort, setSort] = useState<Sort>("newest");
+  // Draw a page of rows at a time; thousands of rows with buttons make typing sluggish.
+  const [limit, setLimit] = useState(PAGE);
+  useEffect(() => {
+    const timer = setTimeout(() => setQuery(typed), 120);
+    return () => clearTimeout(timer);
+  }, [typed]);
+  useEffect(() => setLimit(PAGE), [query, sort]);
   const [editing, setEditing] = useState<Link | "new" | null>(null);
   const [detail, setDetail] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; failures: Array<{ row: number; reason: string }> } | null>(null);
@@ -376,9 +385,9 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
   }
 
   return (
-    <Sheet title={t("panel.links")} sub={links ? count(links.length) : undefined} wide onClose={onClose}>
+    <Sheet title={t("panel.links")} sub={links ? (query ? `${count(shown.length)} / ${count(links.length)}` : count(links.length)) : undefined} wide onClose={onClose}>
       <div class="sheet-search link-tools">
-        <input class="value" type="search" placeholder={t("links.search")} aria-label={t("links.search")} value={query} onInput={(e) => setQuery((e.target as HTMLInputElement).value)} />
+        <input class="value" type="search" placeholder={t("links.search")} aria-label={t("links.search")} value={typed} onInput={(e) => setTyped((e.target as HTMLInputElement).value)} />
         <select class="field" aria-label={t("links.sortBy")} value={sort} onChange={(e) => setSort((e.target as HTMLSelectElement).value as Sort)}>
           <option value="newest">{t("links.sortNewest")}</option>
           <option value="clicks">{t("links.sortClicks")}</option>
@@ -414,7 +423,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
         {links && links.length === 0 ? <p class="empty">{t("links.empty")}</p> : null}
         <table class="sheet-table links-table">
           <tbody>
-            {shown.map((l) => {
+            {shown.slice(0, limit).map((l) => {
               const address = shortUrl(l, prefix, domains);
               return (
                 <tr>
@@ -441,6 +450,14 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
             })}
           </tbody>
         </table>
+        {shown.length > limit ? (
+          <div class="more-row">
+            <span class="field-hint">{t("links.showing", { shown: count(limit), total: count(shown.length) })}</span>
+            <button type="button" class="more" onClick={() => setLimit(limit + PAGE)}>
+              {t("links.showMore", { n: PAGE })}
+            </button>
+          </div>
+        ) : null}
       </div>
     </Sheet>
   );

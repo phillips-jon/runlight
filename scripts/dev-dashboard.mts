@@ -14,7 +14,7 @@ import { sqlite } from "../packages/sdk/src/stores/sqlite.ts";
 import type { SessionRow } from "../packages/sdk/src/store.ts";
 
 const PORT = Number(process.env.PORT ?? 4800);
-const FILE = new URL("../data/dev.db", import.meta.url).pathname;
+const FILE = process.env.RUNLIGHT_DEV_DB ?? new URL("../data/dev.db", import.meta.url).pathname;
 const DAYS = 120;
 
 if (process.argv.includes("--reseed")) for (const suffix of ["", "-wal", "-shm"]) rmSync(FILE + suffix, { force: true });

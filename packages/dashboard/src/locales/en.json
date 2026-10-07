@@ -309,5 +309,7 @@
   "links.removedDomain": "{domain}/ (removed)",
   "prompt.copy": "Copy prompt for your AI assistant",
   "prompt.domainHint": "Using a coding assistant? Copy these steps, with your addresses filled in, and paste them into it.",
-  "prompt.installHint": "Using a coding assistant? Copy the setup steps and paste them into it."
+  "prompt.installHint": "Using a coding assistant? Copy the setup steps and paste them into it.",
+  "links.showing": "Showing {shown} of {total}",
+  "links.showMore": "Show {n} more"
 }

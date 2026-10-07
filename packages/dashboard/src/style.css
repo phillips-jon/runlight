@@ -2734,3 +2734,15 @@ h1 .home:hover {
     align-items: flex-start;
   }
 }
+
+.more-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.more-row .more {
+  margin-top: 0;
+}
