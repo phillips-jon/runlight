@@ -111,6 +111,17 @@ export const signOut = document.getElementById("app")?.dataset.signOut ?? "";
 /** Whether this is the standalone server, with accounts and roles. */
 export const accounts = document.getElementById("app")?.dataset.accounts !== undefined;
 
+export interface FunnelStep {
+  kind: "page" | "event";
+  match: string;
+}
+
+export interface Funnel {
+  id: string;
+  name: string;
+  steps: Array<FunnelStep & { visits?: number }>;
+}
+
 export interface Person {
   id: string;
   email: string;
@@ -298,6 +309,10 @@ export const api = {
     ),
   observeKey: (site: string) => get<{ key: string }>("observe-key", new URLSearchParams({ site })),
   newObserveKey: (site: string) => send<{ key: string }>("POST", `observe-key/new${siteQuery(site)}`, {}),
+  funnels: (view: View) => get<{ funnels: Funnel[] }>("funnels", viewParams(view)),
+  saveFunnel: (site: string, id: string | null, funnel: { name: string; steps: FunnelStep[] }) =>
+    send<{ funnel: Funnel }>(id ? "PATCH" : "POST", `funnels${id ? `/${id}` : ""}${siteQuery(site)}`, funnel),
+  deleteFunnel: (site: string, id: string) => del(`funnels/${id}${siteQuery(site)}`),
   account: () => get<{ account: Person }>("account", new URLSearchParams()),
   changePassword: (current: string, next: string) => send<{ ok: true }>("POST", "account/password", { current, next }),
   people: () => get<{ people: Person[] }>("people", new URLSearchParams()),

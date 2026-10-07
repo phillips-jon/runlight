@@ -9,6 +9,7 @@ import { csv, zip } from "./zip.js";
 import { DIMENSIONS } from "./query.js";
 import { randomId } from "./hash.js";
 import { GoalError, clickRules, goalFrom } from "./goals.js";
+import { FunnelError, funnelFrom } from "./funnels.js";
 import { MailError, SERVICES } from "./mail/transports.js";
 import { languages, translator } from "./messages.js";
 import type { ReportRow } from "./store.js";
@@ -178,7 +179,7 @@ const TOKEN_PREFIX = "rl_";
 /** The header a shared dashboard sends its share id in. */
 const SHARE_HEADER = "x-runlight-share";
 /** What a share can read: one site's reports, nothing that changes anything. */
-const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props", "/api/export"]);
+const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props", "/api/export", "/api/funnels"]);
 const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[a-f0-9]{24}$/.test(path);
 /** Where the tracker's click rules go; the script ships with this string in their place. */
 const RULES_PLACEHOLDER = '"__RUNLIGHT_RULES__"';
@@ -760,6 +761,32 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return json({ key });
     }
 
+    // Making, changing, and deleting funnels; reading them is with the other reports.
+    if ((path === "/api/funnels" && request.method === "POST") || (/^\/api\/funnels\/[a-f0-9]{24}$/.test(path) && (request.method === "PATCH" || request.method === "DELETE"))) {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      await runlight.init();
+      const site = await querySite(url);
+      if (site instanceof Response) return site;
+      const existing = await runlight.store.funnels(site.id);
+      const id = path === "/api/funnels" ? undefined : path.slice("/api/funnels/".length);
+      if (id !== undefined && !existing.some((f) => f.id === id)) return json({ error: "Unknown funnel" }, 404);
+      if (request.method === "DELETE") {
+        await runlight.store.deleteFunnel(id!);
+        return json({ ok: true });
+      }
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      try {
+        const funnel = funnelFrom(body, site.id, existing, runlight.now(), id);
+        await runlight.store.saveFunnel(funnel);
+        return json({ funnel }, id ? 200 : 201);
+      } catch (error) {
+        if (error instanceof FunnelError) return json({ error: error.message }, 400);
+        throw error;
+      }
+    }
+
     // Only the owner manages tokens: an API token cannot make or revoke one.
     if (path === "/api/tokens" || path.startsWith("/api/tokens/")) {
       const access = await canRead(request);
@@ -981,6 +1008,17 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         day.map((c) => ({ visits: c.visits, visitors: c.visitors, pageviews: c.pageviews, bounceRate: c.visits ? c.bounced / c.visits : 0 })),
       );
       return json({ site: site.id, range: rangeOut, grid, cells: details });
+    }
+
+    if (path === "/api/funnels") {
+      const funnels = await runlight.store.funnels(site.id);
+      const rows = await Promise.all(
+        funnels.map(async (funnel) => {
+          const counts = await runlight.store.funnelCounts(query, funnel);
+          return { ...funnel, steps: funnel.steps.map((step, i) => ({ ...step, visits: counts[i]! })) };
+        }),
+      );
+      return json({ site: site.id, range: rangeOut, funnels: rows });
     }
 
     if (path === "/api/event-props") {

@@ -3700,3 +3700,96 @@ button.sign-out {
     transition: none;
   }
 }
+
+/* Funnels: one bar per step, scaled to the first, with how many went on. */
+.funnel-block + .funnel-block {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.funnel-name {
+  margin: 0 0 10px;
+  font-size: 14px;
+}
+
+.funnel {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.funnel-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.funnel-label .name-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.funnel-step {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bar);
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.funnel-track {
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 4px;
+  background: var(--bar);
+  overflow: hidden;
+}
+
+.funnel-fill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+  background: #2a78d6;
+}
+
+.funnel-rate {
+  display: block;
+  margin-top: 4px;
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+.funnel-steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.funnel-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.funnel-steps select.value {
+  flex: none;
+  width: 120px;
+}
+
+.funnel-steps input.value {
+  flex: 1;
+  min-width: 0;
+}

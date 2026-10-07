@@ -113,6 +113,13 @@ export const TOOLS: Tool[] = [
     request: read("/api/breakdown", [...RANGE_KEYS, "dimension", "page"], (args) => [["limit", String(Math.min(100, Math.max(1, Number(args.limit) || 10)))]]),
   },
   {
+    name: "list_funnels",
+    title: "Funnels",
+    description: "Every funnel with how many visits reached each step in order within the same visit. Divide a step by the one before it for that step's conversion rate.",
+    inputSchema: { type: "object", properties: { ...RANGE } },
+    request: read("/api/funnels", RANGE_KEYS),
+  },
+  {
     name: "get_event_properties",
     title: "An event's properties",
     description:

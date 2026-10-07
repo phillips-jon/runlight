@@ -132,6 +132,21 @@ export interface ShareRow {
   createdAt: number;
 }
 
+/** One step of a funnel: reaching a page (with * as a wildcard), or sending an event. */
+export interface FunnelStep {
+  kind: "page" | "event";
+  match: string;
+}
+
+/** Steps a visit is expected to take in order, such as pricing, then signup, then the welcome page. */
+export interface FunnelRow {
+  id: string;
+  site: string;
+  name: string;
+  steps: FunnelStep[];
+  createdAt: number;
+}
+
 /** An API token. Only its hash is stored; the token itself is shown once. */
 export interface TokenRow {
   id: string;
@@ -267,7 +282,7 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 8;
+const SCHEMA_VERSION = 9;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -331,6 +346,8 @@ function schema(dialect: Db["dialect"]): string[] {
       id TEXT PRIMARY KEY, name TEXT NOT NULL, site ${text}, hash TEXT NOT NULL, hint ${text},
       created_at BIGINT NOT NULL, last_used_at BIGINT)`,
     `CREATE UNIQUE INDEX IF NOT EXISTS rl_tokens_hash ON rl_tokens (hash)`,
+    // Version 9: funnels.
+    `CREATE TABLE IF NOT EXISTS rl_funnels (id TEXT PRIMARY KEY, site TEXT NOT NULL, name TEXT NOT NULL, steps TEXT NOT NULL, created_at BIGINT NOT NULL)`,
   ];
 }
 
@@ -468,7 +485,7 @@ export class SqlStore {
   /** Deletes a site and everything recorded for it. Used by the standalone server's "Delete site". */
   async deleteSite(id: string): Promise<void> {
     await this.transaction(async (store) => {
-      for (const table of ["rl_events", "rl_sessions", "rl_links", "rl_link_domains", "rl_shares", "rl_goals", "rl_reports", "rl_tokens", "rl_sites"]) {
+      for (const table of ["rl_events", "rl_sessions", "rl_links", "rl_link_domains", "rl_shares", "rl_goals", "rl_funnels", "rl_reports", "rl_tokens", "rl_sites"]) {
         await store.db.run(`DELETE FROM ${table} WHERE ${table === "rl_sites" ? "id" : "site"} = ?`, [id]);
       }
     });
@@ -630,6 +647,62 @@ export class SqlStore {
   /** Deleting a share is how it is revoked: the link stops working at once. */
   async deleteShare(id: string): Promise<void> {
     await this.db.run(`DELETE FROM rl_shares WHERE id = ?`, [id]);
+  }
+
+  // Funnels
+
+  async funnels(site: string): Promise<FunnelRow[]> {
+    const rows = await this.db.all(`SELECT * FROM rl_funnels WHERE site = ? ORDER BY created_at`, [site]);
+    return rows.map((r) => ({ id: String(r.id), site: String(r.site), name: String(r.name), steps: JSON.parse(String(r.steps)) as FunnelStep[], createdAt: Number(r.created_at) }));
+  }
+
+  async saveFunnel(f: FunnelRow): Promise<void> {
+    await this.db.run(
+      `INSERT INTO rl_funnels (id, site, name, steps, created_at) VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (id) DO UPDATE SET name = excluded.name, steps = excluded.steps`,
+      [f.id, f.site, f.name, JSON.stringify(f.steps), f.createdAt],
+    );
+  }
+
+  async deleteFunnel(id: string): Promise<void> {
+    await this.db.run(`DELETE FROM rl_funnels WHERE id = ?`, [id]);
+  }
+
+  /**
+   * How many visits reached each step, in order, within the same visit. Step
+   * one is the first matching row in the range; each later step must come
+   * after the step before it. Filters choose which visits enter the funnel.
+   */
+  async funnelCounts(query: Query, funnel: FunnelRow): Promise<number[]> {
+    const f = filterSql(query.filters);
+    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    // A filter picks visits: those with any matching row, wherever it falls in the visit.
+    const chosen = query.filters.length
+      ? ` AND e.session IN (SELECT DISTINCT e.session FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
+      : "";
+    const ctes: string[] = [];
+    const params: unknown[] = [];
+    funnel.steps.forEach((step, i) => {
+      const scope = this.goalScope({ kind: step.kind, match: step.match, name: step.match } as GoalRow);
+      if (i === 0) {
+        ctes.push(
+          `s0 AS (SELECT e.session AS session, MIN(e.ts) AS t FROM rl_events e
+            WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.session <> '' AND ${scope.sql}${chosen} GROUP BY e.session)`,
+        );
+        params.push(query.site, query.from, query.to, ...scope.params, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : []));
+      } else {
+        ctes.push(
+          `s${i} AS (SELECT e.session AS session, MIN(e.ts) AS t FROM rl_events e JOIN s${i - 1} p ON p.session = e.session AND e.ts > p.t
+            WHERE e.site = ? AND e.ts < ? AND ${scope.sql} GROUP BY e.session)`,
+        );
+        params.push(query.site, query.to, ...scope.params);
+      }
+    });
+    const [row] = await this.db.all(
+      `WITH ${ctes.join(", ")} SELECT ${funnel.steps.map((_, i) => `(SELECT COUNT(*) FROM s${i}) AS n${i}`).join(", ")}`,
+      params,
+    );
+    return funnel.steps.map((_, i) => num(row?.[`n${i}`]));
   }
 
   // API tokens

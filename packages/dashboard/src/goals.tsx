@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { api, type Goal, type GoalInput, type GoalReport, type GoalTotals, type Site, type View } from "./api.js";
+import { api, type Funnel, type Goal, type GoalInput, type GoalReport, type GoalTotals, type Site, type View } from "./api.js";
 import { Chart } from "./chart.js";
 import { count, money, percent } from "./format.js";
 import { currentLocale, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
+import { Funnels, FunnelBars } from "./funnels.js";
 import { DeleteButton, Sheet } from "./links.js";
 import { label } from "./panel.js";
 
@@ -36,6 +37,8 @@ export function ConversionsPanel({ view, readOnly, onAdd }: { view: View; readOn
   const [rows, setRows] = useState<Row[] | null>(null);
   const [error, setError] = useState("");
   const [open, setOpen] = useState<string | null>(null);
+  const [funnels, setFunnels] = useState<Funnel[]>([]);
+  const [showing, setShowing] = useState<"goals" | "funnels">("goals");
   useEffect(() => {
     let live = true;
     setError("");
@@ -43,11 +46,38 @@ export function ConversionsPanel({ view, readOnly, onAdd }: { view: View; readOn
       .goals(view)
       .then((r) => live && setRows(r.goals))
       .catch((e: Error) => live && setError(e.message));
+    api
+      .funnels(view)
+      .then((r) => live && setFunnels(r.funnels))
+      .catch(() => {});
     return () => {
       live = false;
     };
   }, [view]);
-  if (readOnly && rows && rows.length === 0) return null;
+  if (readOnly && rows && rows.length === 0 && funnels.length === 0) return null;
+  if (showing === "funnels" && funnels.length) {
+    return (
+      <section class={readOnly ? "panel full" : "panel"}>
+        <header class="panel-head">
+          <h2>{t("panel.conversions")}</h2>
+          <nav class="tabs" aria-label={t("panel.conversions")}>
+            <button type="button" class="tab" aria-pressed={false} onClick={() => setShowing("goals")}>
+              {t("funnels.goalsTab")}
+            </button>
+            <button type="button" class="tab on" aria-pressed={true}>
+              {t("funnels.tab")}
+            </button>
+          </nav>
+        </header>
+        {funnels.map((f) => (
+          <div class="funnel-block">
+            <h3 class="funnel-name">{f.name}</h3>
+            <FunnelBars funnel={f} />
+          </div>
+        ))}
+      </section>
+    );
+  }
   const top = Math.max(1, ...(rows ?? []).map((r) => r.conversions));
   const revenue = rows ? revenueText(rows) : "";
   const sorted = [...(rows ?? [])].sort((a, b) => b.conversions - a.conversions || a.name.localeCompare(b.name));
@@ -58,6 +88,16 @@ export function ConversionsPanel({ view, readOnly, onAdd }: { view: View; readOn
         <h2>
           {t("panel.conversions")} {revenue ? <span class="aside">{t("goals.revenueAside", { amount: revenue })}</span> : null}
         </h2>
+        {funnels.length ? (
+          <nav class="tabs" aria-label={t("panel.conversions")}>
+            <button type="button" class="tab on" aria-pressed={true}>
+              {t("funnels.goalsTab")}
+            </button>
+            <button type="button" class="tab" aria-pressed={false} onClick={() => setShowing("funnels")}>
+              {t("funnels.tab")}
+            </button>
+          </nav>
+        ) : null}
         {readOnly ? null : (
           <div class="head-tools">
             <button type="button" class="box-button" onClick={onAdd}>
@@ -442,6 +482,7 @@ export function Goals({ site, view }: { site: Site; view: View }) {
           {t("goals.add")}
         </button>
       </div>
+      <Funnels site={site} view={view} />
     </div>
   );
 }
