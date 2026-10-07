@@ -927,7 +927,7 @@ main {
 .cols {
   display: flex;
   justify-content: space-between;
-  padding: 0 0 6px;
+  padding: 0 10px 6px;
   font: 11px var(--mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1003,6 +1003,7 @@ button.name:hover {
 
 .num {
   min-width: 44px;
+  padding-right: 10px;
   text-align: right;
   font-weight: 550;
 }
@@ -1063,7 +1064,7 @@ button.name:hover {
 .cell.q5 { background: var(--q5); }
 .cell.q6 { background: var(--q6); }
 
-.rhythm .cell:hover {
+.rhythm .cell:hover:not(.hot) {
   outline: 2px solid var(--ink);
   outline-offset: 1px;
 }
@@ -1839,21 +1840,59 @@ body.locked {
 }
 
 .sheet-search {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  position: relative;
   padding: 4px 24px 12px;
 }
 
 .sheet-search .value {
-  flex: 1;
+  width: 100%;
+  padding-right: 130px;
+}
+
+.sheet-search .value::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.sheet-tools {
+  position: absolute;
+  top: 4px;
+  right: 36px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sheet-clear {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.sheet-clear:hover {
+  background: var(--bar);
+  color: var(--ink);
+}
+
+.sheet-clear svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
 }
 
 .sheet-count {
-  min-width: 48px;
-  text-align: right;
   font: 12px var(--mono);
   color: var(--faint);
+  white-space: nowrap;
 }
 
 .sheet-body {
@@ -1869,4 +1908,126 @@ body.locked {
   z-index: 1;
   padding-top: 6px;
   background: var(--card);
+}
+
+/* Home */
+
+.home {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+h1 .home:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--faint);
+  text-underline-offset: 4px;
+}
+
+.home:hover .avatar {
+  border-color: var(--faint);
+}
+
+/* Full list table */
+
+.list-sheet.wide {
+  width: min(1040px, 100%);
+}
+
+.sheet-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 3px;
+  font-size: 14px;
+}
+
+.sheet-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 6px 10px;
+  background: var(--card);
+  font: 11px var(--mono);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.sheet-table .numeric {
+  width: 1%;
+  padding: 0 12px;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--muted);
+}
+
+.sheet-table td.numeric.lead {
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.sheet-table th.numeric:last-child,
+.sheet-table td.numeric:last-child {
+  padding-right: 10px;
+}
+
+.sheet-name {
+  position: relative;
+  height: 34px;
+  padding: 0;
+  max-width: 0;
+  width: 100%;
+}
+
+.sheet-table tr:hover .bar {
+  background: var(--bar-hover);
+}
+
+.sheet-name .name {
+  height: 34px;
+  width: 100%;
+}
+
+/* Heatmap hover */
+
+.rhythm {
+  position: relative;
+}
+
+.cell.hot {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.rhythm-tip {
+  position: absolute;
+  z-index: 3;
+  min-width: 190px;
+  padding: 9px 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  pointer-events: none;
+  transform: translate(-20px, calc(-100% - 10px));
+}
+
+.rhythm-tip.left {
+  transform: translate(calc(-100% + 20px), calc(-100% - 10px));
+}
+
+.tip-note {
+  display: block;
+  margin-top: 5px;
+  font: 11px var(--mono);
+  color: var(--muted);
 }

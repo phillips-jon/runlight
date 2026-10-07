@@ -112,6 +112,10 @@ export interface BreakdownRow {
   bounceRate?: number;
   /** Mean engaged time per pageview, milliseconds, for pages. */
   timeOnPage?: number;
+  /** Mean deepest scroll, percent, for pages. */
+  scrollDepth?: number;
+  /** Mean engaged time per visit, milliseconds, for visit dimensions. */
+  visitDuration?: number;
   fetches?: number;
 }
 
@@ -458,13 +462,18 @@ export class SqlStore {
       const out: BreakdownRow[] = rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors), pageviews: num(row.pageviews) }));
       if (dimension === "page" && out.length > 0) {
         const times = await this.db.all(
-          `SELECT e.path AS value, SUM(e.engaged_ms) AS total, COUNT(DISTINCT e.pageview) AS views
+          `SELECT e.path AS value, SUM(e.engaged_ms) AS total, COUNT(DISTINCT e.pageview) AS views,
+             AVG(e.scroll) AS scroll
            FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'engagement'
            AND e.path IN (${out.map(() => "?").join(", ")}) GROUP BY e.path`,
           [query.site, query.from, query.to, ...out.map((row) => row.value)],
         );
-        const byPath = new Map(times.map((t) => [String(t.value), num(t.views) > 0 ? num(t.total) / num(t.views) : 0]));
-        for (const row of out) row.timeOnPage = Math.round(byPath.get(row.value) ?? 0);
+        const byPath = new Map(times.map((t) => [String(t.value), t]));
+        for (const row of out) {
+          const time = byPath.get(row.value);
+          row.timeOnPage = time && num(time.views) > 0 ? Math.round(num(time.total) / num(time.views)) : 0;
+          row.scrollDepth = time?.scroll === null || time?.scroll === undefined ? 0 : Math.round(num(time.scroll));
+        }
       }
       return out;
     }
@@ -491,12 +500,32 @@ export class SqlStore {
        GROUP BY ${col} ORDER BY visitors DESC, visits DESC, value LIMIT ? OFFSET ?`,
       [...params, ...page],
     );
-    return rows.map((row) => ({
+    const out: BreakdownRow[] = rows.map((row) => ({
       value: String(row.value),
       visitors: num(row.visitors),
       visits: num(row.visits),
       pageviews: num(row.pageviews),
     }));
+    if (out.length === 0) return out;
+    // A visit has one value of each visit dimension, so its bounce and
+    // duration belong to exactly one row.
+    const extras = await this.db.all(
+      `SELECT ${col} AS value, COUNT(*) AS n, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
+       FROM rl_sessions s WHERE s.id IN (
+         SELECT DISTINCT e.session FROM rl_events e ${sessionJoin}
+         WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})
+       AND ${col} IN (${out.map(() => "?").join(", ")})
+       GROUP BY ${col}`,
+      [...params, ...out.map((row) => row.value)],
+    );
+    const byValue = new Map(extras.map((x) => [String(x.value), x]));
+    for (const row of out) {
+      const x = byValue.get(row.value);
+      const n = num(x?.n);
+      row.bounceRate = n > 0 ? num(x?.bounced) / n : 0;
+      row.visitDuration = n > 0 ? Math.round(num(x?.duration) / n) : 0;
+    }
+    return out;
   }
 
   /**
@@ -504,19 +533,27 @@ export class SqlStore {
    * caller folds them into local weekdays and hours, which keeps time zones
    * (DST included) out of SQL.
    */
-  async hourly(query: Query): Promise<Array<{ hour: number; visits: number }>> {
+  async hourly(query: Query): Promise<Array<{ hour: number; visits: number; visitors: number; pageviews: number; bounced: number }>> {
     const f = filterSql(query.filters);
     const matching = query.filters.length
       ? ` AND s.id IN (SELECT DISTINCT e.session FROM rl_events e JOIN rl_sessions s ON s.id = e.session
            WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
       : "";
     const rows = await this.db.all(
-      `SELECT s.started_at / 3600000 AS hour, COUNT(*) AS visits FROM rl_sessions s
+      `SELECT s.started_at / 3600000 AS hour, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
+         SUM(s.pageviews) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
+       FROM rl_sessions s
        WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ?${matching}
        GROUP BY 1`,
       [query.site, query.from, query.to, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : [])],
     );
-    return rows.map((row) => ({ hour: Math.floor(num(row.hour)), visits: num(row.visits) }));
+    return rows.map((row) => ({
+      hour: Math.floor(num(row.hour)),
+      visits: num(row.visits),
+      visitors: num(row.visitors),
+      pageviews: num(row.pageviews),
+      bounced: num(row.bounced),
+    }));
   }
 
   async realtime(site: string, now: number): Promise<Realtime> {

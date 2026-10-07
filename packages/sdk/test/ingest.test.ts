@@ -39,8 +39,8 @@ test("a visit: pageviews, an event, engagement, and the reports that follow", as
 
   const rows = async (dimension: string, extra = "") => (await t.get(`/api/breakdown?period=today&dimension=${dimension}${extra}`)).rows;
   assert.deepEqual(await rows("channel"), [
-    { value: "AI", visitors: 1, visits: 1, pageviews: 2 },
-    { value: "Social", visitors: 1, visits: 1, pageviews: 1 },
+    { value: "AI", visitors: 1, visits: 1, pageviews: 2, bounceRate: 0, visitDuration: 18_000 },
+    { value: "Social", visitors: 1, visits: 1, pageviews: 1, bounceRate: 1, visitDuration: 4_000 },
   ]);
   assert.deepEqual((await rows("source")).map((r: any) => r.value), ["ChatGPT", "Hacker News"]);
   assert.deepEqual((await rows("country")).map((r: any) => r.value), ["GB"]);
@@ -52,7 +52,7 @@ test("a visit: pageviews, an event, engagement, and the reports that follow", as
 
   const pages = await rows("page");
   const home = pages.find((p: any) => p.value === "/");
-  assert.deepEqual(home, { value: "/", visitors: 1, pageviews: 1, timeOnPage: 18_000 });
+  assert.deepEqual(home, { value: "/", visitors: 1, pageviews: 1, timeOnPage: 18_000, scrollDepth: 75 });
 
   const entry = await rows("entry");
   assert.equal(entry.find((r: any) => r.value === "/blog/post").bounceRate, 1);
@@ -78,6 +78,7 @@ test("a visit: pageviews, an event, engagement, and the reports that follow", as
   assert.equal(rhythm.grid.length, 7);
   assert.equal(rhythm.grid[1][12], 2, "two visits on Tuesday at noon UTC");
   assert.equal(rhythm.grid.flat().reduce((a: number, b: number) => a + b, 0), 2);
+  assert.deepEqual(rhythm.cells[1][12], { visits: 2, visitors: 2, pageviews: 3, bounceRate: 0.5 });
 
   const lastYear = await t.get("/api/stats?period=today&compare=year");
   assert.deepEqual(lastYear.compare, { from: "2025-10-06", to: "2025-10-06" });

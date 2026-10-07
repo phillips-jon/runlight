@@ -10,6 +10,9 @@ import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
 import "./style.css";
 
+/** A fresh dashboard compares with nothing; the cards show changes once a comparison is picked. */
+const DEFAULT_COMPARE: CompareMode = "off";
+
 function readView(): View {
   const q = new URLSearchParams(location.search);
   const filters: Filter[] = [];
@@ -17,7 +20,7 @@ function readView(): View {
     const [dimension, op, ...rest] = raw.split(":");
     if (dimension && (op === "is" || op === "not" || op === "contains")) filters.push({ dimension, op, value: rest.join(":") });
   }
-  const compare = (["previous", "year", "custom", "off"].includes(q.get("compare") ?? "") ? q.get("compare") : "previous") as CompareMode;
+  const compare = (["previous", "year", "custom", "off"].includes(q.get("compare") ?? "") ? q.get("compare") : DEFAULT_COMPARE) as CompareMode;
   const compareFrom = q.get("compare_from") ?? "";
   const compareTo = q.get("compare_to") ?? "";
   return {
@@ -26,7 +29,7 @@ function readView(): View {
     from: q.get("from") ?? "",
     to: q.get("to") ?? "",
     filters,
-    compare: compare === "custom" && !(compareFrom && compareTo) ? "previous" : compare,
+    compare: compare === "custom" && !(compareFrom && compareTo) ? DEFAULT_COMPARE : compare,
     compareFrom,
     compareTo,
   };
@@ -47,7 +50,7 @@ function writeUrl(view: View, charted: MetricKey[]) {
     q.set("period", view.period);
   }
   for (const f of view.filters) q.append("filter", `${f.dimension}:${f.op}:${f.value}`);
-  if (view.compare !== "previous") q.set("compare", view.compare);
+  if (view.compare !== DEFAULT_COMPARE) q.set("compare", view.compare);
   if (view.compare === "custom") {
     q.set("compare_from", view.compareFrom);
     q.set("compare_to", view.compareTo);
@@ -188,6 +191,12 @@ function App() {
       const next = [...current, key];
       return next.length > MAX_CHARTED ? next.slice(next.length - MAX_CHARTED) : next;
     });
+  /** Back to the start: the default range and comparison, no filters, visitors charted. */
+  const reset = () => {
+    setView((v) => ({ site: v.site, period: DEFAULT_PERIOD, from: "", to: "", filters: [], compare: DEFAULT_COMPARE, compareFrom: "", compareTo: "" }));
+    setCharted(["visitors"]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
   const changeLanguage = (code: string) => {
     setLocale(code, true)
       .then(() => setLanguage(code))
@@ -214,7 +223,9 @@ function App() {
       <header class="hero">
         <div class="hero-top">
           <div class="identity">
-            {site ? <Avatar site={site} /> : <span class="avatar letter" />}
+            <button type="button" class="home" title={t("app.home")} onClick={reset}>
+              {site ? <Avatar site={site} /> : <span class="avatar letter" />}
+            </button>
             <div class="identity-text">
               {sites && sites.length > 1 ? (
                 <label class="site-select">
@@ -226,7 +237,11 @@ function App() {
                   </select>
                 </label>
               ) : (
-                <h1>{site?.name ?? "Runlight"}</h1>
+                <h1>
+                  <button type="button" class="home" title={t("app.home")} onClick={reset}>
+                    {site?.name ?? "Runlight"}
+                  </button>
+                </h1>
               )}
               {site ? <Live site={site.id} /> : null}
             </div>

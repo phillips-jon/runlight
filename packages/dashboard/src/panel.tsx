@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, type Row, type View } from "./api.js";
 import { count, countryName, duration, flag, hourLabel, percent, weekdays } from "./format.js";
+import type { RhythmCell } from "./api.js";
 import { t, tn, type Key } from "./i18n.js";
 import { MapOverlay, WorldMap } from "./map.js";
 
@@ -115,6 +116,88 @@ function Columns({ tab }: { tab: Tab }) {
   );
 }
 
+type SheetColumn = { label: Key; value: (row: Row, total: number) => string };
+
+const VISIT_DIMENSIONS = new Set(["referrer", "source", "channel", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "country", "region", "city", "browser", "browser_version", "os", "os_version", "device", "screen", "language"]);
+
+/** The columns a full list shows: everything the API knows about that kind of row. */
+function sheetColumns(tab: Tab): SheetColumn[] {
+  const n = (key: keyof Row) => (row: Row) => count(Number(row[key] ?? 0));
+  const share = (key: keyof Row) => (row: Row, total: number) => (total ? percent(Number(row[key] ?? 0) / total) : "");
+  if (tab.column === "fetches") return [{ label: "column.fetches", value: n("fetches") }, { label: "column.share", value: share("fetches") }];
+  if (tab.column === "events") return [{ label: "column.visitors", value: n("visitors") }, { label: "column.events", value: n("events") }, { label: "column.share", value: share("events") }];
+  if (tab.dimension === "page") {
+    return [
+      { label: "column.visitors", value: n("visitors") },
+      { label: "column.pageviews", value: n("pageviews") },
+      { label: "column.time", value: (r) => (r.timeOnPage ? duration(r.timeOnPage) : "") },
+      { label: "column.scroll", value: (r) => (r.scrollDepth ? `${r.scrollDepth}%` : "") },
+    ];
+  }
+  if (tab.dimension === "hostname") return [{ label: "column.visitors", value: n("visitors") }, { label: "column.pageviews", value: n("pageviews") }];
+  if (tab.dimension === "entry" || tab.dimension === "exit") {
+    return [
+      { label: "column.visitors", value: n("visitors") },
+      { label: "column.visits", value: n("visits") },
+      { label: "column.bounce", value: (r) => percent(r.bounceRate ?? 0) },
+    ];
+  }
+  if (VISIT_DIMENSIONS.has(tab.dimension)) {
+    return [
+      { label: "column.visitors", value: n("visitors") },
+      { label: "column.visits", value: n("visits") },
+      { label: "column.pageviews", value: n("pageviews") },
+      { label: "column.bounce", value: (r) => percent(r.bounceRate ?? 0) },
+      { label: "column.duration", value: (r) => duration(r.visitDuration ?? 0) },
+      { label: "column.share", value: share("visitors") },
+    ];
+  }
+  return [{ label: "column.visitors", value: n("visitors") }];
+}
+
+function SheetTable({ rows, tab, onFilter }: { rows: Row[]; tab: Tab; onFilter: (dimension: string, value: string) => void }) {
+  const column = tab.column ?? "visitors";
+  const columns = sheetColumns(tab);
+  const total = rows.reduce((sum, r) => sum + Number(r[column] ?? 0), 0);
+  const top = Math.max(1, ...rows.map((r) => Number(r[column] ?? 0)));
+  return (
+    <table class="sheet-table">
+      <thead>
+        <tr>
+          <th>{t(tab.label)}</th>
+          {columns.map((c) => (
+            <th class="numeric">{t(c.label)}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => {
+          const text = label(tab.dimension, row.value);
+          return (
+            <tr>
+              <td class="sheet-name">
+                <span class="bar" style={{ width: `${(Number(row[column] ?? 0) / top) * 100}%` }} />
+                {tab.filterable ? (
+                  <button type="button" class="name" title={t("panel.filterBy", { name: text })} onClick={() => onFilter(tab.dimension, row.value)}>
+                    <span class="name-text">{text}</span>
+                  </button>
+                ) : (
+                  <span class="name">
+                    <span class="name-text">{text}</span>
+                  </span>
+                )}
+              </td>
+              {columns.map((c, i) => (
+                <td class={i === 0 ? "numeric lead" : "numeric"}>{c.value(row, total)}</td>
+              ))}
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 /** Every row of a tab, searchable, over the page. */
 function AllRows({ title, tab, view, onFilter, onClose }: { title: Key; tab: Tab; view: View; onFilter: (d: string, v: string) => void; onClose: () => void }) {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -135,7 +218,7 @@ function AllRows({ title, tab, view, onFilter, onClose }: { title: Key; tab: Tab
   const shown = (rows ?? []).filter((r) => !needle || label(tab.dimension, r.value).toLowerCase().includes(needle));
   return (
     <div class="scrim center" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="list-sheet" role="dialog" aria-modal="true" aria-label={`${t(title)}: ${t(tab.label)}`}>
+      <div class={sheetColumns(tab).length > 3 ? "list-sheet wide" : "list-sheet"} role="dialog" aria-modal="true" aria-label={`${t(title)}: ${t(tab.label)}`}>
         <header class="drawer-head">
           <h2>
             {t(title)} <span class="sheet-sub">{t(tab.label)}</span>
@@ -147,21 +230,42 @@ function AllRows({ title, tab, view, onFilter, onClose }: { title: Key; tab: Tab
           </button>
         </header>
         <div class="sheet-search">
-          <input ref={search} class="value" type="search" placeholder={t("common.search")} aria-label={t("common.search")} value={query} onInput={(e) => setQuery((e.target as HTMLInputElement).value)} />
-          <span class="sheet-count">{rows ? count(shown.length) : ""}</span>
+          <input
+            ref={search}
+            class="value"
+            type="search"
+            placeholder={t("common.search")}
+            aria-label={t("common.search")}
+            value={query}
+            onInput={(e) => setQuery((e.target as HTMLInputElement).value)}
+          />
+          <span class="sheet-tools">
+            {query ? (
+              <button type="button" class="sheet-clear" aria-label={t("common.clearAll")} onClick={() => {
+                setQuery("");
+                search.current?.focus();
+              }}>
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path d="M4.5 4.5l7 7M11.5 4.5l-7 7" />
+                </svg>
+              </button>
+            ) : null}
+            <span class="sheet-count">{rows ? (needle ? `${count(shown.length)} / ${count(rows.length)}` : count(rows.length)) : ""}</span>
+          </span>
         </div>
         <div class="sheet-body">
-          <Columns tab={tab} />
           {!rows ? <p class="empty">{t("common.loading")}</p> : null}
           {rows && shown.length === 0 ? <p class="empty">{t("panel.empty")}</p> : null}
-          <Rows
-            rows={shown}
-            tab={tab}
-            onFilter={(d, v) => {
-              onFilter(d, v);
-              onClose();
-            }}
-          />
+          {shown.length ? (
+            <SheetTable
+              rows={shown}
+              tab={tab}
+              onFilter={(d, v) => {
+                onFilter(d, v);
+                onClose();
+              }}
+            />
+          ) : null}
         </div>
       </div>
     </div>
@@ -266,13 +370,20 @@ const STEPS = 6;
 /** Visits by weekday and hour, in the site's timezone. */
 export function Rhythm({ view, wide }: { view: View; wide?: boolean }) {
   const [grid, setGrid] = useState<number[][] | null>(null);
+  const [cells, setCells] = useState<RhythmCell[][]>([]);
   const [error, setError] = useState("");
+  const [hover, setHover] = useState<{ d: number; h: number; x: number; y: number } | null>(null);
+  const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     let live = true;
     setError("");
     api
       .rhythm(view)
-      .then((r) => live && setGrid(r.grid))
+      .then((r) => {
+        if (!live) return;
+        setGrid(r.grid);
+        setCells(r.cells ?? []);
+      })
       .catch((e: Error) => live && setError(e.message));
     return () => {
       live = false;
@@ -289,6 +400,9 @@ export function Rhythm({ view, wide }: { view: View; wide?: boolean }) {
     }
   }
 
+  const typical = grid ? grid.flat().reduce((a, b) => a + b, 0) / 168 : 0;
+  const hovered = hover && grid ? { n: grid[hover.d]![hover.h]!, cell: cells[hover.d]?.[hover.h] } : null;
+
   return (
     <section class={wide ? "panel wide" : "panel"}>
       <header class="panel-head">
@@ -298,7 +412,7 @@ export function Rhythm({ view, wide }: { view: View; wide?: boolean }) {
       {error ? <p class="empty">{error}</p> : null}
       {!grid && !error ? <p class="empty">{t("common.loading")}</p> : null}
       {grid ? (
-        <div class="rhythm" role="table" aria-label={t("rhythm.table")}>
+        <div class="rhythm" role="table" aria-label={t("rhythm.table")} ref={box} onPointerLeave={() => setHover(null)}>
           {grid.map((row, d) => (
             <div class="rhythm-row" role="row">
               <span class="rhythm-day" role="rowheader">
@@ -307,8 +421,13 @@ export function Rhythm({ view, wide }: { view: View; wide?: boolean }) {
               {row.map((n, h) => (
                 <span
                   role="cell"
-                  class={`cell q${n === 0 || max === 0 ? 0 : Math.max(1, Math.ceil((n / max) * STEPS))}`}
-                  title={tn("rhythm.cell", n, { when: `${days[d]} ${hourLabel(h)}`, n: count(n) })}
+                  aria-label={tn("rhythm.cell", n, { when: `${days[d]} ${hourLabel(h)}`, n: count(n) })}
+                  class={`cell q${n === 0 || max === 0 ? 0 : Math.max(1, Math.ceil((n / max) * STEPS))}${hover?.d === d && hover.h === h ? " hot" : ""}`}
+                  onPointerEnter={(e) => {
+                    const r = box.current?.getBoundingClientRect();
+                    const c = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    if (r) setHover({ d, h, x: c.left - r.left + c.width / 2, y: c.top - r.top });
+                  }}
                 />
               ))}
             </div>
@@ -319,6 +438,36 @@ export function Rhythm({ view, wide }: { view: View; wide?: boolean }) {
               <span class="hour">{h % 6 === 0 ? hourLabel(h) : ""}</span>
             ))}
           </div>
+          {hover && hovered ? (
+            <div class={hover.x > (box.current?.clientWidth ?? 0) * 0.6 ? "rhythm-tip left" : "rhythm-tip"} style={{ left: `${hover.x}px`, top: `${hover.y}px` }}>
+              <span class="tip-when">
+                {days[hover.d]} {hourLabel(hover.h)}
+              </span>
+              {hovered.n && hovered.cell ? (
+                <>
+                  <span class="tip-row">
+                    <span class="tip-label">{t("metric.visits")}</span>
+                    <strong>{count(hovered.cell.visits)}</strong>
+                  </span>
+                  <span class="tip-row">
+                    <span class="tip-label">{t("metric.visitors")}</span>
+                    <strong>{count(hovered.cell.visitors)}</strong>
+                  </span>
+                  <span class="tip-row">
+                    <span class="tip-label">{t("metric.pageviews")}</span>
+                    <strong>{count(hovered.cell.pageviews)}</strong>
+                  </span>
+                  <span class="tip-row">
+                    <span class="tip-label">{t("metric.bounceRate")}</span>
+                    <strong>{percent(hovered.cell.bounceRate)}</strong>
+                  </span>
+                  {typical > 0 ? <span class="tip-note">{t("rhythm.typical", { x: (hovered.n / typical).toFixed(1) })}</span> : null}
+                </>
+              ) : (
+                <span class="tip-note">{t("rhythm.quiet")}</span>
+              )}
+            </div>
+          ) : null}
           <div class="rhythm-scale" aria-hidden="true">
             <span>{t("scale.fewer")}</span>
             {Array.from({ length: STEPS }, (_, i) => (

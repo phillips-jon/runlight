@@ -4,7 +4,6 @@
   "app.live.title": "Visiteurs des cinq dernières minutes",
   "app.live_one": "{n} en ce moment",
   "app.live_other": "{n} en ce moment",
-
   "headline.who_one": "{n} personne",
   "headline.who_other": "{n} personnes",
   "headline.visited": "ont visité le site",
@@ -16,7 +15,6 @@
   "headline.more": "{pct} % de plus",
   "headline.fewer": "{pct} % de moins",
   "headline.lastYear": "les mêmes jours l'an dernier",
-
   "when.today": "aujourd'hui",
   "when.yesterday": "hier",
   "when.7d": "ces 7 derniers jours",
@@ -28,7 +26,6 @@
   "when.12mo": "ces 12 derniers mois",
   "when.all": "depuis le début du suivi",
   "when.range": "du {range}",
-
   "before.today": "hier",
   "before.yesterday": "la veille",
   "before.7d": "les 7 jours précédents",
@@ -40,7 +37,6 @@
   "before.12mo": "les 12 mois précédents",
   "before.all": "la période précédente",
   "before.range": "la même période juste avant",
-
   "period.today": "Aujourd'hui",
   "period.yesterday": "Hier",
   "period.7d": "7 derniers jours",
@@ -51,7 +47,6 @@
   "period.year": "Cette année",
   "period.12mo": "12 derniers mois",
   "period.all": "Depuis le début",
-
   "compare.title": "Comparer à",
   "compare.vs": "vs",
   "compare.previous": "Période précédente",
@@ -60,7 +55,6 @@
   "compare.off": "Aucune comparaison",
   "compare.apply": "Comparer",
   "compare.dialog": "Comparer avec",
-
   "calendar.dialog": "Choisir les dates",
   "calendar.earlier": "Mois précédents",
   "calendar.later": "Mois suivants",
@@ -74,7 +68,6 @@
   "common.loading": "Chargement",
   "common.search": "Rechercher",
   "common.none": "(aucun)",
-
   "metric.visitors": "Visiteurs",
   "metric.visits": "Visites",
   "metric.pageviews": "Pages vues",
@@ -89,13 +82,11 @@
   "hint.visitDuration": "Temps moyen passé à vraiment regarder la page",
   "delta.title": "Par rapport à la période de comparaison",
   "delta.none": "stable",
-
   "chart.label": "{metrics} au fil du temps",
   "chart.scaled": "Chaque courbe suit sa propre échelle. Survolez pour voir les valeurs.",
   "chart.pick": "Choisissez jusqu'à {n} cartes à comparer.",
   "chart.dashed": "En pointillés : {range}.",
   "chart.then": "avant : {when}",
-
   "panel.pages": "Pages",
   "panel.sources": "Sources",
   "panel.locations": "Lieux",
@@ -112,7 +103,6 @@
   "panel.showMap": "Afficher une carte",
   "panel.showList": "Afficher la liste",
   "panel.fullMap": "Carte en plein écran",
-
   "tab.top": "Top",
   "tab.entry": "Entrée",
   "tab.exit": "Sortie",
@@ -135,13 +125,11 @@
   "tab.medium": "Support",
   "tab.content": "Contenu",
   "tab.term": "Terme",
-
   "column.visitors": "visiteurs",
   "column.fetches": "requêtes",
   "column.events": "événements",
   "column.time": "durée",
   "column.bounce": "rebond",
-
   "channel.Direct": "Direct",
   "channel.Organic Search": "Recherche naturelle",
   "channel.Paid Search": "Recherche payante",
@@ -155,21 +143,18 @@
   "device.tablet": "Tablette",
   "ai.live": "Lectures en direct",
   "ai.crawl": "Explorations",
-
   "rhythm.busiest": "Pic : {when}",
   "rhythm.table": "Visites par jour de la semaine et par heure",
   "rhythm.cell_one": "{when} : {n} visite",
   "rhythm.cell_other": "{when} : {n} visites",
   "scale.fewer": "Moins",
   "scale.more": "Plus",
-
   "map.failed": "Impossible de charger la carte",
   "map.label": "Visiteurs par pays : {top}",
   "map.visitors_one": "{n} visiteur",
   "map.visitors_other": "{n} visiteurs",
   "map.none": "Aucun visiteur",
   "map.title": "Dans le monde",
-
   "filter.button": "Filtrer",
   "filter.remove": "Retirer le filtre",
   "filter.title": "Afficher les visites",
@@ -189,7 +174,6 @@
   "filter.apply_one": "Appliquer {n} condition",
   "filter.apply_other": "Appliquer {n} conditions",
   "filter.everything": "Tout afficher",
-
   "group.pages": "Pages",
   "group.sources": "Sources",
   "group.location": "Lieu",
@@ -218,11 +202,18 @@
   "field.screen": "Écran",
   "field.language": "Langue",
   "field.event": "Événement",
-
   "foot.powered": "Propulsé par {name}",
   "foot.language": "Langue",
   "theme.toLight": "Passer au thème clair",
   "theme.toDark": "Passer au thème sombre",
   "theme.light": "Thème clair",
-  "theme.dark": "Thème sombre"
+  "theme.dark": "Thème sombre",
+  "column.visits": "visites",
+  "column.pageviews": "pages vues",
+  "column.scroll": "défilement",
+  "column.duration": "durée",
+  "column.share": "part",
+  "rhythm.typical": "{x}× une heure habituelle",
+  "rhythm.quiet": "Aucune visite à cette heure",
+  "app.home": "Retour à la vue d'ensemble"
 }

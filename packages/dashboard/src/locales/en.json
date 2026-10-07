@@ -4,7 +4,6 @@
   "app.live.title": "Visitors in the last five minutes",
   "app.live_one": "{n} here now",
   "app.live_other": "{n} here now",
-
   "headline.who_one": "{n} person",
   "headline.who_other": "{n} people",
   "headline.visited": "visited",
@@ -16,7 +15,6 @@
   "headline.more": "{pct}% more",
   "headline.fewer": "{pct}% fewer",
   "headline.lastYear": "the same days last year",
-
   "when.today": "today",
   "when.yesterday": "yesterday",
   "when.7d": "in the last 7 days",
@@ -28,7 +26,6 @@
   "when.12mo": "in the last 12 months",
   "when.all": "since tracking began",
   "when.range": "between {range}",
-
   "before.today": "yesterday",
   "before.yesterday": "the day before",
   "before.7d": "the 7 days before",
@@ -40,7 +37,6 @@
   "before.12mo": "the 12 months before",
   "before.all": "the stretch before",
   "before.range": "the same stretch before",
-
   "period.today": "Today",
   "period.yesterday": "Yesterday",
   "period.7d": "Last 7 days",
@@ -51,7 +47,6 @@
   "period.year": "This year",
   "period.12mo": "Last 12 months",
   "period.all": "All time",
-
   "compare.title": "Compare to",
   "compare.vs": "vs",
   "compare.previous": "Previous period",
@@ -60,7 +55,6 @@
   "compare.off": "No comparison",
   "compare.apply": "Compare",
   "compare.dialog": "Compare with",
-
   "calendar.dialog": "Choose dates",
   "calendar.earlier": "Earlier months",
   "calendar.later": "Later months",
@@ -74,7 +68,6 @@
   "common.loading": "Loading",
   "common.search": "Search",
   "common.none": "(none)",
-
   "metric.visitors": "Visitors",
   "metric.visits": "Visits",
   "metric.pageviews": "Pageviews",
@@ -89,13 +82,11 @@
   "hint.visitDuration": "Average time actually looking at the page",
   "delta.title": "Against the comparison period",
   "delta.none": "no change",
-
   "chart.label": "{metrics} over time",
   "chart.scaled": "Each line is scaled to its own peak. Hover for values.",
   "chart.pick": "Pick up to {n} cards to compare.",
   "chart.dashed": "Dashed: {range}.",
   "chart.then": "then: {when}",
-
   "panel.pages": "Pages",
   "panel.sources": "Sources",
   "panel.locations": "Locations",
@@ -112,7 +103,6 @@
   "panel.showMap": "Show a map",
   "panel.showList": "Show the list",
   "panel.fullMap": "Full screen map",
-
   "tab.top": "Top",
   "tab.entry": "Entry",
   "tab.exit": "Exit",
@@ -135,13 +125,11 @@
   "tab.medium": "Medium",
   "tab.content": "Content",
   "tab.term": "Term",
-
   "column.visitors": "visitors",
   "column.fetches": "fetches",
   "column.events": "events",
   "column.time": "time",
   "column.bounce": "bounce",
-
   "channel.Direct": "Direct",
   "channel.Organic Search": "Organic Search",
   "channel.Paid Search": "Paid Search",
@@ -155,21 +143,18 @@
   "device.tablet": "Tablet",
   "ai.live": "Live fetches",
   "ai.crawl": "Crawls",
-
   "rhythm.busiest": "Busiest: {when}",
   "rhythm.table": "Visits by weekday and hour",
   "rhythm.cell_one": "{when}: {n} visit",
   "rhythm.cell_other": "{when}: {n} visits",
   "scale.fewer": "Fewer",
   "scale.more": "More",
-
   "map.failed": "Could not load the map",
   "map.label": "Visitors by country: {top}",
   "map.visitors_one": "{n} visitor",
   "map.visitors_other": "{n} visitors",
   "map.none": "No visitors",
   "map.title": "Around the world",
-
   "filter.button": "Filter",
   "filter.remove": "Remove filter",
   "filter.title": "Show visits",
@@ -189,7 +174,6 @@
   "filter.apply_one": "Apply {n} condition",
   "filter.apply_other": "Apply {n} conditions",
   "filter.everything": "Show everything",
-
   "group.pages": "Pages",
   "group.sources": "Sources",
   "group.location": "Location",
@@ -218,11 +202,18 @@
   "field.screen": "Screen",
   "field.language": "Language",
   "field.event": "Event",
-
   "foot.powered": "Powered by {name}",
   "foot.language": "Language",
   "theme.toLight": "Switch to light theme",
   "theme.toDark": "Switch to dark theme",
   "theme.light": "Light theme",
-  "theme.dark": "Dark theme"
+  "theme.dark": "Dark theme",
+  "column.visits": "visits",
+  "column.pageviews": "pageviews",
+  "column.scroll": "scroll",
+  "column.duration": "duration",
+  "column.share": "share",
+  "rhythm.typical": "{x}× a typical hour",
+  "rhythm.quiet": "No visits in this hour",
+  "app.home": "Back to the overview"
 }

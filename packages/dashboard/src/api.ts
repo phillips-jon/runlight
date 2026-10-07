@@ -39,7 +39,16 @@ export interface Row {
   events?: number;
   bounceRate?: number;
   timeOnPage?: number;
+  scrollDepth?: number;
+  visitDuration?: number;
   fetches?: number;
+}
+
+export interface RhythmCell {
+  visits: number;
+  visitors: number;
+  pageviews: number;
+  bounceRate: number;
 }
 
 export interface Realtime {
@@ -93,7 +102,8 @@ export function viewParams(view: View): URLSearchParams {
     params.set("period", view.period);
   }
   for (const f of view.filters) params.append("filter", `${f.dimension}:${f.op}:${f.value}`);
-  if (view.compare !== "previous") params.set("compare", view.compare);
+  // Always sent: the dashboard's default (no comparison) is not the API's.
+  params.set("compare", view.compare);
   if (view.compare === "custom") {
     params.set("compare_from", view.compareFrom);
     params.set("compare_to", view.compareTo);
@@ -111,6 +121,6 @@ export const api = {
     params.set("limit", String(limit));
     return get<{ rows: Row[] }>("breakdown", params);
   },
-  rhythm: (view: View) => get<{ grid: number[][] }>("rhythm", viewParams(view)),
+  rhythm: (view: View) => get<{ grid: number[][]; cells: RhythmCell[][] }>("rhythm", viewParams(view)),
   realtime: (site: string) => get<Realtime>("realtime", new URLSearchParams(site ? { site } : {})),
 };

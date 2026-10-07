@@ -246,12 +246,24 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     }
 
     if (path === "/api/rhythm") {
+      // Visits per weekday and hour, plus each cell's details for its tooltip.
+      // Visitors are summed over the hours folded into a cell, so someone who
+      // came on two Tuesdays at 2pm counts twice there.
       const grid = Array.from({ length: 7 }, () => new Array<number>(24).fill(0));
-      for (const { hour, visits } of await runlight.store.hourly(query)) {
-        const [weekday, h] = localWeekdayHour(hour * 3_600_000, site.timezone);
-        grid[weekday]![h]! += visits;
+      const cells = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => ({ visits: 0, visitors: 0, pageviews: 0, bounced: 0 })));
+      for (const row of await runlight.store.hourly(query)) {
+        const [weekday, h] = localWeekdayHour(row.hour * 3_600_000, site.timezone);
+        grid[weekday]![h]! += row.visits;
+        const cell = cells[weekday]![h]!;
+        cell.visits += row.visits;
+        cell.visitors += row.visitors;
+        cell.pageviews += row.pageviews;
+        cell.bounced += row.bounced;
       }
-      return json({ site: site.id, range: rangeOut, grid });
+      const details = cells.map((day) =>
+        day.map((c) => ({ visits: c.visits, visitors: c.visitors, pageviews: c.pageviews, bounceRate: c.visits ? c.bounced / c.visits : 0 })),
+      );
+      return json({ site: site.id, range: rangeOut, grid, cells: details });
     }
 
     if (path === "/api/breakdown") {
