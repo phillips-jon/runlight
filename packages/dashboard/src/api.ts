@@ -108,6 +108,16 @@ export const base = document.getElementById("app")?.dataset.base ?? "";
 export const share = document.getElementById("app")?.dataset.share ?? "";
 /** Where the standalone server signs people out; empty in library mode. */
 export const signOut = document.getElementById("app")?.dataset.signOut ?? "";
+/** Whether this is the standalone server, with accounts and roles. */
+export const accounts = document.getElementById("app")?.dataset.accounts !== undefined;
+
+export interface Person {
+  id: string;
+  email: string;
+  role: "owner" | "viewer";
+  createdAt: number;
+}
+
 /** Whether locations come from DB-IP's free data, which asks to be credited. */
 export const geoCredit = document.getElementById("app")?.dataset.geoCredit !== undefined;
 /** How this install is run, learned from the sites list: sites managed in the dashboard (the standalone server) or set in code. */
@@ -266,6 +276,12 @@ export const api = {
       `links/import/${source}${siteQuery(site)}`,
       { credentials, cursor, done },
     ),
+  account: () => get<{ account: Person }>("account", new URLSearchParams()),
+  changePassword: (current: string, next: string) => send<{ ok: true }>("POST", "account/password", { current, next }),
+  people: () => get<{ people: Person[] }>("people", new URLSearchParams()),
+  addPerson: (email: string, role: Person["role"]) => send<{ person: Person; password: string }>("POST", "people", { email, role }),
+  setRole: (id: string, role: Person["role"]) => send<{ person: Person }>("PATCH", `people/${id}`, { role }),
+  removePerson: (id: string) => del(`people/${id}`),
   eventProps: (view: View, event: string, key: string | null) => {
     const params = viewParams(view);
     params.set("event", event);

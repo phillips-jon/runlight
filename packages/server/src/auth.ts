@@ -17,10 +17,14 @@ export const MIN_PASSWORD = 10;
 /** The most sign-in keys the throttle remembers at once. */
 const MAX_THROTTLED = 10_000;
 
+/** An owner can do everything; a viewer can read every site's stats and change nothing. */
+export type Role = "owner" | "viewer";
+
 export interface User {
   id: string;
   email: string;
   hash: string;
+  role: Role;
   createdAt: number;
 }
 
@@ -52,9 +56,14 @@ export class Accounts {
   ) {}
 
   private init(): Promise<void> {
-    this.ready ??= this.store.db
-      .run(`CREATE TABLE IF NOT EXISTS rl_users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, hash TEXT NOT NULL, created_at BIGINT NOT NULL)`)
-      .catch((error) => {
+    this.ready ??= (async () => {
+      await this.store.db.run(`CREATE TABLE IF NOT EXISTS rl_users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, hash TEXT NOT NULL, created_at BIGINT NOT NULL)`);
+      // Roles came later; a table from before them gains the column, and its accounts stay owners.
+      const columns = this.store.db.dialect === "postgres"
+        ? await this.store.db.all(`SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'rl_users' AND table_schema = current_schema()`)
+        : await this.store.db.all(`PRAGMA table_info(rl_users)`);
+      if (!columns.some((c) => c.name === "role")) await this.store.db.run(`ALTER TABLE rl_users ADD COLUMN role TEXT NOT NULL DEFAULT 'owner'`);
+    })().catch((error) => {
         this.ready = null;
         throw error;
       });
@@ -62,7 +71,7 @@ export class Accounts {
   }
 
   private row(r: Record<string, unknown>): User {
-    return { id: String(r.id), email: String(r.email), hash: String(r.hash), createdAt: Number(r.created_at) };
+    return { id: String(r.id), email: String(r.email), hash: String(r.hash), role: r.role === "viewer" ? "viewer" : "owner", createdAt: Number(r.created_at) };
   }
 
   async count(): Promise<number> {
@@ -83,8 +92,32 @@ export class Accounts {
     return row ? this.row(row) : null;
   }
 
+  async list(): Promise<User[]> {
+    await this.init();
+    return (await this.store.db.all(`SELECT * FROM rl_users ORDER BY created_at`)).map((r) => this.row(r));
+  }
+
+  /** Changes a role. The last owner cannot become a viewer, or nobody could manage the server. */
+  async setRole(id: string, role: Role): Promise<User> {
+    const users = await this.list();
+    const user = users.find((u) => u.id === id);
+    if (!user) throw new RangeError("Unknown account");
+    if (user.role === "owner" && role === "viewer" && users.filter((u) => u.role === "owner").length === 1) throw new RangeError("Keep at least one owner");
+    await this.store.db.run(`UPDATE rl_users SET role = ? WHERE id = ?`, [role, id]);
+    return { ...user, role };
+  }
+
+  /** Removes an account. The last owner cannot be removed. */
+  async remove(id: string): Promise<void> {
+    const users = await this.list();
+    const user = users.find((u) => u.id === id);
+    if (!user) throw new RangeError("Unknown account");
+    if (user.role === "owner" && users.filter((u) => u.role === "owner").length === 1) throw new RangeError("Keep at least one owner");
+    await this.store.db.run(`DELETE FROM rl_users WHERE id = ?`, [id]);
+  }
+
   /** Makes an account, or sets a new password on an existing one. */
-  async setPassword(email: string, password: string, now: number): Promise<User> {
+  async setPassword(email: string, password: string, now: number, role: Role = "owner"): Promise<User> {
     await this.init();
     const address = email.trim().toLowerCase();
     if (!EMAIL.test(address)) throw new RangeError("Enter an email address");
@@ -95,8 +128,8 @@ export class Accounts {
       await this.store.db.run(`UPDATE rl_users SET hash = ? WHERE id = ?`, [hash, existing.id]);
       return { ...existing, hash };
     }
-    const user: User = { id: randomBytes(12).toString("hex"), email: address, hash, createdAt: now };
-    await this.store.db.run(`INSERT INTO rl_users (id, email, hash, created_at) VALUES (?, ?, ?, ?)`, [user.id, user.email, user.hash, user.createdAt]);
+    const user: User = { id: randomBytes(12).toString("hex"), email: address, hash, role, createdAt: now };
+    await this.store.db.run(`INSERT INTO rl_users (id, email, hash, role, created_at) VALUES (?, ?, ?, ?, ?)`, [user.id, user.email, user.hash, user.role, user.createdAt]);
     return user;
   }
 

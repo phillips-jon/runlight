@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { api, base, install, type Site, type View } from "./api.js";
+import { api, base, install, type Person, type Site, type View } from "./api.js";
+import { People } from "./account.js";
 import { EmailReports } from "./email.js";
 import { Goals } from "./goals.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
@@ -13,7 +14,7 @@ import { Sharing } from "./sharing.js";
 import { Tokens } from "./tokens.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
-export type Section = "general" | "install" | "goals" | "email" | "sharing" | "api" | "links" | "import";
+export type Section = "general" | "install" | "goals" | "email" | "sharing" | "api" | "links" | "import" | "people";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
@@ -414,7 +415,7 @@ function LinkDomains({ site }: { site: Site }) {
   );
 }
 
-export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLanguage, onDeleted }: {
+export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLanguage, onDeleted, me }: {
   site: Site;
   view: View;
   start?: Section;
@@ -423,7 +424,10 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   onSaved: (site: Site) => void;
   onLanguage: (code: string) => void;
   onDeleted: (id: string) => void;
+  /** Who is signed in, on the standalone server; owners also manage People there. */
+  me?: Person | null;
 }) {
+  const sections: Array<[Section, Key]> = me?.role === "owner" ? [...SECTIONS, ["people", "settings.people"]] : SECTIONS;
   const [section, setSection] = useState<Section>(start ?? "general");
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -443,7 +447,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
         <nav class="settings-nav" aria-label={t("settings.title")}>
           <h2 id="settings-title">{t("settings.title")}</h2>
           <p class="settings-site">{site.name}</p>
-          {SECTIONS.map(([id, label]) => (
+          {sections.map(([id, label]) => (
             <button type="button" class={section === id ? "settings-tab on" : "settings-tab"} aria-current={section === id ? "page" : undefined} onClick={() => setSection(id)}>
               {t(label)}
             </button>
@@ -451,7 +455,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
         </nav>
         <div class="settings-body">
           <header class="settings-head">
-            <h3>{t(SECTIONS.find(([id]) => id === section)![1])}</h3>
+            <h3>{t(sections.find(([id]) => id === section)![1])}</h3>
             <button type="button" class="remove" aria-label={t("common.close")} onClick={onClose}>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M4 4l8 8M12 4l-8 8" />
@@ -469,6 +473,8 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
               <EmailReports site={site} />
             ) : section === "sharing" ? (
               <Sharing site={site} />
+            ) : section === "people" && me ? (
+              <People me={me} />
             ) : section === "api" ? (
               <Tokens sites={sites} />
             ) : section === "links" ? (

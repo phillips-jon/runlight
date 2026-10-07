@@ -3643,3 +3643,27 @@ button.live:hover {
   padding: 0;
   list-style: none;
 }
+
+/* People: a role picker beside each person, the same height as the row's buttons. */
+.people-role {
+  width: auto;
+  height: 30px;
+  padding-left: 10px;
+  font-size: 13px;
+}
+
+.people-you {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font: 11px var(--mono);
+  color: var(--muted);
+}
+
+button.sign-out {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}

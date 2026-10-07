@@ -27,7 +27,9 @@ The server listens on port 3000. It keeps its data in a folder called `runlight-
 
 On its first start the server prints a setup link with a one-time code in its log. Open that link and enter your email address and a password of at least ten characters. The link only works while the server has no account, so nobody who finds a new server first can claim it.
 
-To add another person, or to give an account a new password, run the `password` command on the server. It prints the new password.
+Owners add people in **Settings**, **People**, as an owner or a viewer. An owner can change everything, and a viewer can read every site's stats without changing anything. A new person gets a password shown once, which they can change under **Account** at the bottom of the dashboard. The server always keeps at least one owner.
+
+If an owner is locked out, run the `password` command on the server to give the account a new password, which it prints. The same command makes a new owner account.
 
 ```bash
 npx runlight.sh password someone@example.com

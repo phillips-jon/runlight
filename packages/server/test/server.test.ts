@@ -119,3 +119,48 @@ test("sites are added in the dashboard, counted across origins, and short links 
   assert.equal((await handle(req("/healthz"))).status, 200);
   assert.equal((await handle(req("/api/sites", { headers: { authorization: "Bearer wrong" } }))).status, 401);
 });
+
+test("owners add people as owners or viewers; viewers read every site and change nothing", async () => {
+  const { server, handle } = make();
+  await server.accounts.setPassword("owner@example.com", "a long password", Date.now());
+  const signIn = async (email: string, password: string) => cookieOf(await handle(req("/login", form({ email, password }))));
+  const owner = await signIn("owner@example.com", "a long password");
+  const json = (cookie: string, method: string, path: string, body?: unknown) =>
+    handle(req(path, { method, headers: { cookie, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
+
+  assert.deepEqual(((await (await json(owner, "GET", "/api/account")).json()) as any).account.role, "owner");
+  const added = await json(owner, "POST", "/api/people", { email: "Viewer@Example.com", role: "viewer" });
+  assert.equal(added.status, 201);
+  const { person, password } = (await added.json()) as any;
+  assert.equal(person.email, "viewer@example.com");
+  assert.match(password, /^[A-Za-z0-9_-]{16}$/);
+  assert.equal((await json(owner, "POST", "/api/people", { email: "viewer@example.com", role: "viewer" })).status, 409);
+  assert.equal((await handle(req("/api/people", { method: "POST", headers: { cookie: owner, "content-type": "text/plain; application/json" }, body: "{}" }))).status, 415);
+
+  // The viewer reads and changes nothing.
+  const viewer = await signIn("viewer@example.com", password);
+  assert.equal((await json(owner, "POST", "/api/sites", { hostnames: "blog.example.com" })).status, 201);
+  assert.equal((await json(viewer, "GET", "/api/sites")).status, 200);
+  assert.equal((await json(viewer, "GET", "/api/stats?site=blog.example.com&period=today")).status, 200);
+  assert.equal((await json(viewer, "POST", "/api/sites", { hostnames: "other.example.com" })).status, 401);
+  assert.equal((await json(viewer, "POST", "/api/tokens", { name: "x" })).status, 401);
+  assert.equal((await json(viewer, "GET", "/api/people")).status, 403);
+  assert.match(await (await handle(req("/", { headers: { cookie: viewer } }))).text(), /data-accounts=""/);
+
+  // Everyone changes their own password, and stays signed in while doing it.
+  assert.equal((await json(viewer, "POST", "/api/account/password", { current: "wrong", next: "a brand new password" })).status, 400);
+  const changed = await json(viewer, "POST", "/api/account/password", { current: password, next: "a brand new password" });
+  assert.equal(changed.status, 200);
+  const fresh = cookieOf(changed);
+  assert.equal((await json(fresh, "GET", "/api/account")).status, 200);
+  assert.equal((await json(viewer, "GET", "/api/account")).status, 401, "the old sign-in ends");
+
+  // Roles change, and the last owner stays an owner.
+  const ownerId = ((await (await json(owner, "GET", "/api/account")).json()) as any).account.id;
+  assert.equal((await json(owner, "PATCH", `/api/people/${ownerId}`, { role: "viewer" })).status, 400);
+  assert.equal((await json(owner, "DELETE", `/api/people/${ownerId}`)).status, 400);
+  assert.equal(((await (await json(owner, "PATCH", `/api/people/${person.id}`, { role: "owner" })).json()) as any).person.role, "owner");
+  assert.equal((await json(fresh, "POST", "/api/sites", { hostnames: "now.example.com" })).status, 201, "the promoted owner can change things");
+  assert.equal((await json(owner, "DELETE", `/api/people/${person.id}`)).status, 200);
+  assert.equal((await json(fresh, "GET", "/api/account")).status, 401, "a removed person is signed out");
+});

@@ -5,7 +5,7 @@
  */
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
-import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle } from "./auth.js";
+import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle, type Role, type User } from "./auth.js";
 import { AUTH_CSS, loginPage, setupLockedPage, setupPage } from "./pages.js";
 
 export interface ServerOptions {
@@ -102,10 +102,13 @@ export function createServer(options: ServerOptions): RunlightServer {
     cronSecret: randomBytes(32).toString("hex"),
     signOut: "/logout",
     geoCredit: options.geoCredit ?? false,
+    accounts: true,
     authorize: async (request) => {
       const auth = request.headers.get("authorization") ?? "";
       if (options.token && auth.toLowerCase().startsWith("bearer ") && equal(auth.slice(7).trim(), options.token)) return true;
-      return Boolean(await signedIn(request));
+      const user = await signedIn(request);
+      // A viewer reads every site and changes nothing.
+      return user ? (user.role === "viewer" ? "read" : true) : false;
     },
   });
   const links = rl.linkHandler();
@@ -177,6 +180,10 @@ export function createServer(options: ServerOptions): RunlightServer {
 
       if (path === "/logout") return redirect("/login", { "set-cookie": sessionCookie(request, "", 0) });
 
+      if (path === "/api/account" || path === "/api/account/password" || path === "/api/people" || path.startsWith("/api/people/")) {
+        return await accountsApi(request, path);
+      }
+
       // The dashboard page itself: straight to sign-in, or to setup on a new server.
       if (path === "/" && method === "GET" && !(await signedIn(request))) {
         if (!(await accountExists())) return html(setupLockedPage(), 403);
@@ -189,6 +196,75 @@ export function createServer(options: ServerOptions): RunlightServer {
       return new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: { "content-type": "application/json" } });
     }
   };
+
+  const reply = (body: unknown, status = 200, extra: Record<string, string> = {}) =>
+    new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...extra } });
+  const person = (u: User) => ({ id: u.id, email: u.email, role: u.role, createdAt: u.createdAt });
+  /** A JSON body by its media type, which a cross-site form cannot send. */
+  const body = async (request: Request): Promise<Record<string, unknown> | null> => {
+    if ((request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase() !== "application/json") return null;
+    const parsed = (await request.json().catch(() => null)) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+  };
+
+  /** Your own account, and for owners, everyone else's. */
+  async function accountsApi(request: Request, path: string): Promise<Response> {
+    const user = await signedIn(request);
+    if (!user) return reply({ error: "Sign in first" }, 401);
+    if (path === "/api/account" && request.method === "GET") return reply({ account: person(user) });
+    if (path === "/api/account/password" && request.method === "POST") {
+      const input = await body(request);
+      if (!input) return reply({ error: "Send JSON" }, 415);
+      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) return reply({ error: "Your current password is not right" }, 400);
+      try {
+        const updated = await accounts.setPassword(user.email, String(input.next ?? ""), now());
+        // The new password ends every other sign-in; this browser gets a fresh one.
+        return reply({ ok: true }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
+      } catch (error) {
+        if (error instanceof RangeError) return reply({ error: error.message }, 400);
+        throw error;
+      }
+    }
+    if (user.role !== "owner") return reply({ error: "Only an owner can manage people" }, 403);
+    const roleOf = (value: unknown): Role | null => (value === "owner" || value === "viewer" ? value : null);
+    if (path === "/api/people" && request.method === "GET") return reply({ people: (await accounts.list()).map(person) });
+    if (path === "/api/people" && request.method === "POST") {
+      const input = await body(request);
+      if (!input) return reply({ error: "Send JSON" }, 415);
+      const role = roleOf(input.role);
+      if (!role) return reply({ error: "Pick owner or viewer" }, 400);
+      const email = String(input.email ?? "").trim().toLowerCase();
+      if (await accounts.byEmail(email)) return reply({ error: `${email} already has an account` }, 409);
+      const password = randomBytes(12).toString("base64url");
+      try {
+        const made = await accounts.setPassword(email, password, now(), role);
+        // The only time the password is shown; the new person changes it after signing in.
+        return reply({ person: person(made), password }, 201);
+      } catch (error) {
+        if (error instanceof RangeError) return reply({ error: error.message }, 400);
+        throw error;
+      }
+    }
+    const match = /^\/api\/people\/([a-f0-9]{24})$/.exec(path);
+    if (match && (request.method === "PATCH" || request.method === "DELETE")) {
+      try {
+        if (request.method === "DELETE") {
+          if (match[1] === user.id) return reply({ error: "You cannot remove yourself" }, 400);
+          await accounts.remove(match[1]!);
+          return reply({ ok: true });
+        }
+        const input = await body(request);
+        if (!input) return reply({ error: "Send JSON" }, 415);
+        const role = roleOf(input.role);
+        if (!role) return reply({ error: "Pick owner or viewer" }, 400);
+        return reply({ person: person(await accounts.setRole(match[1]!, role)) });
+      } catch (error) {
+        if (error instanceof RangeError) return reply({ error: error.message }, error.message === "Unknown account" ? 404 : 400);
+        throw error;
+      }
+    }
+    return reply({ error: "Not found" }, 404);
+  }
 
   return {
     runlight: rl,

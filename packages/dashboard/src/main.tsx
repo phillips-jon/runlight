@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import { ApiError, api, base, install, share, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
+import { ApiError, accounts, api, base, install, share, type Person, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, Spark, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
@@ -9,6 +9,7 @@ import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type K
 import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey } from "./metrics.js";
 import { LinksPanel, Sheet } from "./links.js";
 import { AddSiteForm, FirstSite, SiteMenu } from "./sites.js";
+import { AccountSheet } from "./account.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
 import { RealtimeModal } from "./realtime.js";
@@ -186,6 +187,14 @@ function App() {
   const [filtering, setFiltering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState<Section | null>(null);
   const [addingSite, setAddingSite] = useState(false);
+  /** Who is signed in, on the standalone server. */
+  const [me, setMe] = useState<Person | null>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
+  useEffect(() => {
+    if (accounts) api.account().then((r) => setMe(r.account)).catch(() => {});
+  }, []);
+  /** A shared dashboard and a viewer see the numbers and change nothing. */
+  const readOnly = Boolean(share) || me?.role === "viewer";
 
   const fail = (e: Error) =>
     setFailure(e instanceof ApiError && e.status === 401 ? "signed-out" : share && e instanceof ApiError && e.status === 404 ? t("share.gone") : e.message);
@@ -298,11 +307,11 @@ function App() {
               {site ? <Avatar site={site} /> : <span class="avatar letter" />}
             </button>
             <div class="identity-text">
-              {sites && (sites.length > 1 || (install.managed && !share)) ? (
+              {sites && (sites.length > 1 || (install.managed && !readOnly)) ? (
                 <SiteMenu
                   sites={sites}
                   current={site}
-                  canAdd={install.managed && !share}
+                  canAdd={install.managed && !readOnly}
                   onPick={(id) => update({ site: id, filters: [] })}
                   onAdd={() => setAddingSite(true)}
                 />
@@ -315,7 +324,7 @@ function App() {
               )}
               {site ? <Live site={site.id} ready={site.lastSeen != null} /> : null}
             </div>
-            {site && !share ? (
+            {site && !readOnly ? (
               <button type="button" class="gear" aria-label={t("settings.open")} title={t("settings.open")} onClick={() => setSettingsOpen("general")}>
                 <svg viewBox="0 0 20 20" aria-hidden="true">
                   <circle cx="10" cy="10" r="2.6" />
@@ -396,6 +405,7 @@ function App() {
             setView((v) => ({ ...v }));
           }}
           onLanguage={changeLanguage}
+          me={me}
           onDeleted={(id) => {
             setSettingsOpen(null);
             const rest = (sites ?? []).filter((x) => x.id !== id);
@@ -404,6 +414,7 @@ function App() {
           }}
         />
       ) : null}
+      {accountOpen && me ? <AccountSheet me={me} onClose={() => setAccountOpen(false)} /> : null}
       {addingSite ? (
         <Sheet title={t("sites.addTitle")} onClose={() => setAddingSite(false)}>
           <AddSiteForm onAdded={added} onCancel={() => setAddingSite(false)} />
@@ -472,8 +483,8 @@ function App() {
           ),
         )}
         {/* The last row: Conversions narrow, Links wide, so the zigzag carries on. */}
-        {site ? <ConversionsPanel view={view} readOnly={Boolean(share)} onAdd={() => setSettingsOpen("goals")} /> : null}
-        {site && !share ? <LinksPanel view={view} site={site.id} /> : null}
+        {site ? <ConversionsPanel view={view} readOnly={readOnly} onAdd={() => setSettingsOpen("goals")} /> : null}
+        {site && !readOnly ? <LinksPanel view={view} site={site.id} /> : null}
       </div>
 
       <footer class="foot">
@@ -495,6 +506,11 @@ function App() {
           </select>
         </label>
         <Theme />
+        {me ? (
+          <button type="button" class="sign-out" onClick={() => setAccountOpen(true)}>
+            {t("account.title")}
+          </button>
+        ) : null}
         {signOut ? (
           <a class="sign-out" href={signOut}>
             {t("app.signOut")}
