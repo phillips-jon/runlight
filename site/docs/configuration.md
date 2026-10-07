@@ -36,11 +36,42 @@ postgres({ url: process.env.DATABASE_URL });
 
 Needs `pg`. Options: `url`, or `pool` to share a pool your app already has (Runlight never ends a pool it did not make), and `max` connections when Runlight makes the pool (default 5). Several processes starting at once create the tables once.
 
+### libSQL and Turso
+
+```ts
+import { libsql } from "@runlight/sdk/libsql";
+import { createClient } from "@libsql/client"; // or "@libsql/client/web" on the edge
+
+libsql({ client: createClient({ url: process.env.TURSO_URL, authToken: process.env.TURSO_TOKEN }) });
+```
+
+Needs `@libsql/client`. Turso over HTTP works anywhere `fetch` does, including Vercel Edge and Deno Deploy; a `file:` URL is a local SQLite file.
+
+### Cloudflare D1
+
+```ts
+import { d1 } from "@runlight/sdk/d1";
+
+d1({ database: env.DB });
+```
+
+Pass the D1 binding from your Worker’s environment. D1 has no interactive transactions, so a link import writes each link on its own; if one fails part way, running the import again skips the links already written.
+
+### Bun
+
+```ts
+import { bunSqlite } from "@runlight/sdk/bun";
+
+bunSqlite({ path: "./data/runlight.db" });
+```
+
+Bun’s built-in SQLite, for apps on Bun, where `better-sqlite3` does not load.
+
 ## runlight() options
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `store` | (required) | Where the numbers live: `sqlite(...)` or `postgres(...)`. |
+| `store` | (required) | Where the numbers live: `sqlite`, `postgres`, `libsql`, `d1`, or `bunSqlite`. |
 | `site` | `{}` | The site this install counts. |
 | `sites` | | Several sites in one install, each with its hostnames. Used instead of `site`. |
 | `geo` | | Your own location lookup, for hosts that send no location headers. |

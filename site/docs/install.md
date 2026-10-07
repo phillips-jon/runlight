@@ -1,6 +1,6 @@
 ---
 title: Install
-description: Mount Runlight in Next.js, Express, Hono, SvelteKit, Astro, Remix, or any server that speaks Request and Response.
+description: Mount Runlight in Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, Bun, Deno, or Cloudflare Workers.
 group: Start
 order: 2
 ---
@@ -45,6 +45,58 @@ app.use(toNodeHandler(rl.routes().handler));
 
 Mount it before any body parser that would consume the request, or after: the adapter reads a body Express has already parsed.
 
+## NestJS
+
+Nest runs on Express by default, so the same middleware goes in `main.ts`, before `listen`:
+
+```ts file=src/main.ts
+import { NestFactory } from "@nestjs/core";
+import { toNodeHandler } from "@runlight/sdk/node";
+import { AppModule } from "./app.module";
+import { rl } from "./runlight";
+
+const app = await NestFactory.create(AppModule);
+app.use(toNodeHandler(rl.routes().handler));
+await app.listen(3000);
+```
+
+## Fastify
+
+Fastify reads request bodies itself, so give Runlight its own plugin scope with no body parsers, and hand the raw request over:
+
+```ts
+import Fastify from "fastify";
+import { toNodeHandler } from "@runlight/sdk/node";
+import { rl } from "./runlight.js";
+
+const app = Fastify();
+const runlight = toNodeHandler(rl.routes().handler);
+
+app.register(async (scope) => {
+  scope.removeAllContentTypeParsers();
+  scope.addContentTypeParser("*", (_req, _payload, done) => done(null));
+  scope.all("/runlight", (req, reply) => { reply.hijack(); return runlight(req.raw, reply.raw); });
+  scope.all("/runlight/*", (req, reply) => { reply.hijack(); return runlight(req.raw, reply.raw); });
+});
+```
+
+## Koa
+
+```ts
+import Koa from "koa";
+import { toNodeHandler } from "@runlight/sdk/node";
+import { rl } from "./runlight.js";
+
+const app = new Koa();
+const runlight = toNodeHandler(rl.routes().handler);
+
+app.use(async (ctx, next) => {
+  if (ctx.path !== "/runlight" && !ctx.path.startsWith("/runlight/")) return next();
+  ctx.respond = false;
+  await runlight(ctx.req, ctx.res);
+});
+```
+
 ## Hono
 
 ```ts
@@ -55,6 +107,22 @@ const app = new Hono();
 const runlight = rl.routes().handler;
 app.all("/runlight/*", (c) => runlight(c.req.raw));
 app.all("/runlight", (c) => runlight(c.req.raw));
+```
+
+## Nuxt and Nitro
+
+Put the instance in `server/utils/runlight.ts` (Nitro imports everything there for you), then:
+
+```ts file=server/routes/runlight/[...path].ts
+export default defineEventHandler((event) => rl.routes().handler(toWebRequest(event)));
+```
+
+Add the same file as `server/routes/runlight.ts` so `/runlight` itself answers too, and the script tag to `app.head` in `nuxt.config.ts`:
+
+```ts file=nuxt.config.ts
+export default defineNuxtConfig({
+  app: { head: { script: [{ src: "/runlight/s.js", defer: true }] } },
+});
 ```
 
 ## SvelteKit
@@ -91,6 +159,69 @@ const { handler } = rl.routes();
 export const loader = ({ request }) => handler(request);
 export const action = ({ request }) => handler(request);
 ```
+
+## Bun
+
+Bun cannot load `better-sqlite3`, so use its built-in SQLite through `@runlight/sdk/bun`:
+
+```ts file=server.ts
+import { runlight } from "@runlight/sdk";
+import { bunSqlite } from "@runlight/sdk/bun";
+
+const rl = runlight({ store: bunSqlite({ path: "./data/runlight.db" }), site: { hostnames: ["example.com"] } });
+const runlightRoutes = rl.routes().handler;
+
+Bun.serve({
+  port: 3000,
+  fetch(request) {
+    const { pathname } = new URL(request.url);
+    if (pathname === "/runlight" || pathname.startsWith("/runlight/")) return runlightRoutes(request);
+    return new Response("Your app");
+  },
+});
+```
+
+Elysia and other Bun frameworks pass `request` the same way.
+
+## Deno
+
+Deno serves web Requests directly. Use [libSQL](/docs/configuration/#libsql-and-turso) (a local file or Turso) or Postgres for the store:
+
+```ts file=main.ts
+import { runlight } from "npm:@runlight/sdk";
+import { libsql } from "npm:@runlight/sdk/libsql";
+import { createClient } from "npm:@libsql/client";
+
+const rl = runlight({ store: libsql({ client: createClient({ url: "file:runlight.db" }) }), site: { hostnames: ["example.com"] } });
+const runlightRoutes = rl.routes().handler;
+
+Deno.serve((request) => {
+  const { pathname } = new URL(request.url);
+  if (pathname === "/runlight" || pathname.startsWith("/runlight/")) return runlightRoutes(request);
+  return new Response("Your app");
+});
+```
+
+## Cloudflare Workers
+
+Workers have no disk, so keep the numbers in [D1](/docs/configuration/#cloudflare-d1). Location comes from Cloudflare’s own headers with no setup.
+
+```ts file=src/index.ts
+import { runlight } from "@runlight/sdk";
+import { d1 } from "@runlight/sdk/d1";
+
+let rl: ReturnType<typeof runlight> | undefined;
+
+export default {
+  fetch(request: Request, env: { DB: D1Database }) {
+    // Made once per Worker instance, so the tables are checked once, not on every request.
+    rl ??= runlight({ store: d1({ database: env.DB }), site: { hostnames: ["example.com"] } });
+    return rl.routes().handler(request);
+  },
+};
+```
+
+Route only `/runlight/*` to this Worker (or check the path first, as in the Bun example), and schedule the [hourly check](/docs/cron/) with a Cron Trigger that calls `rl.check()`.
 
 ## Anything else
 

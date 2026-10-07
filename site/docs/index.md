@@ -7,7 +7,7 @@ order: 1
 
 Runlight is a library. It runs inside an app you already have, stores what it counts in your database, and serves its dashboard from your own domain at `/runlight`. There is no Runlight account and no server of ours in between.
 
-You need Node 22 or later and an app that can serve routes: Next.js, Express, Hono, SvelteKit, Astro, Remix, or anything that handles a web `Request`.
+You need an app that can serve routes: Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, or anything that handles a web `Request`, on Node 22 or later, Bun, Deno, or Cloudflare Workers.
 
 ## 1. Install
 
@@ -15,7 +15,7 @@ You need Node 22 or later and an app that can serve routes: Next.js, Express, Ho
 npm install @runlight/sdk better-sqlite3
 ```
 
-`better-sqlite3` is the SQLite driver. To use Postgres instead, install `pg`; see [Configuration](/docs/configuration/#stores).
+`better-sqlite3` is the SQLite driver. For Postgres, Turso, Cloudflare D1, or Bun’s own SQLite, see [Configuration](/docs/configuration/#stores).
 
 ## 2. Create the instance
 

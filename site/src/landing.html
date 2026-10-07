@@ -49,7 +49,7 @@
 
 <span class="k">export</span> <span class="k">const</span> { GET, POST, PUT, PATCH, DELETE, OPTIONS } = rl.routes();</code></pre></div>
     <div class="out"><p class="from"><span>app/layout.tsx</span><button type="button" class="copy">Copy</button></p><pre><code translate="no">&lt;script defer src=<span class="s">"/runlight/s.js"</span>&gt;&lt;/script&gt;</code></pre></div>
-    <p class="small">That is Next.js. Express, Hono, SvelteKit, Astro, Remix, and anything else that handles a web Request work the same way: <a href="/docs/install/">every framework</a>. Set <code>RUNLIGHT_TOKEN</code> and open <code>/runlight</code> to sign in.</p>
+    <p class="small">That is Next.js. Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, Bun, Deno, and Cloudflare Workers are a few lines each: <a href="/docs/install/">every framework</a>. Set <code>RUNLIGHT_TOKEN</code> and open <code>/runlight</code> to sign in.</p>
   </div>
 </section>
 
@@ -132,7 +132,7 @@
       <div><dt>Filters</dt><dd>Page, source, campaign, country, city, device, browser, and more, combined.</dd></div>
       <div><dt>Languages</dt><dd>The dashboard and the emails in English, French, Spanish, German, and Portuguese.</dd></div>
       <div><dt>Sites</dt><dd>One install can count several sites, told apart by hostname.</dd></div>
-      <div><dt>Stores</dt><dd>SQLite on a single server, Postgres anywhere else.</dd></div>
+      <div><dt>Stores</dt><dd>SQLite or Postgres on a server, Turso or Cloudflare D1 on the edge, and Bun’s own SQLite.</dd></div>
       <div><dt>API</dt><dd>Everything on the dashboard as JSON at <code>/runlight/api</code>.</dd></div>
     </dl>
   </div>

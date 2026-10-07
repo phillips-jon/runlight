@@ -3,11 +3,38 @@ import { runlight, type RunlightOptions } from "../src/index.js";
 import type { SqlStore } from "../src/store.js";
 import { postgres } from "../src/stores/postgres.js";
 import { sqlite } from "../src/stores/sqlite.js";
+import { libsql } from "../src/stores/libsql.js";
+import { d1 } from "../src/stores/d1.js";
+import { createClient } from "@libsql/client";
+import Database from "better-sqlite3";
 
-export type StoreKind = "sqlite" | "postgres";
+export type StoreKind = "sqlite" | "postgres" | "libsql" | "d1";
 
-/** SQLite always; Postgres too when RUNLIGHT_TEST_PG holds a connection string. */
-export const STORES: StoreKind[] = process.env.RUNLIGHT_TEST_PG ? ["sqlite", "postgres"] : ["sqlite"];
+/** SQLite, libSQL, and D1 always; Postgres too when RUNLIGHT_TEST_PG holds a connection string. */
+export const STORES: StoreKind[] = process.env.RUNLIGHT_TEST_PG ? ["sqlite", "libsql", "d1", "postgres"] : ["sqlite", "libsql", "d1"];
+
+/** Cloudflare's D1 binding, played by an in-memory SQLite, so the D1 store runs the same tests. */
+function fakeD1() {
+  const handle = new Database(":memory:");
+  const prepare = (sql: string) => {
+    let params: unknown[] = [];
+    const statement = {
+      bind(...values: unknown[]) {
+        params = values.map((v) => (typeof v === "number" && Number.isSafeInteger(v) ? BigInt(v) : v));
+        return statement;
+      },
+      async all<T>() {
+        const prepared = handle.prepare(sql);
+        return { results: (prepared.reader ? prepared.all(...params) : (prepared.run(...params), [])) as T[] };
+      },
+      async run() {
+        return handle.prepare(sql).run(...params);
+      },
+    };
+    return statement;
+  };
+  return { prepare };
+}
 
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -19,6 +46,8 @@ export async function cleanup(): Promise<void> {
 /** A fresh store: an in-memory SQLite, or a Postgres schema of its own. */
 export function freshStore(kind: StoreKind): SqlStore {
   if (kind === "sqlite") return sqlite({ path: ":memory:" });
+  if (kind === "libsql") return libsql({ client: createClient({ url: ":memory:" }) });
+  if (kind === "d1") return d1({ database: fakeD1() });
   const schema = `rl_test_${Math.random().toString(36).slice(2, 10)}`;
   const url = process.env.RUNLIGHT_TEST_PG!;
   const pool = new pg.Pool({ connectionString: url, max: 3, options: `-c search_path=${schema}` });

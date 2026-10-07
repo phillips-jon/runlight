@@ -6,6 +6,9 @@ export default defineConfig({
     sqlite: "src/stores/sqlite.ts",
     postgres: "src/stores/postgres.ts",
     node: "src/node.ts",
+    libsql: "src/stores/libsql.ts",
+    d1: "src/stores/d1.ts",
+    bun: "src/stores/bun.ts",
   },
   format: ["esm", "cjs"],
   dts: true,
@@ -15,5 +18,5 @@ export default defineConfig({
   treeshake: true,
   target: "node22",
   platform: "node",
-  external: ["better-sqlite3", "pg"],
+  external: ["better-sqlite3", "pg", "@libsql/client", "bun:sqlite"],
 });

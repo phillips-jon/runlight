@@ -1,7 +1,8 @@
 Add Runlight analytics to this app. Runlight is an npm package (@runlight/sdk) that runs inside the app: it stores visits in the app's own database and serves its dashboard at /runlight. Docs: https://runlight.sh/docs/ (each page is also Markdown at index.md, list at https://runlight.sh/llms.txt).
 
 1. Install: npm install @runlight/sdk better-sqlite3
-   (For Postgres instead: npm install @runlight/sdk pg, and use postgres({ url: process.env.DATABASE_URL }) from "@runlight/sdk/postgres".)
+   (For Postgres instead: npm install @runlight/sdk pg, and use postgres({ url: process.env.DATABASE_URL }) from "@runlight/sdk/postgres".
+    On Bun use bunSqlite from "@runlight/sdk/bun"; on Cloudflare Workers use d1 from "@runlight/sdk/d1"; for Turso use libsql from "@runlight/sdk/libsql".)
 
 2. Create lib/runlight.ts (or the project's equivalent):
 

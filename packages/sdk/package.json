@@ -63,6 +63,36 @@
         "default": "./dist/node.cjs"
       }
     },
+    "./libsql": {
+      "import": {
+        "types": "./dist/libsql.d.ts",
+        "default": "./dist/libsql.js"
+      },
+      "require": {
+        "types": "./dist/libsql.d.cts",
+        "default": "./dist/libsql.cjs"
+      }
+    },
+    "./d1": {
+      "import": {
+        "types": "./dist/d1.d.ts",
+        "default": "./dist/d1.js"
+      },
+      "require": {
+        "types": "./dist/d1.d.cts",
+        "default": "./dist/d1.cjs"
+      }
+    },
+    "./bun": {
+      "import": {
+        "types": "./dist/bun.d.ts",
+        "default": "./dist/bun.js"
+      },
+      "require": {
+        "types": "./dist/bun.d.cts",
+        "default": "./dist/bun.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "scripts": {
@@ -71,6 +101,7 @@
     "test": "TZ=UTC node --import tsx --test test/*.test.ts"
   },
   "peerDependencies": {
+    "@libsql/client": ">=0.14",
     "better-sqlite3": ">=11",
     "pg": ">=8"
   },
@@ -80,9 +111,13 @@
     },
     "pg": {
       "optional": true
+    },
+    "@libsql/client": {
+      "optional": true
     }
   },
   "devDependencies": {
+    "@libsql/client": "^0.18.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.20.4",
     "@types/pg": "^8.23.1",
