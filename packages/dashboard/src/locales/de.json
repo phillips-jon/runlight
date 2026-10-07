@@ -503,6 +503,7 @@
   "email.countries": "Top-Länder",
   "email.conversions": "Conversions",
   "email.open": "Dashboard öffnen",
+  "email.at": "Dein Dashboard liegt unter {where}",
   "email.footer": "Du bekommst diesen {frequency} Bericht für {site} von Runlight.",
   "email.weekly": "wöchentlichen",
   "email.monthly": "monatlichen",

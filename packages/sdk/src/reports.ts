@@ -184,6 +184,22 @@ export async function buildReport(
         : `<tr><td class="rl-muted" style="padding:7px 0;color:#6b7280">${esc(t("panel.empty"))}</td></tr>`
     }</table>`;
 
+  // Where the dashboard lives, without the scheme or the site query, so a reader
+  // with several installs can tell which one sent this.
+  const where = (() => {
+    try {
+      const u = new URL(links.dashboard);
+      return `${u.host}${u.pathname.replace(/\/$/, "")}`;
+    } catch {
+      return links.dashboard;
+    }
+  })();
+  const at = t("email.at", { where });
+  // The Runlight mark in table cells: mail apps block SVG and most inline images.
+  const mark = `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+<td class="rl-mark" width="24" height="24" align="center" style="width:24px;height:24px;background:#111827;border-radius:7px;color:#ffffff;font-size:15px;font-weight:700;line-height:24px;text-align:center;font-family:${font}">R</td>
+<td class="rl-ink" style="padding-left:8px;font-size:15px;font-weight:700;color:#111827;font-family:${font}">Runlight</td></tr></table>`;
+
   const footer = t("email.footer", { frequency: t(monthly ? "email.monthly" : "email.weekly"), site: site.name });
   const html = `<!doctype html><html lang="${code}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${esc(subject)}</title>
 <style>
@@ -198,6 +214,7 @@ export async function buildReport(
   .rl-up { color: #4ade80 !important; }
   .rl-down { color: #f87171 !important; }
   .rl-button { background: #ffffff !important; color: #000000 !important; }
+  .rl-mark { background: #ffffff !important; color: #000000 !important; }
   .rl-foot, .rl-foot a { color: #a1a1aa !important; }
 }
 </style></head>
@@ -205,6 +222,10 @@ export async function buildReport(
 <div style="display:none;max-height:0;overflow:hidden">${esc(headline)}</div>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="rl-page" style="background:#f4f4f5"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" class="rl-card" style="max-width:600px;background:#ffffff;border-radius:14px;border:1px solid #e5e7eb"><tr><td style="padding:32px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 24px"><tr>
+<td style="vertical-align:middle">${mark}</td>
+<td align="right" class="rl-muted" style="vertical-align:middle;font-size:12px;color:#6b7280">${esc(t("email.at", { where: "\u0000" })).replace("\u0000", `<a href="${esc(links.dashboard)}" class="rl-muted" style="color:#6b7280">${esc(where)}</a>`)}</td>
+</tr></table>
 <div class="rl-muted" style="font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:#6b7280">${esc(site.name)} · ${esc(dates)}</div>
 <h1 class="rl-ink" style="font-size:24px;line-height:1.3;color:#111827;margin:10px 0 24px;font-weight:600">${esc(headline)}</h1>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="6" style="border-collapse:separate;margin:0 -6px">
@@ -216,6 +237,8 @@ ${lists.map(table).join("")}
 </td></tr></table></body></html>`;
 
   const text = [
+    `Runlight · ${at}`,
+    "",
     `${site.name} · ${dates}`,
     "",
     headline,

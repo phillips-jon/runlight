@@ -503,6 +503,7 @@
   "email.countries": "Pays principaux",
   "email.conversions": "Conversions",
   "email.open": "Ouvrir le tableau de bord",
+  "email.at": "Votre tableau de bord se trouve sur {where}",
   "email.footer": "Vous recevez ce rapport {frequency} pour {site} de la part de Runlight.",
   "email.weekly": "hebdomadaire",
   "email.monthly": "mensuel",
