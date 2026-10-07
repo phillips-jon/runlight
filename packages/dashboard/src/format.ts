@@ -93,3 +93,10 @@ export function weekdays(style: "narrow" | "short"): string[] {
 export function hourLabel(h: number): string {
   return dates("hour", { hour: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(2024, 0, 1, h)));
 }
+
+/** An amount in a currency, with cents only when there are some. */
+export function money(n: number, currency: string): string {
+  const whole = Number.isInteger(n);
+  const f = numbers(`money:${currency}:${whole}`, { style: "currency", currency, minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 });
+  return f ? f.format(n) : `${n} ${currency}`;
+}

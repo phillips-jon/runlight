@@ -11,7 +11,8 @@ import { LinksPanel } from "./links.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
 import { RealtimeModal } from "./realtime.js";
-import { Install, SettingsModal } from "./settings.js";
+import { ConversionsPanel } from "./goals.js";
+import { Install, SettingsModal, type Section } from "./settings.js";
 import { applyTheme, isDark, onThemeChange, setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 import "./style.css";
 
@@ -171,7 +172,7 @@ function App() {
   const [previousPoints, setPreviousPoints] = useState<Point[] | undefined>(undefined);
   const [failure, setFailure] = useState("");
   const [filtering, setFiltering] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState<Section | null>(null);
 
   const fail = (e: Error) =>
     setFailure(e instanceof ApiError && e.status === 401 ? "signed-out" : share && e instanceof ApiError && e.status === 404 ? t("share.gone") : e.message);
@@ -295,7 +296,7 @@ function App() {
               {site ? <Live site={site.id} /> : null}
             </div>
             {site && !share ? (
-              <button type="button" class="gear" aria-label={t("settings.open")} title={t("settings.open")} onClick={() => setSettingsOpen(true)}>
+              <button type="button" class="gear" aria-label={t("settings.open")} title={t("settings.open")} onClick={() => setSettingsOpen("general")}>
                 <svg viewBox="0 0 20 20" aria-hidden="true">
                   <circle cx="10" cy="10" r="2.6" />
                   <path d="M10 1.8l1.3 2.3 2.6-.6.8 2.5 2.5.8-.6 2.6 2.3 1.3-2.3 1.3.6 2.6-2.5.8-.8 2.5-2.6-.6L10 18.2l-1.3-2.3-2.6.6-.8-2.5-2.5-.8.6-2.6L1.8 10l2.3-1.3-.6-2.6 2.5-.8.8-2.5 2.6.6z" />
@@ -362,7 +363,13 @@ function App() {
         <SettingsModal
           site={site}
           sites={sites}
-          onClose={() => setSettingsOpen(false)}
+          view={view}
+          start={settingsOpen}
+          onClose={() => {
+            setSettingsOpen(null);
+            // Goals may have changed; the board reads them again.
+            setView((v) => ({ ...v }));
+          }}
           onSaved={(saved) => {
             setSites((all) => (all ?? []).map((x) => (x.id === saved.id ? { ...x, ...saved } : x)));
             // A new timezone moves every day boundary, so reload the numbers.
@@ -433,6 +440,8 @@ function App() {
             <Panel title={panel.title} tabs={panel.tabs} view={view} onFilter={addFilter} wide={panel.wide} map={panel.title === "panel.locations"} key={i} />
           ),
         )}
+        {/* The last row: Conversions narrow, Links wide, so the zigzag carries on. */}
+        {site ? <ConversionsPanel view={view} readOnly={Boolean(share)} onAdd={() => setSettingsOpen("goals")} /> : null}
         {site && !share ? <LinksPanel view={view} site={site.id} /> : null}
       </div>
 

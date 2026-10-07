@@ -34,6 +34,8 @@ if (process.argv.includes("--reseed-links")) {
 }
 if (!empty && (await rl.store.db.all("SELECT id FROM rl_links LIMIT 1")).length === 0) await seedLinks();
 
+if (!empty && (await rl.store.goals("default")).length === 0) await seedGoals();
+
 const routes = toNodeHandler(rl.routes({ token: null }).handler);
 const links = toNodeHandler(rl.linkHandler());
 
@@ -273,4 +275,27 @@ async function seedLinks() {
   }
   await store.db.run("COMMIT");
   console.log(`Seeded ${made.length} links and ${clicks} clicks.`);
+}
+
+/** Made-up purchases on some existing visits, and a goal of each kind. */
+async function seedGoals() {
+  const store = rl.store;
+  const [{ n }] = await store.db.all<{ n: number }>("SELECT COUNT(*) AS n FROM rl_sessions WHERE site = 'default' AND hostname = 'joncphillips.com'");
+  const buyers = await store.db.all<{ id: string; visitor: string; last_at: number }>(
+    "SELECT id, visitor, last_at FROM rl_sessions WHERE site = 'default' AND hostname = 'joncphillips.com' ORDER BY RANDOM() LIMIT ?",
+    [Math.round(Number(n) * 0.012)],
+  );
+  await store.db.run("BEGIN");
+  for (const b of buyers) {
+    const revenue = pick<number>([[29, 5], [49, 4], [99, 2], [199, 1]]);
+    await store.insertEvent({ site: "default", ts: Number(b.last_at), kind: "event", visitor: b.visitor, session: b.id, pageview: "", path: "/store/checkout", hostname: "joncphillips.com", title: "", name: "Purchase", props: { revenue }, engagedMs: 0, scroll: null, link: "" });
+  }
+  await store.db.run("COMMIT");
+  const now = Date.now();
+  const base = { site: "default", clickBy: "" as const, valueMode: "none" as const, value: 0, valueProp: "", currency: "USD" };
+  await store.saveGoal({ ...base, id: randomHex(24), name: "Purchase", kind: "event", match: "Purchase", valueMode: "prop", valueProp: "revenue", createdAt: now });
+  await store.saveGoal({ ...base, id: randomHex(24), name: "Newsletter signup", kind: "event", match: "Newsletter signup", valueMode: "fixed", value: 2, createdAt: now + 1 });
+  await store.saveGoal({ ...base, id: randomHex(24), name: "Read the Runlight post", kind: "page", match: "/blog/building-runlight", createdAt: now + 2 });
+  await store.saveGoal({ ...base, id: randomHex(24), name: "Email me", kind: "click", clickBy: "selector", match: "a[href^='mailto:']", createdAt: now + 3 });
+  console.log(`Seeded ${buyers.length} purchases and 4 goals.`);
 }

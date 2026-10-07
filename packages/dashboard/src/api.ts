@@ -107,6 +107,39 @@ export const base = document.getElementById("app")?.dataset.base ?? "";
 /** Set when this page is a shared, read-only dashboard; every request carries it. */
 export const share = document.getElementById("app")?.dataset.share ?? "";
 
+export interface Goal {
+  id: string;
+  site: string;
+  name: string;
+  kind: "event" | "page" | "click";
+  match: string;
+  clickBy: "selector" | "link" | "";
+  valueMode: "none" | "fixed" | "prop";
+  value: number;
+  valueProp: string;
+  currency: string;
+  createdAt: number;
+}
+
+export interface GoalTotals {
+  conversions: number;
+  visitors: number;
+  revenue: number;
+  rate: number;
+}
+
+export type GoalInput = Omit<Goal, "id" | "site" | "createdAt">;
+
+export interface GoalReport {
+  range: Range;
+  goal: Goal;
+  totals: GoalTotals;
+  series: Array<{ start: number; conversions: number; revenue: number }>;
+  sources: Array<{ value: string } & Omit<GoalTotals, "rate">>;
+  channels: Array<{ value: string } & Omit<GoalTotals, "rate">>;
+  pages: Array<{ value: string } & Omit<GoalTotals, "rate">>;
+}
+
 export interface Share {
   id: string;
   site: string;
@@ -190,6 +223,12 @@ export const api = {
       `links/import/${source}${siteQuery(site)}`,
       { credentials, cursor, done },
     ),
+  goals: (view: View) =>
+    get<{ visitors: number; goals: Array<Goal & GoalTotals & { previous?: GoalTotals }> }>("goals", viewParams(view)),
+  goal: (view: View, id: string) => get<GoalReport>(`goals/${id}`, viewParams(view)),
+  createGoal: (site: string, input: GoalInput) => send<{ goal: Goal }>("POST", `goals${siteQuery(site)}`, input),
+  updateGoal: (site: string, id: string, input: GoalInput) => send<{ goal: Goal }>("PATCH", `goals/${id}${siteQuery(site)}`, input),
+  deleteGoal: (site: string, id: string) => del(`goals/${id}${siteQuery(site)}`),
   shares: (site: string) => get<{ shares: Share[] }>("shares", new URLSearchParams(site ? { site } : {})),
   createShare: (site: string, name: string) => send<{ share: Share }>("POST", `shares${siteQuery(site)}`, { name }),
   renameShare: (site: string, id: string, name: string) => send<{ share: Share }>("PATCH", `shares/${id}${siteQuery(site)}`, { name }),

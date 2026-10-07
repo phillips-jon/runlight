@@ -500,7 +500,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
   const total = (links ?? []).reduce((sum, l) => sum + (l.clicks ?? 0), 0);
 
   return (
-    <section class="panel full">
+    <section class="panel wide">
       <header class="panel-head">
         <h2>
           {t("panel.links")} {links ? <span class="aside">{tn("links.total", total, { n: count(total) })}</span> : null}

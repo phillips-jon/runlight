@@ -62,7 +62,7 @@
 
   var host = d.createElement("div");
   host.style.cssText = "position:fixed;inset:0;z-index:2147483647;pointer-events:none";
-  var root = host.attachShadow ? host.attachShadow({ mode: "closed" }) : host;
+  var root = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
   root.innerHTML =
     "<style>" +
     ".box{position:fixed;border:2px solid #2563eb;background:rgba(37,99,235,.1);border-radius:4px;pointer-events:none;transition:all .06s}" +

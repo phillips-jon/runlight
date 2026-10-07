@@ -42,6 +42,8 @@ export function goalFrom(input: Record<string, unknown>, site: string, existing:
   }
 
   const valueMode = (MODES as readonly string[]).includes(String(input.valueMode)) ? (String(input.valueMode) as GoalRow["valueMode"]) : "none";
+  // Page visits and click rules carry no properties, so only an event can send its own amount.
+  if (valueMode === "prop" && kind !== "event") throw new GoalError("Only an event goal can take its amount from the event; use a fixed amount instead");
   const value = valueMode === "fixed" ? Number(input.value) : 0;
   if (valueMode === "fixed" && !(Number.isFinite(value) && value >= 0 && value < 1e9)) throw new GoalError("Enter an amount, like 49 or 9.99");
   const valueProp = valueMode === "prop" ? text("valueProp", 40) || "revenue" : "";

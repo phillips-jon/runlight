@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { api, base, type Site } from "./api.js";
+import { api, base, type Site, type View } from "./api.js";
+import { Goals } from "./goals.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { ImportLinks } from "./importer.js";
@@ -8,10 +9,11 @@ import { domainPrompt, installPrompt } from "./prompts.js";
 import { Sharing } from "./sharing.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
-type Section = "general" | "install" | "sharing" | "links" | "import";
+export type Section = "general" | "install" | "goals" | "sharing" | "links" | "import";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
+  ["goals", "settings.goals"],
   ["sharing", "settings.sharing"],
   ["links", "settings.links"],
   ["import", "settings.import"],
@@ -353,14 +355,16 @@ function LinkDomains({ site }: { site: Site }) {
   );
 }
 
-export function SettingsModal({ site, sites, onClose, onSaved, onLanguage }: {
+export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLanguage }: {
   site: Site;
+  view: View;
+  start?: Section;
   sites: Site[];
   onClose: () => void;
   onSaved: (site: Site) => void;
   onLanguage: (code: string) => void;
 }) {
-  const [section, setSection] = useState<Section>("general");
+  const [section, setSection] = useState<Section>(start ?? "general");
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
@@ -399,6 +403,8 @@ export function SettingsModal({ site, sites, onClose, onSaved, onLanguage }: {
               <General site={site} onSaved={onSaved} onLanguage={onLanguage} />
             ) : section === "install" ? (
               <Install site={site} sites={sites} />
+            ) : section === "goals" ? (
+              <Goals site={site} view={view} />
             ) : section === "sharing" ? (
               <Sharing site={site} />
             ) : section === "links" ? (

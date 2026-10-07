@@ -78,6 +78,7 @@ function suite(kind: StoreKind) {
     assert.equal((await t.write("POST", "/api/goals", { name: "Y", kind: "event", match: "Y", currency: "dollars" })).status, 400);
     assert.equal((await t.write("POST", "/api/goals", { name: "Z", kind: "event", match: "Z", valueMode: "fixed", value: -1 })).status, 400);
     assert.equal((await t.write("POST", "/api/goals", { name: "W", kind: "event", match: "W", valueMode: "prop", valueProp: "a b" })).status, 400);
+    assert.equal((await t.write("POST", "/api/goals", { name: "P", kind: "page", match: "/p", valueMode: "prop" })).status, 400, "a page visit sends no amount");
 
     const share = (await (await t.write("POST", "/api/shares", { name: "Client" })).json()) as { share: { id: string } };
     const as = { "x-runlight-share": share.share.id };
