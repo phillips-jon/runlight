@@ -64,6 +64,9 @@ test("the check endpoint takes the cron secret", async () => {
   assert.equal((await POST(req("/runlight/api/check", { method: "POST" }))).status, 401);
   assert.equal((await POST(req("/runlight/api/check", { method: "POST", headers: { authorization: "Bearer cron" } }))).status, 200);
   assert.equal((await POST(req("/runlight/api/check", { method: "POST", headers: { authorization: "Bearer secret" } }))).status, 200);
+  const { GET } = make().routes({ token: "secret", cronSecret: "cron" });
+  assert.equal((await GET(req("/runlight/api/check", { headers: { authorization: "Bearer cron" } }))).status, 200, "Vercel Cron sends GET");
+  assert.equal((await GET(req("/runlight/api/check"))).status, 401);
 });
 
 test("basePath moves everything", async () => {

@@ -566,7 +566,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return json({ name: "runlight", version: VERSION, api: API_VERSION, ...IMPLEMENTATION });
     }
 
-    if (path === "/api/check" && request.method === "POST") {
+    // GET too: Vercel Cron calls with GET and the cron secret as a bearer token.
+    if (path === "/api/check" && (request.method === "POST" || request.method === "GET")) {
       const given = bearer(request);
       const allowed =
         (cronSecret && given && constantTimeEqual(given, cronSecret)) || (await canRead(request)) === true;

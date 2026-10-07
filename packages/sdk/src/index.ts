@@ -6,7 +6,7 @@
  *
  *   export const rl = runlight({ store: sqlite({ path: "./data/runlight.db" }) });
  *   // app/runlight/[[...path]]/route.ts
- *   export const { GET, POST, OPTIONS } = rl.routes();
+ *   export const { GET, POST, PUT, PATCH, DELETE, OPTIONS } = rl.routes();
  *
  * Then add <script defer src="/runlight/s.js"></script> to your pages.
  */
