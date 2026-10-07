@@ -1,8 +1,9 @@
 import { locate, type GeoLookup } from "./geo.js";
 import { randomId, randomSalt, visitorHash } from "./hash.js";
 import { parsePayload, MAX_BODY, type Payload } from "./payload.js";
+import { Links } from "./links.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
-import { attribute, parsePage, stripWww } from "./sources.js";
+import { attribute, parsePage, stripWww, type Page } from "./sources.js";
 import type { SiteOverrides, SiteRow, SqlStore } from "./store.js";
 import { isTimezone } from "./time.js";
 import { aiAgent, isBot, parseClient } from "./ua.js";
@@ -35,6 +36,8 @@ export interface RunlightOptions {
    * client can forge these, which can only skew its own counts.
    */
   trustProxy?: boolean;
+  /** Where short links on the app's own domain live, as `{linkPath}/{slug}`. Default "/go". */
+  linkPath?: string;
   /** For tests. */
   now?: () => number;
 }
@@ -73,6 +76,10 @@ export class Runlight {
   private readonly geo: GeoLookup | undefined;
   private readonly trustProxy: boolean;
   readonly now: () => number;
+  /** Short links: create, change, delete, and import. */
+  readonly links: Links;
+  /** Where links on the app's own domain are served, such as "/go". */
+  readonly linkPath: string;
   private ready: Promise<void> | null = null;
   private salts: { day: string; today: string; yesterday: string | null } | null = null;
 
@@ -90,6 +97,8 @@ export class Runlight {
     this.geo = options.geo;
     this.trustProxy = options.trustProxy ?? true;
     this.now = options.now ?? Date.now;
+    this.links = new Links(this);
+    this.linkPath = `/${(options.linkPath ?? "/go").replace(/^\/+|\/+$/g, "")}`;
   }
 
   /** Creates tables and records the configured sites. Runs once. */
@@ -194,52 +203,17 @@ export class Runlight {
     const now = this.now();
     if (payload.kind === "engagement") return this.engagement(site, payload, now);
 
-    const ip = this.clientIp(request, context);
-    const salts = await this.currentSalts(now);
-    const today = await visitorHash(salts.today, site.id, ip, ua);
     const page = parsePage(payload.url);
-
     let session: { id: string; visitor: string } | null = null;
     if (payload.kind === "event" && payload.pageviewId) {
       const pageview = await this.store.pageview(site.id, payload.pageviewId);
       if (pageview) session = { id: pageview.session, visitor: pageview.visitor };
     }
-    if (!session) {
-      const candidates = [today];
-      if (salts.yesterday) candidates.push(await visitorHash(salts.yesterday, site.id, ip, ua));
-      session = await this.store.openSession(site.id, candidates, now - SESSION_IDLE_MS);
-    }
-    if (!session) {
-      session = { id: randomId(), visitor: today };
-      const attribution = attribute(page, payload.referrer, site.hostnames);
-      const client = parseClient(
-        ua,
-        {
-          brands: request.headers.get("sec-ch-ua"),
-          mobile: request.headers.get("sec-ch-ua-mobile"),
-          platform: request.headers.get("sec-ch-ua-platform"),
-        },
-        payload.screenWidth,
-      );
-      const location = await locate(request.headers, ip, this.geo);
-      await this.store.insertSession({
-        id: session.id,
-        site: site.id,
-        visitor: session.visitor,
-        startedAt: now,
-        hostname: page.hostname,
-        ...attribution,
-        utmSource: page.utm.source,
-        utmMedium: page.utm.medium,
-        utmCampaign: page.utm.campaign,
-        utmTerm: page.utm.term,
-        utmContent: page.utm.content,
-        ...location,
-        ...client,
-        screen: payload.screenWidth && payload.screenHeight ? `${payload.screenWidth}x${payload.screenHeight}` : "",
-        language: payload.language,
-      });
-    }
+    session ??= await this.sessionFor(site, request, context, page, payload.referrer, now, {
+      screenWidth: payload.screenWidth,
+      screen: payload.screenWidth && payload.screenHeight ? `${payload.screenWidth}x${payload.screenHeight}` : "",
+      language: payload.language,
+    });
 
     await this.store.touchSession(session.id, now, payload.kind, page.path);
     await this.store.insertEvent({
@@ -258,6 +232,134 @@ export class Runlight {
       scroll: null,
       link: "",
     });
+  }
+
+  /**
+   * The visitor's open session on a site, or a new one attributed to this
+   * request. Shared by tracker hits and short link clicks.
+   */
+  private async sessionFor(
+    site: SiteRow,
+    request: Request,
+    context: RequestContext,
+    page: Page,
+    referrer: string,
+    now: number,
+    client: { screenWidth?: number; screen: string; language: string },
+  ): Promise<{ id: string; visitor: string }> {
+    const ua = request.headers.get("user-agent") ?? "";
+    const ip = this.clientIp(request, context);
+    const salts = await this.currentSalts(now);
+    const today = await visitorHash(salts.today, site.id, ip, ua);
+    const candidates = [today];
+    if (salts.yesterday) candidates.push(await visitorHash(salts.yesterday, site.id, ip, ua));
+    const open = await this.store.openSession(site.id, candidates, now - SESSION_IDLE_MS);
+    if (open) return open;
+
+    const session = { id: randomId(), visitor: today };
+    const attribution = attribute(page, referrer, site.hostnames);
+    const parsed = parseClient(
+      ua,
+      {
+        brands: request.headers.get("sec-ch-ua"),
+        mobile: request.headers.get("sec-ch-ua-mobile"),
+        platform: request.headers.get("sec-ch-ua-platform"),
+      },
+      client.screenWidth,
+    );
+    const location = await locate(request.headers, ip, this.geo);
+    await this.store.insertSession({
+      id: session.id,
+      site: site.id,
+      visitor: session.visitor,
+      startedAt: now,
+      hostname: page.hostname,
+      ...attribution,
+      utmSource: page.utm.source,
+      utmMedium: page.utm.medium,
+      utmCampaign: page.utm.campaign,
+      utmTerm: page.utm.term,
+      utmContent: page.utm.content,
+      ...location,
+      ...parsed,
+      screen: client.screen,
+      language: client.language,
+    });
+    return session;
+  }
+
+  /**
+   * Handles `{linkPath}/{slug}` on the app's own domain. In Next.js:
+   * app/go/[slug]/route.ts with `export const GET = rl.linkHandler();`
+   */
+  linkHandler(): (request: Request, context?: RequestContext) => Promise<Response> {
+    return async (request, context = {}) => {
+      const path = new URL(request.url).pathname;
+      const slug = path.startsWith(`${this.linkPath}/`) ? decodeURIComponent(path.slice(this.linkPath.length + 1)) : "";
+      const found = slug && !slug.includes("/") ? await this.redirect(request, slug, "", context) : null;
+      return found ?? new Response("Not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+    };
+  }
+
+  /**
+   * For middleware: when a request arrives on a link domain added in
+   * Settings (such as t.example.com), answers `/{slug}` there with the
+   * redirect, and anything else with a 404. Null for every other host, so
+   * the app carries on as normal.
+   */
+  async linkDomainResponse(request: Request, context: RequestContext = {}): Promise<Response | null> {
+    const url = new URL(request.url);
+    const host = stripWww((request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host).split(":")[0] ?? "");
+    await this.init();
+    if (!(await this.store.linkDomains()).some((d) => d.domain === host)) return null;
+    const slug = decodeURIComponent(url.pathname.slice(1));
+    const found = slug && !slug.includes("/") ? await this.redirect(request, slug, host, context) : null;
+    return found ?? new Response("Not found", { status: 404, headers: { "content-type": "text/plain; charset=utf-8" } });
+  }
+
+  /**
+   * Answers a request for a short link: a redirect to its destination, with
+   * the click recorded like a visit (source, place, device, and any campaign
+   * tags on the short URL) but kept out of visitor and pageview counts.
+   * Bots are redirected and not counted. Null when no link on that domain
+   * ("" for the app's own) has that slug.
+   */
+  async redirect(request: Request, slug: string, domain: string, context: RequestContext = {}): Promise<Response | null> {
+    await this.init();
+    const url = new URL(request.url);
+    const host = stripWww((request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host).split(":")[0] ?? "");
+    const link = await this.store.linkBySlug(domain, slug);
+    if (!link) return null;
+    const site = this.site(link.site) ?? this.sites[0];
+    const ua = request.headers.get("user-agent") ?? "";
+    if (site && !aiAgent(ua) && !isBot(ua) && request.method === "GET") {
+      try {
+        const now = this.now();
+        const language = (request.headers.get("accept-language") ?? "").split(",")[0]?.split(";")[0]?.trim().slice(0, 35) ?? "";
+        const session = await this.sessionFor(site, request, context, parsePage(url), request.headers.get("referer") ?? "", now, { screen: "", language });
+        await this.store.touchSession(session.id, now, "click", url.pathname);
+        await this.store.insertEvent({
+          site: site.id,
+          ts: now,
+          kind: "click",
+          visitor: session.visitor,
+          session: session.id,
+          pageview: "",
+          path: url.pathname.slice(0, 1000),
+          hostname: host,
+          title: "",
+          name: link.slug,
+          props: null,
+          engagedMs: 0,
+          scroll: null,
+          link: link.id,
+        });
+      } catch (error) {
+        // A failed count must never break the redirect.
+        console.error("Runlight: could not record a link click", error);
+      }
+    }
+    return new Response(null, { status: 302, headers: { location: link.url, "cache-control": "no-store", "referrer-policy": "no-referrer-when-downgrade" } });
   }
 
   private async engagement(site: SiteRow, payload: Payload, now: number): Promise<void> {

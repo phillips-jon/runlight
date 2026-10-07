@@ -142,7 +142,7 @@ test("a site's name and timezone can be changed, and survive a restart", async (
   assert.equal(again.site("default")!.timezone, "America/Toronto");
 });
 
-test("a version 1 database gains the overrides column", async () => {
+test("a version 1 database upgrades to the current schema", async () => {
   const store = sqlite({ path: ":memory:" });
   await store.db.run("CREATE TABLE rl_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
   await store.db.run("INSERT INTO rl_meta (key, value) VALUES ('schema', '1')");
@@ -151,5 +151,5 @@ test("a version 1 database gains the overrides column", async () => {
   await rl.updateSite("default", { name: "Upgraded" });
   assert.equal(rl.site("default")!.name, "Upgraded");
   const [meta] = await store.db.all<{ value: string }>("SELECT value FROM rl_meta WHERE key = 'schema'");
-  assert.equal(meta!.value, "2");
+  assert.equal(meta!.value, "3");
 });

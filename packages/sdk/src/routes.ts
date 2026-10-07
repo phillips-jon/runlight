@@ -5,6 +5,8 @@ import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
 import type { RequestContext, Runlight } from "./runlight.js";
 import type { SiteRow } from "./store.js";
 import { fetchIcon } from "./icon.js";
+import { LinkError } from "./links.js";
+import { isSessionDimension } from "./query.js";
 import { buckets, compareRange, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
 import { API_VERSION, VERSION } from "./version.js";
 
@@ -35,6 +37,7 @@ export interface Routes {
   GET: FetchHandler;
   POST: FetchHandler;
   PATCH: FetchHandler;
+  DELETE: FetchHandler;
   OPTIONS: FetchHandler;
 }
 
@@ -182,6 +185,114 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return { query, range, compared };
   }
 
+  async function readJson(request: Request): Promise<Record<string, unknown> | Response> {
+    // A form posted from another site cannot carry this content type without CORS.
+    if (!(request.headers.get("content-type") ?? "").includes("application/json")) return json({ error: "Send JSON" }, 415);
+    const body = (await request.json().catch(() => null)) as unknown;
+    return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : json({ error: "Send a JSON object" }, 400);
+  }
+
+  async function linksApi(request: Request, path: string, url: URL): Promise<Response> {
+    await runlight.init();
+    const site = await querySite(url);
+    if (site instanceof Response) return site;
+    try {
+      if (path === "/api/link-domains") {
+        if (request.method === "GET") return json({ domains: (await runlight.store.linkDomains()).filter((d) => d.site === site.id).map((d) => d.domain) });
+        if (request.method === "POST") {
+          const body = await readJson(request);
+          if (body instanceof Response) return body;
+          const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
+          if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return json({ error: "That is not a domain name" }, 400);
+          await runlight.store.addLinkDomain(domain, site.id, runlight.now());
+          return json({ domain }, 201);
+        }
+      }
+      const domainMatch = /^\/api\/link-domains\/([^/]+)$/.exec(path);
+      if (domainMatch && request.method === "DELETE") {
+        const removed = await runlight.store.removeLinkDomain(decodeURIComponent(domainMatch[1]!));
+        return removed ? json({ ok: true }) : json({ error: "Move or delete the links on this domain first" }, 409);
+      }
+
+      if (path === "/api/links") {
+        if (request.method === "GET") {
+          const read = await readQuery(url, site);
+          if (read instanceof Response) return read;
+          const links = await runlight.store.links(site.id, read.range.from, read.range.to);
+          return json({ prefix: `${url.origin}${runlight.linkPath}`, links });
+        }
+        if (request.method === "POST") {
+          const body = await readJson(request);
+          if (body instanceof Response) return body;
+          const link = await runlight.links.create(site.id, {
+            url: String(body.url ?? ""),
+            name: body.name === undefined ? undefined : String(body.name),
+            slug: body.slug === undefined ? undefined : String(body.slug),
+            domain: body.domain === undefined ? undefined : String(body.domain),
+          });
+          return json({ link }, 201);
+        }
+      }
+
+      if (path === "/api/links/import" && request.method === "POST") {
+        const body = await readJson(request);
+        if (body instanceof Response) return body;
+        const rows = Array.isArray(body.rows) ? (body.rows as Array<Record<string, unknown>>).slice(0, 5000) : null;
+        if (!rows) return json({ error: "Send rows as a list" }, 400);
+        return json(await runlight.links.import(site.id, rows));
+      }
+
+      const linkMatch = /^\/api\/links\/([a-f0-9]+)$/.exec(path);
+      if (linkMatch) {
+        const id = linkMatch[1]!;
+        if (request.method === "GET") {
+          const link = await runlight.store.linkById(id);
+          if (!link || link.site !== site.id) return json({ error: "Unknown link" }, 404);
+          const read = await readQuery(url, site);
+          if (read instanceof Response) return read;
+          const { range } = read;
+          const by = async (dimension: string) =>
+            isSessionDimension(dimension) ? runlight.store.linkBreakdown(site.id, id, range.from, range.to, dimension, 10) : [];
+          const [series, sources, referrers, countries, devices, browsers] = await Promise.all([
+            runlight.store.linkSeries(site.id, id, buckets(range, site.timezone)),
+            by("source"),
+            by("referrer"),
+            by("country"),
+            by("device"),
+            by("browser"),
+          ]);
+          const clicks = series.reduce((sum, p) => sum + p.clicks, 0);
+          return json({
+            link,
+            range: { from: range.fromDate, to: range.toDate, interval: range.interval, timezone: site.timezone },
+            clicks,
+            series,
+            sources,
+            referrers,
+            countries,
+            devices,
+            browsers,
+          });
+        }
+        if (request.method === "PATCH") {
+          const body = await readJson(request);
+          if (body instanceof Response) return body;
+          const pick = (key: string) => (body[key] === undefined ? undefined : String(body[key]));
+          return json({ link: await runlight.links.update(id, { url: pick("url"), name: pick("name"), slug: pick("slug"), domain: pick("domain") }) });
+        }
+        if (request.method === "DELETE") {
+          await runlight.links.remove(id);
+          return json({ ok: true });
+        }
+      }
+    } catch (error) {
+      if (error instanceof LinkError) return json({ error: error.message }, 400);
+      if (error instanceof RangeError) return json({ error: error.message }, 404);
+      throw error;
+    }
+    return json({ error: "Not found" }, 404);
+  }
+
   async function api(request: Request, path: string, url: URL): Promise<Response> {
     if (path === "/api" && request.method === "GET") {
       return json({ name: "runlight", version: VERSION, api: API_VERSION, ...IMPLEMENTATION });
@@ -193,6 +304,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         (cronSecret && given && constantTimeEqual(given, cronSecret)) || (await canRead(request)) === true;
       if (!allowed) return json({ error: "Unauthorized" }, 401);
       return json(await runlight.check());
+    }
+
+    if (path === "/api/links" || path.startsWith("/api/links/") || path === "/api/link-domains" || path.startsWith("/api/link-domains/")) {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      return linksApi(request, path, url);
     }
 
     const siteMatch = /^\/api\/sites\/([^/]+)$/.exec(path);
@@ -393,5 +510,5 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     }
   };
 
-  return { handler, GET: handler, POST: handler, PATCH: handler, OPTIONS: handler };
+  return { handler, GET: handler, POST: handler, PATCH: handler, DELETE: handler, OPTIONS: handler };
 }

@@ -21,6 +21,9 @@ export type { RunlightOptions, SiteOptions, RequestContext } from "./runlight.js
 export type { Routes, RoutesOptions, FetchHandler } from "./routes.js";
 export type { GeoLookup, Location } from "./geo.js";
 export { SqlStore, BOUNCE_MS } from "./store.js";
+export { Links, LinkError, SLUG_PATTERN } from "./links.js";
+export type { LinkInput } from "./links.js";
+export type { LinkRow } from "./store.js";
 export type { Db, Stats, SeriesPoint, BreakdownRow, Realtime } from "./store.js";
 export { DIMENSIONS } from "./query.js";
 export type { Dimension, Filter, Query } from "./query.js";

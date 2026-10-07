@@ -6,6 +6,7 @@ import {
   type Dimension,
   type Filter,
   type Query,
+  type SessionDimension,
 } from "./query.js";
 
 /**
@@ -36,6 +37,23 @@ export interface SiteRow {
 export interface SiteOverrides {
   name?: string;
   timezone?: string;
+}
+
+export interface LinkRow {
+  id: string;
+  site: string;
+  /** A custom link domain, or "" for the app's own. */
+  domain: string;
+  slug: string;
+  name: string;
+  url: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface LinkStats {
+  clicks: number;
+  visitors: number;
 }
 
 export interface SessionRow {
@@ -140,7 +158,7 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -173,7 +191,28 @@ function schema(dialect: Db["dialect"]): string[] {
       engaged_ms BIGINT NOT NULL DEFAULT 0, scroll INTEGER, link ${text})`,
     `CREATE INDEX IF NOT EXISTS rl_events_site_ts ON rl_events (site, ts)`,
     `CREATE INDEX IF NOT EXISTS rl_events_pageview ON rl_events (site, pageview)`,
+    // Version 3: short links. A slug is unique per domain; "" is the app's own domain.
+    `CREATE TABLE IF NOT EXISTS rl_links (
+      id TEXT PRIMARY KEY, site TEXT NOT NULL, domain ${text}, slug TEXT NOT NULL,
+      name ${text}, url TEXT NOT NULL, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL,
+      deleted_at BIGINT)`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS rl_links_slug ON rl_links (domain, slug) WHERE deleted_at IS NULL`,
+    `CREATE INDEX IF NOT EXISTS rl_events_link ON rl_events (link, ts)`,
+    `CREATE TABLE IF NOT EXISTS rl_link_domains (domain TEXT PRIMARY KEY, site TEXT NOT NULL, created_at BIGINT NOT NULL)`,
   ];
+}
+
+function linkRow(row: Record<string, unknown>): LinkRow {
+  return {
+    id: String(row.id),
+    site: String(row.site),
+    domain: String(row.domain ?? ""),
+    slug: String(row.slug),
+    name: String(row.name ?? ""),
+    url: String(row.url),
+    createdAt: Number(row.created_at),
+    updatedAt: Number(row.updated_at),
+  };
 }
 
 const num = (value: unknown): number => {
@@ -321,8 +360,10 @@ export class SqlStore {
     );
   }
 
-  async touchSession(id: string, ts: number, kind: "pageview" | "event", path: string): Promise<void> {
-    if (kind === "pageview") {
+  async touchSession(id: string, ts: number, kind: "pageview" | "event" | "click", path: string): Promise<void> {
+    if (kind === "click") {
+      await this.db.run(`UPDATE rl_sessions SET last_at = ? WHERE id = ?`, [ts, id]);
+    } else if (kind === "pageview") {
       await this.db.run(
         `UPDATE rl_sessions SET pageviews = pageviews + 1, last_at = ?, exit_path = ?,
            entry_path = CASE WHEN entry_path = '' THEN ? ELSE entry_path END WHERE id = ?`,
@@ -355,6 +396,96 @@ export class SqlStore {
         row.name, row.props ? JSON.stringify(row.props) : null, row.engagedMs, row.scroll, row.link,
       ],
     );
+  }
+
+  // Links
+
+  async linkBySlug(domain: string, slug: string): Promise<LinkRow | null> {
+    const rows = await this.db.all(`SELECT * FROM rl_links WHERE domain = ? AND slug = ? AND deleted_at IS NULL LIMIT 1`, [domain, slug]);
+    return rows[0] ? linkRow(rows[0]) : null;
+  }
+
+  async linkById(id: string): Promise<LinkRow | null> {
+    const rows = await this.db.all(`SELECT * FROM rl_links WHERE id = ? AND deleted_at IS NULL LIMIT 1`, [id]);
+    return rows[0] ? linkRow(rows[0]) : null;
+  }
+
+  async insertLink(link: LinkRow): Promise<void> {
+    await this.db.run(
+      `INSERT INTO rl_links (id, site, domain, slug, name, url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [link.id, link.site, link.domain, link.slug, link.name, link.url, link.createdAt, link.updatedAt],
+    );
+  }
+
+  async updateLink(link: LinkRow): Promise<void> {
+    await this.db.run(`UPDATE rl_links SET domain = ?, slug = ?, name = ?, url = ?, updated_at = ? WHERE id = ?`, [
+      link.domain, link.slug, link.name, link.url, link.updatedAt, link.id,
+    ]);
+  }
+
+  /** Hides a link and frees its slug; its clicks stay in the history. */
+  async deleteLink(id: string, now: number): Promise<void> {
+    await this.db.run(`UPDATE rl_links SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`, [now, id]);
+  }
+
+  async linkDomains(): Promise<Array<{ domain: string; site: string }>> {
+    return this.db.all(`SELECT domain, site FROM rl_link_domains ORDER BY domain`);
+  }
+
+  async addLinkDomain(domain: string, site: string, now: number): Promise<void> {
+    await this.db.run(`INSERT INTO rl_link_domains (domain, site, created_at) VALUES (?, ?, ?) ON CONFLICT (domain) DO NOTHING`, [domain, site, now]);
+  }
+
+  /** Removes a domain; refuses while live links still use it. */
+  async removeLinkDomain(domain: string): Promise<boolean> {
+    const [used] = await this.db.all(`SELECT COUNT(*) AS n FROM rl_links WHERE domain = ? AND deleted_at IS NULL`, [domain]);
+    if (num(used?.n) > 0) return false;
+    await this.db.run(`DELETE FROM rl_link_domains WHERE domain = ?`, [domain]);
+    return true;
+  }
+
+  /** A site's links, newest first, with their clicks in a range. */
+  async links(site: string, from: number, to: number): Promise<Array<LinkRow & LinkStats>> {
+    const rows = await this.db.all(
+      `SELECT l.*, COALESCE(c.clicks, 0) AS clicks, COALESCE(c.visitors, 0) AS visitors
+       FROM rl_links l LEFT JOIN (
+         SELECT link, COUNT(*) AS clicks, COUNT(DISTINCT visitor) AS visitors FROM rl_events
+         WHERE site = ? AND kind = 'click' AND ts >= ? AND ts < ? GROUP BY link
+       ) c ON c.link = l.id
+       WHERE l.site = ? AND l.deleted_at IS NULL
+       ORDER BY l.created_at DESC, l.id`,
+      [site, from, to, site],
+    );
+    return rows.map((row) => ({ ...linkRow(row), clicks: num(row.clicks), visitors: num(row.visitors) }));
+  }
+
+  /** One link's clicks per bucket. */
+  async linkSeries(site: string, link: string, buckets: Bucket[]): Promise<Array<{ start: number; clicks: number; visitors: number }>> {
+    if (buckets.length === 0) return [];
+    const cast = this.db.dialect === "postgres";
+    const values = buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ");
+    const rows = await this.db.all(
+      `WITH b (i, bs, be) AS (VALUES ${values})
+       SELECT b.i AS i, COUNT(*) AS clicks, COUNT(DISTINCT e.visitor) AS visitors
+       FROM b JOIN rl_events e ON e.link = ? AND e.ts >= b.bs AND e.ts < b.be
+       WHERE e.site = ? AND e.kind = 'click' GROUP BY b.i`,
+      [...buckets.flatMap((b, i) => [i, b.start, b.end]), link, site],
+    );
+    const found = new Map(rows.map((row) => [num(row.i), row]));
+    return buckets.map((bucket, i) => ({ start: bucket.start, clicks: num(found.get(i)?.clicks), visitors: num(found.get(i)?.visitors) }));
+  }
+
+  /** One link's clicks by a visit dimension: where they came from, where they were, what they used. */
+  async linkBreakdown(site: string, link: string, from: number, to: number, dimension: SessionDimension, limit: number): Promise<BreakdownRow[]> {
+    const col = `s.${SESSION_DIMENSIONS[dimension]}`;
+    const rows = await this.db.all(
+      `SELECT ${col} AS value, COUNT(*) AS clicks, COUNT(DISTINCT e.visitor) AS visitors
+       FROM rl_events e JOIN rl_sessions s ON s.id = e.session
+       WHERE e.site = ? AND e.link = ? AND e.kind = 'click' AND e.ts >= ? AND e.ts < ? AND ${col} <> ''
+       GROUP BY ${col} ORDER BY clicks DESC, value LIMIT ?`,
+      [site, link, from, to, limit],
+    );
+    return rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors), events: num(row.clicks) }));
   }
 
   // Reports
