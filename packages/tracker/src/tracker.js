@@ -10,6 +10,8 @@
 //   data-dnt               honour Do Not Track
 //   data-outbound="false"  do not record outbound link clicks
 //   data-downloads="false" do not record file downloads
+//   data-exclude="/admin/*,/preview/*"  record nothing on these pages
+//   data-manual            no automatic pageviews; call runlight.pageview(url?)
 //
 // The server swaps the string below for each site's click goals.
 (function () {
@@ -25,6 +27,15 @@
   var endpoint = script.src.replace(/s\.js(\?.*)?$/, "e");
   var site = attr("site");
   var useHash = attr("hash") !== null;
+  var manual = attr("manual") !== null;
+  // A pattern with * as a wildcard, everything else literal.
+  var glob = function (p) {
+    return new RegExp("^" + p.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$");
+  };
+  var excludes = (attr("exclude") || "").split(",").filter(Boolean).map(function (p) {
+    return glob(p.trim());
+  });
+  var skip = false;
   var queued = (w.runlight && w.runlight.q) || [];
   var all = "__RUNLIGHT_RULES__";
   var rules = (typeof all === "object" && (all[site] || all[location.hostname.replace(/^www\./, "")] || all["*"])) || [];
@@ -52,6 +63,7 @@
   }
 
   var send = function (kind, extra) {
+    if (skip) return;
     var body = { k: kind, u: pageUrl };
     if (site) body.s = site;
     for (var key in extra) body[key] = extra[key];
@@ -106,12 +118,17 @@
     return l.protocol + "//" + l.host + l.pathname + l.search + (useHash ? l.hash : "");
   };
 
-  var pageview = function () {
-    var url = currentUrl();
+  var pageview = function (to) {
+    // Listeners pass events; only a string is a URL from runlight.pageview().
+    var url = typeof to == "string" ? new URL(to, location.href).href : currentUrl();
     if (url === pageUrl) return;
     var referrer = pageUrl || d.referrer;
     flush();
     pageUrl = url;
+    var path = new URL(url).pathname;
+    skip = excludes.some(function (x) {
+      return x.test(path);
+    });
     pageviewId = randomId();
     engaged = 0;
     scrolled = 0;
@@ -143,10 +160,12 @@
       return result;
     };
   };
-  wrap("pushState");
-  wrap("replaceState");
-  w.addEventListener("popstate", pageview);
-  if (useHash) w.addEventListener("hashchange", pageview);
+  if (!manual) {
+    wrap("pushState");
+    wrap("replaceState");
+    w.addEventListener("popstate", pageview);
+    if (useHash) w.addEventListener("hashchange", pageview);
+  }
 
   d.addEventListener("visibilitychange", function () {
     d.visibilityState === "hidden" ? flush() : resume();
@@ -180,7 +199,7 @@
             rule[0] === "s"
               ? target.closest(match)
               : link &&
-                new RegExp("^" + match.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$").test(match.charAt(0) === "/" ? link.pathname : link.href)
+                glob(match).test(match.charAt(0) === "/" ? link.pathname : link.href)
           )
             track(rule[2]);
         } catch (e) {}
@@ -209,6 +228,7 @@
   );
 
   w.runlight = track;
-  pageview();
+  track.pageview = pageview;
+  if (!manual) pageview();
   for (var q = 0; q < queued.length; q++) track.apply(null, queued[q]);
 })();

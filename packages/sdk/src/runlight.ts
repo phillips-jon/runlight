@@ -357,6 +357,20 @@ export class Runlight {
     return this.sites.find((site) => site.hostnames.includes(host)) ?? null;
   }
 
+  /**
+   * A test from a developer's own machine while a site is being set up. A site
+   * with no visits yet accepts hits from localhost and .local or .test names,
+   * so the install screen confirms it works; after its first visit they are
+   * ignored again, so local browsing never mixes with real traffic.
+   */
+  private async setupSite(hostname: string, id?: string): Promise<SiteRow | null> {
+    const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+    if (!(host === "localhost" || host === "127.0.0.1" || host === "::1" || /\.(localhost|local|test)$/.test(host))) return null;
+    const site = id ? this.site(id) : this.sites.length === 1 ? this.sites[0]! : null;
+    if (!site) return null;
+    return (await this.store.lastSeen(site.id)) === null ? site : null;
+  }
+
   clientIp(request: Request, context: RequestContext = {}): string {
     if (this.trustProxy) {
       const h = request.headers;
@@ -405,7 +419,7 @@ export class Runlight {
 
     // Managed sites load from the database in init(), so it must come first.
     await this.init();
-    const site = this.siteFor(payload.url.hostname, payload.site);
+    const site = this.siteFor(payload.url.hostname, payload.site) ?? (await this.setupSite(payload.url.hostname, payload.site));
     if (!site) return;
 
     await this.init();

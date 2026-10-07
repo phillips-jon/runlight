@@ -207,3 +207,18 @@ test("a site's observe key reports AI fetches for that site only, and reads noth
   const pages = (await (await GET(new Request("https://x.com/runlight/api/breakdown?site=a&period=today&dimension=ai_page", { headers: auth }))).json()) as any;
   assert.deepEqual(pages.rows.map((r: any) => r.value), ["/post"]);
 });
+
+test("a local test counts while a site is being set up, and local traffic is ignored after its first visit", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["example.com"] } });
+  const { POST, GET } = rl.routes({ token: "secret" });
+  const hit = (url: string) =>
+    POST(new Request("https://x.com/runlight/e", { method: "POST", headers: { "user-agent": "Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36", "x-forwarded-for": "203.0.113.5" }, body: JSON.stringify({ k: "pageview", u: url }) }));
+  await hit("http://localhost:3000/");
+  const views = async () => ((await (await GET(new Request("https://x.com/runlight/api/stats?period=today", { headers: auth }))).json()) as any).stats.pageviews;
+  assert.equal(await views(), 1, "the first local test shows up");
+  await hit("http://localhost:3000/again");
+  await hit("http://myapp.test/");
+  assert.equal(await views(), 1, "after that, local hits are ignored");
+  await hit("https://example.com/");
+  assert.equal(await views(), 2);
+});

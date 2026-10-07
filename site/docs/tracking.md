@@ -56,6 +56,8 @@ To count clicks on something you cannot edit, add a [click goal](/docs/goals/#cl
 | `data-dnt` | Respect Do Not Track. It is off by default, since Runlight keeps nothing personal. |
 | `data-outbound="false"` | Do not record outbound link clicks. |
 | `data-downloads="false"` | Do not record file downloads. |
+| `data-exclude="/admin/*,/preview"` | Record nothing on these pages, neither pageviews nor events. Separate patterns with commas, and use `*` to match anything. |
+| `data-manual` | Send no pageviews by yourself. Call `runlight.pageview()` when a page is shown, or `runlight.pageview("/checkout/step-2")` to name the page. |
 
 ## Leaving yourself out
 
