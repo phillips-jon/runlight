@@ -276,6 +276,8 @@ export const api = {
       `links/import/${source}${siteQuery(site)}`,
       { credentials, cursor, done },
     ),
+  observeKey: (site: string) => get<{ key: string }>("observe-key", new URLSearchParams({ site })),
+  newObserveKey: (site: string) => send<{ key: string }>("POST", `observe-key/new${siteQuery(site)}`, {}),
   account: () => get<{ account: Person }>("account", new URLSearchParams()),
   changePassword: (current: string, next: string) => send<{ ok: true }>("POST", "account/password", { current, next }),
   people: () => get<{ people: Person[] }>("people", new URLSearchParams()),

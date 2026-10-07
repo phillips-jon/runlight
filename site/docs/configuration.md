@@ -115,7 +115,7 @@ The address is dropped after the lookup, so only the place is kept.
 | `token` | `RUNLIGHT_TOKEN` | Protects the dashboard and API. Send it as `Authorization: Bearer <token>`, or open the dashboard once with `?token=` to get a cookie. `null` leaves everything open, for example behind your own auth. |
 | `authorize` | | Your own check, `(request) => boolean`, used in place of a token. |
 | `cronSecret` | `CRON_SECRET` | A second secret the [scheduled check](/docs/cron/) accepts besides the token. |
-| `observeKey` | `RUNLIGHT_OBSERVE_KEY` | Lets a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site report AI agent fetches to `POST /api/observe` without the token. That key can only report fetches. |
+| `observeKey` | `RUNLIGHT_OBSERVE_KEY` | An install-wide key a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site can use to report AI agent fetches to `POST /api/observe` for any site. Each site also has its own key in **Settings**, **Install**, which reports only for that site, and is the better choice. |
 
 With no token, the dashboard and API answer 503 until you set one, unless `NODE_ENV` is `development`. Collecting visits, the script, short links, share links, and unsubscribe links never need the token.
 

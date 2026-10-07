@@ -576,5 +576,8 @@
   "people.viewer": "Viewer",
   "people.roles": "A server always keeps at least one owner.",
   "people.emailPlaceholder": "Their email address",
-  "people.add": "Add person"
+  "people.add": "Add person",
+  "pluginKey.title": "Key for CMS plugins",
+  "pluginKey.intro": "The WordPress, Drupal, and Craft plugins use this key to report AI agents reading this site's pages. It can only report for this site and cannot read anything. Replacing it stops the old key at once.",
+  "pluginKey.replace": "Replace key"
 }

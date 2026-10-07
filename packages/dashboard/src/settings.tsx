@@ -193,6 +193,39 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
   );
 }
 
+/** The key a WordPress, Drupal, or Craft plugin uses to report AI agents reading this site's pages. */
+function PluginKey({ site }: { site: Site }) {
+  const [key, setKey] = useState("");
+  const [error, setError] = useState("");
+  useEffect(() => {
+    api
+      .observeKey(site.id)
+      .then((r) => setKey(r.key))
+      .catch((e: Error) => setError(e.message));
+  }, [site.id]);
+  const replace = () =>
+    api
+      .newObserveKey(site.id)
+      .then((r) => setKey(r.key))
+      .catch((e: Error) => setError(e.message));
+  return (
+    <div class="settings-group">
+      <p class="settings-text">
+        <strong>{t("pluginKey.title")}</strong>
+      </p>
+      <p class="settings-text">{t("pluginKey.intro")}</p>
+      {key ? <Code>{key}</Code> : null}
+      <div class="settings-actions start">
+        <button type="button" class="ghost" onClick={() => void replace()}>
+          <Icon name="refresh" />
+          {t("pluginKey.replace")}
+        </button>
+      </div>
+      {error ? <span class="settings-error">{error}</span> : null}
+    </div>
+  );
+}
+
 /** Settings, Import: visit history from Umami, or short links from any of several services. */
 function Import({ site }: { site: Site }) {
   const [kind, setKind] = useState<"visits" | "links">("visits");
@@ -269,6 +302,7 @@ export function proxy(request: Request) {
           </>
         )}
       </div>
+      <PluginKey site={site} />
       <div class="settings-group">
         <div class="field-row">
           <span class="field-label">{t("install.ignore")}</span>

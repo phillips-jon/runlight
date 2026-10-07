@@ -180,3 +180,30 @@ test("each site's tracker carries only its own click rules on the standalone ser
   assert.ok(!bare.includes("Upgrade to Pro") && !bare.includes("Book a demo"), "a script that names no site carries no rules");
   assert.ok(!(await script("?site=nobody")).includes("client-"));
 });
+
+test("a site's observe key reports AI fetches for that site only, and reads nothing", async () => {
+  const rl = runlight({
+    store: sqlite({ path: ":memory:" }),
+    sites: [
+      { id: "a", hostnames: ["a.com"] },
+      { id: "b", hostnames: ["b.com"] },
+    ],
+  });
+  const { GET, POST } = rl.routes({ token: "secret" });
+  const keyFor = async (site: string) => ((await (await GET(new Request(`https://x.com/runlight/api/observe-key?site=${site}`, { headers: auth }))).json()) as { key: string }).key;
+  const a = await keyFor("a");
+  assert.match(a, /^rlo_[a-f0-9]{40}$/);
+  assert.equal(await keyFor("a"), a, "the same key until it is replaced");
+  const gpt = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot";
+  const report = (key: string, url: string) =>
+    POST(new Request("https://x.com/runlight/api/observe", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ url, userAgent: gpt }) }));
+  assert.equal((await report(a, "https://a.com/post")).status, 204);
+  assert.equal((await report(a, "https://b.com/post")).status, 401, "a's key cannot write into b");
+  assert.equal((await report("rlo_wrong", "https://a.com/post")).status, 401);
+  assert.equal((await GET(new Request("https://x.com/runlight/api/stats?site=a", { headers: { authorization: `Bearer ${a}` } }))).status, 401, "it reads nothing");
+  const replaced = ((await (await POST(new Request("https://x.com/runlight/api/observe-key/new?site=a", { method: "POST", headers: auth }))).json()) as { key: string }).key;
+  assert.notEqual(replaced, a);
+  assert.equal((await report(a, "https://a.com/post")).status, 401, "the old key stops working");
+  const pages = (await (await GET(new Request("https://x.com/runlight/api/breakdown?site=a&period=today&dimension=ai_page", { headers: auth }))).json()) as any;
+  assert.deepEqual(pages.rows.map((r: any) => r.value), ["/post"]);
+});

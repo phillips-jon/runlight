@@ -576,5 +576,8 @@
   "people.viewer": "Leitor",
   "people.roles": "Um servidor sempre mantém pelo menos um proprietário.",
   "people.emailPlaceholder": "O e-mail da pessoa",
-  "people.add": "Adicionar pessoa"
+  "people.add": "Adicionar pessoa",
+  "pluginKey.title": "Chave para plugins de CMS",
+  "pluginKey.intro": "Os plugins de WordPress, Drupal e Craft usam esta chave para informar os agentes de IA que leem as páginas deste site. Ela só informa para este site e não lê nada. Substituí-la faz a antiga parar na hora.",
+  "pluginKey.replace": "Substituir chave"
 }

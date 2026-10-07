@@ -675,8 +675,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     // A page another site served to an AI agent, reported by a CMS plugin.
     if (path === "/api/observe" && request.method === "POST") {
       const given = bearer(request);
-      const allowed = (observeKey && given && constantTimeEqual(given, observeKey)) || (await canRead(request)) === true;
-      if (!allowed) return json({ error: "Unauthorized" }, 401);
+      // The install-wide key and the owner's access can report for any site.
+      const anySite = Boolean(observeKey && given && constantTimeEqual(given, observeKey)) || (await canRead(request)) === true;
+      if (!anySite && !given) return json({ error: "Unauthorized" }, 401);
       const body = await readJson(request);
       if (body instanceof Response) return body;
       let page: URL;
@@ -686,6 +687,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         return json({ error: "Send the page's url" }, 400);
       }
       if (page.protocol !== "https:" && page.protocol !== "http:") return json({ error: "Send the page's url" }, 400);
+      if (!anySite) {
+        // A site's own key reports only pages on that site's domains.
+        await runlight.init();
+        const site = runlight.siteFor(page.hostname);
+        const key = site ? await runlight.store.setting(`observe-key:${site.id}`) : null;
+        if (!key || !constantTimeEqual(given, key)) return json({ error: "Unauthorized" }, 401);
+      }
       await runlight.observe(new Request(page, { headers: { "user-agent": String(body.userAgent ?? "").slice(0, 500) } }));
       return new Response(null, { status: 204 });
     }
@@ -719,6 +727,22 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         if (error instanceof ImportError) return json({ error: error.message }, 400);
         throw error;
       }
+    }
+
+    // Each site's key for CMS plugins reporting AI agent fetches: made on first ask, replaced on request.
+    if ((path === "/api/observe-key" && request.method === "GET") || (path === "/api/observe-key/new" && request.method === "POST")) {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      await runlight.init();
+      const site = await querySite(url);
+      if (site instanceof Response) return site;
+      const name = `observe-key:${site.id}`;
+      let key = path.endsWith("/new") ? null : await runlight.store.setting(name);
+      if (!key) {
+        key = `rlo_${randomId(20)}`;
+        await runlight.store.setSetting(name, key);
+      }
+      return json({ key });
     }
 
     // Only the owner manages tokens: an API token cannot make or revoke one.
