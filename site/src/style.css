@@ -89,12 +89,17 @@ pre .c { color: var(--muted); }
 .opening .say b { font-weight: 700; }
 .opening .then { margin-top: 26px; max-width: 54ch; text-wrap: pretty; }
 .installs { max-width: 760px; margin-top: 32px; }
+/* How you run it: three quiet choices above the tabs. */
+.ways { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.way { font: 400 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 7px 10px; border: 1px solid var(--rule); border-radius: 999px; background: none; cursor: pointer; }
+.way:hover { color: var(--ink); }
+.way[aria-selected="true"] { color: var(--ink); border-color: var(--ink); }
 .tabs { display: flex; flex-wrap: wrap; gap: 2px 4px; margin: 0 0 14px; border-bottom: 1px solid var(--rule); }
 .tab { display: inline-flex; align-items: center; gap: 8px; margin: 0 0 -1px; padding: 8px 10px 9px; border-bottom: 2px solid transparent; }
 .tab:hover { color: var(--body); }
 .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
 .install { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--sunk); border: 1px solid var(--rule); border-radius: 3px; padding: 10px 10px 10px 14px; font: 400 14.5px/1.4 var(--mono); }
-.install[hidden] { display: none; }
+.install[hidden], .actions[hidden] { display: none; }
 .install code { min-width: 0; overflow-wrap: anywhere; }
 .install code::before { content: "$ "; color: var(--muted); }
 .copy { flex: none; font: 400 11px/1 var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--rule-2); border-radius: 2px; padding: 6px 8px; }
@@ -279,6 +284,11 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .tab-pnpm:hover .logo, .tab-pnpm[aria-selected="true"] .logo { fill: #f69220; }
 .tab-yarn:hover .logo, .tab-yarn[aria-selected="true"] .logo { fill: #2c8ebb; }
 .tab-bun .logo { filter: grayscale(1); opacity: .7; }
+.tab-docker:hover .logo, .tab-docker[aria-selected="true"] .logo { fill: #2496ed; }
+.tab-npx:hover .logo, .tab-npx[aria-selected="true"] .logo { fill: #5fa04e; }
+.tab-wordpress:hover .logo, .tab-wordpress[aria-selected="true"] .logo { fill: #21759b; }
+.tab-drupal:hover .logo, .tab-drupal[aria-selected="true"] .logo { fill: #0678be; }
+.tab-craft:hover .logo, .tab-craft[aria-selected="true"] .logo { fill: #e5422b; }
 .tab-bun:hover .logo, .tab-bun[aria-selected="true"] .logo { filter: none; opacity: 1; }
 @media (max-width: 760px) {
   .tab .logo { width: 18px; height: 18px; }

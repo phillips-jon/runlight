@@ -7,6 +7,8 @@ order: 1
 
 Runlight is a library that runs inside an app you already have. It stores what it counts in your database and serves its dashboard from your own domain at `/runlight`, so there is no Runlight account to create and your data never passes through a server of ours.
 
+If your site is not a Node app, or you want one dashboard for several sites, run the [standalone server](/docs/server/) instead.
+
 Runlight needs an app that can serve routes, such as Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, or anything else that handles a web `Request`. It runs on Node 22 or later, Bun, Deno, or Cloudflare Workers.
 
 ## 1. Install

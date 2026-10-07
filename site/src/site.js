@@ -24,9 +24,20 @@
   };
 
   document.addEventListener("click", function (e) {
-    var el = e.target.closest && e.target.closest(".theme, .copy, .tab, .prompt");
+    var el = e.target.closest && e.target.closest(".theme, .copy, .tab, .way, .prompt");
     if (!el) return;
     if (el.classList.contains("theme")) return toggle();
+    if (el.classList.contains("way")) {
+      el.parentNode.querySelectorAll(".way").forEach(function (w) {
+        var on = w === el;
+        w.setAttribute("aria-selected", on ? "true" : "false");
+        document.getElementById(w.getAttribute("aria-controls")).hidden = !on;
+      });
+      // The setup prompt is for adding Runlight to an app.
+      var actions = el.closest(".installs").parentNode.querySelector(".actions");
+      if (actions) actions.hidden = el.id !== "w-app";
+      return;
+    }
     if (el.classList.contains("tab")) {
       var tabs = el.closest(".tabs");
       tabs.querySelectorAll(".tab").forEach(function (t) {
