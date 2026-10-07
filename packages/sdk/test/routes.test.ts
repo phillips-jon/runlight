@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { DASHBOARD_HASH } from "../src/generated/dashboard.js";
 import { TRACKER_HASH } from "../src/generated/tracker.js";
 import { runlight } from "../src/index.js";
 import { sqlite } from "../src/stores/sqlite.js";
@@ -83,4 +84,20 @@ test("bad queries are 400s with a reason", async () => {
   await bad("/runlight/api/stats?filter=nope");
   await bad("/runlight/api/stats?filter=page:like:x");
   await bad("/runlight/api/breakdown?dimension=shoe_size");
+});
+
+test("the dashboard page loads its hashed assets under a strict CSP", async () => {
+  const { GET } = make().routes({ token: "secret", basePath: "/admin/runlight" });
+  const page = await GET(req("/admin/runlight/"));
+  assert.equal(page.status, 200, "the shell holds no data, so it loads signed out");
+  assert.match(page.headers.get("content-security-policy") ?? "", /script-src 'self'/);
+  const html = await page.text();
+  assert.ok(html.includes(`/admin/runlight/assets/app.${DASHBOARD_HASH}.js`));
+  assert.ok(html.includes('data-base="/admin/runlight"'));
+  const js = await GET(req(`/admin/runlight/assets/app.${DASHBOARD_HASH}.js`));
+  assert.equal(js.status, 200);
+  assert.match(js.headers.get("cache-control") ?? "", /immutable/);
+  assert.equal((await GET(req(`/admin/runlight/assets/app.${DASHBOARD_HASH}.css`))).status, 200);
+  assert.equal((await GET(req("/admin/runlight/assets/app.old.js"))).status, 404);
+  assert.equal((await GET(req("/admin/runlight/api/stats"))).status, 401, "the data stays behind the token");
 });

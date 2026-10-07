@@ -14,7 +14,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run check:dashes && npm test --workspaces --if-present",
     "build": "npm run check:dashes && npm run build --workspaces --if-present",
-    "check": "npm run check:dashes && npm run typecheck && npm test"
+    "check": "npm run check:dashes && npm run typecheck && npm test",
+    "dev:dashboard": "node --import tsx scripts/dev-dashboard.mts"
   },
   "overrides": {
     "esbuild": "^0.28.2"

@@ -1,3 +1,4 @@
+import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS } from "./generated/dashboard.js";
 import { TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
 import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
@@ -83,6 +84,10 @@ function normaliseBase(path: string): string {
   return trimmed === "/" ? "" : trimmed;
 }
 
+function escapeAttr(value: string): string {
+  return value.replace(/[&"<>]/g, (c) => `&#${c.charCodeAt(0)};`);
+}
+
 const DASHBOARD = (base: string) => `<!doctype html>
 <html lang="en">
 <head>
@@ -90,12 +95,17 @@ const DASHBOARD = (base: string) => `<!doctype html>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Runlight</title>
+<link rel="stylesheet" href="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.css">
 </head>
 <body>
-<p>Runlight is collecting. The dashboard is not built yet; the stats are at <a href="${base}/api/stats">${base}/api/stats</a>.</p>
+<div id="app" data-base="${escapeAttr(base)}"></div>
+<script type="module" src="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.js"></script>
 </body>
 </html>
 `;
+
+const DASHBOARD_CSP =
+  "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
 export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): Routes {
   const base = normaliseBase(options.basePath ?? "/runlight");
@@ -236,6 +246,17 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         return new Response(TRACKER, { headers });
       }
 
+      if (path.startsWith("/assets/app.") && request.method === "GET") {
+        const asset = path === `/assets/app.${DASHBOARD_HASH}.js` ? DASHBOARD_JS : path === `/assets/app.${DASHBOARD_HASH}.css` ? DASHBOARD_CSS : null;
+        if (asset === null) return json({ error: "Not found" }, 404);
+        return new Response(asset, {
+          headers: {
+            "content-type": path.endsWith(".js") ? "application/javascript; charset=utf-8" : "text/css; charset=utf-8",
+            "cache-control": "public, max-age=31536000, immutable",
+          },
+        });
+      }
+
       if (path === "/e") {
         if (request.method === "OPTIONS") {
           return new Response(null, {
@@ -268,10 +289,16 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             },
           });
         }
-        const access = await canRead(request);
-        if (access !== true) return denied(access);
+        // The page itself holds no data; the API it calls checks access and
+        // the page explains how to sign in when it is refused.
         return new Response(DASHBOARD(base), {
-          headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY" },
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            "content-security-policy": DASHBOARD_CSP,
+            "x-frame-options": "DENY",
+            "referrer-policy": "same-origin",
+          },
         });
       }
 
