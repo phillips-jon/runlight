@@ -114,6 +114,7 @@ export class Runlight {
   /** Where links on the app's own domain are served, such as "/go". */
   readonly linkPath: string;
   private ready: Promise<void> | null = null;
+  private linkDomainCache: { at: number; domains: Set<string> } | null = null;
   /** Work queued per key by oneAtATime, such as one visitor's session. */
   private readonly turns = new Map<string, Promise<void>>();
   private salts: { day: string; today: string; yesterday: string | null } | null = null;
@@ -164,9 +165,14 @@ export class Runlight {
     const service = SERVICES.find((x) => x.id === input.service);
     if (!service) throw new MailError("Pick a mail service");
     const settings: Record<string, string> = { service: service.id };
+    for (const f of service.fields) if (!f.secret) settings[f.name] = String(input[f.name] ?? "").trim();
+    // A blank secret keeps the saved one only while the connection is the same,
+    // so changing the host cannot send a saved password somewhere new.
+    const sameConnection = before?.service === service.id && service.fields.every((f) => f.secret || String(before[f.name] ?? "") === settings[f.name]);
     for (const f of service.fields) {
+      if (!f.secret) continue;
       const given = String(input[f.name] ?? "").trim();
-      settings[f.name] = !given && f.secret && before?.service === service.id ? String(before[f.name] ?? "") : given;
+      settings[f.name] = !given && sameConnection ? String(before?.[f.name] ?? "") : given;
     }
     const from = String(input.from ?? "").trim();
     if (!EMAIL.test(from)) throw new MailError("Enter the address reports come from, like reports@example.com");
@@ -481,6 +487,26 @@ export class Runlight {
     });
   }
 
+  /**
+   * The link domains, read at most every 30 seconds. Every request to a
+   * standalone server asks, so this saves a query on each tracker hit; a
+   * change made here clears it at once, one made by another process within
+   * half a minute.
+   */
+  private async linkDomainSet(): Promise<Set<string>> {
+    const now = this.now();
+    if (this.linkDomainCache && now - this.linkDomainCache.at < 30_000) return this.linkDomainCache.domains;
+    await this.init();
+    const domains = new Set((await this.store.linkDomains()).map((d) => d.domain));
+    this.linkDomainCache = { at: now, domains };
+    return domains;
+  }
+
+  /** Clears the cached link domains after one is added or removed. */
+  forgetLinkDomains(): void {
+    this.linkDomainCache = null;
+  }
+
   /** Runs `fn` after any earlier call with the same key has finished. */
   private oneAtATime<T>(key: string, fn: () => Promise<T>): Promise<T> {
     const previous = this.turns.get(key) ?? Promise.resolve();
@@ -518,8 +544,7 @@ export class Runlight {
   async linkDomainResponse(request: Request, context: RequestContext = {}): Promise<Response | null> {
     const url = new URL(request.url);
     const host = stripWww((request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host).split(":")[0] ?? "");
-    await this.init();
-    if (!(await this.store.linkDomains()).some((d) => d.domain === host)) return null;
+    if (!(await this.linkDomainSet()).has(host)) return null;
     // Lets the dashboard confirm that requests to this domain reach Runlight.
     if (url.pathname === LINK_DOMAIN_CHECK) {
       return new Response(JSON.stringify({ runlight: true, domain: host }), {

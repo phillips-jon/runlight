@@ -73,5 +73,7 @@ export async function fetchIcon(origin: string, now = Date.now()): Promise<Icon 
   }
   icon ??= await image(`${origin}/favicon.ico`);
   cache.set(origin, { at: now, icon });
+  // A few hundred sites at most; past that the oldest go, so the cache cannot grow without end.
+  if (cache.size > 500) cache.delete(cache.keys().next().value!);
   return icon;
 }

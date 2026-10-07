@@ -274,7 +274,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           if (body instanceof Response) return body;
           const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
           if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return json({ error: "That is not a domain name" }, 400);
+          const owner = (await runlight.store.linkDomains()).find((d) => d.domain === domain);
+          if (owner && owner.site !== site.id) return json({ error: `${domain} already belongs to another site` }, 409);
           await runlight.store.addLinkDomain(domain, site.id, runlight.now());
+          runlight.forgetLinkDomains();
           return json({ domain }, 201);
         }
       }
@@ -297,7 +300,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
       const domainMatch = /^\/api\/link-domains\/([^/]+)$/.exec(path);
       if (domainMatch && request.method === "DELETE") {
-        await runlight.store.removeLinkDomain(decodeURIComponent(domainMatch[1]!));
+        const domain = decodeURIComponent(domainMatch[1]!);
+        if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return json({ error: "Unknown domain" }, 404);
+        await runlight.store.removeLinkDomain(domain);
+        runlight.forgetLinkDomains();
         return json({ ok: true });
       }
 
@@ -385,6 +391,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             browsers,
           });
         }
+        const owned = await runlight.store.linkById(id);
+        if (!owned || owned.site !== site.id) return json({ error: "Unknown link" }, 404);
         if (request.method === "PATCH") {
           const body = await readJson(request);
           if (body instanceof Response) return body;
@@ -410,7 +418,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (tracker && runlight.now() - tracker.at < 60_000) return tracker;
     await runlight.init();
     const rules = JSON.stringify(clickRules(runlight.sites, await runlight.store.goals()));
-    const body = TRACKER.replace(RULES_PLACEHOLDER, rules);
+    // A function, not a string: "$'" or "$&" in a selector must not be read as a replacement pattern.
+    const body = TRACKER.replace(RULES_PLACEHOLDER, () => rules);
     tracker = { body, etag: `"${TRACKER_HASH}-${(await sha256(rules)).slice(0, 8)}"`, at: runlight.now() };
     return tracker;
   }
@@ -740,9 +749,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const access = await canRead(request);
       if (access !== true) return denied(access);
       // A form posted from another site cannot carry this content type without CORS.
-      if (!isJson(request)) return json({ error: "Send JSON" }, 415);
-      const body = (await request.json().catch(() => null)) as { name?: unknown; timezone?: unknown; hostnames?: unknown } | null;
-      if (!body || typeof body !== "object") return json({ error: "Send a JSON object" }, 400);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
       try {
         const site = await runlight.updateSite(decodeURIComponent(siteMatch[1]!), {
           ...(body.name !== undefined ? { name: String(body.name) } : {}),
@@ -798,7 +806,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     if (path === "/api/icon") {
       const host = site.hostnames[0];
-      const icon = await fetchIcon(host ? `https://${host}` : url.origin);
+      // Only a site's own domain, never the request's Host header, which a caller can write.
+      const icon = host ? await fetchIcon(`https://${host}`) : null;
       if (!icon) return json({ error: "No icon" }, 404, { "cache-control": "private, max-age=3600" });
       return new Response(icon.body, {
         headers: {

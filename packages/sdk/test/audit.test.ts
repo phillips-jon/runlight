@@ -83,3 +83,50 @@ test("on SQLite, a write made while a transaction is open is never rolled back w
   const paths = (await store.db.all<{ path: string }>(`SELECT path FROM rl_events ORDER BY path`)).map((r) => r.path);
   assert.deepEqual(paths, ["/live", "/second"]);
 });
+
+test("a click goal's selector with $' or $& leaves the tracker script valid", async () => {
+  const t = setup("sqlite");
+  for (const match of [".a$'", "[data-x=\"$&\"]", ".b$`"]) {
+    const r = await t.routes.handler(new Request("https://example.com/runlight/api/goals", { method: "POST", headers: auth, body: JSON.stringify({ name: `G ${match}`, kind: "click", clickBy: "selector", match }) }));
+    assert.equal(r.status, 201);
+  }
+  const script = await (await t.routes.GET(new Request("https://example.com/runlight/s.js"))).text();
+  assert.doesNotThrow(() => new Function(script), "s.js still parses");
+  assert.ok(script.includes(".a$'"));
+});
+
+test("filters on inherited object keys are refused, not run as SQL", async () => {
+  const t = setup("sqlite");
+  const r = await t.routes.GET(new Request("https://example.com/runlight/api/stats?filter=constructor:is:x", { headers: auth }));
+  assert.equal(r.status, 400);
+});
+
+test("links and link domains only change from the site that owns them", async () => {
+  const rl = runlight({
+    store: sqlite({ path: ":memory:" }),
+    sites: [
+      { id: "a", hostnames: ["a.com"] },
+      { id: "b", hostnames: ["b.com"] },
+    ],
+  });
+  const { POST, PATCH, DELETE } = rl.routes({ token: "secret" });
+  const call = (handler: typeof POST, method: string, path: string, body?: unknown) =>
+    handler(new Request(`https://x.com/runlight${path}`, { method, headers: auth, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
+  const made = (await (await call(POST, "POST", "/api/links?site=a", { url: "https://a.com/x" })).json()) as { link: { id: string } };
+  assert.equal((await call(PATCH, "PATCH", `/api/links/${made.link.id}?site=b`, { name: "stolen" })).status, 404);
+  assert.equal((await call(DELETE, "DELETE", `/api/links/${made.link.id}?site=b`)).status, 404);
+  assert.equal((await call(POST, "POST", "/api/link-domains?site=a", { domain: "go.a.com" })).status, 201);
+  assert.equal((await call(POST, "POST", "/api/link-domains?site=b", { domain: "go.a.com" })).status, 409);
+  assert.equal((await call(DELETE, "DELETE", "/api/link-domains/go.a.com?site=b")).status, 404);
+  assert.equal((await call(DELETE, "DELETE", `/api/links/${made.link.id}?site=a`)).status, 200);
+});
+
+test("a saved SMTP password is kept only while the server it goes to stays the same", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), secret: "k".repeat(32) });
+  const base = { service: "smtp", host: "smtp.example.com", port: "587", security: "starttls", username: "me", from: "r@example.com" };
+  await rl.saveMailSettings({ ...base, password: "hunter2-long" });
+  await rl.saveMailSettings({ ...base, password: "", from: "reports@example.com" });
+  assert.equal((await rl.mailSettings())?.password, "hunter2-long", "same server, blank field: kept");
+  await rl.saveMailSettings({ ...base, host: "evil.example", password: "", from: "reports@example.com" });
+  assert.equal((await rl.mailSettings())?.password ?? "", "", "a new host needs the password typed again");
+});

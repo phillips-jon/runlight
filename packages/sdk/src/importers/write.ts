@@ -136,6 +136,7 @@ export async function writeLink(
       }
     }
     });
+    if (domain) runlight.forgetLinkDomains();
     return { status: "created", clicks };
   } catch (error) {
     return { status: "failed", clicks: 0, reason: error instanceof Error ? error.message : String(error) };

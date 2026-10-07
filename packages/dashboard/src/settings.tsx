@@ -251,16 +251,21 @@ export function proxy(request: Request) {
       <div class="settings-group">
         <div class="field-row">
           <span class="field-label">{t("install.ignore")}</span>
-          <span class="settings-text">{t(ignored ? "install.ignored" : "install.counted")}</span>
-          <div>
-            <button type="button" class="ghost" onClick={toggle}>
-              <Icon name={ignored ? "refresh" : "x"} />
-              {t(ignored ? "install.trackButton" : "install.ignoreButton")}
-            </button>
-          </div>
+          {install.managed ? null : (
+            <>
+              <span class="settings-text">{t(ignored ? "install.ignored" : "install.counted")}</span>
+              <div>
+                <button type="button" class="ghost" onClick={toggle}>
+                  <Icon name={ignored ? "refresh" : "x"} />
+                  {t(ignored ? "install.trackButton" : "install.ignoreButton")}
+                </button>
+              </div>
+            </>
+          )}
           {ignoreLink ? (
-            <span class="field-hint">
-              {rich("install.ignoreElsewhere", {
+            <span class={install.managed ? "settings-text" : "field-hint"}>
+              {/* The server's dashboard is never on the site's own domain, so the setting has to be made there. */}
+              {rich(install.managed ? "install.ignoreServer" : "install.ignoreElsewhere", {
                 link: (
                   <a href={ignoreLink} target="_blank" rel="noopener">
                     {ignoreLink}

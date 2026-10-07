@@ -69,11 +69,11 @@ export function isDimension(value: string): value is Dimension {
 }
 
 export function isSessionDimension(value: string): value is SessionDimension {
-  return value in SESSION_DIMENSIONS;
+  return Object.hasOwn(SESSION_DIMENSIONS, value);
 }
 
 export function isEventDimension(value: string): value is EventDimension {
-  return value in EVENT_DIMENSIONS;
+  return Object.hasOwn(EVENT_DIMENSIONS, value);
 }
 
 /** `dimension:op:value`, where the value may itself contain colons. */

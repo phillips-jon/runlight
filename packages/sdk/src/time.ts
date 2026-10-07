@@ -180,10 +180,6 @@ export function compareRange(
   return { from: startOf(fromDate, timezone), to: startOf(addDays(toDate, 1), timezone), fromDate, toDate, interval: range.interval };
 }
 
-/** The same length of time immediately before a range. */
-export function previousRange(range: Range): Pick<Range, "from" | "to"> {
-  return { from: range.from - (range.to - range.from), to: range.from };
-}
 
 const MAX_BUCKETS = 1000;
 /** A month of hours. Longer hourly ranges are cut off rather than refused. */
