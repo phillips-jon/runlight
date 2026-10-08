@@ -131,3 +131,26 @@ test("an account write must be JSON, so a form on another page cannot make one",
   const forged = await server.handler(req("/api/account/2fa/start", { method: "POST", headers: { cookie, "content-type": "text/plain" }, body: '{"password":"a long password"}' }));
   assert.equal(forged.status, 415);
 });
+
+test("two owners demoting each other at once leave one owner, and a double-clicked invite makes one", async () => {
+  const now = Date.UTC(2026, 9, 7, 12);
+  const server = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), now: () => now });
+  const a = await server.accounts.setPassword("a@example.com", "a long password", now);
+  const b = await server.accounts.setPassword("b@example.com", "a long password", now);
+  const results = await Promise.allSettled([server.accounts.setRole(a.id, "viewer"), server.accounts.setRole(b.id, "viewer")]);
+  assert.deepEqual(results.map((r) => r.status).sort(), ["fulfilled", "rejected"]);
+  assert.equal((await server.accounts.list()).filter((u) => u.role === "owner").length, 1);
+  const invites = await Promise.allSettled([server.accounts.invite("new@example.com", "viewer", "A", now), server.accounts.invite("new@example.com", "viewer", "A", now)]);
+  assert.deepEqual(invites.map((r) => r.status), ["fulfilled", "fulfilled"]);
+});
+
+test("signing in again right after turning on two-factor works with the same code", async () => {
+  const now = Date.UTC(2026, 9, 7, 12);
+  const server = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), now: () => now });
+  const user = await server.accounts.setPassword("jon@example.com", "a long password", now);
+  const secret = await server.accounts.startTwoFactor(user.id);
+  const code = totp(secret, Math.floor(now / 30_000));
+  assert.ok(await server.accounts.confirmTwoFactor(user.id, code, now));
+  assert.equal(await server.accounts.checkSecondFactor(user.id, code, now), true);
+  assert.equal(await server.accounts.checkSecondFactor(user.id, code, now), false, "and then only once");
+});

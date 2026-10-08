@@ -85,6 +85,14 @@ export function otpauthUri(secret: string, email: string, host: string): string 
   return `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(`Runlight (${host})`)}&algorithm=SHA1&digits=6&period=30`;
 }
 
+/** Ten one-use recovery codes, like "k7dq-2mfa". */
+function recoveryCodes(): string[] {
+  return Array.from({ length: 10 }, () => {
+    const raw = base32(randomBytes(5)).toLowerCase();
+    return `${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
+  });
+}
+
 const recoveryHash = (code: string) => createHash("sha256").update(code.replace(/[^a-z0-9]/gi, "").toLowerCase()).digest("hex");
 
 const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
@@ -129,8 +137,22 @@ export class Accounts {
     private readonly secret: string,
   ) {}
 
+  /**
+   * Changes to who has an account take turns, in this process and, on Postgres, across processes, so two
+   * owners demoting each other at once cannot leave none, and a double-clicked invite makes one.
+   */
+  private turn<T>(fn: () => Promise<T>): Promise<T> {
+    const run = () => (this.store.db.exclusive ? this.store.db.exclusive(() => fn()) : fn());
+    const next = this.queue.then(run, run);
+    this.queue = next.catch(() => {});
+    return next;
+  }
+
+  private queue: Promise<unknown> = Promise.resolve();
+
   private init(): Promise<void> {
-    this.ready ??= (async () => {
+    // Several processes starting at once create the tables one at a time.
+    const create = async () => {
       await this.store.db.run(`CREATE TABLE IF NOT EXISTS rl_users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, hash TEXT NOT NULL, created_at BIGINT NOT NULL)`);
       // Roles came later; a table from before them gains the column, and its accounts stay owners.
       const columns = this.store.db.dialect === "postgres"
@@ -144,7 +166,8 @@ export class Accounts {
       await this.store.db.run(
         `CREATE TABLE IF NOT EXISTS rl_invites (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, role TEXT NOT NULL, code_hash TEXT NOT NULL UNIQUE, invited_by TEXT NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL)`,
       );
-    })().catch((error) => {
+    };
+    this.ready ??= (this.store.db.exclusive ? this.store.db.exclusive(create) : create()).catch((error) => {
         this.ready = null;
         throw error;
       });
@@ -198,14 +221,11 @@ export class Accounts {
     const secret = row?.totp_pending ? this.unseal(String(row.totp_pending)) : null;
     const step = secret ? matchStep(secret, code, now, -1) : null;
     if (step === null) return null;
-    const recovery = Array.from({ length: 10 }, () => {
-      const raw = base32(randomBytes(5)).toLowerCase();
-      return `${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
-    });
-    await this.store.db.run(`UPDATE rl_users SET totp_secret = ?, totp_pending = NULL, totp_recovery = ?, totp_step = ? WHERE id = ?`, [
+    const recovery = recoveryCodes();
+    // The code that turned it on is not marked used, so signing in again at once with it works.
+    await this.store.db.run(`UPDATE rl_users SET totp_secret = ?, totp_pending = NULL, totp_recovery = ?, totp_step = NULL WHERE id = ?`, [
       this.seal(secret!),
       JSON.stringify(recovery.map(recoveryHash)),
-      step,
       id,
     ]);
     return recovery;
@@ -214,10 +234,7 @@ export class Accounts {
   /** New recovery codes in place of the old ones. */
   async newRecoveryCodes(id: string): Promise<string[]> {
     await this.init();
-    const recovery = Array.from({ length: 10 }, () => {
-      const raw = base32(randomBytes(5)).toLowerCase();
-      return `${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
-    });
+    const recovery = recoveryCodes();
     await this.store.db.run(`UPDATE rl_users SET totp_recovery = ? WHERE id = ?`, [JSON.stringify(recovery.map(recoveryHash)), id]);
     return recovery;
   }
@@ -309,21 +326,29 @@ export class Accounts {
 
   /** Changes a role. The last owner cannot become a viewer, or nobody could manage the server. */
   async setRole(id: string, role: Role): Promise<User> {
-    const users = await this.list();
-    const user = users.find((u) => u.id === id);
-    if (!user) throw new RangeError("Unknown account");
-    if (user.role === "owner" && role === "viewer" && users.filter((u) => u.role === "owner").length === 1) throw new RangeError("Keep at least one owner");
-    await this.store.db.run(`UPDATE rl_users SET role = ? WHERE id = ?`, [role, id]);
-    return { ...user, role };
+    // The tables first: making them takes the same lock as a turn.
+    await this.init();
+    return this.turn(async () => {
+      const users = await this.list();
+      const user = users.find((u) => u.id === id);
+      if (!user) throw new RangeError("Unknown account");
+      if (user.role === "owner" && role === "viewer" && users.filter((u) => u.role === "owner").length === 1) throw new RangeError("Keep at least one owner");
+      await this.store.db.run(`UPDATE rl_users SET role = ? WHERE id = ?`, [role, id]);
+      return { ...user, role };
+    });
   }
 
   /** Removes an account. The last owner cannot be removed. */
   async remove(id: string): Promise<void> {
-    const users = await this.list();
-    const user = users.find((u) => u.id === id);
-    if (!user) throw new RangeError("Unknown account");
-    if (user.role === "owner" && users.filter((u) => u.role === "owner").length === 1) throw new RangeError("Keep at least one owner");
-    await this.store.db.run(`DELETE FROM rl_users WHERE id = ?`, [id]);
+    // The tables first: making them takes the same lock as a turn.
+    await this.init();
+    return this.turn(async () => {
+      const users = await this.list();
+      const user = users.find((u) => u.id === id);
+      if (!user) throw new RangeError("Unknown account");
+      if (user.role === "owner" && users.filter((u) => u.role === "owner").length === 1) throw new RangeError("Keep at least one owner");
+      await this.store.db.run(`DELETE FROM rl_users WHERE id = ?`, [id]);
+    });
   }
 
   /** Makes an account, or sets a new password on an existing one. */
@@ -360,6 +385,10 @@ export class Accounts {
    */
   async invite(email: string, role: Role, invitedBy: string, now: number): Promise<{ invite: Invite; code: string }> {
     await this.init();
+    return this.turn(() => this.inviteNow(email, role, invitedBy, now));
+  }
+
+  private async inviteNow(email: string, role: Role, invitedBy: string, now: number): Promise<{ invite: Invite; code: string }> {
     const address = email.trim().toLowerCase();
     if (!EMAIL.test(address)) throw new RangeError("Enter an email address");
     if (await this.byEmail(address)) throw new RangeError(`${address} already has an account`);

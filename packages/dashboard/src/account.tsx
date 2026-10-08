@@ -190,7 +190,14 @@ function TwoFactor({ me }: { me: Person }) {
               <Icon name="check" />
               {t("twofa.confirm")}
             </button>
-            <button type="button" class="ghost" onClick={() => setSetup(null)}>
+            <button
+              type="button"
+              class="ghost"
+              onClick={() => {
+                setSetup(null);
+                setError("");
+              }}
+            >
               {t("common.cancel")}
             </button>
           </div>
@@ -206,7 +213,14 @@ function TwoFactor({ me }: { me: Person }) {
               <Icon name={asking === "disable" ? "x" : "check"} />
               {t(asking === "start" ? "twofa.continue" : asking === "recovery" ? "twofa.newCodes" : "twofa.turnOff")}
             </button>
-            <button type="button" class="ghost" onClick={() => setAsking(null)}>
+            <button
+              type="button"
+              class="ghost"
+              onClick={() => {
+                setAsking(null);
+                setError("");
+              }}
+            >
               {t("common.cancel")}
             </button>
           </div>
@@ -237,6 +251,22 @@ function TwoFactor({ me }: { me: Person }) {
   );
 }
 
+/** Resetting someone's two-factor takes a second click, like deleting. */
+function ResetTwoFactor({ onReset }: { onReset: () => void }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(timer);
+  }, [armed]);
+  return (
+    <button type="button" class={armed ? "copy inline armed" : "copy inline"} title={t("people.resetTwoFactorHint")} onClick={() => (armed ? onReset() : setArmed(true))}>
+      <Icon name="reset" />
+      {armed ? t("links.confirm") : t("people.resetTwoFactor")}
+    </button>
+  );
+}
+
 /** Settings, People: everyone who can sign in, their role, and adding or removing someone. */
 export function People({ me }: { me: Person }) {
   const [people, setPeople] = useState<Person[] | null>(null);
@@ -245,6 +275,8 @@ export function People({ me }: { me: Person }) {
   const [role, setRole] = useState<Person["role"]>("viewer");
   const [sent, setSent] = useState<InviteSent | null>(null);
   const [error, setError] = useState("");
+  // While an invite is on its way, its buttons wait, so a double click sends one.
+  const [sending, setSending] = useState(false);
   const load = () =>
     api
       .people()
@@ -263,13 +295,15 @@ export function People({ me }: { me: Person }) {
   const add = (e: Event) => {
     e.preventDefault();
     setError("");
+    setSending(true);
     api
       .addPerson(email.trim(), role)
       .then((r) => {
         setEmail("");
         return done(r);
       })
-      .catch((err: Error) => setError(err.message));
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setSending(false));
   };
   const change = (id: string, next: Person["role"]) =>
     api
@@ -312,10 +346,7 @@ export function People({ me }: { me: Person }) {
               </div>
               <div class="domain-actions">
                 {p.twoFactor && p.id !== me.id ? (
-                  <button type="button" class="copy inline" title={t("people.resetTwoFactorHint")} onClick={() => void api.resetTwoFactor(p.id).then(load).catch((err: Error) => setError(err.message))}>
-                    <Icon name="reset" />
-                    {t("people.resetTwoFactor")}
-                  </button>
+                  <ResetTwoFactor onReset={() => void api.resetTwoFactor(p.id).then(load).catch((err: Error) => setError(err.message))} />
                 ) : null}
                 <select class="value people-role" value={p.role} aria-label={t("people.role")} onChange={(e) => void change(p.id, (e.target as HTMLSelectElement).value as Person["role"])}>
                   <option value="owner">{t("people.owner")}</option>
@@ -345,7 +376,19 @@ export function People({ me }: { me: Person }) {
                 <span class="share-meta">{t("people.invitedMeta", { role: t(i.role === "owner" ? "people.owner" : "people.viewer"), date: dateOf(i.expiresAt) })}</span>
               </div>
               <div class="domain-actions">
-                <button type="button" class="copy inline" onClick={() => void api.resendInvite(i.id).then(done).catch((err: Error) => setError(err.message))}>
+                <button
+                  type="button"
+                  class="copy inline"
+                  disabled={sending}
+                  onClick={() => {
+                    setSending(true);
+                    void api
+                      .resendInvite(i.id)
+                      .then(done)
+                      .catch((err: Error) => setError(err.message))
+                      .finally(() => setSending(false));
+                  }}
+                >
                   <Icon name="send" />
                   {t("people.resend")}
                 </button>
@@ -362,7 +405,7 @@ export function People({ me }: { me: Person }) {
           <option value="viewer">{t("people.viewer")}</option>
           <option value="owner">{t("people.owner")}</option>
         </select>
-        <button type="submit" class="solid">
+        <button type="submit" class="solid" disabled={sending}>
           <Icon name="send" />
           {t("people.invite")}
         </button>
