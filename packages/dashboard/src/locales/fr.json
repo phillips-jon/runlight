@@ -748,5 +748,8 @@
   "links.importNoUrl": "Rien n'a été importé, car le fichier n'a pas de colonne url remplie d'adresses. Utilisez les colonnes name et url, plus slug et domain si vous les avez.",
   "app.sessionEnded": "Vous avez été déconnecté, ce qui arrive quand une session expire ou qu'un mot de passe change. {link} et vous reviendrez à cette vue.",
   "app.signInAgain": "Reconnectez-vous",
-  "links.noneYet": "Personne n'a encore créé de lien court pour ce site."
+  "links.noneYet": "Personne n'a encore créé de lien court pour ce site.",
+  "error.unreachable": "Impossible de joindre {host}.",
+  "error.redirected": "{host} a répondu par une redirection.",
+  "error.token_refused": "{host} a refusé le jeton. Connectez-le de nouveau depuis les réglages du site."
 }

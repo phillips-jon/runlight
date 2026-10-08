@@ -748,5 +748,8 @@
   "links.importNoUrl": "Nichts wurde importiert, weil die Datei keine Spalte url mit Adressen hat. Nutze die Spalten name und url, dazu slug und domain, wenn du sie hast.",
   "app.sessionEnded": "Du wurdest abgemeldet, was passiert, wenn eine Sitzung abläuft oder sich ein Passwort ändert. {link}, dann kommst du zu dieser Ansicht zurück.",
   "app.signInAgain": "Melde dich wieder an",
-  "links.noneYet": "Für diese Website hat noch niemand einen Kurzlink erstellt."
+  "links.noneYet": "Für diese Website hat noch niemand einen Kurzlink erstellt.",
+  "error.unreachable": "{host} ist nicht erreichbar.",
+  "error.redirected": "{host} hat mit einer Weiterleitung geantwortet.",
+  "error.token_refused": "{host} hat das Token abgelehnt. Verbinde es in den Einstellungen der Website neu."
 }

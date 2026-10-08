@@ -135,7 +135,7 @@ async function passThrough(remote: { url: string; token: string; site: string },
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    return json({ error: `Could not reach ${new URL(remote.url).host}` }, 502);
+    return coded(`Could not reach ${new URL(remote.url).host}`, "unreachable", 502, { host: new URL(remote.url).host });
   }
   // What comes back is shown from this server's origin, so it is never taken as a page:
   // JSON, or a download for exports, with sniffing off and nothing allowed to run.
@@ -150,9 +150,9 @@ async function passThrough(remote: { url: string; token: string; site: string },
     const name = /filename="([A-Za-z0-9._-]+)"/.exec(answer.headers.get("content-disposition") ?? "")?.[1] ?? "runlight-export";
     back["content-disposition"] = `attachment; filename="${name}"`;
   }
-  if (answer.status >= 300 && answer.status < 400) return json({ error: `${new URL(remote.url).host} answered with a redirect` }, 502);
+  if (answer.status >= 300 && answer.status < 400) return coded(`${new URL(remote.url).host} answered with a redirect`, "redirected", 502, { host: new URL(remote.url).host });
   // The install's own errors say what went wrong there; a refused token is this server's problem to report.
-  if (answer.status === 401) return json({ error: `${new URL(remote.url).host} refused the token. Connect it again from the site's settings.` }, 502);
+  if (answer.status === 401) return coded(`${new URL(remote.url).host} refused the token. Connect it again from the site's settings.`, "token_refused", 502, { host: new URL(remote.url).host });
   return new Response(answer.body, { status: answer.status, headers: back });
 }
 
@@ -1178,18 +1178,23 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       try {
         const id = decodeURIComponent(siteMatch[1]!);
         const remote = runlight.remote(id);
-        if (body.retentionMonths !== undefined && remote) {
-          // How long a connected site keeps visits is the install's setting; this server only passes it on.
+        // How long a connected site keeps visits, and the timezone its days follow, are the install's
+        // settings: this server passes them on, and changes its own row only once the install took them.
+        const forward = {
+          ...(body.retentionMonths !== undefined ? { retentionMonths: body.retentionMonths } : {}),
+          ...(body.timezone !== undefined && String(body.timezone) !== runlight.site(id)?.timezone ? { timezone: String(body.timezone) } : {}),
+        };
+        if (remote && Object.keys(forward).length) {
           if (remote.scope !== "manage") return json({ error: "Connect this site again to change it from here" }, 400);
           const answer = await passThrough(
             remote,
             `/api/sites/${encodeURIComponent(remote.site)}`,
             new URL(url),
-            new Request(request.url, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ retentionMonths: body.retentionMonths }) }),
+            new Request(request.url, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(forward) }),
           );
           if (!answer.ok) return answer;
           runlight.forgetRemoteInfo(id);
-        } else if (body.retentionMonths !== undefined) {
+        } else if (!remote && body.retentionMonths !== undefined) {
           await runlight.setRetention(id, body.retentionMonths === null ? null : Number(body.retentionMonths));
         }
         const site = await runlight.updateSite(decodeURIComponent(siteMatch[1]!), {

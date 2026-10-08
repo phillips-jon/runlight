@@ -748,5 +748,8 @@
   "links.importNoUrl": "Nothing was imported because the file has no url column with addresses in it. Use the columns name and url, plus slug and domain when you have them.",
   "app.sessionEnded": "You were signed out, which happens when a session runs out or a password changes. {link} and you come back to this view.",
   "app.signInAgain": "Sign in again",
-  "links.noneYet": "Nobody has made a short link for this site yet."
+  "links.noneYet": "Nobody has made a short link for this site yet.",
+  "error.unreachable": "Could not reach {host}.",
+  "error.redirected": "{host} answered with a redirect.",
+  "error.token_refused": "{host} refused the token. Connect it again from the site's settings."
 }

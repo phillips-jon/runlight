@@ -748,5 +748,8 @@
   "links.importNoUrl": "No se importó nada porque el archivo no tiene una columna url con direcciones. Usa las columnas name y url, y también slug y domain si las tienes.",
   "app.sessionEnded": "Se cerró tu sesión, algo que pasa cuando una sesión caduca o cambia una contraseña. {link} y volverás a esta vista.",
   "app.signInAgain": "Vuelve a iniciar sesión",
-  "links.noneYet": "Nadie ha creado todavía un enlace corto para este sitio."
+  "links.noneYet": "Nadie ha creado todavía un enlace corto para este sitio.",
+  "error.unreachable": "No se pudo contactar con {host}.",
+  "error.redirected": "{host} respondió con una redirección.",
+  "error.token_refused": "{host} rechazó el token. Vuelve a conectarlo desde los ajustes del sitio."
 }
