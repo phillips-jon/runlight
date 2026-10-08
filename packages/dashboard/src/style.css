@@ -2389,14 +2389,19 @@ h1 .home:hover {
   flex: none;
   width: 22px;
   height: 22px;
-  margin: 4px 0 0 -8px;
+  margin: 0 0 0 -8px;
   padding: 0;
   border: 0;
   background: none;
   color: var(--faint);
   cursor: pointer;
-  align-self: flex-start;
   transition: color 0.15s;
+}
+
+/* With the live count under the name, it stays level with the name, not the pair. */
+.identity-text:has(> .live) + .gear {
+  align-self: flex-start;
+  margin-top: 4px;
 }
 
 .gear:hover,
