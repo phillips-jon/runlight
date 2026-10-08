@@ -149,3 +149,52 @@ for (const kind of STORES) {
     assert.ok((await t.rl.buildRollups()) >= 1);
   });
 }
+
+test("two processes on one database: a stale timezone builds nothing and clears nothing", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const { runlight } = await import("../src/index.js");
+  const { sqlite } = await import("../src/stores/sqlite.js");
+  const file = path.join(mkdtempSync(path.join(tmpdir(), "runlight-zones-")), "shared.db");
+  let now = Date.UTC(2026, 9, 3, 12);
+  const old = runlight({ store: sqlite({ path: file }), site: { hostnames: ["example.com"], timezone: "UTC" }, now: () => now });
+  const routes = old.routes({ token: "secret" });
+  const send = (u: string, ip: string) =>
+    routes.POST(new Request("https://example.com/runlight/e", { method: "POST", body: JSON.stringify({ k: "pageview", u }), headers: { "x-forwarded-for": ip, "user-agent": SAFARI_IPHONE } }));
+  await old.init();
+  await send("https://example.com/", "203.0.113.1");
+  now = Date.UTC(2026, 9, 6, 12);
+  assert.ok((await old.buildRollups()) >= 2, "the old process builds in UTC");
+  const built = async () => (await old.store.db.all(`SELECT COUNT(*) AS n FROM rl_rollup_days`))[0]!.n;
+
+  // A new copy starts with the timezone changed in code: it clears the old days once, at startup.
+  const fresh = runlight({ store: sqlite({ path: file }), site: { hostnames: ["example.com"], timezone: "Asia/Tokyo" }, now: () => now });
+  await fresh.init();
+  assert.equal(Number(await built()), 0);
+  // The old copy, still running, neither builds in UTC nor clears what the new one does.
+  now += 3 * 86_400_000;
+  assert.equal(await old.buildRollups(), 0);
+  assert.ok((await fresh.buildRollups()) >= 1);
+  const afterFresh = Number(await built());
+  assert.equal(await old.buildRollups(), 0);
+  assert.equal(Number(await built()), afterFresh, "nothing cleared by the stale copy");
+});
+
+test("a timezone changed in the dashboard reaches another process at its next check", async () => {
+  const { mkdtempSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const path = await import("node:path");
+  const { runlight } = await import("../src/index.js");
+  const { sqlite } = await import("../src/stores/sqlite.js");
+  const file = path.join(mkdtempSync(path.join(tmpdir(), "runlight-zones-")), "shared.db");
+  const now = Date.UTC(2026, 9, 6, 12);
+  const a = runlight({ store: sqlite({ path: file }), site: { hostnames: ["example.com"], timezone: "UTC" }, now: () => now });
+  const b = runlight({ store: sqlite({ path: file }), site: { hostnames: ["example.com"], timezone: "UTC" }, now: () => now });
+  await a.init();
+  await b.init();
+  await a.updateSite("default", { timezone: "Europe/Paris" });
+  assert.equal(b.site("default")!.timezone, "UTC");
+  await b.check();
+  assert.equal(b.site("default")!.timezone, "Europe/Paris");
+});

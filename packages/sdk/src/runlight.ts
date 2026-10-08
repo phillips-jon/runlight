@@ -278,6 +278,15 @@ export class Runlight {
       }
       for (const site of this.configured) await this.store.upsertSite(site, this.now());
       this.overrides = await this.store.siteOverrides();
+      // A process starting with a timezone set in code is the newest word on it: if the code changed it,
+      // the days built in the old one are cleared here, once, and never by a process still running.
+      for (const site of this.sites) {
+        if (this.remotes.has(site.id)) continue;
+        const stored = await this.store.setting(`rollup-zone:${site.id}`);
+        const zone = stored ? (JSON.parse(stored) as { zone: string }).zone : null;
+        if (zone === null) await this.store.setSetting(`rollup-zone:${site.id}`, JSON.stringify({ zone: site.timezone, since: 0 }));
+        else if (zone !== site.timezone) await this.zoneChanged(site.id, site.timezone);
+      }
     })().catch((error) => {
       this.ready = null;
       throw error;
@@ -524,16 +533,20 @@ export class Runlight {
     return since;
   }
 
-  /** Since when a site's days may be built: 0 for always, or when its timezone last changed. */
-  private async rollupSince(site: SiteRow): Promise<number> {
+  /**
+   * Since when a site's days may be built: 0 for always, or when its timezone last changed. Null when
+   * this process holds a different timezone than the one on record, such as an older copy still running
+   * during a deploy, or one that has not yet seen a change made in the dashboard. It builds nothing for
+   * that site, and reports read the visits themselves for any day not built, so nothing is wrong meanwhile.
+   */
+  private async rollupSince(site: SiteRow): Promise<number | null> {
     const stored = await this.store.setting(`rollup-zone:${site.id}`);
     if (!stored) {
       await this.store.setSetting(`rollup-zone:${site.id}`, JSON.stringify({ zone: site.timezone, since: 0 }));
       return 0;
     }
     const zone = JSON.parse(stored) as { zone: string; since: number };
-    // Set in code and changed there since the last build.
-    return zone.zone === site.timezone ? zone.since : this.zoneChanged(site.id, site.timezone);
+    return zone.zone === site.timezone ? zone.since : null;
   }
 
   /**
@@ -559,6 +572,7 @@ export class Runlight {
       if (first === null) continue;
       const cutoff = (await this.retentionCutoff(site.id)) ?? 0;
       const since = await this.rollupSince(site);
+      if (since === null) continue;
       const done = await this.store.rollupDays(site.id);
       const today = localDate(now, site.timezone);
       let made = 0;
@@ -1030,8 +1044,8 @@ export class Runlight {
   /**
    * Scheduled upkeep, safe to run every minute. It rotates salts, sends the email
    * reports that are due, deletes visits past each site's retention, and builds
-   * daily rollups. It also rereads managed sites and connected installs, so one
-   * added by another process sharing the database shows up here too.
+   * daily rollups. It also rereads sites, their dashboard settings, and connected
+   * installs, so a change made by another process sharing the database shows up here too.
    */
   async check(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
     await this.init();
@@ -1039,6 +1053,8 @@ export class Runlight {
       this.configured = await this.store.sites();
       await this.loadRemotes();
     }
+    // A name or timezone changed in the dashboard by another process reaches this one too.
+    this.overrides = await this.store.siteOverrides();
     this.salts.clear();
     for (const timezone of new Set(this.sites.map((s) => s.timezone))) await this.currentSalts(this.now(), timezone);
     await this.dropOldSalts(this.now());
