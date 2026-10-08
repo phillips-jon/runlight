@@ -332,8 +332,20 @@ export class Accounts {
     return this.ticket("link", user, now + 15 * 60_000);
   }
 
-  fromLink(value: string, now: number): Promise<User | null> {
-    return this.fromTicket("link", value, now);
+  /**
+   * The account a sign-in link is for. A link works once: using it withdraws it, and every link sent
+   * before it. Uses take turns, so a link opened twice at once lets one in.
+   */
+  async fromLink(value: string, now: number): Promise<User | null> {
+    const user = await this.fromTicket("link", value, now);
+    if (!user) return null;
+    const expires = Number(value.split(".")[1]);
+    return this.turn(async () => {
+      const key = `login-link-used:${user.id}`;
+      if (expires <= Number((await this.store.setting(key)) ?? 0)) return null;
+      await this.store.setSetting(key, String(expires));
+      return user;
+    });
   }
 
   private ticket(kind: string, user: User, expires: number): string {
@@ -398,6 +410,7 @@ export class Accounts {
       if (!user) throw new AccountError("Unknown account", "unknown_account");
       if (user.role === "owner" && users.filter((u) => u.role === "owner").length === 1) throw new AccountError("Keep at least one owner", "last_owner");
       await this.store.db.run(`DELETE FROM rl_users WHERE id = ?`, [id]);
+      await this.store.setSetting(`login-link-used:${id}`, null);
     });
   }
 

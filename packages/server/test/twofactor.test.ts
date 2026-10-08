@@ -184,6 +184,7 @@ test("without two-factor, a held-up account answers every password alike, and a 
     const opened = await server.handler(new Request(link));
     assert.equal(opened.status, 303);
     assert.match(opened.headers.get("set-cookie") ?? "", /runlight_session=/);
+    assert.equal((await server.handler(new Request(link))).status, 410, "a link works once");
     assert.equal((await server.handler(new Request(link.replace(/ticket=[^&]+/, "ticket=x.1.y")))).status, 410);
   } finally {
     hook.close();
