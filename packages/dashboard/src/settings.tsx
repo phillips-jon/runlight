@@ -257,7 +257,7 @@ function Data({ site, onSaved }: { site: Site; onSaved: (site: Site) => void }) 
           <span class="field-label">{t("data.export")}</span>
           <span class="field-hint">{t("data.exportHint")}</span>
           <div>
-            <button type="button" class="box-button" onClick={() => void download("export", new URLSearchParams({ site: site.id, period: "all" })).catch((err: Error) => setError(err.message))}>
+            <button type="button" class="ghost" onClick={() => void download("export", new URLSearchParams({ site: site.id, period: "all" })).catch((err: Error) => setError(err.message))}>
               <Icon name="download" />
               {t("data.download")}
             </button>

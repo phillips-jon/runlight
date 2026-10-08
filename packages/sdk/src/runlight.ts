@@ -9,7 +9,7 @@ import { RateLimit } from "./limit.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww, type Page } from "./sources.js";
 import type { ReportRow, SiteOverrides, SiteRow, SqlStore } from "./store.js";
-import { addDays, isTimezone, localDate } from "./time.js";
+import { addDays, isTimezone, localDate, startOf } from "./time.js";
 import { aiAgent, isBot, parseClient } from "./ua.js";
 
 export interface SiteOptions {
@@ -88,6 +88,10 @@ export interface Remote {
 }
 
 export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
+
+/** Days of rollups built per site in one scheduled check, and how long after a day ends it is built. */
+const ROLLUP_BATCH = 30;
+const ROLLUP_DELAY_MS = 2 * 3_600_000;
 
 /** The choices for how long a site keeps its visits. */
 export const RETENTION_MONTHS = [6, 12, 24, 36, 60];
@@ -443,6 +447,8 @@ export class Runlight {
       if (patch.timezone !== undefined) {
         if (!isTimezone(String(patch.timezone))) throw new RangeError(`Unknown timezone "${patch.timezone}"`);
         next.timezone = String(patch.timezone);
+        // Days are the site's local days, so a new timezone means building them again.
+        if (next.timezone !== this.site(id)?.timezone) await this.store.clearRollups(id);
       }
       if (patch.hostnames !== undefined && !this.remotes.has(id)) next.hostnames = this.hostnamesFor(patch.hostnames, id);
       await this.store.upsertSite(next, this.now());
@@ -458,6 +464,8 @@ export class Runlight {
     if (patch.timezone !== undefined) {
       if (!isTimezone(String(patch.timezone))) throw new RangeError(`Unknown timezone "${patch.timezone}"`);
       next.timezone = String(patch.timezone);
+      // Days are the site's local days, so a new timezone means building them again.
+      if (next.timezone !== this.site(id)?.timezone) await this.store.clearRollups(id);
     }
     await this.store.setSiteOverrides(id, next);
     this.overrides.set(id, next);
@@ -475,6 +483,40 @@ export class Runlight {
     if (months !== null && !RETENTION_MONTHS.includes(months)) throw new RangeError(`Keep visits for ${RETENTION_MONTHS.join(", ")} months, or forever`);
     await this.store.setSetting(`retention:${site}`, months === null ? null : String(months));
     await this.applyRetention(site);
+  }
+
+  /**
+   * Adds up each site's finished days, so long ranges read a row a day instead
+   * of every visit. A day is built two hours after it ends in the site's
+   * timezone, once late engagement has landed, and at most ROLLUP_BATCH days
+   * a run, so a long history fills in over a few runs. Reports read the raw
+   * visits for any day not built yet, so the numbers are the same either way.
+   * Only a visit still going two hours past midnight, with no 30 minute gap,
+   * could add to a day after it is built.
+   */
+  async buildRollups(): Promise<number> {
+    let built = 0;
+    const now = this.now();
+    for (const site of this.sites) {
+      if (this.remotes.has(site.id)) continue;
+      const first = await this.store.firstSeen(site.id);
+      if (first === null) continue;
+      const cutoff = (await this.retentionCutoff(site.id)) ?? 0;
+      const done = await this.store.rollupDays(site.id);
+      const today = localDate(now, site.timezone);
+      let made = 0;
+      // Newest first, so recent ranges speed up before a long history is done.
+      for (let day = addDays(today, -1); day >= localDate(Math.max(first, cutoff), site.timezone) && made < ROLLUP_BATCH; day = addDays(day, -1)) {
+        if (done.has(day)) continue;
+        const start = startOf(day, site.timezone);
+        const end = startOf(addDays(day, 1), site.timezone);
+        if (now < end + ROLLUP_DELAY_MS || start < cutoff) continue;
+        await this.store.buildRollupDay(site.id, day, start, end);
+        made++;
+      }
+      built += made;
+    }
+    return built;
   }
 
   /** The oldest moment a site keeps visits from, or null when it keeps everything. */
@@ -879,6 +921,7 @@ export class Runlight {
     for (const timezone of new Set(this.sites.map((s) => s.timezone))) await this.currentSalts(this.now(), timezone);
     await this.dropOldSalts(this.now());
     await this.applyRetention();
+    await this.buildRollups();
     return { ok: true, reports: await this.sendReports() };
   }
 }

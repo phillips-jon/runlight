@@ -461,7 +461,7 @@
   "mail.testTo": "Test senden an",
   "mail.test": "Test senden",
   "mail.testSent": "Test an {to} gesendet. Sieh im Posteingang und im Spam nach.",
-  "mail.notEncrypted": "Setze RUNLIGHT_SECRET (oder RUNLIGHT_TOKEN) auf dem Server, dann werden hier gespeicherte Schlüssel verschlüsselt. Ohne bleiben sie, wie eingegeben.",
+  "mail.notEncrypted": "Dieses Runlight hat kein RUNLIGHT_SECRET, daher werden die hier gespeicherten Schlüssel so in der Datenbank abgelegt, wie du sie eingibst. Setze RUNLIGHT_SECRET (oder RUNLIGHT_TOKEN) auf dem Server, dann werden sie verschlüsselt abgelegt.",
   "mail.field.region": "Region",
   "mail.field.accessKeyId": "Zugriffsschlüssel-ID",
   "mail.field.secretAccessKey": "Geheimer Zugriffsschlüssel",
@@ -638,5 +638,6 @@
   "account.strength1": "Schwach",
   "account.strength2": "Mittel",
   "account.strength3": "Gut",
-  "account.strength4": "Stark"
+  "account.strength4": "Stark",
+  "mail.introRemote": "Berichte für diese Website gehen über den E-Mail-Dienst, der auf {host} eingerichtet ist."
 }

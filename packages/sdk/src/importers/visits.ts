@@ -155,6 +155,8 @@ export async function importUmamiVisits(
     .filter((e) => Number.isFinite(e.ts) && e.ts < state.end)
     .sort((a, b) => a.ts - b.ts);
   await runlight.store.transaction(async (store) => {
+    // Days this step writes into are added up again later, with the imported visits in them.
+    await store.clearRollups(siteId, { from, to });
     // A failed earlier try at these days (on D1, which has no transactions) can
     // have left part of them behind. Clear it, so every step can safely run again.
     const imported = `SELECT id FROM rl_sessions WHERE site = ? AND imported = 1`;

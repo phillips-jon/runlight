@@ -25,7 +25,7 @@ function ShareRow({ site, share, home, onChanged }: { site: string; share: Share
         {editing ? (
           <form class="share-rename" onSubmit={save}>
             <input class="value" type="text" value={name} maxLength={100} autoFocus onInput={(e) => setName((e.target as HTMLInputElement).value)} />
-            <button type="submit" class="copy inline">
+            <button type="submit" class="solid">
               <Icon name="check" />
               {t("share.save")}
             </button>

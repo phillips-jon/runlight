@@ -284,6 +284,9 @@ export interface Realtime {
 export const BOUNCE_MS = 10_000;
 const BOUNCE = `(s.pageviews = 1 AND s.events = 0 AND (s.engaged_ms IS NULL OR s.engaged_ms < ${BOUNCE_MS}))`;
 const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
+/** How long after a visit starts its events are looked for: far past any real visit. */
+const EVENT_TAIL_MS = 2 * 86_400_000;
+
 /** A session that is a visit: a short link click alone opens one that is not. */
 const IS_VISIT = "(s.pageviews > 0 OR s.events > 0)";
 
@@ -299,7 +302,7 @@ function visitsOnly(filters: Filter[]): boolean {
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 10;
+const SCHEMA_VERSION = 11;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -365,6 +368,17 @@ function schema(dialect: Db["dialect"]): string[] {
     `CREATE UNIQUE INDEX IF NOT EXISTS rl_tokens_hash ON rl_tokens (hash)`,
     // Version 9: funnels.
     `CREATE TABLE IF NOT EXISTS rl_funnels (id TEXT PRIMARY KEY, site TEXT NOT NULL, name TEXT NOT NULL, steps TEXT NOT NULL, created_at BIGINT NOT NULL)`,
+    // Version 11: daily rollups. A day is the site's own local day; rl_rollup_days
+    // says which days are built and where they begin and end.
+    `CREATE TABLE IF NOT EXISTS rl_rollup_days (site TEXT NOT NULL, day TEXT NOT NULL, start_at BIGINT NOT NULL, end_at BIGINT NOT NULL, PRIMARY KEY (site, day))`,
+    `CREATE INDEX IF NOT EXISTS rl_rollup_days_range ON rl_rollup_days (site, start_at)`,
+    `CREATE TABLE IF NOT EXISTS rl_rollups (
+      site TEXT NOT NULL, day TEXT NOT NULL, dim TEXT NOT NULL, value ${text},
+      visitors BIGINT NOT NULL DEFAULT 0, visits BIGINT NOT NULL DEFAULT 0, pageviews BIGINT NOT NULL DEFAULT 0,
+      bounced BIGINT NOT NULL DEFAULT 0, duration BIGINT NOT NULL DEFAULT 0,
+      engaged BIGINT NOT NULL DEFAULT 0, views BIGINT NOT NULL DEFAULT 0, scroll_sum BIGINT NOT NULL DEFAULT 0, scroll_n BIGINT NOT NULL DEFAULT 0,
+      events BIGINT NOT NULL DEFAULT 0,
+      PRIMARY KEY (site, dim, day, value))`,
   ];
 }
 
@@ -504,7 +518,7 @@ export class SqlStore {
   /** Deletes a site and everything recorded for it. Used by the standalone server's "Delete site". */
   async deleteSite(id: string): Promise<void> {
     await this.transaction(async (store) => {
-      for (const table of ["rl_events", "rl_sessions", "rl_links", "rl_link_domains", "rl_shares", "rl_goals", "rl_funnels", "rl_reports", "rl_tokens", "rl_sites"]) {
+      for (const table of ["rl_events", "rl_sessions", "rl_links", "rl_link_domains", "rl_shares", "rl_goals", "rl_funnels", "rl_reports", "rl_tokens", "rl_rollups", "rl_rollup_days", "rl_sites"]) {
         await store.db.run(`DELETE FROM ${table} WHERE ${table === "rl_sites" ? "id" : "site"} = ?`, [id]);
       }
     });
@@ -515,7 +529,230 @@ export class SqlStore {
     await this.transaction(async (store) => {
       await store.db.run(`DELETE FROM rl_events WHERE site = ? AND ts < ?`, [site, ts]);
       await store.db.run(`DELETE FROM rl_sessions WHERE site = ? AND started_at < ?`, [site, ts]);
+      // A day that lost any of its visits is built again later, from what is left.
+      await store.clearRollups(site, { before: ts });
     });
+  }
+
+  // Daily rollups
+
+  /**
+   * Adds up one local day of a site: totals, each visit dimension, and pages.
+   * A visit belongs to the day it started. Visitor ids change every day, so
+   * the days of a range add up to exactly what counting the range would give.
+   */
+  async buildRollupDay(site: string, day: string, start: number, end: number): Promise<void> {
+    const visits = `FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}`;
+    // A day with no visits still gets its row of zeros, so it counts as built.
+    const sums = `COUNT(DISTINCT s.visitor), COUNT(*), COALESCE(SUM(s.pageviews), 0), COALESCE(SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END), 0), COALESCE(SUM(${DURATION}), 0)`;
+    const cols = "(site, day, dim, value, visitors, visits, pageviews, bounced, duration)";
+    await this.transaction(async (store) => {
+      const db = store.db;
+      await db.run(`DELETE FROM rl_rollups WHERE site = ? AND day = ?`, [site, day]);
+      await db.run(`INSERT INTO rl_rollups ${cols} SELECT ?, ?, '', '', ${sums} ${visits}`, [site, day, site, start, end]);
+      for (const [dim, col] of Object.entries(SESSION_DIMENSIONS)) {
+        await db.run(`INSERT INTO rl_rollups ${cols} SELECT ?, ?, ?, s.${col}, ${sums} ${visits} AND s.${col} <> '' GROUP BY s.${col}`, [site, day, dim, site, start, end]);
+      }
+      // Pages, from the pageviews of the day's visits, with their engaged time and scroll.
+      // The time bounds let the (site, kind, ts) index find the events; a visit's last
+      // event comes at most 30 idle minutes after the one before, so two days is ample.
+      const ofDay = (kind: string) =>
+        `FROM rl_events e JOIN rl_sessions s ON s.id = e.session
+         WHERE e.site = ? AND e.kind = '${kind}' AND e.ts >= ? AND e.ts < ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}`;
+      const window = [site, start, end + EVENT_TAIL_MS, start, end];
+      await db.run(
+        `INSERT INTO rl_rollups (site, day, dim, value, visitors, visits, pageviews)
+         SELECT ?, ?, 'page', e.path, COUNT(DISTINCT e.visitor), COUNT(DISTINCT e.session), COUNT(*) ${ofDay("pageview")} GROUP BY e.path`,
+        [site, day, ...window],
+      );
+      const time = await db.all(
+        `SELECT e.path AS value, SUM(e.engaged_ms) AS engaged, COUNT(DISTINCT e.pageview) AS views, SUM(e.scroll) AS scroll_sum, COUNT(e.scroll) AS scroll_n
+         ${ofDay("engagement")} GROUP BY e.path`,
+        window,
+      );
+      await db.run(
+        `INSERT INTO rl_rollups (site, day, dim, value, visitors, events)
+         SELECT ?, ?, 'event', e.name, COUNT(DISTINCT e.visitor), COUNT(*) ${ofDay("event")} GROUP BY e.name`,
+        [site, day, ...window],
+      );
+      // The heatmap's quarter hours, counted as hourly() counts them: every session that started.
+      await db.run(
+        `INSERT INTO rl_rollups (site, day, dim, value, visitors, visits, pageviews, bounced)
+         SELECT ?, ?, 'quarter', CAST(s.started_at / 900000 AS TEXT), COUNT(DISTINCT s.visitor), COUNT(*), COALESCE(SUM(s.pageviews), 0), COALESCE(SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END), 0)
+         FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? GROUP BY s.started_at / 900000`,
+        [site, day, site, start, end],
+      );
+      for (const t of time) {
+        await db.run(`UPDATE rl_rollups SET engaged = ?, views = ?, scroll_sum = ?, scroll_n = ? WHERE site = ? AND day = ? AND dim = 'page' AND value = ?`, [
+          num(t.engaged),
+          num(t.views),
+          num(t.scroll_sum),
+          num(t.scroll_n),
+          site,
+          day,
+          String(t.value),
+        ]);
+      }
+      await db.run(`DELETE FROM rl_rollup_days WHERE site = ? AND day = ?`, [site, day]);
+      await db.run(`INSERT INTO rl_rollup_days (site, day, start_at, end_at) VALUES (?, ?, ?, ?)`, [site, day, start, end]);
+    });
+  }
+
+  /** The days of a site already built. */
+  async rollupDays(site: string): Promise<Set<string>> {
+    return new Set((await this.db.all(`SELECT day FROM rl_rollup_days WHERE site = ?`, [site])).map((r) => String(r.day)));
+  }
+
+  /** Forgets built days, all of a site's or those touching a stretch of time, so they are built again. */
+  async clearRollups(site: string, range: { before?: number; from?: number; to?: number } = {}): Promise<void> {
+    let where = "site = ?";
+    const params: unknown[] = [site];
+    if (range.before !== undefined) {
+      where += " AND start_at < ?";
+      params.push(range.before);
+    } else if (range.from !== undefined && range.to !== undefined) {
+      where += " AND start_at < ? AND end_at > ?";
+      params.push(range.to, range.from);
+    }
+    const days = (await this.db.all(`SELECT day FROM rl_rollup_days WHERE ${where}`, params)).map((r) => String(r.day));
+    for (const day of days) await this.db.run(`DELETE FROM rl_rollups WHERE site = ? AND day = ?`, [site, day]);
+    await this.db.run(`DELETE FROM rl_rollup_days WHERE ${where}`, params);
+  }
+
+  /**
+   * How to answer a range from rollups: the built days that lie wholly inside
+   * it, and the stretches left over, which are read from the visits as usual.
+   * Null when no built day helps.
+   */
+  private async rollupPlan(query: Omit<Query, "from" | "to">, from: number, to: number): Promise<{ days: Array<{ day: string; start: number; end: number }>; rest: Array<[number, number]> } | null> {
+    if (query.filters.length) return null;
+    const rows = await this.db.all(`SELECT day, start_at, end_at FROM rl_rollup_days WHERE site = ? AND start_at >= ? AND end_at <= ? ORDER BY start_at`, [query.site, from, to]);
+    if (!rows.length) return null;
+    const days = rows.map((r) => ({ day: String(r.day), start: num(r.start_at), end: num(r.end_at) }));
+    const rest: Array<[number, number]> = [];
+    let at = from;
+    for (const d of days) {
+      if (d.start > at) rest.push([at, d.start]);
+      at = Math.max(at, d.end);
+    }
+    if (at < to) rest.push([at, to]);
+    return { days, rest };
+  }
+
+  /** SQL for "a visit that started in one of these stretches". */
+  private static within(rest: Array<[number, number]>): { sql: string; params: number[] } {
+    if (!rest.length) return { sql: "1 = 0", params: [] };
+    return { sql: `(${rest.map(() => "(s.started_at >= ? AND s.started_at < ?)").join(" OR ")})`, params: rest.flat() };
+  }
+
+  /**
+   * A breakdown of a visit dimension or of pages from rollups and the visits
+   * left over, merged, then sorted and cut to the page asked for.
+   */
+  private async rolledBreakdown(query: Query, dimension: Dimension, limit: number, offset: number): Promise<BreakdownRow[] | null> {
+    const page = dimension === "page";
+    const event = dimension === "event";
+    if (!page && !event && !(isSessionDimension(dimension) && !isEventDimension(dimension))) return null;
+    if (query.filters.length) return null;
+    // Pages and events always go this way without filters, so a range gives the same answer whether its days are built or not.
+    const plan = (await this.rollupPlan(query, query.from, query.to)) ?? (page || event ? { days: [], rest: [[query.from, query.to]] as Array<[number, number]> } : null);
+    if (!plan) return null;
+    type Sums = { visitors: number; visits: number; pageviews: number; bounced: number; duration: number; engaged: number; views: number; scroll_sum: number; scroll_n: number; events: number };
+    const sums = new Map<string, Sums>();
+    const bump = (row: Record<string, unknown>) => {
+      const key = String(row.value);
+      const into: Sums = sums.get(key) ?? { visitors: 0, visits: 0, pageviews: 0, bounced: 0, duration: 0, engaged: 0, views: 0, scroll_sum: 0, scroll_n: 0, events: 0 };
+      for (const k of Object.keys(into) as Array<keyof Sums>) into[k] += num(row[k]);
+      sums.set(key, into);
+    };
+    if (plan.days.length) {
+      const rolled = await this.db.all(
+        `SELECT value, SUM(visitors) AS visitors, SUM(visits) AS visits, SUM(pageviews) AS pageviews, SUM(bounced) AS bounced, SUM(duration) AS duration,
+           SUM(engaged) AS engaged, SUM(views) AS views, SUM(scroll_sum) AS scroll_sum, SUM(scroll_n) AS scroll_n, SUM(events) AS events
+         FROM rl_rollups WHERE site = ? AND dim = ? AND day IN (${plan.days.map(() => "?").join(", ")}) GROUP BY value`,
+        [query.site, dimension, ...plan.days.map((d) => d.day)],
+      );
+      for (const row of rolled) bump(row);
+    }
+    const w = SqlStore.within(plan.rest);
+    if ((page || event) && plan.rest.length) {
+      // A visit's pageviews and events belong to the day it started, as in the rollups.
+      // Bounded by time as well, so the events index finds them (see buildRollupDay).
+      const lo = Math.min(...plan.rest.map(([a]) => a));
+      const hi = Math.max(...plan.rest.map(([, b]) => b)) + EVENT_TAIL_MS;
+      const ofRest = (kind: string) => `FROM rl_events e JOIN rl_sessions s ON s.id = e.session WHERE e.site = ? AND e.kind = '${kind}' AND e.ts >= ? AND e.ts < ? AND ${IS_VISIT} AND ${w.sql}`;
+      const at = [query.site, lo, hi, ...w.params];
+      if (page) {
+        for (const row of await this.db.all(`SELECT e.path AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(DISTINCT e.session) AS visits, COUNT(*) AS pageviews ${ofRest("pageview")} GROUP BY e.path`, at)) bump(row);
+        for (const row of await this.db.all(`SELECT e.path AS value, SUM(e.engaged_ms) AS engaged, COUNT(DISTINCT e.pageview) AS views, SUM(e.scroll) AS scroll_sum, COUNT(e.scroll) AS scroll_n ${ofRest("engagement")} GROUP BY e.path`, at)) bump(row);
+      } else {
+        for (const row of await this.db.all(`SELECT e.name AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(*) AS events ${ofRest("event")} GROUP BY e.name`, at)) bump(row);
+      }
+    } else if (page || event) {
+      // Every day of the range is built.
+    } else {
+      const col = `s.${SESSION_DIMENSIONS[dimension as SessionDimension]}`;
+      for (const row of await this.db.all(
+        `SELECT ${col} AS value, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(s.pageviews) AS pageviews,
+           SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
+         FROM rl_sessions s WHERE s.site = ? AND ${IS_VISIT} AND ${w.sql} AND ${col} <> '' GROUP BY ${col}`,
+        [query.site, ...w.params],
+      )) bump(row);
+    }
+    const entryExit = dimension === "entry" || dimension === "exit";
+    const rows = [...sums.entries()].filter(([value, x]) => (event || value !== "") && (page ? x.pageviews > 0 : event ? x.events > 0 : x.visits > 0));
+    rows.sort(([a, x], [b, y]) =>
+      entryExit ? y.visits - x.visits || (a < b ? -1 : a > b ? 1 : 0)
+      : event ? y.visitors - x.visitors || y.events - x.events || (a < b ? -1 : a > b ? 1 : 0)
+      : page ? y.visitors - x.visitors || y.pageviews - x.pageviews || (a < b ? -1 : a > b ? 1 : 0)
+      : y.visitors - x.visitors || y.visits - x.visits || (a < b ? -1 : a > b ? 1 : 0),
+    );
+    return rows.slice(offset, offset + limit).map(([value, x]) => {
+      if (event) return { value, visitors: x.visitors, events: x.events };
+      if (page) {
+        return {
+          value,
+          visitors: x.visitors,
+          pageviews: x.pageviews,
+          timeOnPage: x.views > 0 ? Math.round(x.engaged / x.views) : 0,
+          scrollDepth: x.scroll_n > 0 ? Math.round(x.scroll_sum / x.scroll_n) : 0,
+        };
+      }
+      const out: BreakdownRow = { value, visitors: x.visitors, visits: x.visits, bounceRate: x.visits > 0 ? x.bounced / x.visits : 0 };
+      if (!entryExit) {
+        out.pageviews = x.pageviews;
+        out.visitDuration = x.visits > 0 ? Math.round(x.duration / x.visits) : 0;
+      }
+      return out;
+    });
+  }
+
+  private async rolledStats(query: Query): Promise<Stats | null> {
+    const plan = await this.rollupPlan(query, query.from, query.to);
+    if (!plan) return null;
+    const [rolled] = await this.db.all(
+      `SELECT SUM(visitors) AS visitors, SUM(visits) AS visits, SUM(pageviews) AS pageviews, SUM(bounced) AS bounced, SUM(duration) AS duration
+       FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${plan.days.map(() => "?").join(", ")})`,
+      [query.site, ...plan.days.map((d) => d.day)],
+    );
+    const w = SqlStore.within(plan.rest);
+    const [raw] = await this.db.all(
+      `SELECT COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(s.pageviews) AS pageviews,
+         SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
+       FROM rl_sessions s WHERE s.site = ? AND ${IS_VISIT} AND ${w.sql}`,
+      [query.site, ...w.params],
+    );
+    const add = (k: string) => num(rolled?.[k]) + num(raw?.[k]);
+    const visits = add("visits");
+    const pageviews = add("pageviews");
+    return {
+      visitors: add("visitors"),
+      visits,
+      pageviews,
+      viewsPerVisit: visits > 0 ? Math.round((pageviews / visits) * 100) / 100 : 0,
+      bounceRate: visits > 0 ? add("bounced") / visits : 0,
+      visitDuration: visits > 0 ? Math.round(add("duration") / visits) : 0,
+    };
   }
 
   async setSiteOverrides(id: string, overrides: SiteOverrides): Promise<void> {
@@ -1156,6 +1393,8 @@ export class SqlStore {
   }
 
   async stats(query: Query): Promise<Stats> {
+    const rolled = await this.rolledStats(query);
+    if (rolled) return rolled;
     const f = filterSql(query.filters);
     if (visitsOnly(query.filters)) {
       const [row] = await this.db.all(
@@ -1213,18 +1452,45 @@ export class SqlStore {
       .join(", ");
     const params: unknown[] = buckets.flatMap((b, i) => [i, b.start, b.end]);
     if (visitsOnly(query.filters)) {
+      // Built days that fit inside one bucket come from rollups; the rest from the visits.
+      const plan = await this.rollupPlan(query, buckets[0]!.start, buckets[buckets.length - 1]!.end);
+      const inBucket = (d: { start: number; end: number }) => buckets.findIndex((b) => b.start <= d.start && d.end <= b.end);
+      const used = plan ? plan.days.filter((d) => inBucket(d) >= 0) : [];
+      const sums = new Map<number, Record<string, number>>();
+      const bump = (i: number, row: Record<string, unknown>) => {
+        const into = sums.get(i) ?? { visitors: 0, n: 0, views: 0, bounced: 0, duration: 0 };
+        for (const k of Object.keys(into)) into[k]! += num(row[k]);
+        sums.set(i, into);
+      };
+      let rest: Array<[number, number]> | null = null;
+      if (used.length) {
+        const rolled = await this.db.all(
+          `SELECT day, visitors, visits AS n, pageviews AS views, bounced, duration FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${used.map(() => "?").join(", ")})`,
+          [query.site, ...used.map((d) => d.day)],
+        );
+        const at = new Map(used.map((d) => [d.day, inBucket(d)]));
+        for (const row of rolled) bump(at.get(String(row.day))!, row);
+        rest = [];
+        let from = buckets[0]!.start;
+        for (const d of used) {
+          if (d.start > from) rest.push([from, d.start]);
+          from = Math.max(from, d.end);
+        }
+        if (from < buckets[buckets.length - 1]!.end) rest.push([from, buckets[buckets.length - 1]!.end]);
+      }
+      const w = rest ? SqlStore.within(rest) : { sql: "1 = 1", params: [] };
       const rows = await this.db.all<Record<string, unknown>>(
         `WITH b (i, bs, be) AS (VALUES ${values})
          SELECT b.i AS i, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS n, SUM(s.pageviews) AS views,
            SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
          FROM b JOIN rl_sessions s ON s.site = ? AND s.started_at >= b.bs AND s.started_at < b.be
-         WHERE ${IS_VISIT}${f.sql}
+         WHERE ${IS_VISIT}${f.sql} AND ${w.sql}
          GROUP BY b.i`,
-        [...params, query.site, ...f.params],
+        [...params, query.site, ...f.params, ...w.params],
       );
-      const found = new Map(rows.map((row) => [num(row.i), row]));
+      for (const row of rows) bump(num(row.i), row);
       return buckets.map((bucket, i) => {
-        const row = found.get(i);
+        const row = sums.get(i);
         const n = num(row?.n);
         return {
           start: bucket.start,
@@ -1297,6 +1563,9 @@ export class SqlStore {
     const f = filterSql(query.filters);
     const params = [query.site, query.from, query.to, ...f.params];
     const sessionJoin = "JOIN rl_sessions s ON s.id = e.session";
+
+    const rolled = await this.rolledBreakdown(query, dimension, limit, offset);
+    if (rolled) return rolled;
 
     if (visitsOnly(query.filters) && isSessionDimension(dimension) && !isEventDimension(dimension)) {
       const col = `s.${SESSION_DIMENSIONS[dimension]}`;
@@ -1433,6 +1702,32 @@ export class SqlStore {
    * half-hour or 45-minute timezone (India, Nepal) folds each into the right local hour.
    */
   async hourly(query: Query): Promise<Array<{ quarter: number; visits: number; visitors: number; pageviews: number; bounced: number }>> {
+    const plan = await this.rollupPlan(query, query.from, query.to);
+    if (plan) {
+      const sums = new Map<number, { quarter: number; visits: number; visitors: number; pageviews: number; bounced: number }>();
+      const bump = (quarter: number, row: Record<string, unknown>) => {
+        const into = sums.get(quarter) ?? { quarter, visits: 0, visitors: 0, pageviews: 0, bounced: 0 };
+        into.visits += num(row.visits);
+        into.visitors += num(row.visitors);
+        into.pageviews += num(row.pageviews);
+        into.bounced += num(row.bounced);
+        sums.set(quarter, into);
+      };
+      const rolled = await this.db.all(
+        `SELECT value, visits, visitors, pageviews, bounced FROM rl_rollups WHERE site = ? AND dim = 'quarter' AND day IN (${plan.days.map(() => "?").join(", ")})`,
+        [query.site, ...plan.days.map((d) => d.day)],
+      );
+      for (const row of rolled) bump(Number(row.value), row);
+      const w = SqlStore.within(plan.rest);
+      const raw = await this.db.all(
+        `SELECT s.started_at / 900000 AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
+           SUM(s.pageviews) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
+         FROM rl_sessions s WHERE s.site = ? AND ${w.sql} GROUP BY 1`,
+        [query.site, ...w.params],
+      );
+      for (const row of raw) bump(Math.floor(num(row.quarter)), row);
+      return [...sums.values()];
+    }
     const f = filterSql(query.filters);
     const matching = query.filters.length
       ? ` AND s.id IN (SELECT DISTINCT e.session FROM rl_events e JOIN rl_sessions s ON s.id = e.session

@@ -3947,3 +3947,66 @@ a.box-button {
 .field-bad {
   color: var(--down);
 }
+
+/* Forms in Settings and in sheets: one width, one height, actions on the left. */
+.field-row .value,
+.field-row .field {
+  max-width: none;
+}
+
+.settings-content .solid,
+.settings-content .ghost,
+.link-form .solid,
+.link-form .ghost {
+  height: 40px;
+  padding: 0 16px;
+  font-size: 13px;
+}
+
+a.ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.settings-content .settings-actions {
+  justify-content: flex-start;
+}
+
+/* The button first, then what happened. */
+.settings-content .settings-actions > button,
+.settings-content .settings-actions > a {
+  order: -1;
+}
+
+.value-row.even {
+  grid-template-columns: 1fr 1fr;
+}
+
+.share-rename {
+  flex: 1;
+}
+
+.share-rename .value {
+  flex: 1;
+  max-width: 320px;
+}
+
+.share-rename .value,
+.settings-content .share-rename .solid {
+  height: 32px;
+  padding: 0 12px;
+}
+
+.settings-warning.with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.settings-warning.with-action .ghost {
+  flex: none;
+}

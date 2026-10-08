@@ -1,0 +1,75 @@
+import assert from "node:assert/strict";
+import { after, test } from "node:test";
+import { SAFARI_IPHONE, STORES, cleanup, setup } from "./helpers.js";
+
+after(cleanup);
+
+const HOUR = 3_600_000;
+const PAGES = ["/", "/blog/one", "/blog/two", "/pricing", "/about"];
+const REFERRERS = ["https://www.google.com/", "https://news.ycombinator.com/", "", "https://chatgpt.com/", "https://t.co/x"];
+const COUNTRIES = ["GB", "US", "DE", "CA"];
+
+/** Every report the dashboard asks for, as JSON, for comparing before and after. */
+async function everything(get: (path: string) => Promise<any>) {
+  const out: Record<string, unknown> = {};
+  for (const range of ["period=7d", "period=30d", "from=2026-09-29&to=2026-10-03", "period=today", "period=all"]) {
+    out[`stats ${range}`] = (await get(`/api/stats?${range}&compare=previous`)).stats;
+    out[`series ${range}`] = (await get(`/api/series?${range}&compare=off`)).points;
+    out[`rhythm ${range}`] = await get(`/api/rhythm?${range}`);
+    for (const dimension of ["page", "event", "entry", "exit", "source", "channel", "referrer", "country", "browser", "device", "os"]) {
+      out[`${dimension} ${range}`] = (await get(`/api/breakdown?${range}&dimension=${dimension}&limit=3`)).rows;
+      out[`${dimension} ${range} page 2`] = (await get(`/api/breakdown?${range}&dimension=${dimension}&limit=3&page=2`)).rows;
+    }
+  }
+  out["filtered"] = (await get(`/api/stats?period=30d&filter=country:is:GB`)).stats;
+  out["hourly"] = (await get(`/api/series?period=yesterday`)).points;
+  return out;
+}
+
+for (const kind of STORES) {
+  test(`${kind}: reports read from daily rollups match reports read from every visit`, async () => {
+    // Toronto, so local days and UTC days differ, starting ten days back.
+    const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "America/Toronto" } });
+    const start = t.now;
+    t.advance(-10 * 24 * HOUR);
+    let n = 0;
+    for (let day = 0; day < 10; day++) {
+      for (let v = 0; v < 6; v++) {
+        n++;
+        const ip = `203.0.113.${n % 40}`;
+        const ua = n % 3 === 0 ? SAFARI_IPHONE : undefined;
+        const headers = { "x-vercel-ip-country": COUNTRIES[n % COUNTRIES.length]! };
+        const views = 1 + (n % 3);
+        for (let p = 0; p < views; p++) {
+          const id = `pv${n}x${p}`;
+          await t.send({ k: "pageview", u: `https://example.com${PAGES[(n + p) % PAGES.length]}`, r: p === 0 ? REFERRERS[n % REFERRERS.length] : "", i: id }, { ip, ua, headers });
+          t.advance(20_000 + (n % 5) * 7_000);
+          if (n % 2 === 0) await t.send({ k: "engagement", u: "https://example.com/", i: id, e: 9_000 + n * 100, d: 40 + (n % 60) }, { ip, ua, headers });
+          if (n % 4 === 0) await t.send({ k: "event", u: "https://example.com/", i: id, n: "Signup" }, { ip, ua, headers });
+        }
+        t.advance(3 * HOUR + (n % 7) * 60_000);
+      }
+      // A visit that runs past midnight: it belongs to the day it started.
+      t.advance(24 * HOUR - 6 * (3 * HOUR) - 30 * 60_000);
+    }
+    t.advance(start - t.now + 2 * HOUR);
+
+    const before = await everything(t.get);
+    const built = await t.rl.buildRollups();
+    assert.ok(built >= 8, `built ${built} days`);
+    assert.equal(await t.rl.buildRollups(), 0, "a built day is not built again");
+    const afterwards = await everything(t.get);
+    for (const key of Object.keys(before)) assert.deepEqual(afterwards[key], before[key], key);
+
+    // Proof the reports read the rollups: with the built days' raw visits gone, a long range still adds up.
+    const [first] = await t.rl.store.db.all<{ s: unknown; e: unknown }>(`SELECT MIN(start_at) AS s, MAX(end_at) AS e FROM rl_rollup_days`);
+    await t.rl.store.db.run(`DELETE FROM rl_events WHERE ts >= ? AND ts < ?`, [Number(first!.s), Number(first!.e) - 2 * HOUR]);
+    await t.rl.store.db.run(`DELETE FROM rl_sessions WHERE started_at >= ? AND started_at < ?`, [Number(first!.s), Number(first!.e) - 2 * HOUR]);
+    assert.deepEqual((await t.get(`/api/stats?period=30d&compare=off`)).stats, before["stats period=30d"], "the 30 days come from rollups");
+    assert.deepEqual((await t.get(`/api/breakdown?period=30d&dimension=source&limit=3`)).rows, before["source period=30d"]);
+    assert.deepEqual((await t.get(`/api/breakdown?period=30d&dimension=page&limit=3`)).rows, before["page period=30d"]);
+    assert.deepEqual((await t.get(`/api/breakdown?period=30d&dimension=event&limit=3`)).rows, before["event period=30d"]);
+    assert.deepEqual(await t.get(`/api/rhythm?period=30d`), before["rhythm period=30d"]);
+
+  });
+}

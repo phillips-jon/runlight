@@ -495,7 +495,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
 
   const top = [...(links ?? [])]
     .sort((a, b) => (order === "newest" ? b.createdAt - a.createdAt : (b.clicks ?? 0) - (a.clicks ?? 0) || b.createdAt - a.createdAt))
-    .slice(0, 16);
+    .slice(0, 10);
   const max = Math.max(1, ...top.map((l) => l.clicks ?? 0));
   const total = (links ?? []).reduce((sum, l) => sum + (l.clicks ?? 0), 0);
 

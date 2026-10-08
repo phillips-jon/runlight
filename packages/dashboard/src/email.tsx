@@ -46,7 +46,13 @@ function MailService({ onChange, site }: { onChange: (ready: boolean) => void; s
         </li>
       </ul>
     ) : (
-      <p class="settings-warning">{t("mail.noneRemote", { host: new URL(site.remote).host })}</p>
+      <div class="settings-warning with-action">
+        <span>{t("mail.noneRemote", { host: new URL(site.remote).host })}</span>
+        <a class="ghost" href={site.remote} target="_blank" rel="noopener">
+          <Icon name="external" />
+          {t("sites.openRemote")}
+        </a>
+      </div>
     );
   }
   const chosen = state.services.find((x) => x.id === form.service) ?? state.services[0]!;
@@ -115,7 +121,7 @@ function MailService({ onChange, site }: { onChange: (ready: boolean) => void; s
             )}
           </label>
         ))}
-        <div class="value-row">
+        <div class="value-row even">
           <label class="field-row">
             <span class="field-label">{t("mail.from")}</span>
             <input class="value" type="email" placeholder="reports@example.com" value={form.from ?? ""} onInput={(e) => setForm({ ...form, from: (e.target as HTMLInputElement).value })} />
@@ -234,7 +240,7 @@ export function EmailReports({ site }: { site: Site }) {
       <div class="settings-group">
         <div class="field-row">
           <span class="field-label">{t("mail.title")}</span>
-          <span class="settings-text">{t("mail.intro")}</span>
+          <span class="settings-text">{site.remote ? t("mail.introRemote", { host: new URL(site.remote).host }) : t("mail.intro")}</span>
         </div>
         <MailService onChange={setReady} site={site} />
       </div>
