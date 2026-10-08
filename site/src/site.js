@@ -55,6 +55,29 @@
       });
       return;
     }
+    if (el.classList.contains("markdown")) {
+      // The page as Markdown, from the copy beside it. Safari keeps the click's permission only when the
+      // clipboard is handed the pending text, so it gets a ClipboardItem; other browsers can take either.
+      var text = fetch(el.getAttribute("data-src")).then(function (r) {
+        return r.text();
+      });
+      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+        navigator.clipboard
+          .write([new ClipboardItem({ "text/plain": text.then(function (t) { return new Blob([t], { type: "text/plain" }); }) })])
+          .then(function () {
+            flash(el, "Copied");
+          }, function () {
+            text.then(function (t) {
+              copy(el, t);
+            });
+          });
+      } else {
+        text.then(function (t) {
+          copy(el, t);
+        });
+      }
+      return;
+    }
     var box = el.closest(".install, .out");
     var code = box && box.querySelector("code");
     if (code) copy(el, code.textContent.replace(/\n$/, ""));

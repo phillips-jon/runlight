@@ -187,7 +187,7 @@ function docPage(doc, docs, assets) {
 <aside class="docs-side" aria-label="Docs">${list}</aside>
 <article class="doc">
 <details class="docs-menu"><summary>All docs</summary>${list}</details>
-<p class="label">${escape(doc.meta.group ?? "Docs")}</p>
+<div class="doc-top"><p class="label">${escape(doc.meta.group ?? "Docs")}</p><button type="button" class="copy markdown" data-src="${doc.path}index.md" title="Copy this page as Markdown, to paste into a coding agent">Copy markdown</button></div>
 <h1>${escape(doc.meta.title)}</h1>
 ${doc.meta.description ? `<p class="lede">${escape(doc.meta.description)}</p>` : ""}
 ${html}

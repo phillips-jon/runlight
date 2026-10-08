@@ -188,6 +188,8 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .doc { min-width: 0; max-width: 68ch; }
 .doc > * + * { margin-top: 16px; }
 .doc > .label { margin: 0 0 12px; }
+.doc-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 12px; }
+.doc-top .label { margin: 0; }
 .doc h1 { font-size: clamp(1.9rem, 3.2vw, 2.5rem); line-height: 1.14; letter-spacing: -0.02em; }
 .doc h1 + p { margin-top: 18px; }
 .doc .lede { font-size: 20px; line-height: 1.5; }
