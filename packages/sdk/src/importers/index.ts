@@ -23,7 +23,7 @@ export async function importStep(
   done: number,
 ): Promise<ImportStep> {
   const importer = IMPORTERS[source];
-  if (!importer) throw new ImportError(`Runlight cannot import from ${source}`);
+  if (!importer) throw new ImportError(`Runlight cannot import from ${source}`, "import_source", { source });
   await runlight.init();
   const known = async (sourceId: string, slug?: string, url?: string) => {
     if (await runlight.store.linkById(await importedLinkId(source, sourceId))) return true;
@@ -45,7 +45,7 @@ export async function importStep(
       step.links++;
       step.clicks += written.clicks;
     } else if (written.status === "skipped") step.skipped++;
-    else step.failed.push({ slug: item.link.slug, reason: written.reason ?? "" });
+    else step.failed.push({ slug: item.link.slug, reason: written.reason ?? "", ...(written.code ? { code: written.code, params: written.params ?? {} } : {}) });
   }
   // Links the source skipped (deleted ones) still count toward progress.
   if (!result.cursor && result.total !== null) step.done = Math.max(step.done, result.total);

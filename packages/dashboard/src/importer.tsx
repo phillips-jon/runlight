@@ -3,7 +3,7 @@ import { api, type Site } from "./api.js";
 import { count } from "./format.js";
 import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
-import { t, tn, type Key } from "./i18n.js";
+import { errorText, t, tn, type Key } from "./i18n.js";
 import { parseCsv } from "./links.js";
 
 type Source = "umami" | "dub" | "bitly" | "shortio" | "rebrandly" | "csv";
@@ -45,6 +45,9 @@ interface Progress {
   stopped: boolean;
   error: string;
 }
+
+/** Why a link was not brought over, in the dashboard's own words when the reason has a code. */
+const said = (x: { reason: string; code?: string; params?: Record<string, string> }) => (x.code && errorText(x.code, x.params)) || x.reason;
 
 const idle: Progress = { running: false, done: 0, total: null, links: 0, clicks: 0, skipped: 0, failed: [], finished: false, stopped: false, error: "" };
 
@@ -88,7 +91,7 @@ export function ImportLinks({ site }: { site: Site }) {
           links: state.links + step.links,
           clicks: state.clicks + step.clicks,
           skipped: state.skipped + step.skipped,
-          failed: [...state.failed, ...step.failed],
+          failed: [...state.failed, ...step.failed.map((x) => ({ slug: x.slug, reason: said(x) }))],
         };
         setProgress(state);
       } while (cursor && !stop.current);
@@ -103,7 +106,7 @@ export function ImportLinks({ site }: { site: Site }) {
     try {
       const rows = parseCsv(await f.text());
       const result = await api.importLinks(site.id, rows);
-      setProgress({ ...idle, finished: true, links: result.created, done: rows.length, total: rows.length, failed: result.failed.map((x) => ({ slug: `#${x.row}`, reason: x.reason })) });
+      setProgress({ ...idle, finished: true, links: result.created, done: rows.length, total: rows.length, failed: result.failed.map((x) => ({ slug: `#${x.row}`, reason: said(x) })) });
     } catch (error) {
       setProgress({ ...idle, error: error instanceof Error ? error.message : String(error) });
     }

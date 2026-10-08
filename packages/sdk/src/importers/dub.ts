@@ -30,7 +30,7 @@ type History = "events" | "daily" | "none" | null;
 export const dub: Importer = {
   async step({ credentials, cursor, known }) {
     const key = credentials.apiKey?.trim();
-    if (!key) throw new ImportError("Enter a Dub API key");
+    if (!key) throw new ImportError("Enter a Dub API key", "import_key", { service: "Dub" });
     const headers = { authorization: `Bearer ${key}` };
     const state = cursor ? (JSON.parse(cursor) as { after: string | null; history: History }) : { after: null, history: null as History };
     const after = state.after ? `&startingAfter=${encodeURIComponent(state.after)}` : "";

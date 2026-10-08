@@ -90,8 +90,8 @@ test("the assistant answers through the stats tools, with the key kept on the se
     // API tokens and shares cannot spend the owner's AI credit, and only owners change the settings.
     const token = (await call("POST", "/api/tokens", { name: "Script" })).body.secret;
     assert.equal((await call("POST", "/api/assistant/chat", { site: "default", messages: [{ role: "user", content: "hi" }] }, token)).status, 403);
-    assert.equal((await call("PUT", "/api/assistant", { provider: "ollama", model: "x" }, token)).status, 401);
-    assert.equal((await call("POST", "/api/assistant/models", { provider: "anthropic" }, token)).status, 401, "only owners list models with the saved key");
+    assert.equal((await call("PUT", "/api/assistant", { provider: "ollama", model: "x" }, token)).status, 403);
+    assert.equal((await call("POST", "/api/assistant/models", { provider: "anthropic" }, token)).status, 403, "only owners list models with the saved key");
 
     // A service's own error comes back in plain words, never with the key in it.
     assert.equal((await call("PUT", "/api/assistant", { provider: "custom", model: "m", baseUrl: `${model.url}/missing`, key: "k-secret" })).status, 200);

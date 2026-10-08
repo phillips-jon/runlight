@@ -319,5 +319,5 @@ test("a read token can open a link's stats, and still cannot change it", async (
   const secret = ((await (await handler(new Request("https://x.com/runlight/api/tokens", { method: "POST", headers: owner, body: JSON.stringify({ name: "Script", site: "a" }) }))).json()) as any).secret as string;
   const read = { authorization: `Bearer ${secret}` };
   assert.equal((await handler(new Request(`https://x.com/runlight/api/links/${made.link.id}?period=7d`, { headers: read }))).status, 200);
-  assert.equal((await handler(new Request(`https://x.com/runlight/api/links/${made.link.id}`, { method: "DELETE", headers: read }))).status, 401);
+  assert.equal((await handler(new Request(`https://x.com/runlight/api/links/${made.link.id}`, { method: "DELETE", headers: read }))).status, 403);
 });

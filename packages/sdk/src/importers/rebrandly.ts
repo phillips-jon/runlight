@@ -21,7 +21,7 @@ interface RebrandlyLink {
 export const rebrandly: Importer = {
   async step({ credentials, cursor }) {
     const key = credentials.apiKey?.trim();
-    if (!key) throw new ImportError("Enter a Rebrandly API key");
+    if (!key) throw new ImportError("Enter a Rebrandly API key", "import_key", { service: "Rebrandly" });
     const headers: Record<string, string> = { apikey: key };
     if (credentials.workspace?.trim()) headers.workspace = credentials.workspace.trim();
     const last = cursor ? `&last=${encodeURIComponent(cursor)}` : "";

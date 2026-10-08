@@ -234,6 +234,32 @@ async function passThrough(remote: { url: string; token: string; site: string },
   return new Response(answer.body, { status: answer.status, headers: back });
 }
 
+/** A plain page in a visitor's language, for unsubscribing and for a share link that is gone. */
+function smallPage(lang: string, body: string, status = 200): Response {
+  return new Response(
+    `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Runlight</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f4f5;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#111827}main{max-width:420px;margin:24px;padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:14px}h1{font-size:20px;margin:0 0 12px}p{margin:0 0 20px;color:#4b5563}button{height:40px;padding:0 18px;border:0;border-radius:8px;background:#111827;color:#fff;font:inherit;font-weight:600;cursor:pointer}</style></head><body><main>${body}</main></body></html>`,
+    {
+      status,
+      headers: {
+        "content-type": "text/html; charset=utf-8",
+        "cache-control": "no-store",
+        "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
+        "referrer-policy": "no-referrer",
+      },
+    },
+  );
+}
+
+/** The first language a browser asks for that the dashboard speaks, else English. */
+function acceptedLanguage(request: Request): string {
+  for (const part of (request.headers.get("accept-language") ?? "").split(",")) {
+    const code = part.split(";")[0]!.trim().slice(0, 2).toLowerCase();
+    if (languages().includes(code)) return code;
+  }
+  return "en";
+}
+
 /** Rows of objects as CSV, with a column for every key the first row has, in the units a spreadsheet reads. */
 function rowsCsv(rows: ReadonlyArray<object>, sheet: { timezone: string; interval?: string; dimension?: string }): string {
   const readable = rows.map((r) => sheetRow(r as Record<string, unknown>, sheet));
@@ -865,20 +891,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     const report = /^[a-f0-9]{32}$/.test(token) ? await runlight.store.reportBy("token", token) : null;
     const site = report ? runlight.site(report.site) : null;
     const { t, lang } = translator(report?.lang ?? "en");
-    const page = (body: string, status = 200) =>
-      new Response(
-        `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Runlight</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f4f4f5;font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#111827}main{max-width:420px;margin:24px;padding:32px;background:#fff;border:1px solid #e5e7eb;border-radius:14px}h1{font-size:20px;margin:0 0 12px}p{margin:0 0 20px;color:#4b5563}button{height:40px;padding:0 18px;border:0;border-radius:8px;background:#111827;color:#fff;font:inherit;font-weight:600;cursor:pointer}</style></head><body><main>${body}</main></body></html>`,
-        {
-          status,
-          headers: {
-            "content-type": "text/html; charset=utf-8",
-            "cache-control": "no-store",
-            "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
-            "referrer-policy": "no-referrer",
-          },
-        },
-      );
+    const page = (body: string, status = 200) => smallPage(lang, body, status);
     if (!report || !site) return page(`<h1>${escapeHtml(t("email.unsub.goneTitle"))}</h1><p>${escapeHtml(t("email.unsub.gone"))}</p>`, 404);
     if (request.method === "POST") {
       await runlight.store.deleteReport(report.id);
@@ -1025,7 +1038,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       try {
         return json({ authorize: await startConnect(runlight, body.url, `${url.origin}${base}/api/sites/connect/done`, typeof body.site === "string" ? body.site : "") });
       } catch (error) {
-        if (error instanceof ConnectError) return coded(error.message, `connect_${error.code}`, 400, error.params);
+        if (error instanceof ConnectError) return coded(error.message, error.code === "unreachable" ? "unreachable" : `connect_${error.code}`, 400, error.params);
         if (error instanceof RangeError) return refused(error, "connect_failed");
         throw error;
       }
@@ -1060,6 +1073,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       url = new URL(url);
       url.searchParams.set("site", token.site);
       managed.set(request, token);
+    }
+    // A token this install made that tries a change it may not make is known, just not allowed, as for a viewer.
+    if (token && !managed.has(request) && !["GET", "HEAD", "OPTIONS"].includes(request.method)) {
+      return coded(token.scope === "manage" ? "A manage token changes only its own site's settings" : "API tokens can only read", token.scope === "manage" ? "token_manage_only" : "token_read_only", 403);
     }
 
     // A page another site served to an AI agent, reported by a CMS plugin.
@@ -1805,7 +1822,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         await runlight.init();
         const id = sharePage[1]!;
         const share = SHARE_ID.test(id) ? await runlight.store.shareById(id) : null;
-        if (!share) return new Response("This share link no longer works.", { status: 404, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
+        if (!share) {
+          const { t, lang } = translator(acceptedLanguage(request));
+          return smallPage(lang, `<h1>${escapeHtml(t("share.goneTitle"))}</h1><p>${escapeHtml(t("share.gone"))}</p>`, 404);
+        }
         return new Response(DASHBOARD(base, share.id, "", options.geoCredit), {
           headers: {
             "content-type": "text/html; charset=utf-8",

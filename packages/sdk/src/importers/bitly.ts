@@ -31,7 +31,7 @@ function split(value: string): { domain: string; slug: string } {
 export const bitly: Importer = {
   async step({ credentials, cursor, known }) {
     const token = credentials.token?.trim() || credentials.apiKey?.trim();
-    if (!token) throw new ImportError("Enter a Bitly access token");
+    if (!token) throw new ImportError("Enter a Bitly access token", "import_key", { service: "Bitly" });
     const headers = { authorization: `Bearer ${token}` };
     const state = cursor
       ? (JSON.parse(cursor) as { groups: string[]; g: number; after: string | null })

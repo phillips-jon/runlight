@@ -27,7 +27,7 @@ type Point = { x: string | number; y: number };
 export const shortio: Importer = {
   async step({ credentials, cursor, known }) {
     const key = credentials.apiKey?.trim();
-    if (!key) throw new ImportError("Enter a Short.io secret API key");
+    if (!key) throw new ImportError("Enter a Short.io secret API key", "import_key", { service: "Short.io" });
     const headers = { authorization: key };
     const state = cursor
       ? (JSON.parse(cursor) as { domains: Array<{ id: number; hostname: string }>; d: number; token: string | null; total: number | null })

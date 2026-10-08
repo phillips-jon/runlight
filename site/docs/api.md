@@ -70,7 +70,7 @@ Every report takes the same query parameters.
 | `POST /api/import/umami/websites` | List the websites in an Umami account, from `{ "credentials" }`. |
 | `POST /api/import/umami/visits` | One step of bringing an Umami website’s visit history in, from `{ "credentials", "website", "cursor" }`, repeated until `cursor` is `null`. |
 | `GET`, `POST /api/link-domains`, `DELETE /api/link-domains/:domain` | List, add, or remove custom link domains. A link domain must be a public name, and never the dashboard’s own or a site’s. |
-| `GET /api/link-domains/:domain/check` | Whether requests to a link domain reach Runlight, as `{ "domain", "working", "reason" }`, where `reason` says what answered instead. |
+| `GET /api/link-domains/:domain/check` | Whether requests to a link domain reach Runlight, as `{ "domain", "working", "reason", "code" }`, where `reason` says what answered instead and `code` names it. |
 | `GET`, `POST /api/shares`, `PATCH`, `DELETE /api/shares/:id` | List, add, rename, or remove share links. |
 | `GET`, `PUT`, `DELETE /api/mail`, `POST /api/mail/test` | Read, set, remove, or test the mail service. Keys are never returned. |
 | `GET`, `POST /api/reports`, `DELETE /api/reports/:id`, `POST /api/reports/:id/send` | List, add, or remove report recipients, or send a sample. |
@@ -96,7 +96,7 @@ Errors are JSON, `{ "error", "code", "params" }`. `error` says what went wrong i
 | --- | --- |
 | 400 | Something in the request is wrong or missing. |
 | 401 | The token is missing or not one this install knows. |
-| 403 | A viewer tries to change something, or a token reaches past what it may do. |
+| 403 | A viewer or an API token tries a change it may not make. |
 | 404 | What the request names is not there. |
 | 409 | A name is taken, such as a link domain another site has. |
 | 413 | More than 500 fetches at once to `POST /api/observe`. |
@@ -107,18 +107,36 @@ Errors are JSON, `{ "error", "code", "params" }`. `error` says what went wrong i
 | 503 | No token is set outside development. |
 | 504 | A connected install took too long to answer. |
 
-These are the codes and the params each one fills. An error a connected install sends on through a hub keeps its code and params, and its `error` starts with the install’s host.
+These are the codes and the params each one fills. An error a connected install sends on through a hub keeps its code and params, and its `error` starts with the install’s host. A link domain’s check answers its `reason` with a `check_` code in the same way.
 
 | Code | Params | What it says |
 | --- | --- | --- |
 | `account_exists` | `email` | {email} already has an account. |
+| `assistant_address` |  | Enter the service’s address in Settings, AI Assistant. |
+| `assistant_address_bad` |  | Enter the service’s address, starting with https:// |
+| `assistant_cancelled` |  | The question was cancelled. |
 | `assistant_daily` | `limit` | Viewers can ask {limit} questions a day. Ask again tomorrow. |
 | `assistant_dashboard` |  | Only the dashboard can use the assistant. |
 | `assistant_failed` | `detail` | The AI service did not answer as expected ({detail}). |
 | `assistant_invalid` | `detail` | The assistant was not saved ({detail}). |
+| `assistant_key` | `provider` | Enter your {provider} key. |
 | `assistant_limit` |  | Use a whole number from 0 to 1,000. |
+| `assistant_model` |  | Enter a model in Settings, AI Assistant. |
+| `assistant_no_models` | `host` | {host} listed no models. Type the model’s name instead. |
+| `assistant_provider` |  | Choose an AI service in Settings, AI Assistant. |
+| `assistant_refused` | `detail`, `host` | {host} turned the request down ({detail}). |
+| `assistant_slow` |  | That question took too long to answer. Try asking something narrower. |
 | `assistant_soon` |  | You have asked a lot in a short time. Wait a little and ask again. |
+| `assistant_status` | `host`, `status` | {host} answered {status}. |
+| `assistant_steps` |  | The assistant needed too many steps for that question. Try asking something narrower. |
+| `assistant_timeout` | `host` | {host} took too long to answer. |
 | `assistant_unset` |  | The assistant is not set up yet. An owner can set it up in Settings, AI Assistant. |
+| `check_https` |  | it could not be reached over HTTPS |
+| `check_not_public` |  | it is not a public domain name |
+| `check_not_runlight` |  | something answered, but not Runlight |
+| `check_private` |  | it points at an address that is not public |
+| `check_status` | `status` | it answered {status} |
+| `check_timeout` |  | it took too long to answer |
 | `code_wrong` |  | That code is not right. Check the time on your phone and try the next one. |
 | `compare_bad` | `compare` | "{compare}" is not a comparison Runlight knows. |
 | `compare_range_bad` |  | Pick both dates to compare with. |
@@ -132,7 +150,6 @@ These are the codes and the params each one fills. An error a connected install 
 | `connect_refused` |  | The install would not let this server connect. Start again, or connect it with an API token. |
 | `connect_register` | `reason`, `url` | {url} would not let this server connect. {reason} |
 | `connect_token` |  | The install did not give this server a token. Start again. |
-| `connect_unreachable` | `url` | Could not reach {url}. |
 | `connect_url` |  | Enter the install’s address, like https://example.com/runlight |
 | `domain_in_use` | `domain` | {domain} is where this dashboard or one of your sites lives. Use a separate domain or subdomain for short links, such as go.{domain}. |
 | `domain_invalid` |  | That is not a domain name. |
@@ -142,11 +159,42 @@ These are the codes and the params each one fills. An error a connected install 
 | `event_needed` |  | Name the event. |
 | `filter_bad` | `filter` | The filter "{filter}" is not one Runlight reads. |
 | `filters_max` | `max` | Use at most {max} filters at once. |
+| `funnel_exists` | `name` | There is already a funnel called "{name}". |
 | `funnel_invalid` | `detail` | The funnel was not saved ({detail}). |
+| `funnel_long` |  | A funnel has at most eight steps. |
+| `funnel_name` |  | Give the funnel a name. |
+| `funnel_page_bad` | `match` | "{match}" is not a path or a URL. |
+| `funnel_short` |  | A funnel needs at least two steps. |
+| `goal_amount` |  | Enter an amount, like 49 or 9.99. |
+| `goal_click_taken` | `match` | The click goal "{match}" already sends events with that name. |
+| `goal_currency` |  | Use a three-letter currency code, like USD or EUR. |
+| `goal_event` |  | Enter the event’s name. |
+| `goal_event_taken` | `name` | An event goal already counts events called "{name}", so give this click goal another name. |
+| `goal_exists` | `name` | There is already a goal called "{name}". |
 | `goal_invalid` | `detail` | The goal was not saved ({detail}). |
+| `goal_kind` |  | Pick what the goal counts, an event, a page visit, or a click. |
+| `goal_link` |  | Enter the link’s address, like https://buy.stripe.com/* |
+| `goal_name` |  | Give the goal a name. |
+| `goal_page` |  | Enter a page path, like /thanks or /blog/* |
+| `goal_page_bad` |  | That page is not a path or a URL. |
+| `goal_prop_kind` |  | Only an event goal can take its amount from the event. Use a fixed amount instead. |
+| `goal_prop_name` |  | A property name uses letters, numbers, dots, dashes, and underscores. |
+| `goal_selector` |  | Enter a CSS selector, like #signup or .buy-button |
 | `hub_domains` |  | A connected hub cannot change a site’s domains. |
 | `icon_none` |  | This site has no icon. |
+| `import_day_full` | `limit` | One day has more than {limit} events, more than an import step can read. |
 | `import_failed` | `detail` | The import stopped ({detail}). |
+| `import_key` | `service` | Enter your {service} key. |
+| `import_refused` |  | The key or sign-in was refused. |
+| `import_slug_bad` | `slug` | /{slug} has characters Runlight slugs cannot use. |
+| `import_slug_taken` | `name`, `slug` | /{slug} is already used by "{name}". |
+| `import_source` | `source` | Runlight cannot import from {source}. |
+| `import_status` | `host`, `status` | {host} answered {status}. |
+| `import_umami_address` |  | Enter your Umami address, like https://stats.example.com |
+| `import_umami_login` |  | Enter an API key, or a username and password. |
+| `import_website` |  | Pick the Umami website to import. |
+| `install_refused` |  | That install refused the token. |
+| `install_token` |  | Enter an API token from that install. |
 | `internal` |  | Something went wrong on the server. Try again. |
 | `invite_gone` |  | This invite has expired or was already used. Ask for a new one. |
 | `last_owner` |  | Keep at least one owner. |
@@ -166,7 +214,7 @@ These are the codes and the params each one fills. An error a connected install 
 | `mail_refused` | `detail`, `host` | {host} turned the email down ({detail}). |
 | `mail_region` |  | That is not an AWS region, like us-east-1. |
 | `mail_service` |  | Pick a mail service. |
-| `mail_unreachable` | `detail`, `host` | Could not reach {host} ({detail}). |
+| `mail_unreachable` | `host` | Could not reach {host}. |
 | `mail_unset` |  | Set up a mail service first. |
 | `method_not_allowed` |  | That cannot be done here. |
 | `not_found` |  | That is not here. |
@@ -198,12 +246,16 @@ These are the codes and the params each one fills. An error a connected install 
 | `share_gone` |  | This share link no longer works. |
 | `share_not_available` |  | That is not available on a shared dashboard. |
 | `sign_in` |  | Sign in first. |
+| `site_domain_invalid` | `host` | "{host}" is not a domain name. |
+| `site_domain_needed` |  | Add the site’s domain, like example.com |
+| `site_domain_taken` | `host`, `site` | {host} already belongs to {site}. |
 | `site_invalid` | `detail` | The site was not saved ({detail}). |
 | `site_name` |  | A site name is 1 to 80 characters. |
 | `site_remote` |  | This site is counted by its own Runlight. Connect it again from its settings to change it from here. |
 | `sites_in_code` |  | Sites are set in code here, so they are changed there. |
 | `smtp_starttls` |  | The SMTP server does not offer STARTTLS. Pick TLS or none for Security. |
 | `test_email` |  | Enter an email address to send the test to. |
+| `token_manage_only` |  | A manage token changes only its own site’s settings. |
 | `token_name` |  | Name the token. |
 | `token_read_only` |  | API tokens can only read. |
 | `token_refused` | `host` | {host} refused the token. Connect it again from the site’s settings. |

@@ -128,6 +128,17 @@ export const envValue = (name: string): string | undefined => {
   return value?.trim() ? value.trim() : undefined;
 };
 
+/** A setting refused, such as a site's domain or the assistant's service, as a code the dashboard says in its own words. */
+export class SettingsError extends RangeError {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly params: Record<string, string> = {},
+  ) {
+    super(message);
+  }
+}
+
 /** What passes for an email address: something@somewhere.tld, with no spaces, quotes, or angle brackets. */
 export const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 
@@ -320,11 +331,11 @@ export class Runlight {
       .map((h) => stripWww(String(h).trim().replace(/^https?:\/\//, "").replace(/[/:].*$/, "")))
       .filter(Boolean);
     const hostnames = [...new Set(list)];
-    if (hostnames.length === 0) throw new RangeError("Add the site's domain, like example.com");
+    if (hostnames.length === 0) throw new SettingsError("Add the site's domain, like example.com", "site_domain_needed");
     for (const host of hostnames) {
-      if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host) && host !== "localhost") throw new RangeError(`"${host}" is not a domain name`);
+      if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(host) && host !== "localhost") throw new SettingsError(`"${host}" is not a domain name`, "site_domain_invalid", { host });
       const owner = this.configured.find((site) => site.id !== except && site.hostnames.includes(host));
-      if (owner) throw new RangeError(`${host} already belongs to ${owner.name}`);
+      if (owner) throw new SettingsError(`${host} already belongs to ${owner.name}`, "site_domain_taken", { host, site: owner.name });
     }
     return hostnames;
   }
@@ -384,18 +395,18 @@ export class Runlight {
    */
   private async addRemoteSite(input: { url?: unknown; token?: unknown; site?: unknown; name?: unknown }): Promise<SiteRow> {
     const url = String(input.url ?? "").trim().replace(/\/+$/, "");
-    if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) throw new RangeError("Enter the install's address, like https://example.com/runlight");
+    if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) throw new SettingsError("Enter the install's address, like https://example.com/runlight", "connect_url");
     const token = String(input.token ?? "").trim();
-    if (!token) throw new RangeError("Enter an API token from that install");
+    if (!token) throw new SettingsError("Enter an API token from that install", "install_token");
     let answer: Response;
     try {
       answer = await fetch(`${url}/api/sites`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
     } catch {
-      throw new RangeError(`Could not reach ${url}`);
+      throw new SettingsError(`Could not reach ${url}`, "unreachable", { host: new URL(url).host });
     }
-    if (answer.status === 401 || answer.status === 403) throw new RangeError("That install refused the token");
+    if (answer.status === 401 || answer.status === 403) throw new SettingsError("That install refused the token", "install_refused");
     const body = (await answer.json().catch(() => null)) as { sites?: Array<{ id: string; name: string; timezone: string; hostnames: string[] }> } | null;
-    if (!answer.ok || !body?.sites?.length) throw new RangeError(`${url} did not answer like a Runlight install`);
+    if (!answer.ok || !body?.sites?.length) throw new SettingsError(`${url} did not answer like a Runlight install`, "connect_not_runlight", { url });
     // What the token may do there; an install from before manage tokens has no /api/token and reads only.
     let scope: "read" | "manage" = "read";
     let tokenSite = "";
@@ -434,13 +445,13 @@ export class Runlight {
   /** Adds a site, when sites are managed in the dashboard: one counted here, or one connected from another install. */
   async addSite(input: { name?: unknown; hostnames?: unknown; timezone?: unknown; remote?: unknown }): Promise<SiteRow> {
     await this.init();
-    if (!this.managedSites) throw new RangeError("Sites are set in code");
+    if (!this.managedSites) throw new SettingsError("Sites are set in code", "sites_in_code");
     if (input.remote && typeof input.remote === "object") return this.addRemoteSite({ ...(input.remote as Record<string, unknown>), name: input.name });
     const hostnames = this.hostnamesFor(input.hostnames);
     const name = String(input.name ?? "").trim() || hostnames[0]!;
-    if (name.length > 80) throw new RangeError("A site name is 1 to 80 characters");
+    if (name.length > 80) throw new SettingsError("A site name is 1 to 80 characters", "site_name");
     const timezone = String(input.timezone ?? "UTC");
-    if (!isTimezone(timezone)) throw new RangeError(`Unknown timezone "${timezone}"`);
+    if (!isTimezone(timezone)) throw new SettingsError(`Unknown timezone "${timezone}"`, "unknown_timezone", { timezone });
     const stem = hostnames[0]!.replace(/[^a-z0-9._-]/g, "-").slice(0, 56);
     let id = stem;
     for (let n = 2; this.configured.some((site) => site.id === id); n++) id = `${stem}-${n}`;
@@ -453,8 +464,8 @@ export class Runlight {
   /** Deletes a site and everything recorded for it, when sites are managed in the dashboard. */
   async deleteSite(id: string): Promise<void> {
     await this.init();
-    if (!this.managedSites) throw new RangeError("Sites are set in code");
-    if (!this.configured.some((site) => site.id === id)) throw new RangeError("Unknown site");
+    if (!this.managedSites) throw new SettingsError("Sites are set in code", "sites_in_code");
+    if (!this.configured.some((site) => site.id === id)) throw new SettingsError("Unknown site", "unknown_site");
     await this.store.deleteSite(id);
     await this.store.setSetting(`retention:${id}`, null);
     await this.store.setSetting(`observe-key:${id}`, null);
@@ -481,16 +492,16 @@ export class Runlight {
   async updateSite(id: string, patch: SiteOverrides & { hostnames?: unknown }): Promise<SiteRow> {
     await this.init();
     const current = this.configured.find((site) => site.id === id);
-    if (!current) throw new RangeError("Unknown site");
+    if (!current) throw new SettingsError("Unknown site", "unknown_site");
     if (this.managedSites) {
       const next: SiteRow = { ...current };
       if (patch.name !== undefined) {
         const name = String(patch.name).trim();
-        if (!name || name.length > 80) throw new RangeError("A site name is 1 to 80 characters");
+        if (!name || name.length > 80) throw new SettingsError("A site name is 1 to 80 characters", "site_name");
         next.name = name;
       }
       if (patch.timezone !== undefined) {
-        if (!isTimezone(String(patch.timezone))) throw new RangeError(`Unknown timezone "${patch.timezone}"`);
+        if (!isTimezone(String(patch.timezone))) throw new SettingsError(`Unknown timezone "${patch.timezone}"`, "unknown_timezone", { timezone: String(patch.timezone) });
         next.timezone = String(patch.timezone);
         if (next.timezone !== this.site(id)?.timezone) await this.zoneChanged(id, next.timezone);
       }
@@ -502,11 +513,11 @@ export class Runlight {
     const next: SiteOverrides = { ...this.overrides.get(id) };
     if (patch.name !== undefined) {
       const name = String(patch.name).trim();
-      if (!name || name.length > 80) throw new RangeError("A site name is 1 to 80 characters");
+      if (!name || name.length > 80) throw new SettingsError("A site name is 1 to 80 characters", "site_name");
       next.name = name;
     }
     if (patch.timezone !== undefined) {
-      if (!isTimezone(String(patch.timezone))) throw new RangeError(`Unknown timezone "${patch.timezone}"`);
+      if (!isTimezone(String(patch.timezone))) throw new SettingsError(`Unknown timezone "${patch.timezone}"`, "unknown_timezone", { timezone: String(patch.timezone) });
       next.timezone = String(patch.timezone);
       if (next.timezone !== this.site(id)?.timezone) await this.zoneChanged(id, next.timezone);
     }
@@ -522,8 +533,8 @@ export class Runlight {
   }
 
   async setRetention(site: string, months: number | null): Promise<void> {
-    if (!this.site(site) || this.remotes.has(site)) throw new RangeError("Unknown site");
-    if (months !== null && !RETENTION_MONTHS.includes(months)) throw new RangeError(`Keep visits for ${RETENTION_MONTHS.join(", ")} months, or forever`);
+    if (!this.site(site) || this.remotes.has(site)) throw new SettingsError("Unknown site", "unknown_site");
+    if (months !== null && !RETENTION_MONTHS.includes(months)) throw new SettingsError(`Keep visits for ${RETENTION_MONTHS.join(", ")} months, or forever`, "retention_bad", { months: RETENTION_MONTHS.join(", ") });
     await this.store.setSetting(`retention:${site}`, months === null ? null : String(months));
     // Deleting a long history takes a while, so it runs in pieces after the answer, with tracking going on between them.
     this.pruning = this.pruning.then(() => this.applyRetention(site)).catch((error) => console.error("Runlight: could not apply retention", error));
@@ -623,23 +634,23 @@ export class Runlight {
   async saveAssistantSettings(input: Record<string, unknown> | null): Promise<void> {
     if (!input) return this.store.setSetting("assistant", null);
     const provider = PROVIDERS.find((p) => p.id === input.provider);
-    if (!provider) throw new RangeError("Choose a provider");
+    if (!provider) throw new SettingsError("Choose a provider", "assistant_provider");
     const baseUrl = String(input.baseUrl ?? "").trim().replace(/\/+$/, "");
     if (baseUrl) {
       let parsed: URL | null = null;
       try {
         parsed = new URL(baseUrl);
       } catch {}
-      if (!parsed || (parsed.protocol !== "https:" && parsed.protocol !== "http:")) throw new RangeError("Enter the service's address, starting with https://");
+      if (!parsed || (parsed.protocol !== "https:" && parsed.protocol !== "http:")) throw new SettingsError("Enter the service's address, starting with https://", "assistant_address_bad");
     }
-    if (!baseUrl && !provider.baseUrl) throw new RangeError("Enter the service's address");
+    if (!baseUrl && !provider.baseUrl) throw new SettingsError("Enter the service's address", "assistant_address");
     const model = String(input.model ?? "").trim().slice(0, 200);
-    if (!model && !provider.model) throw new RangeError("Enter the model to use");
+    if (!model && !provider.model) throw new SettingsError("Enter the model to use", "assistant_model");
     const before = await this.assistantSettings();
     let key = String(input.key ?? "").trim();
     // A saved key is kept only for the same service at the same address, so it is never sent somewhere new.
     if (!key && before?.provider === provider.id && (before.baseUrl || provider.baseUrl) === (baseUrl || provider.baseUrl)) key = before.key;
-    if (!key && provider.key === "yes") throw new RangeError(`Enter your ${provider.name} key`);
+    if (!key && provider.key === "yes") throw new SettingsError(`Enter your ${provider.name} key`, "assistant_key", { provider: provider.name });
     const settings: AssistantSettings = { provider: provider.id, model, baseUrl, key };
     await this.store.setSetting("assistant", await seal(JSON.stringify(settings), this.secret));
   }

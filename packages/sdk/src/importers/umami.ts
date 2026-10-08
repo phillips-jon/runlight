@@ -40,10 +40,10 @@ const PAGE = 5;
  */
 export async function umamiSignIn(credentials: Record<string, string>, token?: string): Promise<{ base: string; token: string }> {
   const base = (credentials.url ?? "").trim().replace(/\/+$/, "");
-  if (!/^https?:\/\/[^/]+/.test(base)) throw new ImportError("Enter your Umami address, like https://stats.example.com");
+  if (!/^https?:\/\/[^/]+/.test(base)) throw new ImportError("Enter your Umami address, like https://stats.example.com", "import_umami_address");
   const key = credentials.apiKey?.trim() ?? "";
   if (key || token) return { base, token: key || token! };
-  if (!credentials.username || !credentials.password) throw new ImportError("Enter an API key, or a username and password");
+  if (!credentials.username || !credentials.password) throw new ImportError("Enter an API key, or a username and password", "import_umami_login");
   const login = await getJson<{ token: string }>(`${base}/api/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },

@@ -44,8 +44,8 @@ for (const kind of STORES) {
     assert.equal((await GET(new Request(url("/api/links?site=a"), { headers: as(all.body.secret) }))).status, 200, "links can be read");
 
     // Nothing that writes, and nothing that manages access.
-    assert.equal((await POST(new Request(url("/api/goals?site=a"), { method: "POST", headers: as(all.body.secret), body: JSON.stringify({ name: "G", kind: "page", match: "/" }) }))).status, 401);
-    assert.equal((await POST(new Request(url("/api/links?site=a"), { method: "POST", headers: as(all.body.secret), body: JSON.stringify({ url: "https://x.com" }) }))).status, 401);
+    assert.equal((await POST(new Request(url("/api/goals?site=a"), { method: "POST", headers: as(all.body.secret), body: JSON.stringify({ name: "G", kind: "page", match: "/" }) }))).status, 403);
+    assert.equal((await POST(new Request(url("/api/links?site=a"), { method: "POST", headers: as(all.body.secret), body: JSON.stringify({ url: "https://x.com" }) }))).status, 403);
     assert.equal((await GET(new Request(url("/api/tokens"), { headers: as(all.body.secret) }))).status, 401, "a token cannot list tokens");
     assert.equal((await GET(new Request(url("/api/shares?site=a"), { headers: as(all.body.secret) }))).status, 401);
     assert.equal((await GET(new Request(url("/api/mail"), { headers: as(all.body.secret) }))).status, 401);
@@ -60,7 +60,7 @@ for (const kind of STORES) {
     const used = (await (await GET(new Request(url("/api/tokens"), { headers: owner }))).json()) as any;
     assert.equal(used.tokens.find((x: any) => x.name === "Claude").lastUsedAt, t.now);
 
-    assert.equal((await DELETE(new Request(url(`/api/tokens/${all.body.token.id}`), { method: "DELETE", headers: as(all.body.secret) }))).status, 401, "a token cannot revoke");
+    assert.equal((await DELETE(new Request(url(`/api/tokens/${all.body.token.id}`), { method: "DELETE", headers: as(all.body.secret) }))).status, 403, "a token cannot revoke");
     assert.equal((await DELETE(new Request(url(`/api/tokens/${all.body.token.id}`), { method: "DELETE", headers: owner }))).status, 200);
     assert.equal((await DELETE(new Request(url(`/api/tokens/${all.body.token.id}`), { method: "DELETE", headers: owner }))).status, 404);
     assert.equal((await GET(new Request(url("/api/stats?site=a"), { headers: as(all.body.secret) }))).status, 401, "revoked at once");

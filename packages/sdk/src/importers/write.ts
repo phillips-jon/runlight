@@ -33,6 +33,9 @@ export interface WriteResult {
   status: "created" | "skipped" | "failed";
   clicks: number;
   reason?: string;
+  /** The reason as a code and its params, for the dashboard to say in its own words. */
+  code?: string;
+  params?: Record<string, string>;
 }
 
 /**
@@ -53,8 +56,8 @@ export async function writeLink(
   const taken = await runlight.store.linkBySlug(foreign.slug);
   // The same slug to the same place is this link, brought in earlier some other way.
   if (taken && sameUrl(taken.url, foreign.url)) return { status: "skipped", clicks: 0 };
-  if (taken) return { status: "failed", clicks: 0, reason: `/${foreign.slug} is already used by "${taken.name}"` };
-  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(foreign.slug)) return { status: "failed", clicks: 0, reason: `/${foreign.slug} has characters Runlight slugs cannot use` };
+  if (taken) return { status: "failed", clicks: 0, reason: `/${foreign.slug} is already used by "${taken.name}"`, code: "import_slug_taken", params: { slug: foreign.slug, name: taken.name } };
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(foreign.slug)) return { status: "failed", clicks: 0, reason: `/${foreign.slug} has characters Runlight slugs cannot use`, code: "import_slug_bad", params: { slug: foreign.slug } };
 
   let domain = stripWww(foreign.domain || "");
   if (SHORTENER_DOMAINS.has(domain)) domain = "";

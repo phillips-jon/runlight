@@ -258,3 +258,37 @@ test("a CMS plugin reports AI agent fetches with its own key, which reads nothin
   const rows = await (await GET(req("/runlight/api/breakdown?period=today&dimension=ai_page", { headers: { authorization: "Bearer secret" } }))).json();
   assert.deepEqual(rows.rows.map((r: { value: string }) => r.value), ["/post"]);
 });
+
+test("a gone share link says so in the visitor's language, and a read token's write is refused with a code", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "blog", hostnames: ["blog.example.com"] }] });
+  const { GET, POST } = rl.routes({ token: "secret" });
+  const gone = await GET(req(`/runlight/share/${"a".repeat(32)}`, { headers: { "accept-language": "fr-CA,fr;q=0.9,en;q=0.8" } }));
+  assert.equal(gone.status, 404);
+  assert.match(gone.headers.get("content-type")!, /^text\/html/);
+  const page = await gone.text();
+  assert.match(page, /<html lang="fr">/);
+  assert.match(page, /Ce lien de partage ne fonctionne plus/);
+  assert.match(await (await GET(req(`/runlight/share/${"a".repeat(32)}`))).text(), /This share link no longer works/);
+
+  const read = ((await (await POST(req("/runlight/api/tokens", { method: "POST", headers: { authorization: "Bearer secret", "content-type": "application/json" }, body: JSON.stringify({ name: "Script" }) }))).json()) as any).secret as string;
+  const write = await POST(req("/runlight/api/goals?site=blog", { method: "POST", headers: { authorization: `Bearer ${read}`, "content-type": "application/json" }, body: JSON.stringify({ name: "X", kind: "event", match: "X" }) }));
+  assert.equal(write.status, 403);
+  assert.equal(((await write.json()) as any).code, "token_read_only");
+});
+
+test("goal, funnel, site, and assistant refusals carry their own codes and params", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true });
+  const { POST, PUT } = rl.routes({ token: "secret" });
+  const send = async (method: "POST" | "PUT", path: string, body: unknown) => {
+    const answer = await (method === "POST" ? POST : PUT)(req(`/runlight${path}`, { method, headers: { authorization: "Bearer secret", "content-type": "application/json" }, body: JSON.stringify(body) }));
+    const json = (await answer.json()) as any;
+    return { code: json.code, params: json.params };
+  };
+  assert.deepEqual(await send("POST", "/api/sites", { name: "Blog", hostnames: "nope" }), { code: "site_domain_invalid", params: { host: "nope" } });
+  await send("POST", "/api/sites", { name: "Blog", hostnames: "blog.example.com" });
+  assert.deepEqual(await send("POST", "/api/sites", { name: "Again", hostnames: "blog.example.com" }), { code: "site_domain_taken", params: { host: "blog.example.com", site: "Blog" } });
+  await send("POST", "/api/goals?site=blog.example.com", { name: "Signup", kind: "event", match: "Signup" });
+  assert.deepEqual(await send("POST", "/api/goals?site=blog.example.com", { name: "signup", kind: "event", match: "x" }), { code: "goal_exists", params: { name: "signup" } });
+  assert.deepEqual(await send("POST", "/api/funnels?site=blog.example.com", { name: "F", steps: [{ kind: "page", match: "/" }] }), { code: "funnel_short", params: {} });
+  assert.deepEqual(await send("PUT", "/api/assistant", { provider: "nope" }), { code: "assistant_provider", params: {} });
+});

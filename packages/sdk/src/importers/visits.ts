@@ -102,7 +102,7 @@ async function all<T>(base: string, path: string, headers: Record<string, string
     const body = await getJson<{ data: T[]; count: number }>(`${base}/api${path}&page=${page}&pageSize=1000`, { headers });
     out.push(...body.data);
     if (out.length >= body.count || body.data.length === 0) return out;
-    if (out.length > limit) throw new ImportError(`One day has more than ${limit.toLocaleString("en")} events, more than an import step can read`);
+    if (out.length > limit) throw new ImportError(`One day has more than ${limit.toLocaleString("en")} events, more than an import step can read`, "import_day_full", { limit: String(limit) });
   }
 }
 
@@ -116,8 +116,8 @@ export async function importUmamiVisits(
 ): Promise<VisitImportStep> {
   await runlight.init();
   const site = runlight.site(siteId);
-  if (!site) throw new ImportError("Unknown site");
-  if (!/^[A-Za-z0-9-]{1,64}$/.test(website)) throw new ImportError("Pick the Umami website to import");
+  if (!site) throw new ImportError("Unknown site", "unknown_site");
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(website)) throw new ImportError("Pick the Umami website to import", "import_website");
 
   let state: Cursor;
   const saved = cursor ? (JSON.parse(cursor) as Cursor) : null;

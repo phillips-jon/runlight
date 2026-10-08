@@ -42,21 +42,21 @@ test("a manage token changes its own site's settings and nothing else", async ()
 
   // Everything beyond one site's settings stays the owner's.
   assert.equal((await call("GET", "/api/tokens", manage)).status, 401);
-  assert.equal((await call("POST", "/api/tokens", manage, { name: "More", site: "blog" })).status, 401);
-  assert.equal((await call("PUT", "/api/mail", manage, { service: "webhook" })).status, 401);
+  assert.equal((await call("POST", "/api/tokens", manage, { name: "More", site: "blog" })).status, 403);
+  assert.equal((await call("PUT", "/api/mail", manage, { service: "webhook" })).status, 403);
   assert.equal((await call("GET", "/api/mail?site=blog", manage)).status, 200, "it can see which mail service sends reports");
   const share = await call("POST", "/api/shares?site=blog", manage, { name: "For the team" });
   assert.equal(share.status, 201, "share links for its site are its to make");
   assert.equal((await call("POST", "/api/shares?site=shop", manage, { name: "x" })).status, 404);
-  assert.equal((await call("DELETE", "/api/sites/blog", manage)).status, 401);
-  assert.equal((await call("POST", "/api/links/import?site=blog", manage, { rows: [] })).status, 401);
+  assert.equal((await call("DELETE", "/api/sites/blog", manage)).status, 403);
+  assert.equal((await call("POST", "/api/links/import?site=blog", manage, { rows: [] })).status, 403);
 });
 
 test("a read token still only reads", async () => {
   const { call, make } = await app();
   const read = await make("read", "blog");
   assert.deepEqual((await call("GET", "/api/token", read)).body, { scope: "read", site: "blog" });
-  assert.equal((await call("POST", "/api/goals?site=blog", read, { name: "Signup", kind: "event", match: "Signup" })).status, 401);
+  assert.equal((await call("POST", "/api/goals?site=blog", read, { name: "Signup", kind: "event", match: "Signup" })).status, 403);
   assert.equal((await call("GET", "/api/stats?site=blog&period=today", read)).status, 200);
 });
 

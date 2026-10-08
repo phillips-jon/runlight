@@ -370,7 +370,7 @@ export const api = {
   importLinks: (site: string, rows: Array<Record<string, string>>) =>
     send<{ created: number; failed: Array<{ row: number; reason: string; code?: string; params?: Record<string, string> }> }>("POST", `links/import${siteQuery(site)}`, { rows }),
   importStep: (site: string, source: string, credentials: Record<string, string>, cursor: string | null, done: number) =>
-    send<{ cursor: string | null; done: number; total: number | null; links: number; clicks: number; skipped: number; failed: Array<{ slug: string; reason: string }> }>(
+    send<{ cursor: string | null; done: number; total: number | null; links: number; clicks: number; skipped: number; failed: Array<{ slug: string; reason: string; code?: string; params?: Record<string, string> }> }>(
       "POST",
       `links/import/${source}${siteQuery(site)}`,
       { credentials, cursor, done },

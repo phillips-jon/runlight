@@ -39,7 +39,7 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
   const url = installUrl(input);
   type Meta = { authorization_endpoint?: string; token_endpoint?: string; registration_endpoint?: string; scopes_supported?: string[] };
   const answer = await fetch(`${url}/.well-known/oauth-authorization-server`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
-  if (!answer) throw new ConnectError(`Could not reach ${url}`, "unreachable", { url });
+  if (!answer) throw new ConnectError(`Could not reach ${url}`, "unreachable", { host: new URL(url).host });
   const meta = answer.ok ? ((await answer.json().catch(() => null)) as Meta | null) : null;
   if (!meta?.authorization_endpoint || !meta.token_endpoint || !meta.registration_endpoint) throw new ConnectError(`${url} did not answer like a Runlight install`, "not_runlight", { url });
   // Its endpoints must be its own, so an address cannot steer this server into requests elsewhere.
@@ -59,7 +59,7 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
     body: JSON.stringify({ client_name: `Runlight at ${new URL(back).host}`, redirect_uris: [back] }),
     signal: AbortSignal.timeout(10_000),
   }).catch(() => null);
-  if (!registered) throw new ConnectError(`Could not reach ${url}`, "unreachable", { url });
+  if (!registered) throw new ConnectError(`Could not reach ${url}`, "unreachable", { host: new URL(url).host });
   const client = (await registered.json().catch(() => null)) as { client_id?: string; error_description?: string } | null;
   if (!registered.ok || !client?.client_id) {
     // Say why, in the install's own words when it gives them.

@@ -39,7 +39,16 @@ export interface AssistantSettings {
   key: string;
 }
 
-export class AssistantError extends Error {}
+/** What went wrong with the assistant, as a code the dashboard says in its own words; a service's own text goes in `detail`. */
+export class AssistantError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly params: Record<string, string> = {},
+  ) {
+    super(message);
+  }
+}
 
 export interface ChatMessage {
   role: "user" | "assistant";
@@ -73,8 +82,8 @@ const TOO_LONG = "That question took too long to answer. Try asking something na
 
 /** Stops when the question's time is up or the person has left, before more work starts. */
 function inTime(deadline: number, signal?: AbortSignal): void {
-  if (signal?.aborted) throw new AssistantError("The question was cancelled.");
-  if (Date.now() >= deadline) throw new AssistantError(TOO_LONG);
+  if (signal?.aborted) throw new AssistantError("The question was cancelled.", "assistant_cancelled");
+  if (Date.now() >= deadline) throw new AssistantError(TOO_LONG, "assistant_slow");
 }
 
 async function post(url: string, headers: Record<string, string>, body: unknown, deadline: number, signal?: AbortSignal): Promise<Record<string, unknown>> {
@@ -89,14 +98,19 @@ async function post(url: string, headers: Record<string, string>, body: unknown,
       signal: AbortSignal.any([AbortSignal.timeout(Math.min(90_000, left)), ...(signal ? [signal] : [])]),
     });
   } catch (error) {
-    throw new AssistantError(`Could not reach ${new URL(url).host}: ${(error as Error).name === "TimeoutError" ? "it took too long to answer" : "the connection failed"}`);
+    const host = new URL(url).host;
+    throw (error as Error).name === "TimeoutError"
+      ? new AssistantError(`Could not reach ${host}: it took too long to answer`, "assistant_timeout", { host })
+      : new AssistantError(`Could not reach ${host}: the connection failed`, "unreachable", { host });
   }
   const data = (await answer.json().catch(() => null)) as Record<string, unknown> | null;
   if (!answer.ok) {
     // The service's own message, never the request (it carries the key).
     const error = data?.error as { message?: unknown } | string | undefined;
-    const message = typeof error === "string" ? error : typeof error?.message === "string" ? error.message : `it answered ${answer.status}`;
-    throw new AssistantError(`${new URL(url).host}: ${message.slice(0, 300)}`);
+    const message = typeof error === "string" ? error : typeof error?.message === "string" ? error.message : "";
+    const host = new URL(url).host;
+    if (!message) throw new AssistantError(`${host}: it answered ${answer.status}`, "assistant_status", { host, status: String(answer.status) });
+    throw new AssistantError(`${host}: ${message.slice(0, 300)}`, "assistant_refused", { host, detail: message.slice(0, 300) });
   }
   return data ?? {};
 }
@@ -138,11 +152,11 @@ export async function chat(
   signal?: AbortSignal,
 ): Promise<{ reply: string; tools: string[] }> {
   const provider = PROVIDERS.find((p) => p.id === settings.provider);
-  if (!provider) throw new AssistantError("Choose a provider in Settings, AI Assistant");
+  if (!provider) throw new AssistantError("Choose a provider in Settings, AI Assistant", "assistant_provider");
   const base = (settings.baseUrl || provider.baseUrl).replace(/\/+$/, "");
-  if (!base) throw new AssistantError("Enter the service's address in Settings, AI Assistant");
+  if (!base) throw new AssistantError("Enter the service's address in Settings, AI Assistant", "assistant_address");
   const model = settings.model || provider.model;
-  if (!model) throw new AssistantError("Enter a model in Settings, AI Assistant");
+  if (!model) throw new AssistantError("Enter a model in Settings, AI Assistant", "assistant_model");
   const used: string[] = [];
   // "Thanks!" needs no model, no tools, and certainly not the last answer again.
   const thanks = acknowledgement(messages[messages.length - 1]?.content ?? "", context.language);
@@ -181,7 +195,7 @@ export async function chat(
       }
       convo.push({ role: "user", content: results });
     }
-    throw new AssistantError("The assistant needed too many steps for that question. Try asking something narrower.");
+    throw new AssistantError("The assistant needed too many steps for that question. Try asking something narrower.", "assistant_steps");
   }
 
   const tools = TOOLS.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.inputSchema } }));
@@ -208,7 +222,7 @@ export async function chat(
       convo.push({ role: "tool", tool_call_id: call.id, content: out.text });
     }
   }
-  throw new AssistantError("The assistant needed too many steps for that question. Try asking something narrower.");
+  throw new AssistantError("The assistant needed too many steps for that question. Try asking something narrower.", "assistant_steps");
 }
 
 /**
@@ -218,22 +232,24 @@ export async function chat(
  */
 export async function listModels(settings: Omit<AssistantSettings, "model">): Promise<Array<{ id: string; name: string }>> {
   const provider = PROVIDERS.find((p) => p.id === settings.provider);
-  if (!provider) throw new AssistantError("Choose a provider");
+  if (!provider) throw new AssistantError("Choose a provider", "assistant_provider");
   const base = (settings.baseUrl || provider.baseUrl).replace(/\/+$/, "");
-  if (!base) throw new AssistantError("Enter the service's address first");
-  if (provider.key === "yes" && !settings.key) throw new AssistantError(`Enter your ${provider.name} key first`);
+  if (!base) throw new AssistantError("Enter the service's address first", "assistant_address");
+  if (provider.key === "yes" && !settings.key) throw new AssistantError(`Enter your ${provider.name} key first`, "assistant_key", { provider: provider.name });
   const headers: Record<string, string> =
     provider.protocol === "anthropic" ? { "x-api-key": settings.key, "anthropic-version": "2023-06-01" } : settings.key ? { authorization: `Bearer ${settings.key}` } : {};
   let answer: Response;
   try {
     answer = await fetch(`${base}/models${provider.protocol === "anthropic" ? "?limit=100" : ""}`, { headers, signal: AbortSignal.timeout(20_000) });
   } catch {
-    throw new AssistantError(`Could not reach ${new URL(base).host}`);
+    throw new AssistantError(`Could not reach ${new URL(base).host}`, "unreachable", { host: new URL(base).host });
   }
   const data = (await answer.json().catch(() => null)) as { data?: Array<{ id?: unknown; display_name?: unknown; name?: unknown }>; error?: { message?: unknown } | string } | null;
   if (!answer.ok) {
-    const message = typeof data?.error === "string" ? data.error : typeof data?.error?.message === "string" ? data.error.message : `it answered ${answer.status}`;
-    throw new AssistantError(`${new URL(base).host}: ${String(message).slice(0, 300)}`);
+    const message = typeof data?.error === "string" ? data.error : typeof data?.error?.message === "string" ? data.error.message : "";
+    const host = new URL(base).host;
+    if (!message) throw new AssistantError(`${host}: it answered ${answer.status}`, "assistant_status", { host, status: String(answer.status) });
+    throw new AssistantError(`${host}: ${String(message).slice(0, 300)}`, "assistant_refused", { host, detail: String(message).slice(0, 300) });
   }
   const models = (data?.data ?? [])
     .filter((m) => typeof m.id === "string" && m.id)
@@ -242,7 +258,7 @@ export async function listModels(settings: Omit<AssistantSettings, "model">): Pr
       const id = String(m.id).replace(/^models\//, "");
       return { id, name: typeof m.display_name === "string" ? m.display_name : id };
     });
-  if (!models.length) throw new AssistantError(`${new URL(base).host} listed no models. Type the model's name instead.`);
+  if (!models.length) throw new AssistantError(`${new URL(base).host} listed no models. Type the model's name instead.`, "assistant_no_models", { host: new URL(base).host });
   // Anthropic lists newest first already; others come in no useful order.
   return provider.protocol === "anthropic" ? models : models.sort((a, b) => a.id.localeCompare(b.id));
 }

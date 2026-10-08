@@ -45,7 +45,7 @@ export interface ImportStep {
   links: number;
   clicks: number;
   skipped: number;
-  failed: Array<{ slug: string; reason: string }>;
+  failed: Array<{ slug: string; reason: string; code?: string; params?: Record<string, string> }>;
 }
 
 export type Credentials = Record<string, string>;
@@ -73,4 +73,13 @@ export interface Importer {
   }>;
 }
 
-export class ImportError extends Error {}
+/** Why an import stopped, as a code the dashboard says in its own words. */
+export class ImportError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly params: Record<string, string> = {},
+  ) {
+    super(message);
+  }
+}
