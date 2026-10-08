@@ -15,7 +15,7 @@ writeFileSync(
   `${JSON.stringify(
     {
       description:
-        "HTTP requests to a fresh Runlight on a fixed clock, and the answers every implementation must give. Paths are relative to the routes' base (/runlight). Before each step the clock moves by advance milliseconds. capture keeps a value from an answer for later {{name}} in paths and headers. Ids, tokens, secrets, and hints in answers are written as <key>. An answer's headers are the ones it must carry: its media type, and CORS headers where it sends them.",
+        "HTTP requests to a fresh Runlight on a fixed clock, and the answers every implementation must give. Paths are relative to the routes' base (/runlight). Before each step the clock moves by advance milliseconds. capture keeps a value from an answer for later {{name}} in paths and headers. Ids, tokens, secrets, and hints in answers are written as <key>. An answer's headers are the ones it must carry: its media type, and CORS headers where it sends them. A scenario with sites runs with those sites, each with its id, in place of site. A step's look lists text to find in an answer that is not JSON, such as a script, and its answer's found says which of them it holds.",
       scenarios,
     },
     null,

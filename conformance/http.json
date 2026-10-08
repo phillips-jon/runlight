@@ -1,5 +1,5 @@
 {
-  "description": "HTTP requests to a fresh Runlight on a fixed clock, and the answers every implementation must give. Paths are relative to the routes' base (/runlight). Before each step the clock moves by advance milliseconds. capture keeps a value from an answer for later {{name}} in paths and headers. Ids, tokens, secrets, and hints in answers are written as <key>. An answer's headers are the ones it must carry: its media type, and CORS headers where it sends them.",
+  "description": "HTTP requests to a fresh Runlight on a fixed clock, and the answers every implementation must give. Paths are relative to the routes' base (/runlight). Before each step the clock moves by advance milliseconds. capture keeps a value from an answer for later {{name}} in paths and headers. Ids, tokens, secrets, and hints in answers are written as <key>. An answer's headers are the ones it must carry: its media type, and CORS headers where it sends them. A scenario with sites runs with those sites, each with its id, in place of site. A step's look lists text to find in an answer that is not JSON, such as a script, and its answer's found says which of them it holds.",
   "scenarios": [
     {
       "name": "a day of visits and the reports they make",
@@ -5340,6 +5340,497 @@
               "api": 1,
               "library": "<library>",
               "language": "<language>"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "refusals, their codes, and tickets",
+      "site": {
+        "hostnames": [
+          "blog.example.com"
+        ],
+        "timezone": "UTC"
+      },
+      "sites": [
+        {
+          "id": "blog",
+          "hostnames": [
+            "blog.example.com"
+          ],
+          "timezone": "UTC"
+        },
+        {
+          "id": "shop",
+          "hostnames": [
+            "shop.example.com"
+          ],
+          "timezone": "UTC"
+        }
+      ],
+      "start": 1791374400000,
+      "token": "conformance",
+      "steps": [
+        {
+          "method": "POST",
+          "path": "/api/goals?site=blog",
+          "headers": {
+            "content-type": "text/plain"
+          },
+          "body": "x",
+          "expect": {
+            "status": 415,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "Send JSON",
+              "code": "send_json"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?site=blog&period=today&filter=page:is:/0&filter=page:is:/1&filter=page:is:/2&filter=page:is:/3&filter=page:is:/4&filter=page:is:/5&filter=page:is:/6",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "Use at most 6 filters at once.",
+              "code": "filters_max",
+              "params": {
+                "max": "6"
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/link-domains?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "domain": "not a domain"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "That is not a domain name",
+              "code": "domain_invalid"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/link-domains?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "domain": "db.internal"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "db.internal is not a public domain name. Use one that browsers anywhere can reach.",
+              "code": "domain_not_public",
+              "params": {
+                "domain": "db.internal"
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/link-domains?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "domain": "shop.example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "shop.example.com is where this dashboard or one of your sites lives. Use a separate domain or subdomain for short links, such as go.shop.example.com.",
+              "code": "domain_in_use",
+              "params": {
+                "domain": "shop.example.com"
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/link-domains?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "domain": "go.runlight-conformance.com"
+          },
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "domain": "go.runlight-conformance.com"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/link-domains?site=shop",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "domain": "go.runlight-conformance.com"
+          },
+          "expect": {
+            "status": 409,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "go.runlight-conformance.com already belongs to another site",
+              "code": "domain_taken",
+              "params": {
+                "domain": "go.runlight-conformance.com"
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/tokens",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "Hub",
+            "scope": "manage",
+            "site": "blog"
+          },
+          "capture": {
+            "hub": "secret"
+          },
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "token": {
+                "id": "<id>",
+                "name": "Hub",
+                "site": "blog",
+                "scope": "manage",
+                "hint": "<hint>",
+                "createdAt": 1791374400000,
+                "lastUsedAt": null
+              },
+              "secret": "<secret>"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/link-domains?site=blog",
+          "headers": {
+            "authorization": "Bearer {{hub}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "domain": "t.runlight-conformance.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "Set this Runlight's own address first (RUNLIGHT_URL on the server, or origin in routes()), so a connected hub can add link domains and email reports.",
+              "code": "origin_needed"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/reports?site=blog",
+          "headers": {
+            "authorization": "Bearer {{hub}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "email": "hub@example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "Set this Runlight's own address first (RUNLIGHT_URL on the server, or origin in routes()), so a connected hub can add link domains and email reports.",
+              "code": "origin_needed"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/pick?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://stats.example.com"
+          },
+          "capture": {
+            "ticket": "ticket"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "ticket": "<ticket>"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/pick.js?runlight_ticket={{ticket}}",
+          "look": [
+            "\"https://stats.example.com\"",
+            "\\\"blog.example.com\\\""
+          ],
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/javascript"
+            },
+            "found": [
+              true,
+              true
+            ]
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/pick.js?runlight_ticket=0.00.00.00",
+          "look": [
+            "\"https://stats.example.com\"",
+            "\\\"blog.example.com\\\""
+          ],
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/javascript"
+            },
+            "found": [
+              false,
+              false
+            ]
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/pick?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "javascript:alert(1)"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "Send the dashboard's origin, such as https://stats.example.com",
+              "code": "pick_origin"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/pick?site=blog",
+          "headers": {
+            "authorization": "Bearer {{hub}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://hub.example.net"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "This hub's address is not the one it connected from. Connect the site again from here.",
+              "code": "pick_hub"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/reports?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "email": "me@example.com",
+            "frequency": "weekly"
+          },
+          "capture": {
+            "report": "report.id"
+          },
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "report": {
+                "id": "<id>",
+                "site": "blog",
+                "email": "me@example.com",
+                "frequency": "weekly",
+                "lang": "en",
+                "lastSentAt": null,
+                "createdAt": 1791374400000
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/reports/{{report}}/send?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "Set up a mail service first",
+              "code": "mail_unset",
+              "params": {}
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/reports/{{report}}/send?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "expect": {
+            "status": 429,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "error": "A sample went out a moment ago. Wait a minute and try again.",
+              "code": "sample_soon"
+            }
+          }
+        },
+        {
+          "method": "PUT",
+          "path": "/api/mail",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "service": "webhook",
+            "url": "https://127.0.0.1:9/",
+            "from": "reports@example.com"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "ok": true
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/check",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "ok": true,
+              "reports": {
+                "sent": 0,
+                "failed": 0
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/check",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "advance": 432000000,
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "ok": true,
+              "reports": {
+                "sent": 0,
+                "failed": 1
+              }
             }
           }
         }

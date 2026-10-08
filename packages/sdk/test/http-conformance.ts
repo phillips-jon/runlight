@@ -20,6 +20,8 @@ export interface Step {
   body?: unknown;
   /** Values to keep from the answer, by dotted path, for later steps' {{name}}. */
   capture?: Record<string, string>;
+  /** Text to look for in an answer that is not JSON, such as a script; the answer says which was found. */
+  look?: string[];
   expect?: Answer;
 }
 
@@ -28,6 +30,8 @@ export interface Answer {
   status: number;
   headers?: Record<string, string>;
   body?: unknown;
+  /** For each of the step's `look` strings, whether the answer's text holds it. */
+  found?: boolean[];
 }
 
 /** Headers every implementation must send the same: the media type, and CORS for the tracker. */
@@ -37,6 +41,8 @@ export interface Scenario {
   name: string;
   /** The runlight() site, in its options' shape. */
   site: { hostnames: string[]; timezone: string };
+  /** Several sites instead, each with its id, when a scenario needs more than one. */
+  sites?: Array<{ id: string; hostnames: string[]; timezone: string }>;
   /** Epoch milliseconds the clock starts at. */
   start: number;
   token: string;
@@ -145,10 +151,48 @@ export const SCENARIOS: Scenario[] = [
       { method: "GET", path: "/api" },
     ],
   },
+  {
+    name: "refusals, their codes, and tickets",
+    site: { hostnames: ["blog.example.com"], timezone: "UTC" },
+    sites: [
+      { id: "blog", hostnames: ["blog.example.com"], timezone: "UTC" },
+      { id: "shop", hostnames: ["shop.example.com"], timezone: "UTC" },
+    ],
+    // A Wednesday, so a weekly report added now waits for Monday.
+    start: Date.UTC(2026, 9, 7, 12, 0),
+    token: "conformance",
+    steps: [
+      // A write that is not JSON, with no bearer token, as a form on another page would send it.
+      { method: "POST", path: "/api/goals?site=blog", headers: { "content-type": "text/plain" }, body: "x" },
+      get(`/api/stats?site=blog&period=today&${Array.from({ length: 7 }, (_, i) => `filter=page:is:/${i}`).join("&")}`),
+      { method: "POST", path: "/api/link-domains?site=blog", headers: json, body: { domain: "not a domain" } },
+      { method: "POST", path: "/api/link-domains?site=blog", headers: json, body: { domain: "db.internal" } },
+      { method: "POST", path: "/api/link-domains?site=blog", headers: json, body: { domain: "shop.example.com" } },
+      { method: "POST", path: "/api/link-domains?site=blog", headers: json, body: { domain: "go.runlight-conformance.com" } },
+      { method: "POST", path: "/api/link-domains?site=shop", headers: json, body: { domain: "go.runlight-conformance.com" } },
+      // A hub's manage token adds no link domain or report until the install knows its own address.
+      { method: "POST", path: "/api/tokens", headers: json, body: { name: "Hub", scope: "manage", site: "blog" }, capture: { hub: "secret" } },
+      { method: "POST", path: "/api/link-domains?site=blog", headers: { authorization: "Bearer {{hub}}", "content-type": "application/json" }, body: { domain: "t.runlight-conformance.com" } },
+      { method: "POST", path: "/api/reports?site=blog", headers: { authorization: "Bearer {{hub}}", "content-type": "application/json" }, body: { email: "hub@example.com" } },
+      // Picker tickets: the owner's names the dashboard and the site, and a hub gets none for an origin it names now.
+      { method: "POST", path: "/api/pick?site=blog", headers: json, body: { origin: "https://stats.example.com" }, capture: { ticket: "ticket" } },
+      { method: "GET", path: "/pick.js?runlight_ticket={{ticket}}", look: ['"https://stats.example.com"', '\\"blog.example.com\\"'] },
+      { method: "GET", path: "/pick.js?runlight_ticket=0.00.00.00", look: ['"https://stats.example.com"', '\\"blog.example.com\\"'] },
+      { method: "POST", path: "/api/pick?site=blog", headers: json, body: { origin: "javascript:alert(1)" } },
+      { method: "POST", path: "/api/pick?site=blog", headers: { authorization: "Bearer {{hub}}", "content-type": "application/json" }, body: { origin: "https://hub.example.net" } },
+      // A report: a sample with no mail service, then one too soon, and the first send waits for Monday.
+      { method: "POST", path: "/api/reports?site=blog", headers: json, body: { email: "me@example.com", frequency: "weekly" }, capture: { report: "report.id" } },
+      { method: "POST", path: "/api/reports/{{report}}/send?site=blog", headers: json },
+      { method: "POST", path: "/api/reports/{{report}}/send?site=blog", headers: json },
+      { method: "PUT", path: "/api/mail", headers: json, body: { service: "webhook", url: "https://127.0.0.1:9/", from: "reports@example.com" } },
+      { method: "POST", path: "/api/check", headers: json },
+      { method: "POST", path: "/api/check", headers: json, advance: 5 * 86_400_000 },
+    ],
+  },
 ];
 
 // The version and the implementation differ between ports and releases, so they are placeholders too.
-const RANDOM = new Set(["id", "token", "secret", "hint", "version", "library", "language"]);
+const RANDOM = new Set(["id", "token", "secret", "hint", "version", "library", "language", "ticket"]);
 
 /** Ids and other random values become "<key>", so answers compare across runs and implementations. */
 export function normalize(value: unknown, key = ""): unknown {
@@ -163,7 +207,7 @@ const dig = (value: unknown, path: string): unknown => path.split(".").reduce<un
 /** Runs a scenario's steps against this implementation and returns each answer, normalized. */
 export async function play(scenario: Scenario): Promise<Answer[]> {
   let now = scenario.start;
-  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: scenario.site, now: () => now });
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), ...(scenario.sites ? { sites: scenario.sites } : { site: scenario.site }), now: () => now });
   const { handler } = rl.routes({ token: scenario.token });
   const kept: Record<string, string> = {};
   const fill = (text: string) => text.replace(/\{\{(\w+)\}\}/g, (_, name: string) => kept[name] ?? "");
@@ -186,7 +230,12 @@ export async function play(scenario: Scenario): Promise<Answer[]> {
       const value = answer.headers.get(name);
       if (value) sent[name] = name === "content-type" ? value.split(";")[0]!.trim() : value;
     }
-    answers.push({ status: answer.status, ...(Object.keys(sent).length ? { headers: sent } : {}), ...(parsed === undefined ? {} : { body: normalize(parsed) }) });
+    answers.push({
+      status: answer.status,
+      ...(Object.keys(sent).length ? { headers: sent } : {}),
+      ...(parsed === undefined ? {} : { body: normalize(parsed) }),
+      ...(step.look ? { found: step.look.map((s) => text.includes(s)) } : {}),
+    });
   }
   return answers;
 }
