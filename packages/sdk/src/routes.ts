@@ -1419,7 +1419,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const handler: FetchHandler = async (request, context = {}) => {
     const url = new URL(request.url);
     // OAuth clients look for these at the site's root; an app routes them here when it wants OAuth.
-    if (base && url.pathname.startsWith("/.well-known/oauth-")) return (await oauthResponse(oauth, request, url.pathname, url)) ?? json({ error: "Not found" }, 404);
+    if (base && url.pathname.startsWith("/.well-known/oauth-")) return (await oauthResponse(oauth, request, url.pathname, url, context)) ?? json({ error: "Not found" }, 404);
     if (base && url.pathname !== base && !url.pathname.startsWith(`${base}/`)) return json({ error: "Not found" }, 404);
     const path = url.pathname.slice(base.length) || "/";
 
@@ -1484,7 +1484,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (path === "/api" || path.startsWith("/api/")) return await api(request, path, url);
 
       if (path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-")) {
-        const answer = await oauthResponse(oauth, request, path, url);
+        const answer = await oauthResponse(oauth, request, path, url, context);
         if (answer) return answer;
       }
 
