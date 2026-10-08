@@ -41,6 +41,7 @@ Every report takes the same query parameters.
 | `GET /api/realtime` | People on the site in the last 5 minutes, pages, sources, countries, pageviews per minute, and recent activity. |
 | `GET /api/goals` | Every goal with its conversions, converted visitors, rate, and revenue. |
 | `GET /api/goals/:id` | One goal with a series and its conversions by channel, source, and page. |
+| `GET /api/journeys` | The paths visits take: the top pages at each step, the flows between steps, and the commonest paths. It takes `steps` (2 to 8), `start` and `end` pages, and `through` as `step:page` to follow one page. |
 | `GET /api/links` | Short links with their clicks. |
 | `GET /api/links/:id` | One link’s clicks over time, sources, countries, devices, and browsers. |
 

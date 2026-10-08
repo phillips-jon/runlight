@@ -3,6 +3,7 @@ import { api, type Site, type Stats, type View } from "./api.js";
 import { count, duration, percent } from "./format.js";
 import { Sheet } from "./links.js";
 import { t } from "./i18n.js";
+import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { Chevron, useFlyout } from "./picker.js";
 
@@ -74,7 +75,7 @@ export function AddSiteForm({ onAdded, onCancel }: { onAdded: (site: Site) => vo
           {withToken ? (
             <label class="field-row">
               <span class="field-label">{t("sites.connectToken")}</span>
-              <input class="value" type="password" required autoComplete="off" placeholder="rl_..." value={token} onInput={(e) => setToken((e.target as HTMLInputElement).value)} />
+              <Secret class="value" required autoComplete="off" placeholder="rl_..." value={token} onInput={(e) => setToken((e.target as HTMLInputElement).value)} />
               <span class="field-hint">{t("sites.connectTokenHint")}</span>
             </label>
           ) : (

@@ -1,5 +1,6 @@
 import { AssistantError, PROVIDERS, chat } from "./assistant.js";
 import { finishConnect, startConnect } from "./connect.js";
+import { PAGES_PER_VISIT, journeys } from "./journeys.js";
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
@@ -217,7 +218,7 @@ const TOKEN_PREFIX = "rl_";
 /** The header a shared dashboard sends its share id in. */
 const SHARE_HEADER = "x-runlight-share";
 /** What a share can read: one site's reports, nothing that changes anything. */
-const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props", "/api/export", "/api/funnels"]);
+const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props", "/api/export", "/api/funnels", "/api/journeys"]);
 const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[a-f0-9]{24}$/.test(path);
 
 /**
@@ -1256,6 +1257,18 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         day.map((c) => ({ visits: c.visits, visitors: c.visitors, pageviews: c.pageviews, bounceRate: c.visits ? c.bounced / c.visits : 0 })),
       );
       return json({ site: site.id, range: rangeOut, grid, cells: details });
+    }
+
+    if (path === "/api/journeys") {
+      const q = url.searchParams;
+      const through = /^(\d+):(.+)$/.exec(q.get("through") ?? "");
+      const answer = journeys(await runlight.store.journeyPages(query, PAGES_PER_VISIT), {
+        steps: Number(q.get("steps") ?? 5),
+        ...(q.get("start") ? { start: q.get("start")! } : {}),
+        ...(q.get("end") ? { end: q.get("end")! } : {}),
+        ...(through ? { through: { step: Number(through[1]), value: through[2]! } } : {}),
+      });
+      return json({ site: site.id, range: rangeOut, ...answer });
     }
 
     if (path === "/api/funnels") {

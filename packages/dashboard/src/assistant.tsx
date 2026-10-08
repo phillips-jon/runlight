@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, type AssistantProvider, type AssistantState, type Site, type View } from "./api.js";
 import { currentLocale, t } from "./i18n.js";
+import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
 
@@ -304,9 +305,8 @@ export function AssistantSettings({ owner }: { owner: boolean }) {
         {chosen?.key !== "no" ? (
           <label class="field-row">
             <span class="field-label">{t("assistant.key")}</span>
-            <input
+            <Secret
               class="value"
-              type="password"
               autoComplete="off"
               placeholder={sameProvider && state.keySaved ? t("mail.keepSaved") : ""}
               value={form.key}

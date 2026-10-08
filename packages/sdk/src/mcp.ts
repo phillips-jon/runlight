@@ -166,6 +166,22 @@ export const TOOLS: Tool[] = [
     request: (args) => ({ path: `/api/goals/${encodeURIComponent(String(args.goal_id ?? ""))}`, params: rangeParams(args, RANGE_KEYS) }),
   },
   {
+    name: "get_journeys",
+    title: "Paths through the site",
+    description:
+      "The paths visits take, page by page: the top pages at each step, how many went no further, the flows between steps, and the commonest whole paths. A refresh counts once. start and end follow only paths from or to a page.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        ...RANGE,
+        steps: { type: "integer", minimum: 2, maximum: 8, description: "How many pages of each path. Defaults to 5." },
+        start: { type: "string", description: "Only paths from this page, such as /pricing." },
+        end: { type: "string", description: "Only paths that reach this page, cut there." },
+      },
+    },
+    request: read("/api/journeys", [...RANGE_KEYS, "steps", "start", "end"]),
+  },
+  {
     name: "list_links",
     title: "Short links",
     description: "Every short link with its destination and its clicks in the range.",

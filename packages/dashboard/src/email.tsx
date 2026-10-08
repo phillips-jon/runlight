@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { api, base, type MailState, type Report, type Site } from "./api.js";
 import { LANGUAGES, currentLocale, t, type Key } from "./i18n.js";
+import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
 
@@ -108,13 +109,22 @@ function MailService({ onChange, site }: { onChange: (ready: boolean) => void; s
                   <option value={o}>{o}</option>
                 ))}
               </select>
+            ) : f.secret ? (
+              <Secret
+                class="value"
+                autoComplete="off"
+                spellcheck={false}
+                placeholder={state.saved.includes(f.name) && state.service === chosen.id ? t("mail.keepSaved") : (f.placeholder ?? "")}
+                value={form[f.name] ?? ""}
+                onInput={(e) => setForm({ ...form, [f.name]: (e.target as HTMLInputElement).value })}
+              />
             ) : (
               <input
                 class="value"
-                type={(f.secret ? "password" : "text") as "text"}
+                type="text"
                 autoComplete="off"
                 spellcheck={false}
-                placeholder={f.secret && state.saved.includes(f.name) && state.service === chosen.id ? t("mail.keepSaved") : (f.placeholder ?? "")}
+                placeholder={f.placeholder ?? ""}
                 value={form[f.name] ?? ""}
                 onInput={(e) => setForm({ ...form, [f.name]: (e.target as HTMLInputElement).value })}
               />

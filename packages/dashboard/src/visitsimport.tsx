@@ -1,6 +1,7 @@
 import { useRef, useState } from "preact/hooks";
 import { api, type Site } from "./api.js";
 import { count } from "./format.js";
+import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { t } from "./i18n.js";
 
@@ -98,15 +99,19 @@ export function ImportVisits({ site }: { site: Site }) {
       {fields.map((f) => (
         <label class="field-row">
           <span class="field-label">{label(f)}</span>
-          <input
-            class="value"
-            type={(f === "url" ? "url" : f === "username" ? "text" : "password") as "text"}
-            autoComplete="off"
-            spellcheck={false}
-            placeholder={f === "url" ? "https://stats.example.com" : undefined}
-            value={values[f] ?? ""}
-            onInput={(e) => setValues({ ...values, [f]: (e.target as HTMLInputElement).value })}
-          />
+          {f === "url" || f === "username" ? (
+            <input
+              class="value"
+              type={(f === "url" ? "url" : "text") as "text"}
+              autoComplete="off"
+              spellcheck={false}
+              placeholder={f === "url" ? "https://stats.example.com" : undefined}
+              value={values[f] ?? ""}
+              onInput={(e) => setValues({ ...values, [f]: (e.target as HTMLInputElement).value })}
+            />
+          ) : (
+            <Secret class="value" autoComplete="off" spellcheck={false} value={values[f] ?? ""} onInput={(e) => setValues({ ...values, [f]: (e.target as HTMLInputElement).value })} />
+          )}
         </label>
       ))}
       <p class="field-hint">{t("import.umamiHelp")}</p>

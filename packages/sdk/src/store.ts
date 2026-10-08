@@ -969,6 +969,27 @@ export class SqlStore {
     return funnel.steps.map((_, i) => num(row?.[`n${i}`]));
   }
 
+  /**
+   * Each visit's pageviews in order, at most `perVisit` of them, for journeys.
+   * A window function keeps the first ones of each visit, so a long visit
+   * cannot crowd the rest out. Visits belong to the range they started in.
+   */
+  async journeyPages(query: Query, perVisit: number): Promise<Array<{ session: string; path: string }>> {
+    const f = filterSql(query.filters);
+    const chosen = query.filters.length
+      ? ` AND e.session IN (SELECT DISTINCT e.session FROM rl_events e ${f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : ""} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
+      : "";
+    const rows = await this.db.all(
+      `WITH v AS (
+         SELECT e.session AS session, e.path AS path, ROW_NUMBER() OVER (PARTITION BY e.session ORDER BY e.ts, e.id) AS n
+         FROM rl_events e JOIN rl_sessions s ON s.id = e.session
+         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ? AND s.started_at >= ? AND s.started_at < ?${chosen})
+       SELECT session, path FROM v WHERE n <= ? ORDER BY session, n`,
+      [query.site, query.from, query.to + EVENT_TAIL_MS, query.from, query.to, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : []), perVisit],
+    );
+    return rows.map((r) => ({ session: String(r.session), path: String(r.path) }));
+  }
+
   // API tokens
 
   private tokenRow(r: Record<string, unknown>): TokenRow {

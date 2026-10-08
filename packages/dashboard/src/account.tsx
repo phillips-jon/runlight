@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { api, type Person } from "./api.js";
 import { day } from "./format.js";
 import { t, type Key } from "./i18n.js";
+import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { DeleteButton, Sheet } from "./links.js";
 import { strength } from "./strength.js";
@@ -41,11 +42,11 @@ export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void 
         <p class="settings-text">{t(me.role === "owner" ? "account.owner" : "account.viewer")}</p>
         <label class="field-row">
           <span class="field-label">{t("account.current")}</span>
-          <input class="value" type="password" autoComplete="current-password" required value={current} onInput={(e) => setCurrent((e.target as HTMLInputElement).value)} />
+          <Secret class="value" autoComplete="current-password" required value={current} onInput={(e) => setCurrent((e.target as HTMLInputElement).value)} />
         </label>
         <label class="field-row">
           <span class="field-label">{t("account.next")}</span>
-          <input class="value" type="password" autoComplete="new-password" minLength={10} required value={next} onInput={(e) => setNext((e.target as HTMLInputElement).value)} aria-describedby="password-strength" />
+          <Secret class="value" autoComplete="new-password" minLength={10} required value={next} onInput={(e) => setNext((e.target as HTMLInputElement).value)} aria-describedby="password-strength" />
           {next ? (
             <span class="strength" id="password-strength" data-score={score} aria-live="polite">
               <span class="strength-bar" aria-hidden="true">
@@ -60,7 +61,7 @@ export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void 
         </label>
         <label class="field-row">
           <span class="field-label">{t("account.again")}</span>
-          <input class="value" type="password" autoComplete="new-password" required value={again} aria-invalid={mismatch} onInput={(e) => setAgain((e.target as HTMLInputElement).value)} />
+          <Secret class="value" autoComplete="new-password" required value={again} aria-invalid={mismatch} onInput={(e) => setAgain((e.target as HTMLInputElement).value)} />
           {mismatch ? <span class="field-hint field-bad">{t("account.mismatch")}</span> : null}
         </label>
         <div class="settings-actions">

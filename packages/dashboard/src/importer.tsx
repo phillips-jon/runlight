@@ -1,6 +1,7 @@
 import { useRef, useState } from "preact/hooks";
 import { api, type Site } from "./api.js";
 import { count } from "./format.js";
+import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { t, tn, type Key } from "./i18n.js";
 import { parseCsv } from "./links.js";
@@ -152,15 +153,19 @@ export function ImportLinks({ site }: { site: Site }) {
       {fields.map((f) => (
         <label class="field-row">
           <span class="field-label">{t(f.label)}</span>
-          <input
-            class="value"
-            type={(f.type ?? "text") as "text"}
-            autoComplete="off"
-            spellcheck={false}
-            placeholder={f.placeholder}
-            value={values[f.name] ?? ""}
-            onInput={(e) => setValues({ ...values, [f.name]: (e.target as HTMLInputElement).value })}
-          />
+          {f.type === "password" ? (
+            <Secret class="value" autoComplete="off" spellcheck={false} placeholder={f.placeholder} value={values[f.name] ?? ""} onInput={(e) => setValues({ ...values, [f.name]: (e.target as HTMLInputElement).value })} />
+          ) : (
+            <input
+              class="value"
+              type={(f.type ?? "text") as "text"}
+              autoComplete="off"
+              spellcheck={false}
+              placeholder={f.placeholder}
+              value={values[f.name] ?? ""}
+              onInput={(e) => setValues({ ...values, [f.name]: (e.target as HTMLInputElement).value })}
+            />
+          )}
         </label>
       ))}
 

@@ -31,7 +31,13 @@ main button { width: 100%; height: 40px; margin-top: 6px; border: 0; border-radi
 .theme { position: fixed; right: 16px; bottom: 16px; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--muted); cursor: pointer; }
 .theme:hover { color: var(--ink); }
 .theme svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-.theme svg:not(.on) { display: none; }`;
+.theme svg:not(.on) { display: none; }
+.secret { position: relative; display: block; margin-top: 6px; }
+.secret input { margin-top: 0; padding-right: 44px; }
+.eye { position: absolute; top: 50%; right: 5px; display: grid; place-items: center; width: 32px; height: 30px; margin: 0; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); transform: translateY(-50%); cursor: pointer; }
+main .eye { width: 32px; height: 30px; margin: 0; background: none; color: var(--muted); }
+.eye:hover, .eye[aria-pressed="true"] { color: var(--ink); }
+.eye svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }`;
 
 /** Applies the saved theme before the page paints, then runs the switch and Cmd+Shift+D (Ctrl+Shift+D). */
 export const AUTH_JS = `(() => {
@@ -49,7 +55,29 @@ export const AUTH_JS = `(() => {
   };
   const set = (c) => { try { localStorage.setItem(KEY, c); } catch {} show(); };
   show();
+  const EYE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8zM8 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></svg>';
+  const SHUT = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8s2.4-4.5 6.5-4.5c1 0 1.9.3 2.7.7M14.5 8s-2.4 4.5-6.5 4.5c-1 0-1.9-.3-2.7-.7M6.6 6.6a2 2 0 0 0 2.8 2.8M2.5 2.5l11 11"/></svg>';
   document.addEventListener("DOMContentLoaded", () => {
+    // An eye button in each password field, to show what was typed.
+    for (const input of document.querySelectorAll('input[type="password"]')) {
+      const wrap = document.createElement("span");
+      wrap.className = "secret";
+      input.replaceWith(wrap);
+      wrap.append(input);
+      const eye = document.createElement("button");
+      eye.type = "button";
+      eye.className = "eye";
+      const set = (shown) => {
+        input.type = shown ? "text" : "password";
+        eye.setAttribute("aria-pressed", String(shown));
+        eye.setAttribute("aria-label", shown ? "Hide password" : "Show password");
+        eye.title = shown ? "Hide password" : "Show password";
+        eye.innerHTML = shown ? SHUT : EYE;
+      };
+      set(false);
+      eye.addEventListener("click", () => set(input.type === "password"));
+      wrap.append(eye);
+    }
     show();
     document.querySelector(".theme")?.addEventListener("click", () => set({ light: "dark", dark: "system", system: "light" }[read()]));
   });

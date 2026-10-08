@@ -220,6 +220,14 @@ export interface AssistantState {
   providers?: AssistantProvider[];
 }
 
+/** The paths visits take, a column per step. "" is any other page. */
+export interface JourneyAnswer {
+  visits: number;
+  columns: Array<{ items: Array<{ value: string; visits: number }>; visits: number; left: number }>;
+  links: Array<{ step: number; from: string; to: string; visits: number }>;
+  paths: Array<{ pages: string[]; visits: number }>;
+}
+
 export interface ApiToken {
   id: string;
   name: string;
@@ -406,5 +414,13 @@ export const api = {
     return get<{ rows: Row[] }>("breakdown", params);
   },
   rhythm: (view: View) => get<{ grid: number[][]; cells: RhythmCell[][] }>("rhythm", viewParams(view)),
+  journeys: (view: View, options: { steps: number; start: string; end: string; through: { step: number; value: string } | null }) => {
+    const params = viewParams(view);
+    params.set("steps", String(options.steps));
+    if (options.start) params.set("start", options.start);
+    if (options.end) params.set("end", options.end);
+    if (options.through) params.set("through", `${options.through.step}:${options.through.value}`);
+    return get<JourneyAnswer>("journeys", params);
+  },
   realtime: (site: string) => get<Realtime>("realtime", new URLSearchParams(site ? { site } : {})),
 };

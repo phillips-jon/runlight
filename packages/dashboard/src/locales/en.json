@@ -673,5 +673,21 @@
   "assistant.modelHint": "Use the name exactly as the service lists it. A model that can call tools works best.",
   "assistant.key": "API key",
   "assistant.remove": "Turn off the assistant",
-  "assistant.removeHint": "Removes the service and its key. The robot button then asks an owner to set it up again."
+  "assistant.removeHint": "Removes the service and its key. The robot button then asks an owner to set it up again.",
+  "journeys.open": "Journeys",
+  "journeys.title": "Journeys",
+  "journeys.intro": "The paths visits take through the site, a page at a time. Click a page to follow only the visits that passed through it.",
+  "journeys.steps": "Steps",
+  "journeys.stepCount": "{n} steps",
+  "journeys.start": "Starting at",
+  "journeys.end": "Ending at",
+  "journeys.anyPage": "Any page",
+  "journeys.step": "Step {n}",
+  "journeys.other": "Other pages",
+  "journeys.left": "{n} went no further",
+  "journeys.follow": "Follow visits through {page}",
+  "journeys.following": "Following visits through {page} at step {step}.",
+  "journeys.none": "No visits took a path like this in these dates.",
+  "secret.show": "Show",
+  "secret.hide": "Hide"
 }

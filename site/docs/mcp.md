@@ -93,8 +93,11 @@ export const { GET, OPTIONS } = rl.routes();
 | `get_timeseries` | The same numbers by hour, day, week, or month. |
 | `get_breakdown` | The top pages, entry and exit pages, referrers, sources, channels, UTM tags, countries, regions, cities, browsers, systems, devices, screens, languages, events, and AI agents. |
 | `get_visit_times` | Visits by weekday and hour. |
-| `get_realtime` | The visitors on the site now, with the page each one is reading and where they came from. |
+| `get_realtime` | How many people are on the site now, the pages being read, and where visits came from, never who. |
 | `list_goals`, `get_goal` | Conversions, rates, and revenue for every goal, or one goal split by channel, source, and page. |
+| `get_journeys` | The paths visits take through the site, step by step, from or to a page if you like. |
+| `list_funnels` | Each funnel's steps and how many visits reached each one. |
+| `get_event_properties` | The values sent with an event, such as which links were clicked or which files downloaded. |
 | `list_links` | Short links and their clicks. |
 
 Every tool takes the dashboard's periods (`today`, `7d`, `30d`, `month`, `last_month`, `12mo`, `all`, and the rest) or dates. Each one also takes a comparison and filters such as `channel:is:Organic Search` or `page:contains:/blog`. Assistants learn these from the tool descriptions, so you can simply ask.

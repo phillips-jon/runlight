@@ -673,5 +673,21 @@
   "assistant.modelHint": "Verwende den Namen genau so, wie der Dienst ihn nennt. Ein Modell, das Werkzeuge aufrufen kann, funktioniert am besten.",
   "assistant.key": "API-Schlüssel",
   "assistant.remove": "Assistent ausschalten",
-  "assistant.removeHint": "Entfernt den Dienst und seinen Schlüssel. Der Roboter-Knopf bittet dann einen Eigentümer, ihn neu einzurichten."
+  "assistant.removeHint": "Entfernt den Dienst und seinen Schlüssel. Der Roboter-Knopf bittet dann einen Eigentümer, ihn neu einzurichten.",
+  "journeys.open": "Wege",
+  "journeys.title": "Wege",
+  "journeys.intro": "Die Wege, die Besuche durch die Website nehmen, Seite für Seite. Klicke auf eine Seite, um nur den Besuchen zu folgen, die dort vorbeikamen.",
+  "journeys.steps": "Schritte",
+  "journeys.stepCount": "{n} Schritte",
+  "journeys.start": "Beginnend bei",
+  "journeys.end": "Endend bei",
+  "journeys.anyPage": "Beliebige Seite",
+  "journeys.step": "Schritt {n}",
+  "journeys.other": "Andere Seiten",
+  "journeys.left": "{n} gingen nicht weiter",
+  "journeys.follow": "Besuchen über {page} folgen",
+  "journeys.following": "Besuche über {page} bei Schritt {step}.",
+  "journeys.none": "In diesem Zeitraum nahm kein Besuch einen solchen Weg.",
+  "secret.show": "Anzeigen",
+  "secret.hide": "Verbergen"
 }

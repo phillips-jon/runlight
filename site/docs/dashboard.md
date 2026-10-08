@@ -63,6 +63,10 @@ In **Settings**, **Import**, **Visits**, sign in to your Umami with an API key (
 
 The import stops where Runlight's own visits begin, so no day is counted twice. If you stop it or close the page, running it again carries on from the last day it finished. Umami records no engaged time, so an imported visit's length runs from its first pageview to its last. Your key or password is only used while the import runs and is never saved.
 
+## Journeys
+
+The arrows button in the **Pages** box opens Journeys, the paths visits take through the site a page at a time. Each column is a step, with its most common pages and how many visits went no further, and the lines between columns show where visits went next, thicker for more. A page seen twice in a row, as a refresh makes, counts once. Pick how many steps to show, start from a page such as your pricing page, or end at one such as a thank-you page. Click any page to follow only the visits that passed through it at that step. The same answer comes from `/api/journeys` and the MCP tool `get_journeys`.
+
 ## The assistant
 
 The robot button beside **Filter** opens an assistant you can ask about your stats in plain words, such as where visitors came from last month or which pages keep people reading. It reads the numbers with the same read-only tools as the [MCP server](/docs/mcp/), for the site and dates on screen unless you ask about others, and it can never change anything.

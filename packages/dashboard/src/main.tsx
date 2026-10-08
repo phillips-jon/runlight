@@ -527,8 +527,9 @@ function App() {
           ),
         )}
         {/* The last row: Conversions narrow, Links wide, so the zigzag carries on. */}
-        {site ? <ConversionsPanel view={view} readOnly={readOnly || elsewhere} onAdd={() => setSettingsOpen("goals")} /> : null}
+        {/* Wide then narrow, so the zigzag of the rows above carries on. */}
         {site && !readOnly && !elsewhere ? <LinksPanel view={view} site={site.id} /> : null}
+        {site ? <ConversionsPanel view={view} readOnly={readOnly || elsewhere} onAdd={() => setSettingsOpen("goals")} /> : null}
       </div>
 
       <footer class="foot">

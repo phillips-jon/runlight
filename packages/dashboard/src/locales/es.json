@@ -673,5 +673,21 @@
   "assistant.modelHint": "Usa el nombre exacto que indica el servicio. Funciona mejor un modelo que sepa usar herramientas.",
   "assistant.key": "Clave de API",
   "assistant.remove": "Desactivar el asistente",
-  "assistant.removeHint": "Quita el servicio y su clave. El botón del robot pedirá entonces a un propietario que lo configure de nuevo."
+  "assistant.removeHint": "Quita el servicio y su clave. El botón del robot pedirá entonces a un propietario que lo configure de nuevo.",
+  "journeys.open": "Recorridos",
+  "journeys.title": "Recorridos",
+  "journeys.intro": "Los caminos que siguen las visitas por el sitio, página a página. Haz clic en una página para seguir solo las visitas que pasaron por ella.",
+  "journeys.steps": "Pasos",
+  "journeys.stepCount": "{n} pasos",
+  "journeys.start": "Empezando en",
+  "journeys.end": "Terminando en",
+  "journeys.anyPage": "Cualquier página",
+  "journeys.step": "Paso {n}",
+  "journeys.other": "Otras páginas",
+  "journeys.left": "{n} no siguieron",
+  "journeys.follow": "Seguir las visitas que pasaron por {page}",
+  "journeys.following": "Visitas que pasaron por {page} en el paso {step}.",
+  "journeys.none": "Ninguna visita siguió un camino así en estas fechas.",
+  "secret.show": "Mostrar",
+  "secret.hide": "Ocultar"
 }

@@ -5,6 +5,7 @@ import type { RhythmCell } from "./api.js";
 import { rich, t, tn, type Key } from "./i18n.js";
 import { MapOverlay, WorldMap } from "./map.js";
 import { EventProps } from "./eventprops.js";
+import { JourneysSheet } from "./journeys.js";
 import { Icon } from "./icons.js";
 
 export interface Tab {
@@ -295,6 +296,7 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
   const [active, setActive] = useState(0);
   const [showMap, setShowMap] = useState(false);
   const [fullMap, setFullMap] = useState(false);
+  const [journeysOpen, setJourneys] = useState(false);
   const [showAll, setShowAll] = useState(false);
   /** The event whose properties are open, from the Events panel. */
   const [detail, setDetail] = useState<string | null>(null);
@@ -355,6 +357,13 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
               ))}
             </nav>
           ) : null}
+          {title === "panel.pages" ? (
+            <button type="button" class="tool" title={t("journeys.open")} aria-label={t("journeys.open")} onClick={() => setJourneys(true)}>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M2 3.5h3.5c2.5 0 2.5 4.5 5 4.5H14M2 12.5h3.5c2.5 0 2.5-4.5 5-4.5M11.5 5.5L14 8l-2.5 2.5" />
+              </svg>
+            </button>
+          ) : null}
           {map ? (
             <>
               <button type="button" class={showMap ? "tool on" : "tool"} aria-pressed={showMap} title={t(showMap ? "panel.showList" : "panel.showMap")} onClick={() => setShowMap(!showMap)}>
@@ -372,6 +381,7 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
         </div>
       </header>
       {fullMap ? <MapOverlay view={view} onFilter={onFilter} onClose={() => setFullMap(false)} /> : null}
+      {journeysOpen ? <JourneysSheet view={view} onClose={() => setJourneys(false)} /> : null}
       {detail ? <EventProps view={view} event={detail} onClose={() => setDetail(null)} /> : null}
       {showAll ? <AllRows title={title} tab={tab} view={view} onFilter={onFilter} onClose={() => setShowAll(false)} /> : null}
       {showMap ? (

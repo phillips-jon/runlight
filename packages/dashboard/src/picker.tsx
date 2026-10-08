@@ -245,7 +245,7 @@ export function ComparePicker({ mode, from, to, today, allTime, onChange }: {
         <Chevron />
       </button>
       {open ? (
-        <div class="flyout" role="dialog" aria-label={t("compare.dialog")}>
+        <div class="flyout compare-flyout" role="dialog" aria-label={t("compare.dialog")}>
           <ul class="presets">
             <li class="presets-title">{t("compare.title")}</li>
             {COMPARES.map((value) => (
