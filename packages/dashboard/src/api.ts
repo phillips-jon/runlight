@@ -151,6 +151,9 @@ export interface Person {
   email: string;
   role: "owner" | "viewer";
   createdAt: number;
+  /** Whether sign-in asks for an authenticator code. */
+  twoFactor?: boolean;
+  recoveryLeft?: number;
 }
 
 /** Whether locations come from DB-IP's free data, which asks to be credited. */
@@ -369,6 +372,11 @@ export const api = {
   deleteFunnel: (site: string, id: string) => del(`funnels/${id}${siteQuery(site)}`),
   account: () => get<{ account: Person }>("account", new URLSearchParams()),
   changePassword: (current: string, next: string) => send<{ ok: true }>("POST", "account/password", { current, next }),
+  twoFactorStart: (password: string) => send<{ secret: string; uri: string }>("POST", "account/2fa/start", { password }),
+  twoFactorConfirm: (code: string) => send<{ recovery: string[] }>("POST", "account/2fa/confirm", { code }),
+  twoFactorRecovery: (password: string) => send<{ recovery: string[] }>("POST", "account/2fa/recovery", { password }),
+  twoFactorDisable: (password: string) => send<{ ok: true }>("POST", "account/2fa/disable", { password }),
+  resetTwoFactor: (id: string) => del(`people/${id}/2fa`),
   people: () => get<{ people: Person[]; invites?: PendingInvite[] }>("people", new URLSearchParams()),
   addPerson: (email: string, role: Person["role"]) => send<InviteSent>("POST", "people", { email, role }),
   resendInvite: (id: string) => send<InviteSent>("POST", `invites/${id}/resend`, {}),

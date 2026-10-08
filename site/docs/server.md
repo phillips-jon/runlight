@@ -37,9 +37,13 @@ The link starts with `http://localhost:3000`. When the server runs somewhere els
 
 Owners invite people in **Settings**, **People**, as an owner or a viewer. An owner can change everything, and a viewer can read every site's stats without changing anything. The invite goes out by email when the server has a mail service (set in **Settings**, **Email reports**), and the dashboard always shows the link too, so you can send it another way. The person opens it, chooses a password, and is signed in. A link works once, for seven days, and **Send again** makes a new one. Everyone can change their password later under **Account** at the bottom of the dashboard. The server always keeps at least one owner.
 
+### Two-factor sign-in
+
+Anyone can turn on two-factor sign-in under **Account** at the bottom of the dashboard. Confirm your password, scan the QR code with an authenticator app such as 1Password, Google Authenticator, or Authy, and enter the code it shows. Signing in then asks for a fresh code after the password. You also get ten recovery codes, shown once, and each signs you in once if your phone is gone. An owner can reset someone else's two-factor in **Settings**, **People**.
+
 ### Forgotten passwords
 
-If an owner is locked out, run the `password` command on the server to give the account a new password, which it prints. The same command makes a new owner account.
+If an owner is locked out, run the `password` command on the server to give the account a new password, which it prints. It also turns off two-factor sign-in for that account, since someone at the server is who they say. The same command makes a new owner account.
 
 ```bash
 npx runlight.sh password someone@example.com

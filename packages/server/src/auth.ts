@@ -3,7 +3,7 @@
  * hashes, and the signed cookie that keeps them signed in. Library mode
  * never uses this; the app there brings its own auth or a token.
  */
-import { createHash, createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
+import { createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scrypt as scryptCb, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
 import type { SqlStore } from "@runlight/sdk";
 
@@ -26,7 +26,66 @@ export interface User {
   hash: string;
   role: Role;
   createdAt: number;
+  /** Whether sign-in also asks for a code from an authenticator app. */
+  twoFactor: boolean;
+  /** Recovery codes not yet used. */
+  recoveryLeft: number;
 }
+
+// Two-factor: TOTP as authenticator apps expect it (RFC 6238): SHA-1, six digits, 30 seconds.
+const STEP_MS = 30_000;
+const BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+export function base32(bytes: Buffer): string {
+  let bits = 0;
+  let value = 0;
+  let out = "";
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      out += BASE32[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) out += BASE32[(value << (5 - bits)) & 31];
+  return out;
+}
+
+function unbase32(text: string): Buffer {
+  let bits = 0;
+  let value = 0;
+  const out: number[] = [];
+  for (const c of text.replace(/=+$/, "").toUpperCase()) {
+    const i = BASE32.indexOf(c);
+    if (i < 0) continue;
+    value = (value << 5) | i;
+    bits += 5;
+    if (bits >= 8) {
+      out.push((value >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+  return Buffer.from(out);
+}
+
+/** The six-digit code for a secret at a time step. */
+export function totp(secret: string, step: number): string {
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(step));
+  const mac = createHmac("sha1", unbase32(secret)).update(counter).digest();
+  const at = mac[mac.length - 1]! & 15;
+  const n = ((mac[at]! & 127) << 24) | (mac[at + 1]! << 16) | (mac[at + 2]! << 8) | mac[at + 3]!;
+  return String(n % 1_000_000).padStart(6, "0");
+}
+
+/** The address an authenticator app reads from the QR code. */
+export function otpauthUri(secret: string, email: string, host: string): string {
+  const label = encodeURIComponent(`Runlight (${host}):${email}`);
+  return `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(`Runlight (${host})`)}&algorithm=SHA1&digits=6&period=30`;
+}
+
+const recoveryHash = (code: string) => createHash("sha256").update(code.replace(/[^a-z0-9]/gi, "").toLowerCase()).digest("hex");
 
 const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 
@@ -78,6 +137,10 @@ export class Accounts {
         ? await this.store.db.all(`SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'rl_users' AND table_schema = current_schema()`)
         : await this.store.db.all(`PRAGMA table_info(rl_users)`);
       if (!columns.some((c) => c.name === "role")) await this.store.db.run(`ALTER TABLE rl_users ADD COLUMN role TEXT NOT NULL DEFAULT 'owner'`);
+      // Two-factor came later still: the secret (sealed), one being set up, recovery code hashes, and the last code's step.
+      for (const [name, type] of [["totp_secret", "TEXT"], ["totp_pending", "TEXT"], ["totp_recovery", "TEXT"], ["totp_step", "BIGINT"]] as const) {
+        if (!columns.some((c) => c.name === name)) await this.store.db.run(`ALTER TABLE rl_users ADD COLUMN ${name} ${type}`);
+      }
       await this.store.db.run(
         `CREATE TABLE IF NOT EXISTS rl_invites (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, role TEXT NOT NULL, code_hash TEXT NOT NULL UNIQUE, invited_by TEXT NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL)`,
       );
@@ -89,7 +152,122 @@ export class Accounts {
   }
 
   private row(r: Record<string, unknown>): User {
-    return { id: String(r.id), email: String(r.email), hash: String(r.hash), role: r.role === "viewer" ? "viewer" : "owner", createdAt: Number(r.created_at) };
+    const recovery = r.totp_recovery ? (JSON.parse(String(r.totp_recovery)) as string[]) : [];
+    return {
+      id: String(r.id),
+      email: String(r.email),
+      hash: String(r.hash),
+      role: r.role === "viewer" ? "viewer" : "owner",
+      createdAt: Number(r.created_at),
+      twoFactor: Boolean(r.totp_secret),
+      recoveryLeft: recovery.length,
+    };
+  }
+
+  /** Seals a two-factor secret with the server's secret, so the database alone cannot make codes. */
+  private seal(text: string): string {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv("aes-256-gcm", createHash("sha256").update(`totp:${this.secret}`).digest(), iv);
+    const body = Buffer.concat([cipher.update(text, "utf8"), cipher.final()]);
+    return `${iv.toString("base64url")}.${body.toString("base64url")}.${cipher.getAuthTag().toString("base64url")}`;
+  }
+
+  private unseal(sealed: string): string | null {
+    try {
+      const [iv, body, tag] = sealed.split(".");
+      const decipher = createDecipheriv("aes-256-gcm", createHash("sha256").update(`totp:${this.secret}`).digest(), Buffer.from(iv!, "base64url"));
+      decipher.setAuthTag(Buffer.from(tag!, "base64url"));
+      return Buffer.concat([decipher.update(Buffer.from(body!, "base64url")), decipher.final()]).toString("utf8");
+    } catch {
+      return null;
+    }
+  }
+
+  /** Starts turning on two-factor: a new secret, kept aside until a code from it is confirmed. */
+  async startTwoFactor(id: string): Promise<string> {
+    await this.init();
+    const secret = base32(randomBytes(20));
+    await this.store.db.run(`UPDATE rl_users SET totp_pending = ? WHERE id = ?`, [this.seal(secret), id]);
+    return secret;
+  }
+
+  /** Turns two-factor on once a code from the new secret checks out, and returns ten recovery codes, shown once. */
+  async confirmTwoFactor(id: string, code: string, now: number): Promise<string[] | null> {
+    await this.init();
+    const [row] = await this.store.db.all(`SELECT totp_pending FROM rl_users WHERE id = ?`, [id]);
+    const secret = row?.totp_pending ? this.unseal(String(row.totp_pending)) : null;
+    const step = secret ? matchStep(secret, code, now, -1) : null;
+    if (step === null) return null;
+    const recovery = Array.from({ length: 10 }, () => {
+      const raw = base32(randomBytes(5)).toLowerCase();
+      return `${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
+    });
+    await this.store.db.run(`UPDATE rl_users SET totp_secret = ?, totp_pending = NULL, totp_recovery = ?, totp_step = ? WHERE id = ?`, [
+      this.seal(secret!),
+      JSON.stringify(recovery.map(recoveryHash)),
+      step,
+      id,
+    ]);
+    return recovery;
+  }
+
+  /** New recovery codes in place of the old ones. */
+  async newRecoveryCodes(id: string): Promise<string[]> {
+    await this.init();
+    const recovery = Array.from({ length: 10 }, () => {
+      const raw = base32(randomBytes(5)).toLowerCase();
+      return `${raw.slice(0, 4)}-${raw.slice(4, 8)}`;
+    });
+    await this.store.db.run(`UPDATE rl_users SET totp_recovery = ? WHERE id = ?`, [JSON.stringify(recovery.map(recoveryHash)), id]);
+    return recovery;
+  }
+
+  async disableTwoFactor(id: string): Promise<void> {
+    await this.init();
+    await this.store.db.run(`UPDATE rl_users SET totp_secret = NULL, totp_pending = NULL, totp_recovery = NULL, totp_step = NULL WHERE id = ?`, [id]);
+  }
+
+  /**
+   * Checks a six-digit code, or a recovery code, for an account with two-factor on.
+   * A code works once: one already used, or older, is refused, and a recovery code is crossed off.
+   */
+  async checkSecondFactor(id: string, code: string, now: number): Promise<boolean> {
+    await this.init();
+    const [row] = await this.store.db.all(`SELECT totp_secret, totp_recovery, totp_step FROM rl_users WHERE id = ?`, [id]);
+    if (!row?.totp_secret) return false;
+    const given = code.trim();
+    if (/^\d{6}$/.test(given.replace(/\s/g, ""))) {
+      const secret = this.unseal(String(row.totp_secret));
+      const step = secret ? matchStep(secret, given.replace(/\s/g, ""), now, row.totp_step === null || row.totp_step === undefined ? -1 : Number(row.totp_step)) : null;
+      if (step === null) return false;
+      await this.store.db.run(`UPDATE rl_users SET totp_step = ? WHERE id = ?`, [step, id]);
+      return true;
+    }
+    const hashes = row.totp_recovery ? (JSON.parse(String(row.totp_recovery)) as string[]) : [];
+    const at = hashes.indexOf(recoveryHash(given));
+    if (at < 0) return false;
+    hashes.splice(at, 1);
+    await this.store.db.run(`UPDATE rl_users SET totp_recovery = ? WHERE id = ?`, [JSON.stringify(hashes), id]);
+    return true;
+  }
+
+  /**
+   * A short-lived ticket naming an account whose password checked out and
+   * which still owes a code. Signed like a session, so it cannot be made up.
+   */
+  pendingFor(user: User, now: number): string {
+    const body = `${user.id}.${now + 5 * 60_000}`;
+    return `${body}.${this.sign(`pending.${body}`, user.hash)}`;
+  }
+
+  async fromPending(value: string, now: number): Promise<User | null> {
+    const [id, expires, signature] = value.split(".");
+    if (!id || !expires || !signature || !(Number(expires) > now)) return null;
+    const user = await this.byId(id);
+    if (!user) return null;
+    const expected = Buffer.from(this.sign(`pending.${id}.${expires}`, user.hash));
+    const given = Buffer.from(signature);
+    return expected.length === given.length && timingSafeEqual(expected, given) ? user : null;
   }
 
   async count(): Promise<number> {
@@ -146,7 +324,7 @@ export class Accounts {
       await this.store.db.run(`UPDATE rl_users SET hash = ? WHERE id = ?`, [hash, existing.id]);
       return { ...existing, hash };
     }
-    const user: User = { id: randomBytes(12).toString("hex"), email: address, hash, role, createdAt: now };
+    const user: User = { id: randomBytes(12).toString("hex"), email: address, hash, role, createdAt: now, twoFactor: false, recoveryLeft: 0 };
     await this.store.db.run(`INSERT INTO rl_users (id, email, hash, role, created_at) VALUES (?, ?, ?, ?, ?)`, [user.id, user.email, user.hash, user.role, user.createdAt]);
     return user;
   }
@@ -246,6 +424,15 @@ export class Accounts {
   private sign(body: string, hash: string): string {
     return createHmac("sha256", this.secret).update(`${body}.${hash}`).digest("base64url");
   }
+}
+
+/** The time step a code matches, one step either side for clocks that drift, newer than `after`; else null. */
+function matchStep(secret: string, code: string, now: number, after: number): number | null {
+  const current = Math.floor(now / STEP_MS);
+  for (const step of [current, current - 1, current + 1]) {
+    if (step > after && totp(secret, step) === code) return step;
+  }
+  return null;
 }
 
 /** Counts failed sign-ins under a key and refuses more than a few in a while. */

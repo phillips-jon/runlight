@@ -7,6 +7,7 @@ import { Icon } from "./icons.js";
 import { DeleteButton, Sheet } from "./links.js";
 import { strength } from "./strength.js";
 import { Code } from "./settings.js";
+import { qrSvg } from "./qr.js";
 
 const dateOf = (ms: number) => day(new Date(ms).toISOString().slice(0, 10));
 
@@ -64,16 +65,175 @@ export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void 
           <Secret class="value" autoComplete="new-password" required value={again} aria-invalid={mismatch} onInput={(e) => setAgain((e.target as HTMLInputElement).value)} />
           {mismatch ? <span class="field-hint field-bad">{t("account.mismatch")}</span> : null}
         </label>
-        <div class="settings-actions">
-          {error ? <span class="settings-error">{error}</span> : null}
-          {state === "saved" ? <span class="settings-ok">{t("account.saved")}</span> : null}
+        <div class="settings-actions start">
           <button type="submit" class="solid" disabled={state === "saving" || !current || next.length < 10 || again !== next}>
             <Icon name="save" />
             {t("account.save")}
           </button>
+          {state === "saved" ? <span class="settings-ok">{t("account.saved")}</span> : null}
+          {error ? <span class="settings-error">{error}</span> : null}
         </div>
       </form>
+      <TwoFactor me={me} />
     </Sheet>
+  );
+}
+
+/** Account, Two-factor sign-in: turning it on with a QR code, recovery codes, and turning it off. */
+function TwoFactor({ me }: { me: Person }) {
+  const [on, setOn] = useState(Boolean(me.twoFactor));
+  const [left, setLeft] = useState(me.recoveryLeft ?? 0);
+  // asking: which action wants the password first; setup: the secret to scan; codes: recovery codes to show once.
+  const [asking, setAsking] = useState<"start" | "recovery" | "disable" | null>(null);
+  const [password, setPassword] = useState("");
+  const [setup, setSetup] = useState<{ secret: string; uri: string } | null>(null);
+  const [code, setCode] = useState("");
+  const [codes, setCodes] = useState<string[] | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const run = <T,>(work: Promise<T>, then: (r: T) => void) => {
+    setError("");
+    setBusy(true);
+    work
+      .then(then)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setBusy(false));
+  };
+  const confirmPassword = (e: Event) => {
+    e.preventDefault();
+    if (asking === "start") run(api.twoFactorStart(password), (r) => {
+      setSetup(r);
+      setAsking(null);
+      setPassword("");
+    });
+    if (asking === "recovery") run(api.twoFactorRecovery(password), (r) => {
+      setCodes(r.recovery);
+      setLeft(r.recovery.length);
+      setAsking(null);
+      setPassword("");
+    });
+    if (asking === "disable") run(api.twoFactorDisable(password), () => {
+      setOn(false);
+      setAsking(null);
+      setPassword("");
+    });
+  };
+  const confirmCode = (e: Event) => {
+    e.preventDefault();
+    run(api.twoFactorConfirm(code), (r) => {
+      setCodes(r.recovery);
+      setLeft(r.recovery.length);
+      setOn(true);
+      setSetup(null);
+      setCode("");
+    });
+  };
+  const qr = setup ? qrSvg(setup.uri) : null;
+  const saveCodes = () => {
+    const blob = new Blob([`Runlight recovery codes for ${me.email}\n\n${codes!.join("\n")}\n\nEach code works once.\n`], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "runlight-recovery-codes.txt";
+    link.click();
+    URL.revokeObjectURL(link.href);
+  };
+
+  return (
+    <div class="sheet-body link-form twofactor">
+      <div class="field-row">
+        <span class="field-label">{t("twofa.title")}</span>
+        <span class="field-hint">{on ? t(left === 1 ? "twofa.on_one" : "twofa.on_other", { n: left }) : t("twofa.off")}</span>
+      </div>
+      {codes ? (
+        <div class="token-made">
+          <p class="settings-text">{t("twofa.codesIntro")}</p>
+          <ol class="recovery-codes">
+            {codes.map((c) => (
+              <li>
+                <code>{c}</code>
+              </li>
+            ))}
+          </ol>
+          <div class="settings-actions start">
+            <button type="button" class="ghost" onClick={saveCodes}>
+              <Icon name="download" />
+              {t("twofa.download")}
+            </button>
+            <button type="button" class="ghost" onClick={() => void navigator.clipboard?.writeText(codes.join("\n")).then(() => setCopied(true)).catch(() => {})}>
+              <Icon name={copied ? "check" : "copy"} />
+              {t(copied ? "install.copied" : "twofa.copy")}
+            </button>
+            <button type="button" class="solid" onClick={() => setCodes(null)}>
+              <Icon name="check" />
+              {t("twofa.saved")}
+            </button>
+          </div>
+        </div>
+      ) : setup && qr ? (
+        <form class="twofactor-setup" onSubmit={confirmCode}>
+          <p class="settings-text">{t("twofa.scan")}</p>
+          <div class="qr">
+            <svg viewBox={`0 0 ${qr.size} ${qr.size}`} role="img" aria-label={t("twofa.qr")} shape-rendering="crispEdges">
+              <rect width={qr.size} height={qr.size} fill="#ffffff" />
+              <path d={qr.path} fill="#000000" />
+            </svg>
+          </div>
+          <p class="field-hint">{t("twofa.manual")}</p>
+          <Code>{setup.secret.replace(/(.{4})/g, "$1 ").trim()}</Code>
+          <label class="field-row">
+            <span class="field-label">{t("twofa.code")}</span>
+            <input class="value" type="text" inputmode="numeric" autoComplete="one-time-code" maxLength={7} required value={code} onInput={(e) => setCode((e.target as HTMLInputElement).value)} />
+          </label>
+          <div class="settings-actions start">
+            <button type="submit" class="solid" disabled={busy || code.replace(/\s/g, "").length !== 6}>
+              <Icon name="check" />
+              {t("twofa.confirm")}
+            </button>
+            <button type="button" class="ghost" onClick={() => setSetup(null)}>
+              {t("common.cancel")}
+            </button>
+          </div>
+        </form>
+      ) : asking ? (
+        <form class="twofactor-setup" onSubmit={confirmPassword}>
+          <label class="field-row">
+            <span class="field-label">{t("twofa.password")}</span>
+            <Secret class="value" autoComplete="current-password" required value={password} onInput={(e) => setPassword((e.target as HTMLInputElement).value)} />
+          </label>
+          <div class="settings-actions start">
+            <button type="submit" class={asking === "disable" ? "solid danger" : "solid"} disabled={busy || !password}>
+              <Icon name={asking === "disable" ? "x" : "check"} />
+              {t(asking === "start" ? "twofa.continue" : asking === "recovery" ? "twofa.newCodes" : "twofa.turnOff")}
+            </button>
+            <button type="button" class="ghost" onClick={() => setAsking(null)}>
+              {t("common.cancel")}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div class="settings-actions start">
+          {on ? (
+            <>
+              <button type="button" class="ghost" onClick={() => setAsking("recovery")}>
+                <Icon name="refresh" />
+                {t("twofa.newCodes")}
+              </button>
+              <button type="button" class="ghost" onClick={() => setAsking("disable")}>
+                <Icon name="x" />
+                {t("twofa.turnOff")}
+              </button>
+            </>
+          ) : (
+            <button type="button" class="solid" onClick={() => setAsking("start")}>
+              <Icon name="key" />
+              {t("twofa.turnOn")}
+            </button>
+          )}
+        </div>
+      )}
+      {error ? <p class="settings-error">{error}</p> : null}
+    </div>
   );
 }
 
@@ -146,10 +306,17 @@ export function People({ me }: { me: Person }) {
                 <span class="share-name">
                   {p.email}
                   {p.id === me.id ? <span class="people-you">{t("people.you")}</span> : null}
+                  {p.twoFactor ? <span class="people-you">{t("people.twoFactor")}</span> : null}
                 </span>
                 <span class="share-meta">{t("links.createdOn", { date: dateOf(p.createdAt) })}</span>
               </div>
               <div class="domain-actions">
+                {p.twoFactor && p.id !== me.id ? (
+                  <button type="button" class="copy inline" title={t("people.resetTwoFactorHint")} onClick={() => void api.resetTwoFactor(p.id).then(load).catch((err: Error) => setError(err.message))}>
+                    <Icon name="reset" />
+                    {t("people.resetTwoFactor")}
+                  </button>
+                ) : null}
                 <select class="value people-role" value={p.role} aria-label={t("people.role")} onChange={(e) => void change(p.id, (e.target as HTMLSelectElement).value as Person["role"])}>
                   <option value="owner">{t("people.owner")}</option>
                   <option value="viewer">{t("people.viewer")}</option>

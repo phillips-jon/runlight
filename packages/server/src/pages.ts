@@ -127,6 +127,23 @@ ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
   );
 }
 
+/** The second step of signing in, for an account with two-factor on. */
+export function codePage(opts: { pending: string; next: string; error?: string }): string {
+  return page(
+    "Enter your code",
+    `<h1>Enter your code</h1>
+<p>Open your authenticator app and enter the six-digit code for Runlight.</p>
+${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
+<form method="post" action="/login/code">
+<input type="hidden" name="pending" value="${esc(opts.pending)}">
+<input type="hidden" name="next" value="${esc(opts.next)}">
+<label>Code<input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="12" required autofocus></label>
+<button type="submit">Sign in</button>
+</form>
+<p class="hint">Lost your phone? Enter one of your recovery codes instead. Each works once.</p>`,
+  );
+}
+
 /** Where an invited person chooses a password and joins. */
 export function invitePage(opts: { code: string; email: string; role: "owner" | "viewer"; host: string; error?: string }): string {
   return page(

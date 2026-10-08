@@ -5,8 +5,8 @@
  */
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
-import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle, type Invite, type Role, type User } from "./auth.js";
-import { AUTH_CSS, AUTH_JS, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
+import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle, otpauthUri, type Invite, type Role, type User } from "./auth.js";
+import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
 
 export interface ServerOptions {
   store: SqlStore;
@@ -176,8 +176,25 @@ export function createServer(options: ServerOptions): RunlightServer {
             return html(loginPage({ error: "That email and password do not match an account.", email, next }), 401);
           }
           perAddress.clear(pair);
+          // With two-factor on, the password only earns the second step.
+          if (user.twoFactor) return html(codePage({ pending: accounts.pendingFor(user, now()), next }));
           return redirect(next, { "set-cookie": sessionCookie(request, accounts.sessionFor(user, now()), SESSION_MS / 1000) });
         }
+      }
+
+      if (path === "/login/code" && method === "POST") {
+        const form = new URLSearchParams(await request.text());
+        const next = safeNext(form.get("next"));
+        const user = await accounts.fromPending(form.get("pending") ?? "", now());
+        if (!user) return redirect(`/login?next=${encodeURIComponent(next)}`);
+        const key = `code\n${user.id}`;
+        if (perAccount.blocked(key, now())) return html(codePage({ pending: form.get("pending") ?? "", next, error: "Too many tries. Wait fifteen minutes and try again." }), 429);
+        if (!(await accounts.checkSecondFactor(user.id, form.get("code") ?? "", now()))) {
+          perAccount.fail(key, now());
+          return html(codePage({ pending: form.get("pending") ?? "", next, error: "That code is not right. Check the time on your phone, or use a recovery code." }), 401);
+        }
+        perAccount.clear(key);
+        return redirect(next, { "set-cookie": sessionCookie(request, accounts.sessionFor(user, now()), SESSION_MS / 1000) });
       }
 
       if (path === "/logout") return redirect("/login", { "set-cookie": sessionCookie(request, "", 0) });
@@ -206,7 +223,7 @@ export function createServer(options: ServerOptions): RunlightServer {
         }
       }
 
-      if (path === "/api/account" || path === "/api/account/password" || path === "/api/people" || path.startsWith("/api/people/") || path.startsWith("/api/invites/")) {
+      if (path === "/api/account" || path.startsWith("/api/account/") || path === "/api/people" || path.startsWith("/api/people/") || path.startsWith("/api/invites/")) {
         return await accountsApi(request, path);
       }
 
@@ -225,7 +242,7 @@ export function createServer(options: ServerOptions): RunlightServer {
 
   const reply = (body: unknown, status = 200, extra: Record<string, string> = {}) =>
     new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...extra } });
-  const person = (u: User) => ({ id: u.id, email: u.email, role: u.role, createdAt: u.createdAt });
+  const person = (u: User) => ({ id: u.id, email: u.email, role: u.role, createdAt: u.createdAt, twoFactor: u.twoFactor, recoveryLeft: u.recoveryLeft });
   /** A JSON body by its media type, which a cross-site form cannot send. */
   const body = async (request: Request): Promise<Record<string, unknown> | null> => {
     if ((request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase() !== "application/json") return null;
@@ -277,7 +294,39 @@ export function createServer(options: ServerOptions): RunlightServer {
         throw error;
       }
     }
+    // Two-factor: turning it on, confirming the first code, new recovery codes, and turning it off.
+    // Each change asks for the password again, so a browser left signed in cannot quietly change it.
+    if (path.startsWith("/api/account/2fa") && request.method === "POST") {
+      const input = await body(request);
+      if (!input) return reply({ error: "Send JSON" }, 415);
+      const action = path.slice("/api/account/2fa".length);
+      if (action === "/confirm") {
+        const codes = await accounts.confirmTwoFactor(user.id, String(input.code ?? "").replace(/\s/g, ""), now());
+        return codes ? reply({ recovery: codes }) : reply({ error: "That code is not right. Check the time on your phone and try the next one." }, 400);
+      }
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right" }, 400);
+      if (action === "/start") {
+        const secret = await accounts.startTwoFactor(user.id);
+        return reply({ secret, uri: otpauthUri(secret, user.email, new URL(request.url).host) });
+      }
+      if (action === "/recovery") {
+        if (!user.twoFactor) return reply({ error: "Turn on two-factor sign-in first" }, 400);
+        return reply({ recovery: await accounts.newRecoveryCodes(user.id) });
+      }
+      if (action === "/disable") {
+        await accounts.disableTwoFactor(user.id);
+        return reply({ ok: true });
+      }
+      return reply({ error: "Not found" }, 404);
+    }
     if (user.role !== "owner") return reply({ error: "Only an owner can manage people" }, 403);
+    // An owner can turn off someone's two-factor, for a coworker who lost both phone and recovery codes.
+    const reset = /^\/api\/people\/([a-f0-9]{24})\/2fa$/.exec(path);
+    if (reset && request.method === "DELETE") {
+      if (!(await accounts.byId(reset[1]!))) return reply({ error: "Unknown account" }, 404);
+      await accounts.disableTwoFactor(reset[1]!);
+      return reply({ ok: true });
+    }
     const roleOf = (value: unknown): Role | null => (value === "owner" || value === "viewer" ? value : null);
     if (path === "/api/people" && request.method === "GET") {
       return reply({ people: (await accounts.list()).map(person), invites: (await accounts.invites(now())).map(inviteView) });

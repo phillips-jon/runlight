@@ -128,8 +128,13 @@ async function main(): Promise<void> {
     await server.runlight.init();
     const password = randomBytes(12).toString("base64url");
     const existed = Boolean(await server.accounts.byEmail(email));
-    await server.accounts.setPassword(email, password, Date.now());
-    process.stdout.write(`${existed ? "New password" : "Account made"} for ${email.trim().toLowerCase()}: ${password}\nSign in, and change it by running this again whenever you like.\n`);
+    const user = await server.accounts.setPassword(email, password, Date.now());
+    // Someone at the server is who they say, so a lost authenticator is no longer in the way.
+    const reset = user.twoFactor;
+    if (reset) await server.accounts.disableTwoFactor(user.id);
+    process.stdout.write(
+      `${existed ? "New password" : "Account made"} for ${email.trim().toLowerCase()}: ${password}\n${reset ? "Two-factor sign-in is now off for this account; turn it on again under Account.\n" : ""}Sign in, and change it by running this again whenever you like.\n`,
+    );
     await store.close();
     return;
   }

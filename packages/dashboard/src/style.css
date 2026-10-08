@@ -4415,3 +4415,51 @@ a.ghost {
   width: 16px;
   height: 16px;
 }
+
+/* Two-factor sign-in in the Account sheet. */
+.twofactor {
+  border-top: 1px solid var(--line);
+}
+
+.twofactor-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qr {
+  align-self: flex-start;
+  width: 196px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px 24px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  list-style: none;
+}
+
+.recovery-codes code {
+  font: 14px var(--mono);
+  letter-spacing: 0.04em;
+}
+
+.solid.danger {
+  border-color: var(--down);
+  background: var(--down);
+}
