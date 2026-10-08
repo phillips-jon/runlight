@@ -61,6 +61,7 @@ Every report takes the same query parameters.
 | `POST /api/sites/connect` | Start connecting another install through its consent page, from `{ "url" }`. It answers with `authorize`, the address to send the owner to. Add `site` with the install's id for a site to offer that one first. |
 | `GET /api/sites/connect/done` | Where the consent page sends the owner back. It finishes connecting and opens the dashboard on the site. |
 | `POST /api/goals`, `PATCH /api/goals/:id`, `DELETE /api/goals/:id` | Add, change, or remove a goal. |
+| `POST /api/pick` | Makes a ticket for the element picker from `{ "origin" }`, the dashboard's own origin, which the picker sends its choice to and nowhere else. A ticket works for half an hour. |
 | `POST /api/funnels`, `PATCH /api/funnels/:id`, `DELETE /api/funnels/:id` | Add, change, or remove a funnel, sent as `{ "name", "steps" }` with two to eight steps of `{ "kind", "match" }`, where kind is `page` or `event`. |
 | `POST /api/links`, `PATCH /api/links/:id`, `DELETE /api/links/:id` | Add, change, or remove a short link. |
 | `POST /api/links/import` | Add many short links at once from `{ "rows" }`, up to 5,000 objects with `url` and, if you like, `slug`, `name`, and `domain`. It answers with how many it made and which rows failed. |

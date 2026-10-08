@@ -8,6 +8,12 @@ export async function sha256(text: string): Promise<string> {
   return hex(await crypto.subtle.digest("SHA-256", encoder.encode(text)));
 }
 
+/** HMAC-SHA-256 of text under key, as hex. */
+export async function hmac(key: string, text: string): Promise<string> {
+  const k = await crypto.subtle.importKey("raw", encoder.encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return hex(await crypto.subtle.sign("HMAC", k, encoder.encode(text)));
+}
+
 /**
  * The day's visitor hash: SHA-256 of salt, site, IP, and user agent, cut to
  * 64 bits. The salt changes every day and old salts are deleted, so the hash

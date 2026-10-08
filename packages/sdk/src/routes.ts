@@ -4,7 +4,7 @@ import { PAGES_PER_VISIT, journeys } from "./journeys.js";
 import { JOURNEY_VISITS, type ReportRow, type ShareRow, type SiteRow, type TokenRow } from "./store.js";
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
-import { randomId, sha256 } from "./hash.js";
+import { hmac, randomId, sha256 } from "./hash.js";
 import { DIMENSIONS, isDimension, isSessionDimension, parseFilter, type Filter, type Query } from "./query.js";
 import { EMAIL, LINK_DOMAIN_CHECK, RETENTION_MONTHS, envValue as env, type RequestContext, type Runlight } from "./runlight.js";
 import { mcpResponse } from "./mcp.js";
@@ -263,12 +263,17 @@ const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[
 export function managePath(method: string, path: string): boolean {
   if (/^\/api\/links\/import/.test(path)) return false;
   if (/^\/api\/(links|link-domains|reports|goals|funnels|shares)(\/|$)/.test(path)) return true;
+  if (path === "/api/pick") return method === "POST";
   if (path === "/api/mail") return method === "GET";
   if (/^\/api\/sites\/[^/]+$/.test(path)) return method === "PATCH";
   return false;
 }
 /** Where the tracker's click rules go; the script ships with this string in their place. */
 const RULES_PLACEHOLDER = '"__RUNLIGHT_RULES__"';
+/** Where the picker's one allowed receiver goes, the dashboard origin its ticket names. */
+const PICK_TARGET_PLACEHOLDER = '"__RUNLIGHT_PICK_TARGET__"';
+/** How long a picker ticket works: long enough to find the element, not to be kept. */
+const PICK_TICKET_MS = 30 * 60_000;
 const SHARE_ID = /^[a-f0-9]{32}$/;
 
 const DASHBOARD_CSP =
@@ -552,6 +557,31 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   // site; without a name it serves no rules, and an app's own install, whose
   // sites all belong to one owner, serves every site's.
   const trackers = new Map<string, { body: string; etag: string; at: number }>();
+  /** The key picker tickets are signed with, made on first use and kept in the database for every process. */
+  async function pickKey(): Promise<string> {
+    await runlight.init();
+    const saved = await runlight.store.setting("pick-key");
+    if (saved) return saved;
+    const made = randomId(32);
+    await runlight.store.setSetting("pick-key", made);
+    return made;
+  }
+
+  /** A ticket that lets the picker send its choice to `origin`, the dashboard that asked, for half an hour. */
+  async function pickTicket(origin: string): Promise<string> {
+    const payload = `${runlight.now() + PICK_TICKET_MS}.${Array.from(new TextEncoder().encode(origin), (b) => b.toString(16).padStart(2, "0")).join("")}`;
+    return `${payload}.${await hmac(await pickKey(), payload)}`;
+  }
+
+  /** The dashboard origin a picker ticket names, or null when it is not one this install signed or has run out. */
+  async function pickTarget(ticket: string): Promise<string | null> {
+    const parts = /^(\d+)\.([a-f0-9]{2,512})\.([a-f0-9]{64})$/.exec(ticket);
+    if (!parts || Number(parts[1]) < runlight.now()) return null;
+    if (!constantTimeEqual(parts[3]!, await hmac(await pickKey(), `${parts[1]}.${parts[2]}`))) return null;
+    const origin = new TextDecoder().decode(new Uint8Array(parts[2]!.match(/../g)!.map((h) => parseInt(h, 16))));
+    return /^https?:\/\/[^/?#\s]+$/.test(origin) ? origin : null;
+  }
+
   async function trackerScript(siteId: string | null): Promise<{ body: string; etag: string }> {
     const key = siteId ?? "";
     const cached = trackers.get(key);
@@ -1148,6 +1178,18 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return mailApi(request, path, url);
     }
 
+    // A ticket for the element picker, naming the dashboard it may send its choice to. A hub asks the install
+    // that serves the site's script, with its own origin, since that install signs what the script will trust.
+    if (path === "/api/pick" && request.method === "POST") {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const origin = String(body.origin ?? "");
+      if (!/^https?:\/\/[^/?#\s]+$/.test(origin)) return json({ error: "Send the dashboard's origin, such as https://stats.example.com" }, 400);
+      return json({ ticket: await pickTicket(origin) });
+    }
+
     if ((path === "/api/goals" && request.method === "POST") || (/^\/api\/goals\/[^/]+$/.test(path) && (request.method === "PATCH" || request.method === "DELETE"))) {
       const access = await canRead(request);
       if (access !== true) return denied(access);
@@ -1481,7 +1523,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       }
 
       if (path === "/pick.js" && request.method === "GET") {
-        return new Response(PICKER, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
+        // The picker sends what it picked only to the dashboard its ticket names; without a good ticket it does nothing.
+        const target = await pickTarget(url.searchParams.get("runlight_ticket") ?? "");
+        return new Response(PICKER.replace(PICK_TARGET_PLACEHOLDER, () => JSON.stringify(target ?? "")), { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
       }
 
       if (path === `/assets/world.${WORLD_HASH}.json` && request.method === "GET") {

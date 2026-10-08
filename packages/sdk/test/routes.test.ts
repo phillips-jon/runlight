@@ -65,6 +65,31 @@ test("authorize replaces the token", async () => {
   assert.equal((await GET(req("/runlight/api/sites", { headers: { "x-admin": "yes" } }))).status, 200);
 });
 
+test("the element picker sends its choice only to the dashboard its ticket names", async () => {
+  let now = Date.UTC(2026, 9, 7, 12);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "blog", hostnames: ["blog.example.com"] }], now: () => now });
+  const { GET, POST } = rl.routes({ token: "secret" });
+  const ask = (body: unknown, auth = "secret") => POST(req("/runlight/api/pick?site=blog", { method: "POST", headers: { authorization: `Bearer ${auth}`, "content-type": "application/json" }, body: JSON.stringify(body) }));
+  const target = async (ticket: string) => /var \w+="([^"]*)";if\(/.exec(await (await GET(req(`/runlight/pick.js?runlight=pick&runlight_ticket=${encodeURIComponent(ticket)}`))).text())?.[1];
+
+  assert.equal((await ask({ origin: "https://stats.example.com" }, "wrong")).status, 401, "only the owner gets a ticket");
+  assert.equal((await ask({ origin: "javascript:alert(1)" })).status, 400);
+  const { ticket } = (await (await ask({ origin: "https://stats.example.com" })).json()) as { ticket: string };
+  assert.equal(await target(ticket), "https://stats.example.com");
+  // A page that opens the site some other way has no ticket, or only a changed one, and the picker sends nowhere.
+  assert.equal(await target(""), "");
+  assert.equal(await target(ticket.replace(/\.[a-f0-9]+\./, `.${Buffer.from("https://evil.example").toString("hex")}.`)), "");
+  const picker = await GET(req("/runlight/pick.js"));
+  assert.equal(picker.headers.get("cache-control"), "no-store");
+  now += 31 * 60_000;
+  assert.equal(await target(ticket), "", "a ticket runs out after half an hour");
+
+  // A hub's manage token gets one for its own site, naming the hub.
+  const manage = ((await (await POST(req("/runlight/api/tokens", { method: "POST", headers: { authorization: "Bearer secret", "content-type": "application/json" }, body: JSON.stringify({ name: "Hub", scope: "manage", site: "blog" }) }))).json()) as any).secret as string;
+  const hub = (await (await ask({ origin: "https://hub.example.net" }, manage)).json()) as { ticket: string };
+  assert.equal(await target(hub.ticket), "https://hub.example.net");
+});
+
 test("the check endpoint takes the cron secret", async () => {
   const { POST } = make().routes({ token: "secret", cronSecret: "cron" });
   assert.equal((await POST(req("/runlight/api/check", { method: "POST", headers: { "content-type": "application/json" } }))).status, 401);

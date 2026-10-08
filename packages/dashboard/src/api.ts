@@ -380,6 +380,7 @@ export const api = {
   twoFactorConfirm: (code: string) => send<{ recovery: string[] }>("POST", "account/2fa/confirm", { code }),
   twoFactorRecovery: (password: string) => send<{ recovery: string[] }>("POST", "account/2fa/recovery", { password }),
   twoFactorDisable: (password: string) => send<{ ok: true }>("POST", "account/2fa/disable", { password }),
+  pickTicket: (site: string, origin: string) => send<{ ticket: string }>("POST", `pick${siteQuery(site)}`, { origin }),
   resetTwoFactor: (id: string, password: string) => send<{ ok: true }>("DELETE", `people/${id}/2fa`, { password }),
   people: () => get<{ people: Person[]; invites?: PendingInvite[] }>("people", new URLSearchParams()),
   addPerson: (email: string, role: Person["role"]) => send<InviteSent>("POST", "people", { email, role }),

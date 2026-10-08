@@ -43,7 +43,7 @@
   // ?runlight=pick, opened from the dashboard, loads the element picker and counts nothing.
   if (/[?&]runlight=pick\b/.test(location.search) && w.opener) {
     var picker = d.createElement("script");
-    picker.src = script.src.replace(/s\.js(\?.*)?$/, "pick.js");
+    picker.src = script.src.replace(/s\.js(\?.*)?$/, "pick.js") + location.search;
     d.head.appendChild(picker);
     w.runlight = function () {};
     return;

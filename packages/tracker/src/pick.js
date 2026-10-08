@@ -1,20 +1,16 @@
-// The element picker. The dashboard opens the site with ?runlight=pick; the
-// tracker loads this instead of counting anything. Hover to highlight, click
-// to choose, and the choice goes back to the dashboard that opened the page.
+// The element picker. The dashboard opens the site with ?runlight=pick and a
+// ticket from its install; the tracker loads this instead of counting
+// anything. Hover to highlight, click to choose, and the choice goes back to
+// the dashboard that opened the page.
 (function () {
   var w = window;
   var d = document;
   var opener = w.opener;
   if (!opener) return;
-  // The choice goes only to the dashboard's own origin, which it names when it opens this page, and the
-  // bar shows that host, so a page that opened the site some other way is seen for what it is.
-  var script = d.currentScript;
-  var from = "";
-  try {
-    from = decodeURIComponent((/[?&]runlight_from=([^&#]+)/.exec(location.search) || [])[1] || "");
-  } catch (e) {}
-  var target = /^https?:\/\/[^\/?#]+$/.test(from) ? from : script && script.src ? new URL(script.src).origin : "";
-  if (!target) return;
+  // The choice goes only to the dashboard origin named in the ticket the install checked when it served
+  // this script, which a page that opens the site some other way cannot get. The bar shows that host too.
+  var target = "__RUNLIGHT_PICK_TARGET__";
+  if (!/^https?:\/\//.test(target)) return;
 
   var words = {
     en: ["Click what you want to count", "Use this", "Pick again", "Cancel", "Matches {n} on this page", "Sent to Runlight. You can close this tab."],
