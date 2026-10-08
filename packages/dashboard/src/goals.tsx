@@ -100,9 +100,10 @@ export function ConversionsPanel({ view, readOnly, onAdd }: { view: View; readOn
         ) : null}
         {readOnly ? null : (
           <div class="head-tools">
-            <button type="button" class="box-button" onClick={onAdd}>
+            {/* With the Goals and Funnels switch beside it, the button keeps only its icon so the header stays on one line. */}
+            <button type="button" class={funnels.length ? "box-button icon-only" : "box-button"} title={t("goals.add")} aria-label={t("goals.add")} onClick={onAdd}>
               <Icon name="plus" />
-              {t("goals.add")}
+              {funnels.length ? null : t("goals.add")}
             </button>
           </div>
         )}

@@ -953,6 +953,7 @@ main {
 .aside {
   font: 12px var(--mono);
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .tabs {
@@ -3795,4 +3796,17 @@ button.sign-out {
 .all-table .name {
   padding: 0;
   font-weight: 600;
+}
+
+.panel-head .tabs {
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.box-button.icon-only {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  padding: 0;
 }
