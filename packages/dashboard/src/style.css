@@ -3092,6 +3092,14 @@ select.field,
   flex: none;
 }
 
+.reset-twofactor {
+  display: contents;
+}
+
+.reset-twofactor .secret {
+  width: 180px;
+}
+
 .domain-note {
   margin: -8px 0 0;
   padding-bottom: 20px;

@@ -348,9 +348,16 @@ export function createServer(options: ServerOptions): RunlightServer {
       return reply({ error: "Not found" }, 404);
     }
     if (user.role !== "owner") return reply({ error: "Only an owner can manage people" }, 403);
-    // An owner can turn off someone's two-factor, for a coworker who lost both phone and recovery codes.
+    // An owner can turn off someone else's two-factor, for a coworker who lost both phone and recovery codes.
+    // It asks for the owner's password like every other two-factor change, and their own goes through Account.
     const reset = /^\/api\/people\/([a-f0-9]{24})\/2fa$/.exec(path);
     if (reset && request.method === "DELETE") {
+      if (reset[1] === user.id) return reply({ error: "Turn off your own two-factor sign-in under Account" }, 400);
+      const input = await body(request);
+      if (!input) return reply({ error: "Send JSON" }, 415);
+      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right" }, 400);
+      rechecks.forgive(user.id);
       if (!(await accounts.byId(reset[1]!))) return reply({ error: "Unknown account" }, 404);
       await accounts.disableTwoFactor(reset[1]!);
       return reply({ ok: true });

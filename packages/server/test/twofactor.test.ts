@@ -82,8 +82,19 @@ test("two-factor sign-in: turned on with a code, then asked for at every sign-in
   const secret = await server.accounts.startTwoFactor(other!.id);
   await server.accounts.confirmTwoFactor(other!.id, code(secret), now);
   assert.equal((await server.accounts.byId(other!.id))!.twoFactor, true);
-  assert.equal((await api("DELETE", `/api/people/${other!.id}/2fa`)).status, 200);
+  assert.equal((await api("DELETE", `/api/people/${other!.id}/2fa`)).status, 415, "it asks for the owner's password");
+  assert.equal((await api("DELETE", `/api/people/${other!.id}/2fa`, { password: "nope" })).status, 400);
+  assert.equal((await server.accounts.byId(other!.id))!.twoFactor, true);
+  assert.equal((await api("DELETE", `/api/people/${other!.id}/2fa`, { password: "a long password" })).status, 200);
   assert.equal((await server.accounts.byId(other!.id))!.twoFactor, false);
+
+  // An owner's own two-factor goes off only through Account, which asks for the password.
+  const mine = (await (await api("POST", "/api/account/2fa/start", { password: "a long password" })).json()) as any;
+  cookie = cookieOf(await api("POST", "/api/account/2fa/confirm", { code: code(mine.secret) }));
+  const me = (await server.accounts.byEmail("jon@example.com"))!;
+  assert.equal((await api("DELETE", `/api/people/${me.id}/2fa`)).status, 400);
+  assert.equal((await api("DELETE", `/api/people/${me.id}/2fa`, { password: "a long password" })).status, 400);
+  assert.equal((await server.accounts.byId(me.id))!.twoFactor, true);
 });
 
 test("failed tries by others cannot lock out a browser that signed in before, and codes allow five tries", async () => {
