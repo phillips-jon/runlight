@@ -60,14 +60,21 @@ export function ConversionsPanel({ view, readOnly, onAdd }: { view: View; readOn
       <section class={readOnly ? "panel full" : "panel"}>
         <header class="panel-head">
           <h2>{t("panel.conversions")}</h2>
-          <nav class="tabs" aria-label={t("panel.conversions")}>
-            <button type="button" class="tab" aria-pressed={false} onClick={() => setShowing("goals")}>
-              {t("funnels.goalsTab")}
-            </button>
-            <button type="button" class="tab on" aria-pressed={true}>
-              {t("funnels.tab")}
-            </button>
-          </nav>
+          <div class="head-tools">
+            <nav class="tabs" aria-label={t("panel.conversions")}>
+              <button type="button" class="tab" aria-pressed={false} onClick={() => setShowing("goals")}>
+                {t("funnels.goalsTab")}
+              </button>
+              <button type="button" class="tab on" aria-pressed={true}>
+                {t("funnels.tab")}
+              </button>
+            </nav>
+            {readOnly ? null : (
+              <button type="button" class="box-button icon-only" title={t("goals.add")} aria-label={t("goals.add")} onClick={onAdd}>
+                <Icon name="plus" />
+              </button>
+            )}
+          </div>
         </header>
         {funnels.map((f) => (
           <div class="funnel-block">
@@ -88,25 +95,26 @@ export function ConversionsPanel({ view, readOnly, onAdd }: { view: View; readOn
         <h2>
           {t("panel.conversions")} {revenue ? <span class="aside">{t("goals.revenueAside", { amount: revenue })}</span> : null}
         </h2>
-        {funnels.length ? (
-          <nav class="tabs" aria-label={t("panel.conversions")}>
-            <button type="button" class="tab on" aria-pressed={true}>
-              {t("funnels.goalsTab")}
-            </button>
-            <button type="button" class="tab" aria-pressed={false} onClick={() => setShowing("funnels")}>
-              {t("funnels.tab")}
-            </button>
-          </nav>
-        ) : null}
-        {readOnly ? null : (
-          <div class="head-tools">
-            {/* With the Goals and Funnels switch beside it, the button keeps only its icon so the header stays on one line. */}
+        {/* The Goals and Funnels switch sits with the add button, as Links keeps its tabs beside its buttons. */}
+        <div class="head-tools">
+          {funnels.length ? (
+            <nav class="tabs" aria-label={t("panel.conversions")}>
+              <button type="button" class="tab on" aria-pressed={true}>
+                {t("funnels.goalsTab")}
+              </button>
+              <button type="button" class="tab" aria-pressed={false} onClick={() => setShowing("funnels")}>
+                {t("funnels.tab")}
+              </button>
+            </nav>
+          ) : null}
+          {readOnly ? null : (
+            // With the switch beside it, the button keeps only its icon so the header stays on one line.
             <button type="button" class={funnels.length ? "box-button icon-only" : "box-button"} title={t("goals.add")} aria-label={t("goals.add")} onClick={onAdd}>
               <Icon name="plus" />
               {funnels.length ? null : t("goals.add")}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </header>
       {error ? <p class="empty">{error}</p> : null}
       {!rows && !error ? <p class="empty">{t("common.loading")}</p> : null}

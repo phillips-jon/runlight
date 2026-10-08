@@ -4463,3 +4463,8 @@ a.ghost {
   border-color: var(--down);
   background: var(--down);
 }
+
+/* An outlined box button's border is strong enough to hold the same height as a filled one beside it. */
+.box-button:not(.solid) {
+  border-color: color-mix(in srgb, var(--ink) 22%, var(--line));
+}
