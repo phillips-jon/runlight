@@ -59,7 +59,7 @@ export interface RoutesOptions {
    * links here when a session ends. The standalone server sets it.
    */
   signIn?: string;
-  /** The standalone server's accounts: the dashboard offers an Account sheet and, to owners, a People section. */
+  /** @internal The standalone server's accounts: the dashboard offers an Account sheet and, to owners, a People section. */
   accounts?: boolean;
   /** Credits DB-IP in the dashboard's footer, as its free location data asks. The standalone server sets it. */
   geoCredit?: boolean;
@@ -315,10 +315,10 @@ const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[
 /**
  * What a manage token, held by a Runlight hub, may read and change: one
  * site's goals, funnels, short links, link domains, email reports, and share
- * links, its name, timezone, and retention, and tickets for the element
- * picker. It may read which mail service sends reports, through GET /api/mail,
- * which hides the service's keys. Never people, tokens, changes to the mail
- * service, imports, or other sites.
+ * links, along with its name, timezone, and retention, and tickets for the
+ * element picker. It may read which mail service sends reports, through GET
+ * /api/mail, which hides the service's keys. Never people, tokens, changes to
+ * the mail service, imports, or other sites.
  */
 export function managePath(method: string, path: string): boolean {
   if (/^\/api\/links\/import/.test(path)) return false;

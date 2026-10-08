@@ -13,7 +13,7 @@ curl https://example.com/runlight/api/stats?period=30d -H "Authorization: Bearer
 
 For scripts, make a read-only token in **Settings**, **API and AI**, and keep `RUNLIGHT_TOKEN` to yourself. A read-only token can read every report below, short links and each one’s clicks included. You can limit it to one site, and it stops working the moment you delete it. Endpoints that change something, along with the token, share, and mail endpoints, need `RUNLIGHT_TOKEN` itself (or your `authorize` check). The same tokens connect AI assistants, as [Ask your AI](/docs/mcp/) explains.
 
-A `manage` token belongs to a [standalone server](/docs/server/#connect-sites-that-count-themselves) that shows this site. It reads like a read-only token and can also change one site’s goals, funnels, short links, link domains, email reports, and share links, along with its name, timezone, and retention. It can never touch other sites, people, tokens, imports, or the mail service, and it cannot change where the site lives. It sees which mail service sends reports and from which address, and the service’s keys and account details stay hidden from it. It adds link domains and email reports only when the install knows its own address, through `origin` in `routes()` or `RUNLIGHT_URL` on the standalone server. The standalone server gets one through OAuth when you connect the site, so you rarely make one by hand.
+A `manage` token belongs to a [standalone server](/docs/server/#connect-sites-that-count-themselves) that shows this site. It reads like a read-only token and can also change one site’s goals, funnels, short links, link domains, email reports, and share links, along with its name, timezone, and retention, and get tickets for the element picker. It can never touch other sites, people, tokens, imports, or the mail service, and it cannot change where the site lives. It sees which mail service sends reports and from which address, and the service’s keys and account details stay hidden from it. It adds link domains and email reports only when the install knows its own address, through `origin` in `routes()` or `RUNLIGHT_URL` on the standalone server. The standalone server gets one through OAuth when you connect the site, so you rarely make one by hand.
 
 Requests that change something must send `content-type: application/json`.
 
@@ -90,6 +90,140 @@ Every report takes the same query parameters.
 
 ## Errors
 
-Errors are JSON, `{ "error": "..." }`, in plain words, with 400 for something wrong in the request, 401 without the token, 403 when someone signed in as a viewer tries to change something, 404 for something that is not there, and 503 when no token is set in production.
+Errors are JSON, `{ "error", "code", "params" }`. `error` says what went wrong in plain English, `code` names it, and `params`, when it has any, fill the placeholders in its words. The dashboard shows each code in its own language, and a script can rely on the code where the English may change.
 
-Some errors also carry a `code`, such as `link_taken` or `report_exists`, and `params` to fill it, such as `{ "slug": "launch" }`. The dashboard uses them to show the message in its own language. The English `error` is always there too.
+| Status | When |
+| --- | --- |
+| 400 | Something in the request is wrong or missing. |
+| 401 | The token is missing or not one this install knows. |
+| 403 | A viewer tries to change something, or a token reaches past what it may do. |
+| 404 | What the request names is not there. |
+| 409 | A name is taken, such as a link domain another site has. |
+| 413 | More than 500 fetches at once to `POST /api/observe`. |
+| 415 | A write that is not `application/json`. |
+| 429 | Too many in a short time, such as sign-in tries, samples, questions to the assistant, or OAuth registrations from one address. |
+| 500 | Something went wrong on the server. |
+| 502 | A connected install could not be reached, answered with a redirect, or refused the token, or the AI service failed. |
+| 503 | No token is set outside development. |
+| 504 | A connected install took too long to answer. |
+
+These are the codes and the params each one fills. An error a connected install sends on through a hub keeps its code and params, and its `error` starts with the install’s host.
+
+| Code | Params | What it says |
+| --- | --- | --- |
+| `account_exists` | `email` | {email} already has an account. |
+| `assistant_daily` | `limit` | Viewers can ask {limit} questions a day. Ask again tomorrow. |
+| `assistant_dashboard` |  | Only the dashboard can use the assistant. |
+| `assistant_failed` | `detail` | The AI service did not answer as expected ({detail}). |
+| `assistant_invalid` | `detail` | The assistant was not saved ({detail}). |
+| `assistant_limit` |  | Use a whole number from 0 to 1,000. |
+| `assistant_soon` |  | You have asked a lot in a short time. Wait a little and ask again. |
+| `assistant_unset` |  | The assistant is not set up yet. An owner can set it up in Settings, AI Assistant. |
+| `code_wrong` |  | That code is not right. Check the time on your phone and try the next one. |
+| `compare_bad` | `compare` | "{compare}" is not a comparison Runlight knows. |
+| `compare_range_bad` |  | Pick both dates to compare with. |
+| `connect_again` |  | Connect this site again to change it from here. |
+| `connect_denied` |  | The connection was not allowed. |
+| `connect_endpoints` | `url` | {url} named endpoints on another address. |
+| `connect_expired` |  | That connection took too long or was already used. Start again. |
+| `connect_failed` | `detail` | Connecting did not start ({detail}). |
+| `connect_not_runlight` | `url` | {url} did not answer like a Runlight install. |
+| `connect_old` | `url` | {url} runs an older Runlight. Update it, or connect it with an API token from its Settings. |
+| `connect_refused` |  | The install would not let this server connect. Start again, or connect it with an API token. |
+| `connect_register` | `reason`, `url` | {url} would not let this server connect. {reason} |
+| `connect_token` |  | The install did not give this server a token. Start again. |
+| `connect_unreachable` | `url` | Could not reach {url}. |
+| `connect_url` |  | Enter the install’s address, like https://example.com/runlight |
+| `domain_in_use` | `domain` | {domain} is where this dashboard or one of your sites lives. Use a separate domain or subdomain for short links, such as go.{domain}. |
+| `domain_invalid` |  | That is not a domain name. |
+| `domain_not_public` | `domain` | {domain} is not a public domain name. Use one that browsers anywhere can reach. |
+| `domain_taken` | `domain` | {domain} already belongs to another site. |
+| `email_invalid` |  | Enter an email address. |
+| `event_needed` |  | Name the event. |
+| `filter_bad` | `filter` | The filter "{filter}" is not one Runlight reads. |
+| `filters_max` | `max` | Use at most {max} filters at once. |
+| `funnel_invalid` | `detail` | The funnel was not saved ({detail}). |
+| `goal_invalid` | `detail` | The goal was not saved ({detail}). |
+| `hub_domains` |  | A connected hub cannot change a site’s domains. |
+| `icon_none` |  | This site has no icon. |
+| `import_failed` | `detail` | The import stopped ({detail}). |
+| `internal` |  | Something went wrong on the server. Try again. |
+| `invite_gone` |  | This invite has expired or was already used. Ask for a new one. |
+| `last_owner` |  | Keep at least one owner. |
+| `link_domain` | `domain` | Add {domain} as a link domain in Settings first. |
+| `link_long` |  | The destination is longer than 2,000 characters. |
+| `link_no_slug` |  | Could not find a free slug. Try again. |
+| `link_protocol` |  | The destination must start with http:// or https:// |
+| `link_slug` |  | A slug is letters, digits, dashes, and underscores, up to 100. |
+| `link_taken` | `slug` | /{slug} is already taken. |
+| `link_url` |  | The destination must be a full URL, starting with https:// |
+| `mail_failed` | `detail` | The email could not be sent ({detail}). |
+| `mail_field` | `field` | {field} is needed. |
+| `mail_from` |  | Enter the address reports come from, like reports@example.com. |
+| `mail_https` |  | The webhook URL must use https. |
+| `mail_in_code` |  | The mail service is set in code, so it cannot be changed here. |
+| `mail_option` | `field`, `options` | {field} must be one of {options}. |
+| `mail_refused` | `detail`, `host` | {host} turned the email down ({detail}). |
+| `mail_region` |  | That is not an AWS region, like us-east-1. |
+| `mail_service` |  | Pick a mail service. |
+| `mail_unreachable` | `detail`, `host` | Could not reach {host} ({detail}). |
+| `mail_unset` |  | Set up a mail service first. |
+| `method_not_allowed` |  | That cannot be done here. |
+| `not_found` |  | That is not here. |
+| `observe_many` |  | Send at most 500 fetches at a time. |
+| `observe_url` |  | Send the page’s address. |
+| `origin_needed` |  | Set this Runlight’s own address first (RUNLIGHT_URL on the server, or origin in routes()), so a connected hub can add link domains and email reports. |
+| `owner_only` |  | Only an owner can change this. |
+| `password_current_wrong` |  | Your current password is not right. |
+| `password_short` | `min` | Use a password of at least {min} characters. |
+| `password_wrong` |  | Your password is not right. |
+| `people_owner` |  | Only an owner can manage people. |
+| `pick_hub` |  | This hub’s address is not the one it connected from. Connect the site again from here. |
+| `pick_origin` |  | Send the dashboard’s origin, such as https://stats.example.com |
+| `property_bad` |  | That is not a property name Runlight can read. |
+| `question_needed` |  | Ask a question. |
+| `range_bad` |  | Those dates are not a range Runlight can read. |
+| `redirected` | `host` | {host} answered with a redirect. |
+| `remote_slow` | `host` | {host} took too long to answer. Try a shorter range. |
+| `remove_self` |  | You cannot remove yourself. |
+| `report_exists` | `email` | {email} already gets this report. |
+| `report_limit` |  | A site can send to at most 50 addresses. |
+| `retention_bad` | `months` | Keep visits for {months} months, or forever. |
+| `role_needed` |  | Pick owner or viewer. |
+| `rows_needed` |  | Send the links as a list of rows. |
+| `sample_soon` |  | A sample went out a moment ago. Wait a minute and try again. |
+| `sample_soon_hub` |  | A connected hub can send one sample every ten minutes. Wait a few minutes and try again. |
+| `send_json` |  | Send this as JSON. |
+| `send_object` |  | Send a JSON object. |
+| `share_gone` |  | This share link no longer works. |
+| `share_not_available` |  | That is not available on a shared dashboard. |
+| `sign_in` |  | Sign in first. |
+| `site_invalid` | `detail` | The site was not saved ({detail}). |
+| `site_name` |  | A site name is 1 to 80 characters. |
+| `site_remote` |  | This site is counted by its own Runlight. Connect it again from its settings to change it from here. |
+| `sites_in_code` |  | Sites are set in code here, so they are changed there. |
+| `smtp_starttls` |  | The SMTP server does not offer STARTTLS. Pick TLS or none for Security. |
+| `test_email` |  | Enter an email address to send the test to. |
+| `token_name` |  | Name the token. |
+| `token_read_only` |  | API tokens can only read. |
+| `token_refused` | `host` | {host} refused the token. Connect it again from the site’s settings. |
+| `token_site` |  | A token that changes settings is for one site. Pick the site. |
+| `token_unset` |  | Set RUNLIGHT_TOKEN, or pass token or authorize to routes(). Without one, Runlight only runs open when NODE_ENV is development. |
+| `too_many_tries` |  | Too many tries. Wait fifteen minutes and try again. |
+| `twofactor_off` |  | Turn on two-factor sign-in first. |
+| `twofactor_restart` |  | Too many wrong codes. Start turning on two-factor sign-in again. |
+| `twofactor_self` |  | Turn off your own two-factor sign-in under Account. |
+| `unauthorized` |  | Sign in or send a token to see this. |
+| `unknown_account` |  | That account no longer exists. |
+| `unknown_dimension` | `dimension` | "{dimension}" is not a breakdown Runlight knows. |
+| `unknown_domain` |  | That domain is not one of this site’s. |
+| `unknown_funnel` |  | That funnel no longer exists. |
+| `unknown_goal` |  | That goal no longer exists. |
+| `unknown_invite` |  | That invite no longer exists. |
+| `unknown_link` |  | That link no longer exists. |
+| `unknown_report` |  | That report no longer exists. |
+| `unknown_share` |  | That share link no longer exists. |
+| `unknown_site` |  | That site is not here. |
+| `unknown_timezone` | `timezone` | "{timezone}" is not a timezone Runlight knows. |
+| `unknown_token` |  | That token no longer exists. |
+| `unreachable` | `host` | Could not reach {host}. |
