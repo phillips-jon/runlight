@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { api, type Link, type LinkStats, type Row, type View } from "./api.js";
 import { Chart } from "./chart.js";
 import { count, countryName, day, flag } from "./format.js";
-import { t, tn, type Key } from "./i18n.js";
+import { errorText, t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
 import { Icon } from "./icons.js";
 import { useDialogFocus } from "./focus.js";
@@ -324,8 +324,8 @@ export function DeleteButton({ name, onDelete }: { name: string; onDelete: () =>
   );
 }
 
-/** Every link: search, sort, copy, edit, delete, import, and open each one's stats. */
-export function LinkManager({ view, site, onClose, onChanged }: { view: View; site: string; onClose: () => void; onChanged: () => void }) {
+/** Every link: search, sort, copy, edit, delete, import, and open each one's stats. A viewer only searches, copies, and opens them. */
+export function LinkManager({ view, site, readOnly, onClose, onChanged }: { view: View; site: string; readOnly?: boolean; onClose: () => void; onChanged: () => void }) {
   const [links, setLinks] = useState<Link[] | null>(null);
   const [prefix, setPrefix] = useState("");
   const [domains, setDomains] = useState<string[]>([]);
@@ -345,11 +345,17 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
   const file = useRef<HTMLInputElement>(null);
 
   const load = () => {
-    api.links(view).then((r) => {
-      setLinks(r.links);
-      setPrefix(r.prefix);
-      setDomains(r.domains);
-    });
+    api
+      .links(view)
+      .then((r) => {
+        setLinks(r.links);
+        setPrefix(r.prefix);
+        setDomains(r.domains);
+      })
+      .catch((e: Error) => {
+        setLinks((current) => current ?? []);
+        setMessage({ text: e.message, failures: [] });
+      });
   };
   useEffect(load, [view]);
 
@@ -367,10 +373,20 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
   };
 
   const importFile = async (f: File) => {
-    const rows = parseCsv(await f.text());
-    const result = await api.importLinks(site, rows);
-    setMessage({ text: tn("links.importDone", result.created, { n: count(result.created) }), failures: result.failed });
-    changed();
+    try {
+      const rows = parseCsv(await f.text());
+      // Without a destination column every row would fail, so say why before sending anything.
+      if (!rows.some((row) => row.url || row.destination_url)) {
+        setMessage({ text: t("links.importNoUrl"), failures: [] });
+        return;
+      }
+      const result = await api.importLinks(site, rows);
+      const failures = result.failed.map((f) => ({ row: f.row, reason: (f.code && errorText(f.code, f.params)) || f.reason }));
+      setMessage({ text: tn("links.importDone", result.created, { n: count(result.created) }), failures });
+      changed();
+    } catch (e) {
+      setMessage({ text: (e as Error).message, failures: [] });
+    }
   };
 
   if (detail) return <LinkDetail view={view} id={detail} prefix={prefix} domains={domains} onClose={() => setDetail(null)} />;
@@ -396,25 +412,29 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
           <option value="clicks">{t("links.sortClicks")}</option>
           <option value="name">{t("links.sortName")}</option>
         </select>
-        <button type="button" class="ghost" title={t("links.importHelp")} onClick={() => file.current?.click()}>
-          <Icon name="upload" />
-          {t("links.import")}
-        </button>
-        <input
-          ref={file}
-          type="file"
-          accept=".csv,text/csv"
-          hidden
-          onChange={(e) => {
-            const f = (e.target as HTMLInputElement).files?.[0];
-            if (f) void importFile(f);
-            (e.target as HTMLInputElement).value = "";
-          }}
-        />
-        <button type="button" class="solid" onClick={() => setEditing("new")}>
-          <Icon name="plus" />
-          {t("links.new")}
-        </button>
+        {readOnly ? null : (
+          <>
+            <button type="button" class="ghost" title={t("links.importHelp")} onClick={() => file.current?.click()}>
+              <Icon name="upload" />
+              {t("links.import")}
+            </button>
+            <input
+              ref={file}
+              type="file"
+              accept=".csv,text/csv"
+              hidden
+              onChange={(e) => {
+                const f = (e.target as HTMLInputElement).files?.[0];
+                if (f) void importFile(f);
+                (e.target as HTMLInputElement).value = "";
+              }}
+            />
+            <button type="button" class="solid" onClick={() => setEditing("new")}>
+              <Icon name="plus" />
+              {t("links.new")}
+            </button>
+          </>
+        )}
       </div>
       {message ? (
         <div class="import-result">
@@ -425,7 +445,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
         </div>
       ) : null}
       <div class="sheet-body">
-        {links && links.length === 0 ? <p class="empty">{t("links.empty")}</p> : null}
+        {links && links.length === 0 ? <p class="empty">{t(readOnly ? "links.noneYet" : "links.empty")}</p> : null}
         <table class="sheet-table links-table">
           <tbody>
             {shown.slice(0, limit).map((l) => {
@@ -446,11 +466,15 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
                   </td>
                   <td class="numeric link-actions">
                     <Copy text={address} small />
-                    <button type="button" class="copy inline" onClick={() => setEditing(l)}>
-                      <Icon name="edit" />
-                      {t("links.editButton")}
-                    </button>
-                    <DeleteButton name={l.name} onDelete={() => api.deleteLink(site, l.id).then(changed)} />
+                    {readOnly ? null : (
+                      <>
+                        <button type="button" class="copy inline" onClick={() => setEditing(l)}>
+                          <Icon name="edit" />
+                          {t("links.editButton")}
+                        </button>
+                        <DeleteButton name={l.name} onDelete={() => api.deleteLink(site, l.id).then(changed, (e: Error) => setMessage({ text: e.message, failures: [] }))} />
+                      </>
+                    )}
                   </td>
                 </tr>
               );
@@ -471,8 +495,8 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
   );
 }
 
-/** The board's Links box: the most clicked links in the range, with quick add and the manager a click away. */
-export function LinksPanel({ view, site }: { view: View; site: string }) {
+/** The board's Links box: the most clicked links in the range, with quick add and the manager a click away. A viewer reads it without changing anything. */
+export function LinksPanel({ view, site, readOnly }: { view: View; site: string; readOnly?: boolean }) {
   const [links, setLinks] = useState<Link[] | null>(null);
   const [prefix, setPrefix] = useState("");
   const [domains, setDomains] = useState<string[]>([]);
@@ -517,14 +541,18 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
               {t("links.sortClicks")}
             </button>
           </nav>
-          <button type="button" class="box-button" onClick={() => setOpen("manage")}>
-            <Icon name="list" />
-            {t("links.manage")}
-          </button>
-          <button type="button" class="box-button solid" onClick={() => setOpen("new")}>
-            <Icon name="plus" />
-            {t("links.new")}
-          </button>
+          {readOnly ? null : (
+            <>
+              <button type="button" class="box-button" onClick={() => setOpen("manage")}>
+                <Icon name="list" />
+                {t("links.manage")}
+              </button>
+              <button type="button" class="box-button solid" onClick={() => setOpen("new")}>
+                <Icon name="plus" />
+                {t("links.new")}
+              </button>
+            </>
+          )}
         </div>
       </header>
       <div class="table">
@@ -532,7 +560,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
         <span>{t("panel.links")}</span>
         <span class="num-head">{t("links.clicks")}</span>
       </div>
-      {links && top.length === 0 ? <p class="empty">{t("links.empty")}</p> : null}
+      {links && top.length === 0 ? <p class="empty">{t(readOnly ? "links.noneYet" : "links.empty")}</p> : null}
       {!links ? <p class="empty">{t("common.loading")}</p> : null}
       <ol class="rows">
         {top.map((l) => (
@@ -556,7 +584,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
       {open === "new" ? (
         <LinkForm site={site} prefix={prefix} domains={domains} onClose={() => setOpen(null)} onSaved={() => setVersion((v) => v + 1)} />
       ) : open === "manage" ? (
-        <LinkManager view={view} site={site} onClose={() => setOpen(null)} onChanged={() => setVersion((v) => v + 1)} />
+        <LinkManager view={view} site={site} readOnly={readOnly} onClose={() => setOpen(null)} onChanged={() => setVersion((v) => v + 1)} />
       ) : open ? (
         <LinkDetail view={view} id={open.id} prefix={prefix} domains={domains} onClose={() => setOpen(null)} />
       ) : null}

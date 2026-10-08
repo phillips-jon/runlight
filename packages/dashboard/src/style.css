@@ -692,6 +692,13 @@ main {
   padding-right: 8px;
 }
 
+/* Something to know rather than something that went wrong. */
+.failure.notice {
+  border-color: var(--line);
+  background: var(--card);
+  color: var(--ink);
+}
+
 /* Metric cards and chart */
 
 .metrics {
@@ -1474,6 +1481,11 @@ body.locked {
     transform: translateX(24px);
     opacity: 0;
   }
+}
+
+/* The filter drawer's form, there so Enter applies; the drawer lays out its parts. */
+.drawer-form {
+  display: contents;
 }
 
 .drawer-head {
@@ -4566,5 +4578,68 @@ a.ghost {
   .panel-head .tabs {
     flex-wrap: wrap;
     white-space: normal;
+  }
+}
+
+/* Settings forms on a phone: a row of controls wraps, the field first on its own line, so nothing runs off the sheet. */
+@media (max-width: 720px) {
+  .value-row.even {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .domain-add {
+    flex-wrap: wrap;
+  }
+
+  .domain-add .value:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .domain-add .solid {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .share-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .share-list .domain-actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  .report-add {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .drawer-foot {
+    flex-wrap: wrap;
+  }
+
+  .drawer-foot .solid {
+    margin-left: auto;
+  }
+}
+
+/* On a phone a Show all sheet keeps the names readable and lets the numbers scroll sideways,
+   and a card's label may take two lines rather than lose its end. */
+@media (max-width: 560px) {
+  .sheet-table:not(.links-table) .sheet-name {
+    min-width: 150px;
+  }
+
+  .metric-label {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* On the narrowest phones each picker gets its own row. */
+@media (max-width: 380px) {
+  .actions .picker {
+    flex-basis: 100%;
   }
 }

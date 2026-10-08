@@ -168,16 +168,24 @@ test("reports go out once per period, retry after a failure, and keep keys from 
 
   const made = await call("POST", "/api/reports", { email: "Jon@Example.com", frequency: "weekly", lang: "fr", origin: "https://stats.example.com/runlight" });
   assert.equal(made.status, 201);
-  assert.equal((await call("POST", "/api/reports", { email: "jon@example.com", frequency: "weekly" })).status, 400, "no duplicates");
+  const duplicate = await call("POST", "/api/reports", { email: "jon@example.com", frequency: "weekly" });
+  assert.equal(duplicate.status, 400, "no duplicates");
+  // The code and params let the dashboard say it in its own language.
+  assert.deepEqual(await duplicate.json(), { error: "jon@example.com already gets the weekly report", code: "report_exists", params: { email: "jon@example.com" } });
 
-  let calls = capture(500);
+  let calls = capture();
+  assert.deepEqual(await rl.sendReports(), { sent: 0, failed: 0 }, "a report added on a Wednesday waits for the next Monday");
+  assert.equal(calls.length, 0);
+  now += 7 * 86_400_000;
+  calls = capture(500);
   assert.deepEqual(await rl.sendReports(), { sent: 0, failed: 1 });
   calls = capture();
   assert.deepEqual(await rl.sendReports(), { sent: 1, failed: 0 }, "a failed send is tried again");
   const body = JSON.parse(calls[0]!.body);
   assert.equal(body.to[0], "jon@example.com");
   assert.match(body.subject, /^Example : 0 personne la semaine dernière$/);
-  assert.match(body.html, /du 28 sept\. au 4 oct\. 2026/);
+  assert.match(body.html, /du 5 oct\. au 11 oct\. 2026/);
+  assert.match(body.html, /0 personne a visité le site la semaine dernière\./, "French counts zero as one");
   const unsubscribe = /<(https:\/\/stats\.example\.com\/runlight\/unsubscribe\/[a-f0-9]{32})>/.exec(body.headers["List-Unsubscribe"])![1]!;
   assert.equal(body.headers["List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
   assert.deepEqual(await rl.sendReports(), { sent: 0, failed: 0 }, "the same period never goes twice");
@@ -193,6 +201,24 @@ test("reports go out once per period, retry after a failure, and keep keys from 
   assert.equal(done.status, 200);
   assert.equal((await rl.store.reports()).length, 0);
   assert.equal((await GET(new Request(unsubscribe))).status, 404);
+});
+
+test("a report added before Monday's 8am still gets last week's", async () => {
+  // Monday 5 October 2026, 7:00 in Toronto: last week is over and not yet due.
+  let now = Date.UTC(2026, 9, 5, 11);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { name: "Example", hostnames: ["example.com"], timezone: "America/Toronto" }, now: () => now });
+  await rl.saveMailSettings({ service: "resend", apiKey: "re_1", from: "reports@example.com" });
+  const { POST } = rl.routes({ token: "t" });
+  const add = (frequency: string) =>
+    POST(new Request("https://stats.example.com/runlight/api/reports", { method: "POST", headers: { authorization: "Bearer t", "content-type": "application/json" }, body: JSON.stringify({ email: "jon@example.com", frequency }) }));
+  assert.equal((await add("weekly")).status, 201);
+  assert.equal((await add("monthly")).status, 201, "September is already due, so it is not sent");
+  capture();
+  assert.deepEqual(await rl.sendReports(), { sent: 0, failed: 0 });
+  now += 2 * 3_600_000;
+  const calls = capture();
+  assert.deepEqual(await rl.sendReports(), { sent: 1, failed: 0 });
+  assert.match(JSON.parse(calls[0]!.body).subject, /last week/);
 });
 
 test("the server has every language, English included", async () => {

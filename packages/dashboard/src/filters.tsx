@@ -120,55 +120,56 @@ export function FilterDrawer({ view, onApply, onClose }: { view: View; onApply: 
   }, []);
 
   const ready = drafts.filter((d) => d.value.trim() !== "");
+  const apply = (e: Event) => {
+    e.preventDefault();
+    onApply(ready.map(({ dimension, op, value }) => ({ dimension, op, value: value.trim() })));
+    onClose();
+  };
 
   return (
     <div class="scrim" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
       <div class="drawer" role="dialog" aria-modal="true" aria-labelledby="filter-title" ref={panel}>
-        <header class="drawer-head">
-          <h2 id="filter-title">{t("filter.title")}</h2>
-          <button type="button" class="remove" aria-label={t("common.close")} onClick={onClose}>
-            <svg viewBox="0 0 16 16" aria-hidden="true">
-              <path d="M4 4l8 8M12 4l-8 8" />
-            </svg>
-          </button>
-        </header>
-        <div class="drawer-body">
-          {drafts.map((d, i) => (
-            <Clause
-              draft={d}
-              view={view}
-              first={i === 0}
-              onChange={(next) => setDrafts(drafts.map((x) => (x.id === d.id ? next : x)))}
-              onRemove={() => setDrafts(drafts.filter((x) => x.id !== d.id))}
-            />
-          ))}
-          <button type="button" class="add" onClick={() => setDrafts([...drafts, { dimension: "country", op: "is", value: "", id: nextId++ }])}>
-            <Icon name="plus" />
-            {t("filter.add").replace(/^\+\s*/, "")}
-          </button>
-          <p class="drawer-note">{t("filter.note")}</p>
-        </div>
-        <footer class="drawer-foot">
-          <button type="button" class="ghost" onClick={() => setDrafts([])}>
-            <Icon name="x" />
-            {t("common.clearAll")}
-          </button>
-          <span class="grow" />
-          <button type="button" class="ghost" onClick={onClose}>
-            {t("common.cancel")}
-          </button>
-          <button
-            type="button"
-            class="solid"
-            onClick={() => {
-              onApply(ready.map(({ dimension, op, value }) => ({ dimension, op, value: value.trim() })));
-              onClose();
-            }}
-          >
-            <Icon name="check" />
-            {ready.length ? tn("filter.apply", ready.length) : t("filter.everything")}
-          </button>
-        </footer>
+        {/* A form, so Enter in a value applies the filters. */}
+        <form class="drawer-form" onSubmit={apply}>
+          <header class="drawer-head">
+            <h2 id="filter-title">{t("filter.title")}</h2>
+            <button type="button" class="remove" aria-label={t("common.close")} onClick={onClose}>
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M4 4l8 8M12 4l-8 8" />
+              </svg>
+            </button>
+          </header>
+          <div class="drawer-body">
+            {drafts.map((d, i) => (
+              <Clause
+                draft={d}
+                view={view}
+                first={i === 0}
+                onChange={(next) => setDrafts(drafts.map((x) => (x.id === d.id ? next : x)))}
+                onRemove={() => setDrafts(drafts.filter((x) => x.id !== d.id))}
+              />
+            ))}
+            <button type="button" class="add" onClick={() => setDrafts([...drafts, { dimension: "country", op: "is", value: "", id: nextId++ }])}>
+              <Icon name="plus" />
+              {t("filter.add").replace(/^\+\s*/, "")}
+            </button>
+            <p class="drawer-note">{t("filter.note")}</p>
+          </div>
+          <footer class="drawer-foot">
+            <button type="button" class="ghost" onClick={() => setDrafts([])}>
+              <Icon name="x" />
+              {t("common.clearAll")}
+            </button>
+            <span class="grow" />
+            <button type="button" class="ghost" onClick={onClose}>
+              {t("common.cancel")}
+            </button>
+            <button type="submit" class="solid">
+              <Icon name="check" />
+              {ready.length ? tn("filter.apply", ready.length) : t("filter.everything")}
+            </button>
+          </footer>
+        </form>
       </div>
     </div>
   );

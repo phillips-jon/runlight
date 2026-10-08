@@ -109,7 +109,7 @@
   <div class="body">
     <h2>It counts people without knowing who they are.</h2>
     <p>Each day, at midnight in your site’s timezone, Runlight makes a new random salt. A visitor is a hash of that salt, your site, their IP address, and their browser’s user agent, cut to 64 bits. The address and the user agent are never written down, and a salt is deleted within four days, so from then on nobody, you included, can tell whether two visits came from the same person.</p>
-    <p>Runlight sets no cookies and writes nothing to local storage, so there is nothing to put in a banner.</p>
+    <p>Runlight sets no cookies and stores nothing in your visitors’ browsers, so there is nothing to put in a banner. The one thing the script ever writes to local storage is an opt-out flag you can set in your own browser, so your visits are not counted.</p>
     <dl class="stacks">
       <div><dt>visitor</dt><dd class="mono">a6fbd78a579b03bf</dd></div>
       <div><dt>arrived</dt><dd class="mono">2026-10-06 18:29 UTC, on /blog/building-runlight</dd></div>
@@ -150,7 +150,7 @@
     <h2>Runlight counts conversions and what they were worth.</h2>
     <p>A goal can be an event you send or a page someone reaches (<code>/thanks*</code> works). It can also be a click on something, which needs no code. After you press “Pick on my site” and click the button on your own page, Runlight counts it from then on.</p>
     <p>Give a goal a fixed value or read the amount from the event, and the box shows revenue for each goal, broken down by source and page.</p>
-    <p>Goals are worked out when you read them, so one you add today counts last month too.</p>
+    <p>Goals are worked out when you read them, so an event or page goal you add today counts last month too.</p>
     <figure class="shot narrow"><img class="on-dark" src="/assets/shots/conversions-dark.webp" width="956" height="468" alt="The Conversions box lists Read the Runlight post, Newsletter signup, Purchase, and Email me, each with a rate and a count, with $6,250 revenue in the heading." loading="lazy"><img class="on-light" src="/assets/shots/conversions-light.webp" width="956" height="468" alt="" loading="lazy"></figure>
   </div>
 </section>

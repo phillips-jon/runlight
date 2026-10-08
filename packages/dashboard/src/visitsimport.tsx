@@ -38,6 +38,15 @@ export function ImportVisits({ site }: { site: Site }) {
 
   const fields = auth === "key" ? (["url", "apiKey"] as const) : (["url", "username", "password"] as const);
   const credentials = () => Object.fromEntries(fields.map((f) => [f, values[f] ?? ""]));
+  // New credentials may reach another Umami, so its websites are found again before anything imports.
+  const forget = () => {
+    setWebsites(null);
+    setWebsite("");
+  };
+  const edit = (f: string, value: string) => {
+    setValues({ ...values, [f]: value });
+    forget();
+  };
 
   const find = async () => {
     setFinding(true);
@@ -90,7 +99,17 @@ export function ImportVisits({ site }: { site: Site }) {
         <span class="field-label">{t("import.signIn")}</span>
         <div class="ops" role="radiogroup" aria-label={t("import.signIn")}>
           {(["key", "password"] as const).map((a) => (
-            <button type="button" role="radio" aria-checked={auth === a} class={auth === a ? "op on" : "op"} disabled={progress.running} onClick={() => setAuth(a)}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={auth === a}
+              class={auth === a ? "op on" : "op"}
+              disabled={progress.running}
+              onClick={() => {
+                setAuth(a);
+                forget();
+              }}
+            >
               {t(a === "key" ? "import.withKey" : "import.withPassword")}
             </button>
           ))}
@@ -107,10 +126,18 @@ export function ImportVisits({ site }: { site: Site }) {
               spellcheck={false}
               placeholder={f === "url" ? "https://stats.example.com" : undefined}
               value={values[f] ?? ""}
-              onInput={(e) => setValues({ ...values, [f]: (e.target as HTMLInputElement).value })}
+              disabled={progress.running}
+              onInput={(e) => edit(f, (e.target as HTMLInputElement).value)}
             />
           ) : (
-            <Secret class="value" autoComplete="off" spellcheck={false} value={values[f] ?? ""} onInput={(e) => setValues({ ...values, [f]: (e.target as HTMLInputElement).value })} />
+            <Secret
+              class="value"
+              autoComplete="off"
+              spellcheck={false}
+              value={values[f] ?? ""}
+              disabled={progress.running}
+              onInput={(e) => edit(f, (e.target as HTMLInputElement).value)}
+            />
           )}
         </label>
       ))}

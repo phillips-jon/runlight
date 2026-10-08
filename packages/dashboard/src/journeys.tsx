@@ -33,11 +33,16 @@ export function JourneysSheet({ view, onClose }: { view: View; onClose: () => vo
       .catch(() => {});
   }, [view]);
   useEffect(() => {
+    // Only the newest answer draws, so a slow older one cannot land under newer controls.
+    let live = true;
     setError("");
-    void api
+    api
       .journeys(view, { steps, start, end, through })
-      .then(setAnswer)
-      .catch((e: Error) => setError(e.message));
+      .then((a) => live && setAnswer(a))
+      .catch((e: Error) => live && setError(e.message));
+    return () => {
+      live = false;
+    };
   }, [view, steps, start, end, through]);
 
   // Measure the boxes once drawn, so the flows can join them.
@@ -71,7 +76,16 @@ export function JourneysSheet({ view, onClose }: { view: View; onClose: () => vo
         <div class="journey-controls">
           <label class="field-row">
             <span class="field-label">{t("journeys.steps")}</span>
-            <select class="value" value={String(steps)} onChange={(e) => setSteps(Number((e.target as HTMLSelectElement).value))}>
+            <select
+              class="value"
+              value={String(steps)}
+              onChange={(e) => {
+                const n = Number((e.target as HTMLSelectElement).value);
+                setSteps(n);
+                // A followed step past the new last one would match nothing.
+                if (through && through.step >= n) setThrough(null);
+              }}
+            >
               {STEPS.map((n) => (
                 <option value={String(n)}>{t("journeys.stepCount", { n })}</option>
               ))}
@@ -79,7 +93,15 @@ export function JourneysSheet({ view, onClose }: { view: View; onClose: () => vo
           </label>
           <label class="field-row">
             <span class="field-label">{t("journeys.start")}</span>
-            <select class="value" value={start} onChange={(e) => setStart((e.target as HTMLSelectElement).value)}>
+            <select
+              class="value"
+              value={start}
+              onChange={(e) => {
+                setStart((e.target as HTMLSelectElement).value);
+                // A new start page makes new paths, so the old follow no longer fits.
+                setThrough(null);
+              }}
+            >
               <option value="">{t("journeys.anyPage")}</option>
               {pages.map((p) => (
                 <option value={p}>{p}</option>

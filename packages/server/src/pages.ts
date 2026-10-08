@@ -180,8 +180,10 @@ ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
 <input type="hidden" name="code" value="${esc(opts.code)}">
 <label>Email<input type="email" name="email" autocomplete="username" required autofocus value="${esc(opts.email ?? "")}"></label>
 <label>Password<input type="password" name="password" autocomplete="new-password" minlength="10" required></label>
+<label>Password again<input type="password" name="again" autocomplete="new-password" minlength="10" required></label>
 <button type="submit">Create account</button>
-</form>`,
+</form>
+<p class="hint">Use at least ten characters.</p>`,
   );
 }
 

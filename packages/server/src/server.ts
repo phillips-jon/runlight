@@ -42,6 +42,9 @@ export interface RunlightServer {
 
 const HTML = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "x-frame-options": "DENY", "referrer-policy": "same-origin" };
 
+/** Codes for the account errors the dashboard shows, so it can say them in its own language. */
+const PEOPLE_CODES: Record<string, string> = { "Keep at least one owner": "last_owner", "Enter an email address": "email_invalid" };
+
 function readCookie(request: Request, name: string): string {
   for (const part of (request.headers.get("cookie") ?? "").split(";")) {
     const [key, ...rest] = part.trim().split("=");
@@ -258,6 +261,10 @@ export function createServer(options: ServerOptions): RunlightServer {
           const form = new URLSearchParams(await request.text());
           const code = form.get("code") ?? "";
           if (!equal(code, setupCode)) return html(setupLockedPage(), 403);
+          // Asked twice, since a typo here would lock the first owner out.
+          if ((form.get("password") ?? "") !== (form.get("again") ?? "")) {
+            return html(setupPage({ code, error: "The two passwords are not the same.", email: form.get("email") ?? "" }), 400);
+          }
           try {
             const user = await accounts.setPassword(form.get("email") ?? "", form.get("password") ?? "", now());
             hasAccount = true;
@@ -450,7 +457,7 @@ export function createServer(options: ServerOptions): RunlightServer {
       }
       return reply({ error: "Not found" }, 404);
     }
-    if (user.role !== "owner") return reply({ error: "Only an owner can manage people" }, 403);
+    if (user.role !== "owner") return reply({ error: "Only an owner can manage people", code: "people_owner" }, 403);
     // An owner can turn off someone else's two-factor, for a coworker who lost both phone and recovery codes.
     // It asks for the owner's password like every other two-factor change, and their own goes through Account.
     const reset = /^\/api\/people\/([a-f0-9]{24})\/2fa$/.exec(path);
@@ -473,14 +480,14 @@ export function createServer(options: ServerOptions): RunlightServer {
       const input = await body(request);
       if (!input) return reply({ error: "Send JSON" }, 415);
       const role = roleOf(input.role);
-      if (!role) return reply({ error: "Pick owner or viewer" }, 400);
+      if (!role) return reply({ error: "Pick owner or viewer", code: "role_needed" }, 400);
       const email = String(input.email ?? "").trim().toLowerCase();
-      if (await accounts.byEmail(email)) return reply({ error: `${email} already has an account` }, 409);
+      if (await accounts.byEmail(email)) return reply({ error: `${email} already has an account`, code: "account_exists", params: { email } }, 409);
       try {
         const { invite, code } = await accounts.invite(email, role, user.email, now());
         return reply({ invite: inviteView(invite), ...(await sendInvite(request, invite, code)) }, 201);
       } catch (error) {
-        if (error instanceof RangeError) return reply({ error: error.message }, 400);
+        if (error instanceof RangeError) return reply({ error: error.message, code: PEOPLE_CODES[error.message] }, 400);
         throw error;
       }
     }
@@ -499,7 +506,7 @@ export function createServer(options: ServerOptions): RunlightServer {
     if (match && (request.method === "PATCH" || request.method === "DELETE")) {
       try {
         if (request.method === "DELETE") {
-          if (match[1] === user.id) return reply({ error: "You cannot remove yourself" }, 400);
+          if (match[1] === user.id) return reply({ error: "You cannot remove yourself", code: "remove_self" }, 400);
           await accounts.remove(match[1]!);
           // The tokens they made, and the apps they connected, stop working with them.
           for (const { key, value } of await options.store.settingsStartingWith(MADE_BY)) {
@@ -512,10 +519,10 @@ export function createServer(options: ServerOptions): RunlightServer {
         const input = await body(request);
         if (!input) return reply({ error: "Send JSON" }, 415);
         const role = roleOf(input.role);
-        if (!role) return reply({ error: "Pick owner or viewer" }, 400);
+        if (!role) return reply({ error: "Pick owner or viewer", code: "role_needed" }, 400);
         return reply({ person: person(await accounts.setRole(match[1]!, role)) });
       } catch (error) {
-        if (error instanceof RangeError) return reply({ error: error.message }, error.message === "Unknown account" ? 404 : 400);
+        if (error instanceof RangeError) return reply({ error: error.message, code: PEOPLE_CODES[error.message] }, error.message === "Unknown account" ? 404 : 400);
         throw error;
       }
     }

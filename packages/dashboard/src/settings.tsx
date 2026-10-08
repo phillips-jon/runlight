@@ -130,13 +130,16 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
             <input class="value" type="text" value={hostnames} onInput={(e) => setHostnames((e.target as HTMLInputElement).value)} />
           </Field>
         ) : null}
-        <Field label={t("settings.timezone")} hint={t("settings.timezoneHint")}>
-          <select class="value" value={timezone} onChange={(e) => setTimezone((e.target as HTMLSelectElement).value)}>
-            {(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => (
-              <option value={z}>{z.replace(/_/g, " ")}</option>
-            ))}
-          </select>
-        </Field>
+        {/* A connected site's days follow its install's timezone, which only a manage token can change. */}
+        {site.remote && !site.manage ? null : (
+          <Field label={t("settings.timezone")} hint={t("settings.timezoneHint")}>
+            <select class="value" value={timezone} onChange={(e) => setTimezone((e.target as HTMLSelectElement).value)}>
+              {(zones.includes(timezone) ? zones : [timezone, ...zones]).map((z) => (
+                <option value={z}>{z.replace(/_/g, " ")}</option>
+              ))}
+            </select>
+          </Field>
+        )}
         <div class="settings-actions">
           {error ? <span class="settings-error">{error}</span> : null}
           {state === "saved" && !changed ? <span class="settings-ok">{t("settings.saved")}</span> : null}
@@ -585,7 +588,7 @@ function LinkDomains({ site }: { site: Site }) {
   );
 }
 
-export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLanguage, onDeleted, me }: {
+export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLanguage, onDeleted, onDemoted, me }: {
   site: Site;
   view: View;
   start?: Section;
@@ -594,6 +597,8 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   onSaved: (site: Site) => void;
   onLanguage: (code: string) => void;
   onDeleted: (id: string) => void;
+  /** The owner made themselves a viewer in People. */
+  onDemoted: () => void;
   /** Who is signed in, on the standalone server; owners also manage People there. */
   me?: Person | null;
 }) {
@@ -655,7 +660,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
             ) : section === "sharing" ? (
               <Sharing site={site} />
             ) : section === "people" && me ? (
-              <People me={me} />
+              <People me={me} onDemoted={onDemoted} />
             ) : section === "api" ? (
               <Tokens sites={sites} />
             ) : section === "links" ? (

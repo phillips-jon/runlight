@@ -10,6 +10,7 @@ interface Props {
   autoComplete?: string;
   required?: boolean;
   minLength?: number;
+  disabled?: boolean;
   spellcheck?: boolean;
   "aria-describedby"?: string;
   "aria-invalid"?: boolean;

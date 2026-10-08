@@ -54,7 +54,9 @@ function suite(kind: StoreKind) {
     assert.equal((await post({ url: "https://a.com", slug: "launch" })).status, 201);
     const clash = await post({ url: "https://b.com", slug: "launch" });
     assert.equal(clash.status, 400);
-    assert.match((await clash.json()).error, /taken/);
+    const said = await clash.json();
+    assert.match(said.error, /taken/);
+    assert.deepEqual([said.code, said.params], ["link_taken", { slug: "launch" }], "a code the dashboard can translate");
     assert.equal((await post({ url: "https://b.com", slug: "has space" })).status, 400);
     assert.equal((await post({ url: "javascript:alert(1)" })).status, 400);
     assert.equal((await post({ url: "https://b.com", domain: "t.unknown.com" })).status, 400, "the domain must be added first");

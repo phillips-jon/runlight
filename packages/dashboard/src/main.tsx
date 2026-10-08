@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import { ApiError, accounts, api, base, download, install, share, viewParams, type Person, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
+import { ApiError, accounts, api, base, download, install, share, viewParams, type Person, signIn, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
@@ -142,7 +142,11 @@ function Live({ site, ready }: { site: string; ready: boolean }) {
 
 function Headline({ view, stats, previous, compare }: { view: View; stats: Stats; previous?: Stats; compare?: { from: string; to: string } }) {
   const period = isPeriod(view.period) ? view.period : DEFAULT_PERIOD;
-  const when = view.from ? t("when.range", { range: rangeText(view.from, view.to) }) : t(`when.${period}` as Key);
+  const when = !view.from
+    ? t(`when.${period}` as Key)
+    : view.from === view.to
+      ? t("when.day", { day: rangeText(view.from, view.to) })
+      : t("when.range", { range: rangeText(view.from, view.to) });
   const against =
     view.compare === "off" || !compare
       ? ""
@@ -156,7 +160,7 @@ function Headline({ view, stats, previous, compare }: { view: View; stats: Stats
   const c = change(stats.visitors, previous?.visitors);
   const parts = {
     who: <strong>{tn("headline.who", stats.visitors, { n: exact(stats.visitors) })}</strong>,
-    verb: t(view.filters.length ? "headline.matched" : "headline.visited"),
+    verb: tn(view.filters.length ? "headline.matched" : "headline.visited", stats.visitors),
     when,
     against,
     change:
@@ -186,11 +190,12 @@ function App() {
   const [previousPoints, setPreviousPoints] = useState<Point[] | undefined>(undefined);
   // Coming back from connecting another Runlight: its settings open, or what went wrong shows.
   const [failure, setFailure] = useState("");
-  // Kept apart from failure, which the first good load clears, so the reason stays until it is closed.
-  // The server sends a code, shown in the dashboard's own words, so a link can never put its text on screen.
-  const [connectError, setConnectError] = useState(() => {
+  // Kept apart from failure, which the first good load clears, so it stays until it is closed: why connecting
+  // another Runlight failed, or that the owner just made themselves a viewer. A failed connection comes back
+  // as a code, shown in the dashboard's own words, so a link can never put its text on screen.
+  const [notice, setNotice] = useState<{ text?: string; key?: Key; error: boolean } | null>(() => {
     const code = new URLSearchParams(location.search).get("connect_error");
-    return code === null ? "" : (["expired", "denied", "refused", "token"].includes(code) ? code : "failed");
+    return code === null ? null : { key: `sites.connectError.${["expired", "denied", "refused", "token"].includes(code) ? code : "failed"}` as Key, error: true };
   });
   const [filtering, setFiltering] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -309,7 +314,12 @@ function App() {
     return (
       <main class="signed-out">
         <h1>Runlight</h1>
-        <p>{rich("app.signedOut", { token: <code>?token=</code>, env: <code>RUNLIGHT_TOKEN</code> })}</p>
+        {signIn ? (
+          // The standalone server has a sign-in page, and comes back to this same view afterwards.
+          <p>{rich("app.sessionEnded", { link: <a href={`${signIn}?next=${encodeURIComponent(location.pathname + location.search)}`}>{t("app.signInAgain")}</a> })}</p>
+        ) : (
+          <p>{rich("app.signedOut", { token: <code>?token=</code>, env: <code>RUNLIGHT_TOKEN</code> })}</p>
+        )}
       </main>
     );
   }
@@ -419,10 +429,10 @@ function App() {
         ) : null}
       </header>
 
-      {connectError ? (
-        <p class="failure dismissable" role="alert">
-          {t(`sites.connectError.${connectError}` as Key)}
-          <button type="button" class="remove" aria-label={t("common.close")} title={t("common.close")} onClick={() => setConnectError("")}>
+      {notice ? (
+        <p class={notice.error ? "failure dismissable" : "failure dismissable notice"} role="alert">
+          {notice.key ? t(notice.key) : notice.text}
+          <button type="button" class="remove" aria-label={t("common.close")} title={t("common.close")} onClick={() => setNotice(null)}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" />
             </svg>
@@ -448,6 +458,11 @@ function App() {
             setView((v) => ({ ...v }));
           }}
           onLanguage={changeLanguage}
+          onDemoted={() => {
+            setSettingsOpen(null);
+            setNotice({ text: t("people.demoted"), error: false });
+            refreshMe();
+          }}
           me={me}
           onDeleted={(id) => {
             setSettingsOpen(null);
@@ -557,7 +572,8 @@ function App() {
         )}
         {/* The last row: Conversions narrow, Links wide, so the zigzag carries on. */}
         {/* Wide then narrow, so the zigzag of the rows above carries on. */}
-        {site && !readOnly && !elsewhere ? <LinksPanel view={view} site={site.id} /> : null}
+        {/* A viewer reads the links without changing them; a share never shows them. */}
+        {site && !share && !elsewhere ? <LinksPanel view={view} site={site.id} readOnly={readOnly} /> : null}
         {site ? <ConversionsPanel view={view} readOnly={readOnly || elsewhere} onAdd={() => setSettingsOpen("goals")} /> : null}
       </div>
 

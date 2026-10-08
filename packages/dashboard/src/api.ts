@@ -1,3 +1,5 @@
+import { errorText } from "./i18n.js";
+
 export interface Site {
   id: string;
   name: string;
@@ -116,6 +118,8 @@ export const base = document.getElementById("app")?.dataset.base ?? "";
 export const share = document.getElementById("app")?.dataset.share ?? "";
 /** Where the standalone server signs people out; empty in library mode. */
 export const signOut = document.getElementById("app")?.dataset.signOut ?? "";
+/** Where the standalone server signs people in, for when a session ends; empty in library mode. */
+export const signIn = document.getElementById("app")?.dataset.signIn ?? "";
 /** Whether this is the standalone server, with accounts and roles. */
 export const accounts = document.getElementById("app")?.dataset.accounts !== undefined;
 
@@ -279,15 +283,18 @@ export class ApiError extends Error {
   }
 }
 
+/** The error a failed response carries, in the dashboard's language when its code is one the dashboard knows. */
+async function failure(response: Response): Promise<ApiError> {
+  const body = (await response.json().catch(() => null)) as { error?: string; code?: string; params?: Record<string, string> } | null;
+  return new ApiError(response.status, (body?.code && errorText(body.code, body.params)) || body?.error || response.statusText);
+}
+
 async function get<T>(path: string, params: URLSearchParams): Promise<T> {
   const response = await fetch(`${base}/api/${path}?${params}`, {
     credentials: "same-origin",
     headers: share ? { "x-runlight-share": share } : undefined,
   });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new ApiError(response.status, body?.error ?? response.statusText);
-  }
+  if (!response.ok) throw await failure(response);
   return response.json() as Promise<T>;
 }
 
@@ -297,10 +304,7 @@ export async function download(path: string, params: URLSearchParams): Promise<v
     credentials: "same-origin",
     headers: share ? { "x-runlight-share": share } : undefined,
   });
-  if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new ApiError(response.status, body?.error ?? response.statusText);
-  }
+  if (!response.ok) throw await failure(response);
   const name = /filename="([^"]+)"/.exec(response.headers.get("content-disposition") ?? "")?.[1] ?? "runlight-export";
   const link = document.createElement("a");
   link.href = URL.createObjectURL(await response.blob());
@@ -337,19 +341,13 @@ async function send<T>(method: string, path: string, body: unknown): Promise<T> 
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!response.ok) {
-    const result = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new ApiError(response.status, result?.error ?? response.statusText);
-  }
+  if (!response.ok) throw await failure(response);
   return response.json() as Promise<T>;
 }
 
 const del = async (path: string) => {
   const response = await fetch(`${base}/api/${path}`, { method: "DELETE", credentials: "same-origin" });
-  if (!response.ok) {
-    const result = (await response.json().catch(() => null)) as { error?: string } | null;
-    throw new ApiError(response.status, result?.error ?? response.statusText);
-  }
+  if (!response.ok) throw await failure(response);
 };
 
 const siteQuery = (site: string) => (site ? `?site=${encodeURIComponent(site)}` : "");
@@ -361,7 +359,7 @@ export const api = {
   updateLink: (site: string, id: string, input: { url?: string; name?: string; slug?: string; domain?: string }) => send<{ link: Link }>("PATCH", `links/${id}${siteQuery(site)}`, input),
   deleteLink: (site: string, id: string) => del(`links/${id}${siteQuery(site)}`),
   importLinks: (site: string, rows: Array<Record<string, string>>) =>
-    send<{ created: number; failed: Array<{ row: number; reason: string }> }>("POST", `links/import${siteQuery(site)}`, { rows }),
+    send<{ created: number; failed: Array<{ row: number; reason: string; code?: string; params?: Record<string, string> }> }>("POST", `links/import${siteQuery(site)}`, { rows }),
   importStep: (site: string, source: string, credentials: Record<string, string>, cursor: string | null, done: number) =>
     send<{ cursor: string | null; done: number; total: number | null; links: number; clicks: number; skipped: number; failed: Array<{ slug: string; reason: string }> }>(
       "POST",

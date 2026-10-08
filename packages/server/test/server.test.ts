@@ -22,9 +22,12 @@ test("a new server is locked until the setup link's code makes the first account
   assert.equal((await handle(req("/setup?code=wrong"))).status, 403);
   assert.equal((await handle(req("/setup", form({ code: "wrong", email: "a@b.co", password: "long enough pw" })))).status, 403);
   assert.equal((await handle(req(`/setup?code=${server.setupCode}`))).status, 200);
-  assert.equal((await handle(req("/setup", form({ code: server.setupCode, email: "a@b.co", password: "short" })))).status, 400);
+  assert.equal((await handle(req("/setup", form({ code: server.setupCode, email: "a@b.co", password: "short", again: "short" })))).status, 400);
+  const mismatch = await handle(req("/setup", form({ code: server.setupCode, email: "a@b.co", password: "a long password", again: "a long pasword" })));
+  assert.equal(mismatch.status, 400, "the password is asked twice");
+  assert.match(await mismatch.text(), /not the same/);
 
-  const made = await handle(req("/setup", form({ code: server.setupCode, email: "Jon@Example.com", password: "a long password" })));
+  const made = await handle(req("/setup", form({ code: server.setupCode, email: "Jon@Example.com", password: "a long password", again: "a long password" })));
   assert.equal(made.status, 303);
   assert.equal(made.headers.get("location"), "/");
   assert.match(made.headers.get("set-cookie") ?? "", /HttpOnly; SameSite=Lax; Max-Age=2592000; Secure/);
@@ -205,10 +208,15 @@ test("owners add people as owners or viewers; viewers read every site and change
   assert.equal((await json(owner, "POST", "/api/sites", { hostnames: "blog.example.com" })).status, 201);
   assert.equal((await json(viewer, "GET", "/api/sites")).status, 200);
   assert.equal((await json(viewer, "GET", "/api/stats?site=blog.example.com&period=today")).status, 200);
-  assert.equal((await json(viewer, "POST", "/api/sites", { hostnames: "other.example.com" })).status, 401);
-  assert.equal((await json(viewer, "POST", "/api/tokens", { name: "x" })).status, 401);
+  // Refused as signed in but not allowed, so the dashboard says why instead of signing them out.
+  const refused = await json(viewer, "POST", "/api/sites", { hostnames: "other.example.com" });
+  assert.equal(refused.status, 403);
+  assert.equal(((await refused.json()) as any).code, "owner_only");
+  assert.equal((await json(viewer, "POST", "/api/tokens", { name: "x" })).status, 403);
   assert.equal((await json(viewer, "GET", "/api/people")).status, 403);
-  assert.match(await (await handle(req("/", { headers: { cookie: viewer } }))).text(), /data-accounts=""/);
+  const board = await (await handle(req("/", { headers: { cookie: viewer } }))).text();
+  assert.match(board, /data-accounts=""/);
+  assert.match(board, /data-sign-in="\/login"/, "so the dashboard can link to sign-in when a session ends");
 
   // Everyone changes their own password, and stays signed in while doing it.
   assert.equal((await json(viewer, "POST", "/api/account/password", { current: "wrong", next: "a brand new password" })).status, 400);

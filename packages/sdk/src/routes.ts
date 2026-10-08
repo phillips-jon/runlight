@@ -18,6 +18,7 @@ import { fetchIcon } from "./icon.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
+import { lastPeriod } from "./reports.js";
 import { buckets, compareRange, isTimezone, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
 import { API_VERSION, VERSION } from "./version.js";
 
@@ -52,7 +53,10 @@ export interface RoutesOptions {
   observeKey?: string;
   /** A link to sign out, shown in the dashboard's footer. The standalone server sets it. */
   signOut?: string;
-  /** Where an app connecting over OAuth sends the owner to sign in first. The standalone server sets it. */
+  /**
+   * Where to sign in: an app connecting over OAuth sends the owner here first, and the dashboard
+   * links here when a session ends. The standalone server sets it.
+   */
   signIn?: string;
   /** The standalone server's accounts: the dashboard offers an Account sheet and, to owners, a People section. */
   accounts?: boolean;
@@ -93,6 +97,14 @@ function escapeHtml(value: string): string {
 
 function isDevelopment(): boolean {
   return env("NODE_ENV") === "development";
+}
+
+/**
+ * An error the dashboard can show in its own language: `code` names it and
+ * `params` fill its placeholders, while `error` stays the English message.
+ */
+function coded(error: string, code: string, status: number, params?: Record<string, string>): Response {
+  return json({ error, code, ...(params ? { params } : {}) }, status);
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -157,8 +169,8 @@ async function passThrough(remote: { url: string; token: string; site: string },
     });
   } catch (error) {
     const host = new URL(remote.url).host;
-    if ((error as Error)?.name === "TimeoutError") return json({ error: `${host} took too long to answer. Try a shorter range.` }, 504);
-    return json({ error: `Could not reach ${host}` }, 502);
+    if ((error as Error)?.name === "TimeoutError") return coded(`${host} took too long to answer. Try a shorter range.`, "remote_slow", 504, { host });
+    return coded(`Could not reach ${host}`, "unreachable", 502, { host });
   }
   // What comes back is shown from this server's origin, so it is never taken as a page:
   // JSON, or a download for exports, with sniffing off and nothing allowed to run.
@@ -173,9 +185,9 @@ async function passThrough(remote: { url: string; token: string; site: string },
     const name = /filename="([A-Za-z0-9._-]+)"/.exec(answer.headers.get("content-disposition") ?? "")?.[1] ?? "runlight-export";
     back["content-disposition"] = `attachment; filename="${name}"`;
   }
-  if (answer.status >= 300 && answer.status < 400) return json({ error: `${new URL(remote.url).host} answered with a redirect` }, 502);
+  if (answer.status >= 300 && answer.status < 400) return coded(`${new URL(remote.url).host} answered with a redirect`, "redirected", 502, { host: new URL(remote.url).host });
   // The install's own errors say what went wrong there; a refused token is this server's problem to report.
-  if (answer.status === 401) return json({ error: `${new URL(remote.url).host} refused the token. Connect it again from the site's settings.` }, 502);
+  if (answer.status === 401) return coded(`${new URL(remote.url).host} refused the token. Connect it again from the site's settings.`, "token_refused", 502, { host: new URL(remote.url).host });
   return new Response(answer.body, { status: answer.status, headers: back });
 }
 
@@ -232,7 +244,7 @@ function localeUrls(base: string): string {
 /** The Runlight mark for the dashboard's tab: an R in a rounded lamp housing, one corner lit. */
 export const RUNLIGHT_ICON = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cstyle%3E.h%7Bfill%3A%23000%7D.r%7Bstroke%3A%23fff%7D%40media%20%28prefers-color-scheme%3Adark%29%7B.h%7Bfill%3A%23fff%7D.r%7Bstroke%3A%23000%7D%7D%3C/style%3E%3Crect%20class%3D%22h%22%20x%3D%222.5%22%20y%3D%222.5%22%20width%3D%2227%22%20height%3D%2227%22%20rx%3D%227%22/%3E%3Cpath%20class%3D%22r%22%20d%3D%22M11%2023V9h6.2a4.3%204.3%200%200%201%200%208.6H11m6%200%205%205.4%22%20fill%3D%22none%22%20stroke-width%3D%222.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3Ccircle%20cx%3D%2223.6%22%20cy%3D%228.4%22%20r%3D%222.6%22%20fill%3D%22%2322c55e%22/%3E%3C/svg%3E";
 
-const DASHBOARD = (base: string, share = "", signOut = "", geoCredit = false, accounts = false) => `<!doctype html>
+const DASHBOARD = (base: string, share = "", signOut = "", geoCredit = false, accounts = false, signIn = "") => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -243,7 +255,7 @@ const DASHBOARD = (base: string, share = "", signOut = "", geoCredit = false, ac
 <link rel="stylesheet" href="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.css">
 </head>
 <body>
-<div id="app" data-base="${escapeAttr(base)}"${share ? ` data-share="${escapeAttr(share)}"` : ""}${signOut ? ` data-sign-out="${escapeAttr(signOut)}"` : ""}${geoCredit ? ` data-geo-credit=""` : ""}${accounts ? ` data-accounts=""` : ""} data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json" data-locales="${escapeAttr(localeUrls(base))}"></div>
+<div id="app" data-base="${escapeAttr(base)}"${share ? ` data-share="${escapeAttr(share)}"` : ""}${signOut ? ` data-sign-out="${escapeAttr(signOut)}"` : ""}${signIn ? ` data-sign-in="${escapeAttr(signIn)}"` : ""}${geoCredit ? ` data-geo-credit=""` : ""}${accounts ? ` data-accounts=""` : ""} data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json" data-locales="${escapeAttr(localeUrls(base))}"></div>
 <script type="module" src="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.js"></script>
 </body>
 </html>
@@ -298,9 +310,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   // When each report's last sample went out.
   const sampleSent = new Map<string, number>();
 
-  async function canRead(request: Request): Promise<boolean | "unconfigured"> {
+  /** Whether this request acts as the owner. "read" is someone signed in who may only read, such as a viewer. */
+  async function canRead(request: Request): Promise<boolean | "unconfigured" | "read"> {
     if (managed.has(request)) return true;
-    if (options.authorize) return (await options.authorize(request)) === true;
+    if (options.authorize) {
+      const answer = await options.authorize(request);
+      return answer === "read" ? "read" : answer === true;
+    }
     if (token === null) return true;
     if (!token) {
       // Fails closed: only a process that says it is in development runs open.
@@ -340,10 +356,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       // A read-only sign-in reads like an API token for every site.
       return answer === "read" ? { id: "", name: "", site: "", scope: "read", hash: "", hint: "", createdAt: 0, lastUsedAt: null } : answer === true;
     }
-    return canRead(request);
+    const access = await canRead(request);
+    return access === "read" ? false : access;
   }
 
-  function denied(result: false | "unconfigured"): Response {
+  function denied(result: false | "unconfigured" | "read"): Response {
+    if (result === "read") return coded("Only an owner can change this", "owner_only", 403);
     return result === "unconfigured"
       ? json({ error: "Set RUNLIGHT_TOKEN, or pass token or authorize to routes(). Without one, Runlight only runs open when NODE_ENV is development." }, 503)
       : json({ error: "Unauthorized" }, 401);
@@ -408,17 +426,17 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           const body = await readJson(request);
           if (body instanceof Response) return body;
           const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/\.+$/, "").replace(/^www\./, "");
-          if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return json({ error: "That is not a domain name" }, 400);
-          if (!publicName(domain)) return json({ error: `${domain} is not a public domain name. Use one that browsers anywhere can reach.` }, 400);
+          if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return coded("That is not a domain name", "domain_invalid", 400);
+          if (!publicName(domain)) return coded(`${domain} is not a public domain name. Use one that browsers anywhere can reach.`, "domain_not_public", 400, { domain });
           // A link domain answers every path on it, so it must never be where the dashboard or a counted site lives.
           // The request's own Host is the caller's to choose, so the configured address and the names people
           // signed in from count too.
           const here = [request.headers.get("host"), request.headers.get("x-forwarded-host"), url.host].filter((h): h is string => Boolean(h));
           const own = [...(origin ? [new URL(origin).host] : []), ...here, ...((await options.ownHosts?.()) ?? [])].map(hostName);
           const taken = new Set([...own, ...runlight.sites.flatMap((s) => s.hostnames), ...runlight.sites.flatMap((s) => runlight.remote(s.id)?.hostnames ?? [])]);
-          if (taken.has(domain)) return json({ error: `${domain} is where this dashboard or one of your sites lives. Use a separate domain or subdomain for short links, such as go.${domain}.` }, 400);
+          if (taken.has(domain)) return coded(`${domain} is where this dashboard or one of your sites lives. Use a separate domain or subdomain for short links, such as go.${domain}.`, "domain_in_use", 400, { domain });
           const owner = (await runlight.store.linkDomains()).find((d) => d.domain === domain);
-          if (owner && owner.site !== site.id) return json({ error: `${domain} already belongs to another site` }, 409);
+          if (owner && owner.site !== site.id) return coded(`${domain} already belongs to another site`, "domain_taken", 409, { domain });
           await runlight.store.addLinkDomain(domain, site.id, runlight.now());
           runlight.forgetLinkDomains();
           return json({ domain }, 201);
@@ -551,7 +569,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         }
       }
     } catch (error) {
-      if (error instanceof LinkError) return json({ error: error.message }, 400);
+      if (error instanceof LinkError) return coded(error.message, error.code, 400, error.params);
       if (error instanceof RangeError) return json({ error: error.message }, 404);
       throw error;
     }
@@ -675,10 +693,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         const body = await readJson(request);
         if (body instanceof Response) return body;
         const to = String(body.to ?? "").trim();
-        if (!EMAIL.test(to)) return json({ error: "Enter an email address to send the test to" }, 400);
-        const { t } = translator(String(body.lang ?? "en"));
+        if (!EMAIL.test(to)) return coded("Enter an email address to send the test to", "test_email", 400);
         const settings = await runlight.mailSettings();
-        const name = SERVICES.find((x) => x.id === settings?.service)?.name ?? "";
+        if (!settings) return coded("Set up a mail service first", "mail_unset", 400);
+        const { t } = translator(String(body.lang ?? "en"));
+        const name = SERVICES.find((x) => x.id === settings.service)?.name ?? "";
         await runlight.sendMail({ to, subject: t("email.test.subject"), text: t("email.test.body", { service: name }), html: `<p style="font-family:sans-serif;font-size:15px">${escapeHtml(t("email.test.body", { service: name }))}</p>` });
         return json({ ok: true });
       }
@@ -692,16 +711,18 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           const body = await readJson(request);
           if (body instanceof Response) return body;
           const email = String(body.email ?? "").trim().toLowerCase();
-          if (!EMAIL.test(email)) return json({ error: "Enter an email address" }, 400);
+          if (!EMAIL.test(email)) return coded("Enter an email address", "email_invalid", 400);
           const frequency = body.frequency === "monthly" ? "monthly" : "weekly";
           const existing = await runlight.store.reports(site.id);
-          if (existing.some((r) => r.email === email && r.frequency === frequency)) return json({ error: `${email} already gets the ${frequency} report` }, 400);
-          if (existing.length >= 50) return json({ error: "A site can send to at most 50 addresses" }, 400);
+          if (existing.some((r) => r.email === email && r.frequency === frequency)) return coded(`${email} already gets the ${frequency} report`, "report_exists", 400, { email });
+          if (existing.length >= 50) return coded("A site can send to at most 50 addresses", "report_limit", 400);
           // Links in the email point back to the configured address, or else to this dashboard as the
           // browser sees it. A report made from a hub uses this install's own address, where its
           // unsubscribe link answers, and never the Host its request names.
           const given = managed.has(request) || origin ? "" : String(body.origin ?? "");
           const home = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${origin ?? url.origin}${base}`;
+          // A period already due counts as sent, so a report added mid-week first goes out on the next Monday, as the form says.
+          const due = lastPeriod(frequency, runlight.now(), site.timezone);
           const report: ReportRow = {
             id: randomId(),
             site: site.id,
@@ -710,7 +731,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             lang: languages().includes(String(body.lang)) ? String(body.lang) : "en",
             token: randomId(16),
             origin: home,
-            lastPeriod: "",
+            lastPeriod: runlight.now() >= due.dueAt ? due.key : "",
             lastSentAt: null,
             createdAt: runlight.now(),
           };
@@ -729,7 +750,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         const key = managed.has(request) ? `site:${site.id}` : report.id;
         const wait = managed.has(request) ? 600_000 : 60_000;
         const last = sampleSent.get(key) ?? 0;
-        if (runlight.now() - last < wait) return json({ error: "A sample went out a moment ago. Wait a few minutes and try again." }, 429);
+        if (runlight.now() - last < wait) return coded("A sample went out a moment ago. Wait a few minutes and try again.", "sample_soon", 429);
         sampleSent.set(key, runlight.now());
         await runlight.deliverReport(report, site);
         return json({ ok: true });
@@ -1042,7 +1063,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     // The assistant: an owner sets it up; anyone signed in to the dashboard can ask it.
     if (path === "/api/assistant") {
-      const owner = (await canRead(request)) === true;
+      const self = await canRead(request);
+      const owner = self === true;
       if (request.method === "GET") {
         const access = await reader(request);
         if (access === false || access === "unconfigured") return denied(access);
@@ -1061,7 +1083,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           providers: PROVIDERS,
         });
       }
-      if (!owner) return denied(false);
+      if (!owner) return denied(self);
       await runlight.init();
       if (request.method === "DELETE") {
         await runlight.saveAssistantSettings(null);
@@ -1082,7 +1104,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     }
     // The models a service offers, for the setup form's dropdown. The key can be the one already saved.
     if (path === "/api/assistant/models" && request.method === "POST") {
-      if ((await canRead(request)) !== true) return denied(false);
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
       await runlight.init();
       const body = await readJson(request);
       if (body instanceof Response) return body;
@@ -1252,18 +1275,23 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       try {
         const id = decodeURIComponent(siteMatch[1]!);
         const remote = runlight.remote(id);
-        if (body.retentionMonths !== undefined && remote) {
-          // How long a connected site keeps visits is the install's setting; this server only passes it on.
+        // How long a connected site keeps visits, and the timezone its days follow, are the install's
+        // settings: this server passes them on, and changes its own row only once the install took them.
+        const forward = {
+          ...(body.retentionMonths !== undefined ? { retentionMonths: body.retentionMonths } : {}),
+          ...(body.timezone !== undefined && String(body.timezone) !== runlight.site(id)?.timezone ? { timezone: String(body.timezone) } : {}),
+        };
+        if (remote && Object.keys(forward).length) {
           if (remote.scope !== "manage") return json({ error: "Connect this site again to change it from here" }, 400);
           const answer = await passThrough(
             remote,
             `/api/sites/${encodeURIComponent(remote.site)}`,
             new URL(url),
-            new Request(request.url, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ retentionMonths: body.retentionMonths }) }),
+            new Request(request.url, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(forward) }),
           );
           if (!answer.ok) return answer;
           runlight.forgetRemoteInfo(id);
-        } else if (body.retentionMonths !== undefined) {
+        } else if (!remote && body.retentionMonths !== undefined) {
           await runlight.setRetention(id, body.retentionMonths === null ? null : Number(body.retentionMonths));
         }
         const site = await runlight.updateSite(decodeURIComponent(siteMatch[1]!), {
@@ -1640,7 +1668,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         }
         // The page itself holds no data; the API it calls checks access and
         // the page explains how to sign in when it is refused.
-        return new Response(DASHBOARD(base, "", options.signOut, options.geoCredit, options.accounts), {
+        return new Response(DASHBOARD(base, "", options.signOut, options.geoCredit, options.accounts, options.signIn), {
           headers: {
             "content-type": "text/html; charset=utf-8",
             "cache-control": "no-store",

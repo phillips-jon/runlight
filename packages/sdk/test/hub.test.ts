@@ -54,6 +54,9 @@ test("a standalone server reads a connected app install through its API, and cha
     const local = await hub.store.db.all(`SELECT COUNT(*) AS n FROM rl_events`);
     assert.equal(Number(local[0]!.n), 0);
     assert.equal((await call(PATCH, "PATCH", `/api/sites/${site.id}`, { name: "The shop" })).status, 200, "its name here is the hub's own");
+    assert.equal((await call(PATCH, "PATCH", `/api/sites/${site.id}`, { name: "The shop", timezone: "Europe/Paris" })).status, 200, "an unchanged timezone is not a change");
+    assert.equal((await call(PATCH, "PATCH", `/api/sites/${site.id}`, { timezone: "Asia/Tokyo" })).status, 400, "a read token cannot move the app's days");
+    assert.equal(hub.site(site.id)?.timezone, "Europe/Paris");
 
     // A restart reads the connection back, and removing it leaves the app's data alone.
     const again = runlight({ store: hub.store, managedSites: true, secret: "k".repeat(32) });
@@ -117,6 +120,10 @@ test("a hub connects an app through its consent page and changes that site's set
     assert.equal((await call("POST", `/api/links?site=${id}`, { url: "https://example.org/", slug: "hi" })).status, 201);
     assert.equal((await call("POST", `/api/reports?site=${id}`, { email: "me@example.com" })).status, 201);
     assert.equal((await call("PATCH", `/api/sites/${id}`, { retentionMonths: 24 })).status, 200);
+    const moved = await call("PATCH", `/api/sites/${id}`, { timezone: "Asia/Tokyo" });
+    assert.equal(moved.body.site.timezone, "Asia/Tokyo", "the hub's row follows");
+    assert.equal(app.site("blog")?.timezone, "Asia/Tokyo", "and the install's days follow the new zone");
+    assert.equal((await call("GET", `/api/stats?site=${id}&period=today`)).body.range.timezone, "Asia/Tokyo");
     const appGoals = (await (await asAppOwner(`${appUrl}/api/goals?site=blog`)).json()) as any;
     assert.deepEqual(appGoals.goals.map((g: any) => g.name), ["Signup"]);
     assert.equal((await app.retention("blog")), 24);
