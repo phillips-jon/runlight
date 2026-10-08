@@ -564,8 +564,10 @@ function DomainSetup({ domain, target, onCheck }: { domain: string; target: { ho
 }
 
 /** One domain: its name and status on the left, its actions side by side on the right, and how to set it up. */
-function DomainRow({ site, domain, onRemove }: { site: string; domain: string; onRemove: () => void }) {
+function DomainRow({ site, domain, fallbackHost, onRemove }: { site: string; domain: string; fallbackHost: string; onRemove: () => void }) {
   const { state, check } = useDomainCheck(site, domain);
+  // An install from before checks said where to point gives no target; its own name stands in.
+  const target = state ? (state.target ?? { host: fallbackHost, addresses: [] }) : null;
   // The steps open by themselves for a domain that does not reach Runlight yet, and on demand once it does.
   const [open, setOpen] = useState<boolean | null>(null);
   const showing = open ?? (state !== null && !state.working);
@@ -579,7 +581,7 @@ function DomainRow({ site, domain, onRemove }: { site: string; domain: string; o
         </span>
       </div>
       <div class="domain-actions">
-        {state?.target ? (
+        {target ? (
           <button type="button" class={showing ? "copy inline on" : "copy inline"} aria-expanded={showing} onClick={() => setOpen(!showing)}>
             <Icon name="list" />
             {t("links.setup")}
@@ -590,7 +592,7 @@ function DomainRow({ site, domain, onRemove }: { site: string; domain: string; o
           {t("links.removeDomain")}
         </button>
       </div>
-      {showing && state?.target ? <DomainSetup domain={domain} target={state.target} onCheck={check} /> : null}
+      {showing && target ? <DomainSetup domain={domain} target={target} onCheck={check} /> : null}
     </li>
   );
 }
@@ -652,6 +654,7 @@ function LinkDomains({ site }: { site: Site }) {
           <DomainRow
             site={site.id}
             domain={d}
+            fallbackHost={hostname}
             onRemove={() =>
               api
                 .removeLinkDomain(site.id, d)
