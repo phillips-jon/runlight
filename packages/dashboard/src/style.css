@@ -4609,8 +4609,13 @@ a.ghost {
   }
 }
 
-/* On a phone a card's label may take two lines rather than lose its end. */
+/* On a phone a Show all sheet keeps the names readable and lets the numbers scroll sideways,
+   and a card's label may take two lines rather than lose its end. */
 @media (max-width: 560px) {
+  .sheet-table:not(.links-table) .sheet-name {
+    min-width: 150px;
+  }
+
   .metric-label {
     white-space: normal;
     overflow-wrap: anywhere;
