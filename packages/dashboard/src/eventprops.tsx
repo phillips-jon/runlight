@@ -3,6 +3,7 @@ import { api, type View } from "./api.js";
 import { count } from "./format.js";
 import { t } from "./i18n.js";
 import { Sheet } from "./links.js";
+import { Empty } from "./empty.js";
 
 type Answer = Awaited<ReturnType<typeof api.eventProps>>;
 
@@ -36,7 +37,7 @@ export function EventProps({ view, event, onClose }: { view: View; event: string
           </div>
         ) : null}
         {error ? <p class="settings-error">{error}</p> : null}
-        {answer && answer.keys.length === 0 ? <p class="empty">{t("props.none")}</p> : null}
+        {answer && answer.keys.length === 0 ? <Empty icon="list" title={t("props.emptyTitle")} hint={t("props.none")} /> : null}
         {answer && answer.key ? (
           <>
             <div class="table">

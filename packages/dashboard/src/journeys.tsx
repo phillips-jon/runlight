@@ -4,6 +4,7 @@ import { count, readablePath } from "./format.js";
 import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { Sheet } from "./links.js";
+import { Empty } from "./empty.js";
 
 /** The step counts the API takes. */
 const STEPS = [2, 3, 4, 5, 6, 7, 8];
@@ -132,7 +133,7 @@ export function JourneysSheet({ view, onClose }: { view: View; onClose: () => vo
         {!answer ? (
           <p class="empty">{t("common.loading")}</p>
         ) : answer.visits === 0 ? (
-          <p class="empty">{t("journeys.none")}</p>
+          <Empty icon="arrive" title={t("journeys.emptyTitle")} hint={t("journeys.none")} />
         ) : (
           <div class="journey-scroll">
             <div class="journey-grid" ref={grid} style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(150px, 1fr))` }}>

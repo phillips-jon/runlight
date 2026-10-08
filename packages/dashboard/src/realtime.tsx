@@ -4,6 +4,7 @@ import { count, countryName, exact, flag } from "./format.js";
 import { currentLocale, rich, t, tn, type Key } from "./i18n.js";
 import { Sheet } from "./links.js";
 import { label } from "./panel.js";
+import { Empty } from "./empty.js";
 
 const REFRESH_MS = 10_000;
 
@@ -51,7 +52,7 @@ function Now({ title, rows, dimension }: { title: Key; rows: Array<{ value: stri
   return (
     <section class="mini">
       <h3>{t(title)}</h3>
-      {rows.length === 0 ? <p class="empty">{t("live.nobody")}</p> : null}
+      {rows.length === 0 ? <Empty size="line" icon="monitor" title={t("live.nobody")} /> : null}
       <ol class="rows">
         {rows.map((r) => (
           <li>
@@ -71,7 +72,7 @@ function Feed({ recent }: { recent: Realtime["recent"] }) {
   return (
     <section class="feed">
       <h3>{t("live.feed")}</h3>
-      {recent.length === 0 ? <p class="empty">{t("live.quiet")}</p> : null}
+      {recent.length === 0 ? <Empty size="line" icon="clock" title={t("live.quiet")} /> : null}
       <ol>
         {recent.map((r) => {
           const place = [r.city, r.country ? countryName(r.country) : ""].filter(Boolean).join(", ");

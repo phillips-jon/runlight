@@ -298,7 +298,9 @@ function AllRows({ title, tab, view, onFilter, onClose }: { title: Key; tab: Tab
         </div>
         <div class="sheet-body">
           {!rows ? <p class="empty">{t("common.loading")}</p> : null}
-          {rows && shown.length === 0 ? <p class="empty">{t("panel.empty")}</p> : null}
+          {rows && shown.length === 0 ? (
+            needle ? <Empty size="line" icon="list" title={t("empty.search", { q: needle })} /> : <Empty size="line" icon="chart" title={t("empty.mini")} />
+          ) : null}
           {shown.length ? (
             <SheetTable
               rows={shown}

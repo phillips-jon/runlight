@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { api, type Funnel, type FunnelStep, type Site, type View } from "./api.js";
 import { count, percent } from "./format.js";
+import { Empty } from "./empty.js";
 import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
@@ -83,7 +84,7 @@ export function Funnels({ site, view }: { site: Site; view: View }) {
           ))}
         </ul>
       ) : funnels ? (
-        <p class="field-hint">{t("funnels.none")}</p>
+        <Empty size="card" icon="funnel" title={t("funnels.emptyTitle")} hint={t("funnels.none")} />
       ) : null}
       {error ? <p class="settings-error">{error}</p> : null}
       <div class="settings-actions start">

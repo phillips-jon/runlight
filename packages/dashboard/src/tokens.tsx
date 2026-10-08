@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { api, base, type ApiToken, type Site } from "./api.js";
 import { day } from "./format.js";
+import { Empty } from "./empty.js";
 import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
@@ -93,7 +94,7 @@ export function Tokens({ sites }: { sites: Site[] }) {
           ))}
         </ul>
       ) : tokens ? (
-        <p class="field-hint">{t("tokens.empty")}</p>
+        <Empty size="card" icon="key" title={t("tokens.emptyTitle")} hint={t("tokens.empty")} />
       ) : null}
       <p class="field-hint domain-note">{t("tokens.revokeNote")}</p>
       <form class="domain-add token-add" onSubmit={create}>

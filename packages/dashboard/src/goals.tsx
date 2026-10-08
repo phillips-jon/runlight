@@ -154,7 +154,7 @@ function GoalList({ title, rows, dimension, currency, valued }: { title: Key; ro
   return (
     <section class="mini">
       <h3>{t(title)}</h3>
-      {rows.length === 0 ? <p class="empty">{t("panel.empty")}</p> : null}
+      {rows.length === 0 ? <Empty size="line" icon="chart" title={t("empty.mini")} /> : null}
       <ol class="rows">
         {rows.map((r) => (
           <li>
@@ -490,7 +490,7 @@ export function Goals({ site, view }: { site: Site; view: View }) {
           ))}
         </ul>
       ) : goals ? (
-        <p class="field-hint">{t("goals.none")}</p>
+        <Empty size="card" icon="target" title={t("goals.emptyTitle")} hint={t("goals.none")} />
       ) : null}
       {error ? <p class="settings-error">{error}</p> : null}
       <p class="field-hint domain-note">{t("goals.pastNote")}</p>

@@ -242,7 +242,7 @@ function MiniList({ title, rows, dimension }: { title: Key; rows: Row[]; dimensi
   return (
     <section class="mini">
       <h3>{t(title)}</h3>
-      {rows.length === 0 ? <p class="empty">{t("panel.empty")}</p> : null}
+      {rows.length === 0 ? <Empty size="line" icon="chart" title={t("empty.mini")} /> : null}
       <ol class="rows">
         {rows.map((r) => (
           <li>
@@ -487,7 +487,7 @@ export function LinkManager({ view, site, readOnly, onClose, onChanged }: { view
         </div>
       ) : null}
       <div class="sheet-body">
-        {links && links.length === 0 ? <p class="empty">{t(readOnly ? "links.noneYet" : "links.empty")}</p> : null}
+        {links && links.length === 0 ? <Empty icon="share" title={t("empty.links.title")} hint={t(readOnly ? "links.noneYet" : "empty.links.hint")} /> : null}
         <table class="sheet-table links-table">
           <tbody>
             {shown.slice(0, limit).map((l) => {

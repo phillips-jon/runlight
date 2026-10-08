@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { api, type Share, type Site } from "./api.js";
 import { day } from "./format.js";
+import { Empty } from "./empty.js";
 import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
@@ -110,7 +111,7 @@ export function Sharing({ site }: { site: Site }) {
           ))}
         </ul>
       ) : shares ? (
-        <p class="field-hint">{t("share.empty")}</p>
+        <Empty size="card" icon="eye" title={t("share.emptyTitle")} hint={t("share.empty")} />
       ) : null}
       <p class="field-hint domain-note">{t("share.revokeNote")}</p>
       <form class="domain-add" onSubmit={create}>

@@ -4,6 +4,7 @@ import { LANGUAGES, currentLocale, t, type Key } from "./i18n.js";
 import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
+import { Empty } from "./empty.js";
 
 const fieldLabel = (name: string, fallback: string) => {
   const key = `mail.field.${name}` as Key;
@@ -280,7 +281,7 @@ export function EmailReports({ site }: { site: Site }) {
             ))}
           </ul>
         ) : reports ? (
-          <p class="field-hint">{t("reports.none")}</p>
+          <Empty size="card" icon="send" title={t("reports.emptyTitle")} hint={t("reports.none")} />
         ) : null}
         {sent ? (
           <p class="settings-ok-text">

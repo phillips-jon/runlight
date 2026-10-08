@@ -844,7 +844,7 @@ main {
 .chart {
   position: relative;
   min-height: 300px;
-  padding: 0 4px;
+  padding: 0 4px 10px;
 }
 
 .chart svg {
@@ -1224,6 +1224,43 @@ button.name:hover {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Before a settings list's first item: the same mark and words in a quiet dashed card. */
+.empty-state.card {
+  flex: none;
+  min-height: 0;
+  padding: 20px 16px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+}
+
+/* In a small list inside a box: one line with a small mark, left aligned. */
+.empty-state.line {
+  flex: none;
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px 0;
+  text-align: left;
+}
+
+.empty-state.line .empty-mark {
+  width: 24px;
+  height: 24px;
+  margin: 0;
+}
+
+.empty-state.line .empty-mark .icon {
+  width: 13px;
+  height: 13px;
+}
+
+.empty-state.line .empty-title {
+  font-size: 13px;
+  font-weight: 400;
   color: var(--muted);
 }
 
@@ -2374,7 +2411,7 @@ h1 .home:hover {
 .settings-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 5px;
   padding: 22px 12px;
   background: var(--sunk);
   border-right: 1px solid var(--line);
