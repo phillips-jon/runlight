@@ -926,5 +926,14 @@
   "empty.links.hint": "Erstelle einen Kurzlink zum Teilen, und jeder Klick darauf wird gezählt.",
   "sites.refused": "{host} akzeptiert die Verbindung dieses Servers nicht mehr, daher lassen sich die Zahlen nicht lesen. Verbinde es erneut, um das zu beheben.",
   "sites.connected": "Mit {host} verbunden.",
-  "links.totalTip": "Alle Klicks auf deine Kurzlinks im gewählten Zeitraum"
+  "links.totalTip": "Alle Klicks auf deine Kurzlinks im gewählten Zeitraum",
+  "links.setup": "So richtest du sie ein",
+  "links.setupDns": "Lege bei deinem DNS-Anbieter diesen Eintrag an. Er lässt die Domain auf dieses Dashboard zeigen.",
+  "links.setupApex": "{domain} hat keine Subdomain, daher braucht sie bei deinem DNS-Anbieter einen A-Eintrag auf den Server dieses Dashboards.",
+  "links.setupAlias": "Bietet dein DNS-Anbieter einen ALIAS- oder ANAME-Eintrag oder CNAME-Flattening, kannst du die Domain stattdessen auf {host} zeigen lassen. Das funktioniert auch weiter, wenn sich die Adresse des Servers ändert.",
+  "links.setupNoAddress": "Dieses Dashboard läuft unter {host}, das keinen öffentlichen Namen und keine öffentliche Adresse hat, auf die eine Domain zeigen kann. Sobald es unter einer eigenen Domain läuft, lass diese Domain mit einem CNAME-Eintrag für eine Subdomain dorthin zeigen, oder mit einem A-Eintrag auf die öffentliche Adresse des Servers für eine Domain ohne Subdomain.",
+  "links.setupCheck": "Wenn der Eintrag steht und HTTPS läuft, prüfe erneut. Ein neuer DNS-Eintrag kann ein paar Minuten brauchen, bis er überall ankommt.",
+  "links.recordType": "Typ",
+  "links.recordName": "Name",
+  "links.recordValue": "Wert"
 }

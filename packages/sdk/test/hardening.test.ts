@@ -146,3 +146,18 @@ test("on Cloudflare D1 a check sends a modest number of statements, and one stra
   await t.rl.store.deleteSite("default");
   assert.ok(statements < 200, `deleting the site sent ${statements} statements`);
 });
+
+test("a link domain's check says where the domain should point, for its setup steps", async () => {
+  const t = setup("sqlite", { site: { hostnames: ["example.com"] } });
+  await t.rl.init();
+  await t.rl.store.addLinkDomain("go.example.net", "default", t.now);
+  const real = globalThis.fetch;
+  globalThis.fetch = (async () => new Response("no", { status: 404 })) as typeof fetch;
+  try {
+    const check = await t.get("/api/link-domains/go.example.net/check");
+    assert.equal(check.target.host, "example.com", "this dashboard's own name, for a CNAME");
+    assert.ok(Array.isArray(check.target.addresses));
+  } finally {
+    globalThis.fetch = real;
+  }
+});

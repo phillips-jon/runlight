@@ -3235,6 +3235,63 @@ select.field,
   flex: 1;
 }
 
+/* A domain's setup steps open under its row, across the whole row. */
+.domain-list li.domain-row {
+  flex-wrap: wrap;
+}
+
+.domain-setup {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.domain-setup p {
+  margin: 0;
+}
+
+.domain-setup .settings-text {
+  font-size: 13px;
+}
+
+.domain-setup > .copy {
+  justify-self: start;
+}
+
+.dns-records {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.dns-records th {
+  padding: 0 8px 6px 0;
+  font: 11px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint);
+  text-align: left;
+}
+
+.dns-records td {
+  padding: 6px 8px 6px 0;
+  border-top: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.dns-records td code {
+  margin-right: 6px;
+  font: 12.5px var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.dns-records td .copy {
+  vertical-align: middle;
+}
+
 .domain-actions {
   display: flex;
   align-items: center;

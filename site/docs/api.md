@@ -70,7 +70,7 @@ Every report takes the same query parameters.
 | `POST /api/import/umami/websites` | List the websites in an Umami account, from `{ "credentials" }`. |
 | `POST /api/import/umami/visits` | One step of bringing an Umami website’s visit history in, from `{ "credentials", "website", "cursor" }`, repeated until `cursor` is `null`. |
 | `GET`, `POST /api/link-domains`, `DELETE /api/link-domains/:domain` | List, add, or remove custom link domains. A link domain must be a public name, and never the dashboard’s own or a site’s. |
-| `GET /api/link-domains/:domain/check` | Whether requests to a link domain reach Runlight, as `{ "domain", "working", "reason", "code" }`, where `reason` says what answered instead and `code` names it. |
+| `GET /api/link-domains/:domain/check` | Whether requests to a link domain reach Runlight, as `{ "domain", "working", "reason", "code", "target" }`, where `reason` says what answered instead, `code` names it, and `target` gives the `host` a CNAME record should point to and the public `addresses` an A or AAAA record should use. |
 | `GET`, `POST /api/shares`, `PATCH`, `DELETE /api/shares/:id` | List, add, rename, or remove share links. |
 | `GET`, `PUT`, `DELETE /api/mail`, `POST /api/mail/test` | Read, set, remove, or test the mail service. Keys are never returned. |
 | `GET`, `POST /api/reports`, `DELETE /api/reports/:id`, `POST /api/reports/:id/send` | List, add, or remove report recipients, or send a sample. |

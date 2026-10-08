@@ -16,7 +16,7 @@ import { FunnelError, funnelFrom } from "./funnels.js";
 import { MailError, SERVICES } from "./mail/transports.js";
 import { languages, translator } from "./messages.js";
 import { fetchIcon } from "./icon.js";
-import { publicFetch, resolvesPrivately } from "./safefetch.js";
+import { publicAddresses, publicFetch, resolvesPrivately } from "./safefetch.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
@@ -557,7 +557,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return coded("Unknown domain", "unknown_domain", 404);
         // One added before names inside private networks were refused is never fetched.
         // What the check found, as a code the dashboard says in its own words, beside the English reason.
-        const result = (code: string, reason: string, params?: Record<string, string>) => json({ domain, working: code === "", reason, ...(code ? { code, ...(params ? { params } : {}) } : {}) });
+        // Where the domain should point, for the setup steps: this server's name, and its public addresses
+        // for a bare domain, which takes an A record. A server reached by its address has no name to give.
+        const own = origin ? new URL(origin).hostname : url.hostname;
+        const target = { host: own, addresses: await publicAddresses(own) };
+        const result = (code: string, reason: string, params?: Record<string, string>) =>
+          json({ domain, working: code === "", reason, target, ...(code ? { code, ...(params ? { params } : {}) } : {}) });
         if (!DOMAIN_NAME.test(domain) || privateName(domain)) return result("check_not_public", "is not a public domain name");
         try {
           // Only a public address is fetched, whatever the name resolves to now, so the check cannot be pointed

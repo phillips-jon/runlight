@@ -486,24 +486,91 @@ export function proxy(request: Request) {
 }
 
 function useDomainCheck(site: string, domain: string) {
-  const [state, setState] = useState<{ working: boolean; reason: string } | null>(null);
+  const [state, setState] = useState<{ working: boolean; reason: string; target?: { host: string; addresses: string[] } } | null>(null);
   const check = () => {
     setState(null);
     api
       .checkLinkDomain(site, domain)
       // The reason in the dashboard's own words when the check gives a code.
-      .then((r) => setState({ working: r.working, reason: (r.code && errorText(r.code, r.params)) || r.reason }))
+      .then((r) => setState({ working: r.working, reason: (r.code && errorText(r.code, r.params)) || r.reason, target: r.target }))
       .catch((e: Error) => setState({ working: false, reason: e.message }));
   };
   useEffect(check, [domain]);
   return { state, check };
 }
 
-/** One domain: its name and status on the left, its actions side by side on the right. */
+/** Second-level suffixes under which a domain's name is three labels long, such as example.co.uk. */
+const TWO_PART_SUFFIXES = new Set(["co.uk", "org.uk", "ac.uk", "gov.uk", "me.uk", "com.au", "net.au", "org.au", "co.nz", "org.nz", "com.br", "co.jp", "co.za", "com.mx", "com.tr", "co.in", "com.sg", "com.hk", "co.il", "com.ar", "com.cn", "co.kr"]);
+
+/** The DNS name a record for a domain takes at its provider: "@" for the domain itself, else the part before it. */
+function recordName(domain: string): string {
+  const labels = domain.split(".");
+  const base = TWO_PART_SUFFIXES.has(labels.slice(-2).join(".")) ? 3 : 2;
+  return labels.length <= base ? "@" : labels.slice(0, labels.length - base).join(".");
+}
+
+/** The DNS record to add, then HTTPS, then a check, for one domain, with each value ready to copy. */
+function DomainSetup({ domain, target, onCheck }: { domain: string; target: { host: string; addresses: string[] }; onCheck: () => void }) {
+  const name = recordName(domain);
+  const apex = name === "@";
+  // A CNAME needs a name to point at, which a dashboard reached by its address or as localhost does not have.
+  const named = !/^[\d.]+$/.test(target.host) && !target.host.includes(":") && target.host !== "localhost" && !target.host.endsWith(".localhost");
+  const byAddress = target.addresses.map((ip) => ({ type: ip.includes(":") ? "AAAA" : "A", value: ip }));
+  const records = apex || !named ? byAddress : [{ type: "CNAME", value: target.host }];
+  return (
+    <div class="domain-setup">
+      {records.length ? <p class="settings-text">{apex ? t("links.setupApex", { domain }) : t("links.setupDns")}</p> : null}
+      {records.length ? (
+        <table class="dns-records">
+          <thead>
+            <tr>
+              <th>{t("links.recordType")}</th>
+              <th>{t("links.recordName")}</th>
+              <th>{t("links.recordValue")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((r) => (
+              <tr>
+                <td>
+                  <code>{r.type}</code>
+                </td>
+                <td>
+                  <code>{name}</code>
+                  <Copy class="inline" text={name} />
+                </td>
+                <td>
+                  <code>{r.value}</code>
+                  <Copy class="inline" text={r.value} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
+      {!records.length ? (
+        <p class="field-hint">{rich("links.setupNoAddress", { host: <code>{target.host}</code> })}</p>
+      ) : apex && named ? (
+        <p class="field-hint">{t("links.setupAlias", { host: target.host })}</p>
+      ) : null}
+      <p class="settings-text">{t("links.step2")}</p>
+      <p class="settings-text">{t("links.setupCheck")}</p>
+      <button type="button" class="copy inline" onClick={onCheck}>
+        <Icon name="refresh" />
+        {t("links.recheck")}
+      </button>
+    </div>
+  );
+}
+
+/** One domain: its name and status on the left, its actions side by side on the right, and how to set it up. */
 function DomainRow({ site, domain, onRemove }: { site: string; domain: string; onRemove: () => void }) {
   const { state, check } = useDomainCheck(site, domain);
+  // The steps open by themselves for a domain that does not reach Runlight yet, and on demand once it does.
+  const [open, setOpen] = useState<boolean | null>(null);
+  const showing = open ?? (state !== null && !state.working);
   return (
-    <li>
+    <li class="domain-row">
       <div class="domain-main">
         <span class="domain-name">{domain}</span>
         <span class={!state ? "domain-status" : state.working ? "domain-status ok" : "domain-status bad"}>
@@ -512,10 +579,10 @@ function DomainRow({ site, domain, onRemove }: { site: string; domain: string; o
         </span>
       </div>
       <div class="domain-actions">
-        {state && !state.working ? (
-          <button type="button" class="copy inline" onClick={check}>
-            <Icon name="refresh" />
-            {t("links.recheck")}
+        {state?.target ? (
+          <button type="button" class={showing ? "copy inline on" : "copy inline"} aria-expanded={showing} onClick={() => setOpen(!showing)}>
+            <Icon name="list" />
+            {t("links.setup")}
           </button>
         ) : null}
         <button type="button" class="copy inline danger" onClick={onRemove}>
@@ -523,6 +590,7 @@ function DomainRow({ site, domain, onRemove }: { site: string; domain: string; o
           {t("links.removeDomain")}
         </button>
       </div>
+      {showing && state?.target ? <DomainSetup domain={domain} target={state.target} onCheck={check} /> : null}
     </li>
   );
 }

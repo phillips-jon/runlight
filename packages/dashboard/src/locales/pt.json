@@ -926,5 +926,14 @@
   "empty.links.hint": "Crie um link curto para compartilhar, e cada clique nele será contado.",
   "sites.refused": "{host} não aceita mais a conexão deste servidor, então os números não podem ser lidos. Conecte de novo para resolver.",
   "sites.connected": "Conectado a {host}.",
-  "links.totalTip": "Todos os cliques nos seus links curtos nas datas escolhidas"
+  "links.totalTip": "Todos os cliques nos seus links curtos nas datas escolhidas",
+  "links.setup": "Como configurar",
+  "links.setupDns": "No seu provedor de DNS, adicione este registro, que aponta o domínio para este painel.",
+  "links.setupApex": "{domain} não tem subdomínio, então no seu provedor de DNS ela precisa de um registro A para o servidor deste painel.",
+  "links.setupAlias": "Se o seu provedor de DNS oferece um registro ALIAS ou ANAME, ou CNAME flattening, você pode apontar o domínio para {host} com ele, e continua funcionando se o endereço do servidor mudar.",
+  "links.setupNoAddress": "Este painel roda em {host}, que não tem nome nem endereço públicos para onde apontar um domínio. Quando ele rodar no próprio domínio, aponte este para lá com um registro CNAME para um subdomínio, ou com um registro A para o endereço público do servidor para um domínio sem subdomínio.",
+  "links.setupCheck": "Quando o registro estiver lá e o HTTPS funcionar, verifique de novo. Um registro DNS novo pode levar alguns minutos para chegar a todos.",
+  "links.recordType": "Tipo",
+  "links.recordName": "Nome",
+  "links.recordValue": "Valor"
 }

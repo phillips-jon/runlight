@@ -926,5 +926,14 @@
   "empty.links.hint": "Make a short link to share, and every click on it is counted.",
   "sites.refused": "{host} no longer accepts this server’s connection, so its numbers cannot be read. Connect it again to fix that.",
   "sites.connected": "Connected to {host}.",
-  "links.totalTip": "All clicks on your short links in the dates you picked"
+  "links.totalTip": "All clicks on your short links in the dates you picked",
+  "links.setup": "How to set it up",
+  "links.setupDns": "At your DNS provider, add this record, which points the domain at this dashboard.",
+  "links.setupApex": "{domain} has no subdomain, so at your DNS provider it takes an A record to this dashboard’s server.",
+  "links.setupAlias": "If your DNS provider offers an ALIAS or ANAME record, or CNAME flattening, you can point the domain at {host} with it instead, which keeps working if the server’s address changes.",
+  "links.setupNoAddress": "This dashboard runs at {host}, which has no public name or address to point a domain at. Once it runs at its own domain, point this one there with a CNAME record for a subdomain, or with an A record to the server’s public address for a bare domain.",
+  "links.setupCheck": "Once the record is in and HTTPS works, check again. A new DNS record can take a few minutes to reach everyone.",
+  "links.recordType": "Type",
+  "links.recordName": "Name",
+  "links.recordValue": "Value"
 }

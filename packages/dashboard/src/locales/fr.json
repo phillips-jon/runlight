@@ -926,5 +926,14 @@
   "empty.links.hint": "Créez un lien court à partager, et chaque clic sera compté.",
   "sites.refused": "{host} n’accepte plus la connexion de ce serveur, donc ses chiffres ne peuvent pas être lus. Reconnectez-le pour corriger cela.",
   "sites.connected": "Connecté à {host}.",
-  "links.totalTip": "Tous les clics sur vos liens courts aux dates choisies"
+  "links.totalTip": "Tous les clics sur vos liens courts aux dates choisies",
+  "links.setup": "Comment le configurer",
+  "links.setupDns": "Chez votre fournisseur DNS, ajoutez cet enregistrement, qui fait pointer le domaine vers ce tableau de bord.",
+  "links.setupApex": "{domain} n’a pas de sous-domaine, donc chez votre fournisseur DNS il lui faut un enregistrement A vers le serveur de ce tableau de bord.",
+  "links.setupAlias": "Si votre fournisseur DNS propose un enregistrement ALIAS ou ANAME, ou l’aplatissement de CNAME, vous pouvez plutôt faire pointer le domaine vers {host}, ce qui continue de marcher si l’adresse du serveur change.",
+  "links.setupNoAddress": "Ce tableau de bord tourne sur {host}, qui n’a ni nom ni adresse publics vers lesquels faire pointer un domaine. Une fois qu’il tournera sur son propre domaine, faites pointer celui-ci vers lui avec un enregistrement CNAME pour un sous-domaine, ou avec un enregistrement A vers l’adresse publique du serveur pour un domaine nu.",
+  "links.setupCheck": "Une fois l’enregistrement ajouté et le HTTPS en place, vérifiez de nouveau. Un nouvel enregistrement DNS peut mettre quelques minutes à se propager.",
+  "links.recordType": "Type",
+  "links.recordName": "Nom",
+  "links.recordValue": "Valeur"
 }

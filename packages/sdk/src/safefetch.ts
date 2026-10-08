@@ -121,6 +121,17 @@ async function resolver(): Promise<Dns["promises"] | null> {
   }
 }
 
+/** The public addresses a name resolves to, for setting up DNS records. None where it does not resolve, or cannot be looked up here. */
+export async function publicAddresses(name: string): Promise<string[]> {
+  const dns = await resolver();
+  if (!dns) return [];
+  try {
+    return [...new Set((await dns.lookup(name, { all: true })).map((a) => a.address).filter(publicAddress))];
+  } catch {
+    return [];
+  }
+}
+
 /** Whether a name resolves to an address off the public internet. False when it does not resolve, or cannot be looked up here. */
 export async function resolvesPrivately(name: string): Promise<boolean> {
   const dns = await resolver();
