@@ -15,7 +15,7 @@ export interface ServerOptions {
   /** Also accepted as a bearer token on the API, for scripts. */
   token?: string;
   /** Trust X-Forwarded-For and friends for the visitor's address. Default true. */
-  trustProxy?: boolean;
+  trustProxy?: boolean | "x-forwarded-for" | "x-real-ip" | "cf-connecting-ip";
   geo?: GeoLookup;
   /** Credit DB-IP in the dashboard, when its free data supplies locations. */
   geoCredit?: boolean;

@@ -45,7 +45,7 @@ export interface RunlightOptions {
    * needs the visitor's address, and most apps sit behind a proxy. A
    * client can forge these, which can only skew its own counts.
    */
-  trustProxy?: boolean;
+  trustProxy?: boolean | "x-forwarded-for" | "x-real-ip" | "cf-connecting-ip";
   /** Where short links on the app's own domain live, as `{linkPath}/{slug}`. Default "/go". */
   linkPath?: string;
   /**
@@ -91,7 +91,7 @@ export interface Remote {
 export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
 
 /** Days of rollups built per site in one scheduled check, and how long after a day ends it is built. */
-const ROLLUP_BATCH = 30;
+const ROLLUP_BATCH = 10;
 const ROLLUP_DELAY_MS = 2 * 3_600_000;
 
 /** The choices for how long a site keeps its visits. */
@@ -135,7 +135,7 @@ export class Runlight {
   private readonly remoteSeen = new Map<string, { at: number; lastSeen: number | null; retentionMonths: number | null }>();
   private overrides = new Map<string, SiteOverrides>();
   private readonly geo: GeoLookup | undefined;
-  private readonly trustProxy: boolean;
+  private readonly trustProxy: boolean | "x-forwarded-for" | "x-real-ip" | "cf-connecting-ip";
   private readonly limit: RateLimit | null;
   readonly now: () => number;
   /** Short links: create, change, delete, and import. */
@@ -483,7 +483,14 @@ export class Runlight {
     if (!this.site(site) || this.remotes.has(site)) throw new RangeError("Unknown site");
     if (months !== null && !RETENTION_MONTHS.includes(months)) throw new RangeError(`Keep visits for ${RETENTION_MONTHS.join(", ")} months, or forever`);
     await this.store.setSetting(`retention:${site}`, months === null ? null : String(months));
-    await this.applyRetention(site);
+    // Deleting a long history takes a while, so it runs in pieces after the answer, with tracking going on between them.
+    this.pruning = this.pruning.then(() => this.applyRetention(site)).catch((error) => console.error("Runlight: could not apply retention", error));
+  }
+
+  /** Retention work still running; the scheduled check and tests wait for it. */
+  private pruning: Promise<void> = Promise.resolve();
+  async idle(): Promise<void> {
+    await this.pruning;
   }
 
   /**
@@ -512,8 +519,15 @@ export class Runlight {
         const start = startOf(day, site.timezone);
         const end = startOf(addDays(day, 1), site.timezone);
         if (now < end + ROLLUP_DELAY_MS || start < cutoff) continue;
-        await this.store.buildRollupDay(site.id, day, start, end);
-        made++;
+        try {
+          await this.store.buildRollupDay(site.id, day, start, end);
+          made++;
+        } catch (error) {
+          // Another process building the same day at once loses nothing: the day is there either way.
+          if (!(await this.store.rollupDays(site.id)).has(day)) console.error(`Runlight: could not add up ${day} for ${site.id}`, error);
+        }
+        // A pause between days, so tracker hits are written while a long history fills in.
+        await new Promise((resolve) => setTimeout(resolve, 0));
       }
       built += made;
     }
@@ -533,13 +547,20 @@ export class Runlight {
     const provider = PROVIDERS.find((p) => p.id === input.provider);
     if (!provider) throw new RangeError("Choose a provider");
     const baseUrl = String(input.baseUrl ?? "").trim().replace(/\/+$/, "");
-    if (baseUrl && !/^https?:\/\/[^\s/]+/.test(baseUrl)) throw new RangeError("Enter the service's address, starting with https://");
+    if (baseUrl) {
+      let parsed: URL | null = null;
+      try {
+        parsed = new URL(baseUrl);
+      } catch {}
+      if (!parsed || (parsed.protocol !== "https:" && parsed.protocol !== "http:")) throw new RangeError("Enter the service's address, starting with https://");
+    }
     if (!baseUrl && !provider.baseUrl) throw new RangeError("Enter the service's address");
     const model = String(input.model ?? "").trim().slice(0, 200);
     if (!model && !provider.model) throw new RangeError("Enter the model to use");
     const before = await this.assistantSettings();
     let key = String(input.key ?? "").trim();
-    if (!key && before?.provider === provider.id) key = before.key;
+    // A saved key is kept only for the same service at the same address, so it is never sent somewhere new.
+    if (!key && before?.provider === provider.id && (before.baseUrl || provider.baseUrl) === (baseUrl || provider.baseUrl)) key = before.key;
     if (!key && provider.key === "yes") throw new RangeError(`Enter your ${provider.name} key`);
     const settings: AssistantSettings = { provider: provider.id, model, baseUrl, key };
     await this.store.setSetting("assistant", await seal(JSON.stringify(settings), this.secret));
@@ -606,10 +627,19 @@ export class Runlight {
     return (await this.store.lastSeen(site.id)) === null ? site : null;
   }
 
+  /**
+   * The visitor's address, for the daily visitor hash and the rate limit. Behind a proxy it comes
+   * from a header. By default that is the last X-Forwarded-For entry, which the nearest proxy wrote
+   * and a client cannot choose (Vercel, Netlify, Cloudflare, Caddy, and nginx all append there),
+   * then X-Real-IP and CF-Connecting-IP. Naming one header (after another proxy in front, such as
+   * Cloudflare before nginx) reads only that one.
+   */
   clientIp(request: Request, context: RequestContext = {}): string {
     if (this.trustProxy) {
       const h = request.headers;
-      const forwarded = h.get("cf-connecting-ip") ?? h.get("x-real-ip") ?? h.get("x-forwarded-for")?.split(",")[0];
+      const last = (name: string) => h.get(name)?.split(",").map((x) => x.trim()).filter(Boolean).pop();
+      const forwarded =
+        this.trustProxy === true ? (last("x-forwarded-for") ?? h.get("x-real-ip") ?? h.get("cf-connecting-ip")) : this.trustProxy === "x-forwarded-for" ? last("x-forwarded-for") : h.get(this.trustProxy);
       if (forwarded?.trim()) return forwarded.trim();
     }
     return context.ip ?? "";
@@ -645,7 +675,9 @@ export class Runlight {
   async collect(request: Request, context: RequestContext = {}): Promise<void> {
     const length = Number(request.headers.get("content-length") ?? 0);
     if (length > MAX_BODY) return;
-    const text = await request.text().catch(() => "");
+    // Read no more than a tracker hit can be, whatever the length header says (or when there is none).
+    const text = await readCapped(request, MAX_BODY);
+    if (text === null) return;
     const payload = parsePayload(text);
     if (!payload) return;
 
@@ -960,8 +992,38 @@ export class Runlight {
     this.salts.clear();
     for (const timezone of new Set(this.sites.map((s) => s.timezone))) await this.currentSalts(this.now(), timezone);
     await this.dropOldSalts(this.now());
+    await this.pruning;
     await this.applyRetention();
     await this.buildRollups();
     return { ok: true, reports: await this.sendReports() };
   }
+}
+
+/** A request body as text, or null when it is longer than `max` bytes. */
+async function readCapped(request: Request, max: number): Promise<string | null> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > max) {
+        await reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    all.set(c, at);
+    at += c.length;
+  }
+  return new TextDecoder().decode(all);
 }

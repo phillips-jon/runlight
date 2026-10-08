@@ -244,6 +244,8 @@ export interface AssistantState {
 /** The paths visits take, a column per step. "" is any other page. */
 export interface JourneyAnswer {
   visits: number;
+  /** Set when only the newest this many visits were read. */
+  sampled?: number;
   columns: Array<{ items: Array<{ value: string; visits: number }>; visits: number; left: number }>;
   links: Array<{ step: number; from: string; to: string; visits: number }>;
   paths: Array<{ pages: string[]; visits: number }>;

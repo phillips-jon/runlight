@@ -723,5 +723,6 @@
   "assistant.loadingModels": "Lädt",
   "assistant.pickModel": "Modell wählen",
   "assistant.typeModel": "Stattdessen einen Modellnamen eingeben",
-  "assistant.chooseFromList": "Aus der Liste wählen"
+  "assistant.chooseFromList": "Aus der Liste wählen",
+  "journeys.sampled": "Das sind die Wege der neuesten {n} Besuche in diesem Zeitraum."
 }

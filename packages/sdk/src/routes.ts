@@ -1,6 +1,7 @@
 import { AssistantError, PROVIDERS, chat, listModels } from "./assistant.js";
 import { finishConnect, startConnect } from "./connect.js";
 import { PAGES_PER_VISIT, journeys } from "./journeys.js";
+import { JOURNEY_VISITS } from "./store.js";
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
@@ -1003,7 +1004,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (body instanceof Response) return body;
       const provider = String(body.provider ?? "");
       const saved = await runlight.assistantSettings();
-      const key = String(body.key ?? "").trim() || (saved?.provider === provider ? saved.key : "");
+      const baseUrl = String(body.baseUrl ?? "").trim().replace(/\/+$/, "");
+      // The saved key only for the address it was saved with.
+      const sameAddress = saved?.provider === provider && (saved.baseUrl || "") === baseUrl;
+      const key = String(body.key ?? "").trim() || (sameAddress ? saved!.key : "");
       try {
         return json({ models: await listModels({ provider, baseUrl: String(body.baseUrl ?? "").trim(), key }) });
       } catch (error) {
@@ -1310,13 +1314,16 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (path === "/api/journeys") {
       const q = url.searchParams;
       const through = /^(\d+):(.+)$/.exec(q.get("through") ?? "");
-      const answer = journeys(await runlight.store.journeyPages(query, PAGES_PER_VISIT), {
+      const rows = await runlight.store.journeyPages(query, PAGES_PER_VISIT);
+      // Journeys reads the newest visits up to a cap; say when it was reached.
+      const sampled = new Set(rows.map((r) => r.session)).size >= JOURNEY_VISITS;
+      const answer = journeys(rows, {
         steps: Number(q.get("steps") ?? 5),
         ...(q.get("start") ? { start: q.get("start")! } : {}),
         ...(q.get("end") ? { end: q.get("end")! } : {}),
         ...(through ? { through: { step: Number(through[1]), value: through[2]! } } : {}),
       });
-      return json({ site: site.id, range: rangeOut, ...answer });
+      return json({ site: site.id, range: rangeOut, ...answer, ...(sampled ? { sampled: JOURNEY_VISITS } : {}) });
     }
 
     if (path === "/api/funnels") {

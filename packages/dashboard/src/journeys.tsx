@@ -104,6 +104,7 @@ export function JourneysSheet({ view, onClose }: { view: View; onClose: () => vo
             </button>
           </p>
         ) : null}
+        {answer?.sampled ? <p class="field-hint">{t("journeys.sampled", { n: count(answer.sampled) })}</p> : null}
         {error ? <p class="settings-error">{error}</p> : null}
         {!answer ? (
           <p class="empty">{t("common.loading")}</p>

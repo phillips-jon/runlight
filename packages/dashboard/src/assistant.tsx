@@ -84,7 +84,10 @@ export function AssistantDrawer({ site, view, owner, onSetup, onClose }: { site:
   const [state, setState] = useState<AssistantState | null>(null);
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
-      return JSON.parse(sessionStorage.getItem(key) ?? "[]") as Message[];
+      const saved = JSON.parse(sessionStorage.getItem(key) ?? "[]") as Message[];
+      // A question left without its answer (the drawer closed while it was asked) is dropped, not asked twice.
+      while (saved.length && saved[saved.length - 1]!.role === "user") saved.pop();
+      return saved;
     } catch {
       return [];
     }
@@ -92,6 +95,8 @@ export function AssistantDrawer({ site, view, owner, onSetup, onClose }: { site:
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const list = useRef<HTMLDivElement>(null);
+  // Bumped by New chat, so an answer to a question from before it is not put back.
+  const chat = useRef(0);
   const input = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -121,11 +126,12 @@ export function AssistantDrawer({ site, view, owner, onSetup, onClose }: { site:
     setMessages(next);
     setDraft("");
     setBusy(true);
+    const asked = chat.current;
     api
       .ask(site.id, next.filter((m) => !m.error).map(({ role, content }) => ({ role, content })), describeView(view), currentLocale())
-      .then((r) => setMessages([...next, { role: "assistant", content: r.reply || t("assistant.empty"), checked: r.tools.length }]))
-      .catch((err: Error) => setMessages([...next, { role: "assistant", content: err.message, error: true }]))
-      .finally(() => setBusy(false));
+      .then((r) => asked === chat.current && setMessages([...next, { role: "assistant", content: r.reply || t("assistant.empty"), checked: r.tools.length }]))
+      .catch((err: Error) => asked === chat.current && setMessages([...next, { role: "assistant", content: err.message, error: true }]))
+      .finally(() => asked === chat.current && setBusy(false));
   };
 
   return (
@@ -135,7 +141,15 @@ export function AssistantDrawer({ site, view, owner, onSetup, onClose }: { site:
           <h2 id="assistant-title">{t("assistant.title")}</h2>
           <div class="assistant-tools">
             {messages.length ? (
-              <button type="button" class="copy inline" onClick={() => setMessages([])}>
+              <button
+                type="button"
+                class="copy inline"
+                onClick={() => {
+                  chat.current++;
+                  setBusy(false);
+                  setMessages([]);
+                }}
+              >
                 <Icon name="reset" />
                 {t("assistant.clear")}
               </button>

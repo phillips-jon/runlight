@@ -723,5 +723,6 @@
   "assistant.loadingModels": "Chargement",
   "assistant.pickModel": "Choisissez un modèle",
   "assistant.typeModel": "Saisir plutôt le nom d’un modèle",
-  "assistant.chooseFromList": "Choisir dans la liste"
+  "assistant.chooseFromList": "Choisir dans la liste",
+  "journeys.sampled": "Ce sont les chemins des {n} visites les plus récentes sur ces dates."
 }

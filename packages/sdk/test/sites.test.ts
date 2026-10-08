@@ -116,6 +116,7 @@ for (const kind of STORES) {
     const patch = (body: unknown) => PATCH(new Request("https://example.com/runlight/api/sites/default", { method: "PATCH", headers: auth, body: JSON.stringify(body) }));
     assert.equal((await patch({ retentionMonths: 7 })).status, 400);
     assert.equal((await patch({ retentionMonths: 6 })).status, 200);
+    await rl.idle();
     assert.equal(await listed(), 6);
     assert.equal(await visits(), 2, "the visit from a year ago is gone at once");
 

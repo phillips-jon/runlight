@@ -103,3 +103,14 @@ test("the assistant answers through the stats tools, with the key kept on the se
     model.close();
   }
 });
+
+test("thanks gets a short reply without the model or the tools", async () => {
+  const { acknowledgement } = await import("../src/assistant.js");
+  for (const text of ["Thanks!", "thank you", "Thanks!! 🙏", "ok", "Great, thanks.", "👍", "merci beaucoup", "Danke schön!", "valeu"]) {
+    assert.ok(acknowledgement(text, "en"), text);
+  }
+  for (const text of ["Thanks, and what about last week?", "What was my bounce rate?", "ok so which pages?", "great results?"]) {
+    assert.equal(acknowledgement(text, "en"), null, text);
+  }
+  assert.match(acknowledgement("merci", "fr")!, /plaisir/);
+});

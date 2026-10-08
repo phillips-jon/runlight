@@ -723,5 +723,6 @@
   "assistant.loadingModels": "Cargando",
   "assistant.pickModel": "Elige un modelo",
   "assistant.typeModel": "Escribir el nombre de un modelo",
-  "assistant.chooseFromList": "Elegir de la lista"
+  "assistant.chooseFromList": "Elegir de la lista",
+  "journeys.sampled": "Son los caminos de las {n} visitas más recientes en estas fechas."
 }

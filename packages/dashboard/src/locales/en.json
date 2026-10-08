@@ -723,5 +723,6 @@
   "assistant.loadingModels": "Loading",
   "assistant.pickModel": "Choose a model",
   "assistant.typeModel": "Type a model's name instead",
-  "assistant.chooseFromList": "Choose from the list"
+  "assistant.chooseFromList": "Choose from the list",
+  "journeys.sampled": "These are the paths of the newest {n} visits in these dates."
 }

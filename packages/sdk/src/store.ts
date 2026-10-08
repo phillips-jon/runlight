@@ -301,6 +301,9 @@ async function inPieces<T, R>(items: T[], size: number, run: (piece: T[]) => Pro
   return out;
 }
 
+/** The most visits journeys reads, newest first. */
+export const JOURNEY_VISITS = 20_000;
+
 /** How long after a visit starts its events are looked for: far past any real visit. */
 const EVENT_TAIL_MS = 2 * 86_400_000;
 
@@ -543,12 +546,23 @@ export class SqlStore {
 
   /** Deletes a site's visits and events from before a time, for its retention setting. */
   async dropBefore(site: string, ts: number): Promise<void> {
-    await this.transaction(async (store) => {
-      await store.db.run(`DELETE FROM rl_events WHERE site = ? AND ts < ?`, [site, ts]);
-      await store.db.run(`DELETE FROM rl_sessions WHERE site = ? AND started_at < ?`, [site, ts]);
-      // A day that lost any of its visits is built again later, from what is left.
-      await store.clearRollups(site, { before: ts });
-    });
+    // A week at a time from the oldest, each its own short transaction, with a pause between, so a long
+    // history goes without holding the database (on SQLite, the whole server) for minutes.
+    const [oldest] = await this.db.all(`SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ?`, [site]);
+    const [oldestEvent] = await this.db.all(`SELECT MIN(ts) AS t FROM rl_events WHERE site = ?`, [site]);
+    const first = Math.min(...[oldest?.t, oldestEvent?.t].filter((v) => v !== null && v !== undefined).map((v) => num(v)), ts);
+    for (let from = first; from < ts; from += 7 * 86_400_000) {
+      const to = Math.min(from + 7 * 86_400_000, ts);
+      await this.transaction(async (store) => {
+        // A visit's events go with it, even ones after the cutoff, so nothing is left without its visit.
+        await store.db.run(`DELETE FROM rl_events WHERE site = ? AND session IN (SELECT id FROM rl_sessions WHERE site = ? AND started_at < ?)`, [site, site, to]);
+        await store.db.run(`DELETE FROM rl_events WHERE site = ? AND ts < ?`, [site, to]);
+        await store.db.run(`DELETE FROM rl_sessions WHERE site = ? AND started_at < ?`, [site, to]);
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+    // A day that lost any of its visits is built again later, from what is left.
+    await this.clearRollups(site, { before: ts });
   }
 
   // Daily rollups
@@ -1014,12 +1028,21 @@ export class SqlStore {
       ? ` AND e.session IN (SELECT DISTINCT e.session FROM rl_events e ${f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : ""} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
       : "";
     const rows = await this.db.all(
-      `WITH v AS (
-         SELECT e.session AS session, e.path AS path, ROW_NUMBER() OVER (PARTITION BY e.session ORDER BY e.ts, e.id) AS n
-         FROM rl_events e JOIN rl_sessions s ON s.id = e.session
-         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ? AND s.started_at >= ? AND s.started_at < ?${chosen})
+      // The latest JOURNEY_VISITS visits at most, so a long range stays quick and small in memory.
+      // Refreshes (the same page twice in a row) are dropped before counting, so they never use up the steps.
+      `WITH latest AS (
+         SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}
+         ORDER BY s.started_at DESC LIMIT ${JOURNEY_VISITS}),
+       raw AS (
+         SELECT e.session AS session, e.path AS path, e.ts AS ts, e.id AS id,
+           LAG(e.path) OVER (PARTITION BY e.session ORDER BY e.ts, e.id) AS before
+         FROM rl_events e JOIN latest l ON l.id = e.session
+         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ?${chosen}),
+       v AS (
+         SELECT session, path, ROW_NUMBER() OVER (PARTITION BY session ORDER BY ts, id) AS n
+         FROM raw WHERE before IS NULL OR before <> path)
        SELECT session, path FROM v WHERE n <= ? ORDER BY session, n`,
-      [query.site, query.from, query.to + EVENT_TAIL_MS, query.from, query.to, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : []), perVisit],
+      [query.site, query.from, query.to, query.site, query.from, query.to + EVENT_TAIL_MS, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : []), perVisit],
     );
     return rows.map((r) => ({ session: String(r.session), path: String(r.path) }));
   }

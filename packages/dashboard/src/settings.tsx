@@ -591,12 +591,13 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   // install-wide things (people, tokens, imports, sharing) stay with that install.
   const sections: Array<[Section, Key]> = site.remote
     ? site.manage
-      ? SECTIONS.filter(([id]) => ["general", "goals", "email", "sharing", "links", "data"].includes(id))
-      : [["general", "settings.general"]]
+      ? SECTIONS.filter(([id]) => ["general", "goals", "email", "sharing", "links", "data", "assistant"].includes(id))
+      : [["general", "settings.general"], ["assistant", "settings.assistant"]]
     : me?.role === "owner"
       ? [...SECTIONS, ["people", "settings.people"]]
       : SECTIONS;
-  const [section, setSection] = useState<Section>(start ?? "general");
+  // A section this site does not have (a link from elsewhere, say) opens General instead.
+  const [section, setSection] = useState<Section>(start && sections.some(([id]) => id === start) ? start : "general");
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
