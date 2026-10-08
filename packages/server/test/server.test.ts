@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { test } from "node:test";
 import { sqlite } from "@runlight/sdk/sqlite";
 import { createServer } from "../src/server.js";
@@ -225,6 +226,34 @@ test("owners add people as owners or viewers; viewers read every site and change
   assert.equal((await json(fresh, "POST", "/api/sites", { hostnames: "now.example.com" })).status, 201, "the promoted owner can change things");
   assert.equal((await json(owner, "DELETE", `/api/people/${person.id}`)).status, 200);
   assert.equal((await json(fresh, "GET", "/api/account")).status, 401, "a removed person is signed out");
+});
+
+test("removing someone deletes the tokens they made and the apps they connected", async () => {
+  const { server, handle } = make();
+  await server.accounts.setPassword("jon@example.com", "a long password", Date.now());
+  const amy = await server.accounts.setPassword("amy@example.com", "a long password", Date.now());
+  await server.accounts.setRole(amy.id, "owner");
+  const signIn = async (email: string) => cookieOf(await handle(req("/login", form({ email, password: "a long password" }))));
+  const jon = await signIn("jon@example.com");
+  const her = await signIn("amy@example.com");
+  const makeToken = async (cookie: string, name: string) =>
+    ((await (await handle(req("/api/tokens", { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ name }) }))).json()) as any).secret as string;
+  const mine = await makeToken(jon, "Jon's script");
+  const hers = await makeToken(her, "Amy's script");
+
+  // Amy also connects an app over OAuth.
+  const { client_id } = (await (await handle(req("/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: "Claude", redirect_uris: ["https://claude.ai/cb"] }) }))).json()) as any;
+  const verifier = "v".repeat(50);
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  const allowed = await handle(req("/oauth/authorize", { method: "POST", headers: { cookie: her, origin, "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ response_type: "code", client_id, redirect_uri: "https://claude.ai/cb", code_challenge: challenge, code_challenge_method: "S256", decision: "allow" }).toString() }));
+  const code = new URL(allowed.headers.get("location")!).searchParams.get("code")!;
+  const granted = (await (await handle(req("/oauth/token", form({ grant_type: "authorization_code", code, client_id, redirect_uri: "https://claude.ai/cb", code_verifier: verifier })))).json()) as any;
+  const app = granted.access_token as string;
+
+  const works = async (token: string) => (await handle(req("/api/sites", { headers: { authorization: `Bearer ${token}` } }))).status;
+  assert.deepEqual([await works(mine), await works(hers), await works(app)], [200, 200, 200]);
+  assert.equal((await handle(req(`/api/people/${amy.id}`, { method: "DELETE", headers: { cookie: jon } }))).status, 200);
+  assert.deepEqual([await works(mine), await works(hers), await works(app)], [200, 401, 401], "only Jon's own token is left");
 });
 
 test("an invite goes out by email when the server has a mail service", async () => {
