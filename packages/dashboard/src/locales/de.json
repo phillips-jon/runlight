@@ -761,6 +761,7 @@
   "error.token_refused": "{host} hat das Token abgelehnt. Verbinde es in den Einstellungen der Website neu.",
   "error.mail_failed": "Die E-Mail konnte nicht gesendet werden ({detail}).",
   "error.mail_unreachable": "{host} ist nicht erreichbar.",
+  "error.mail_slow": "{host} hat zu lange gebraucht, deshalb wurde die E-Mail nicht gesendet.",
   "error.mail_refused": "{host} hat die E-Mail abgelehnt ({detail}).",
   "error.mail_service": "Wähle einen Mail-Dienst.",
   "error.mail_field": "{field} fehlt noch.",

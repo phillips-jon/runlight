@@ -89,16 +89,39 @@ function replies(socket: Socket) {
   };
 }
 
-export async function smtpSend(config: MailConfig, m: Message, from: string): Promise<void> {
-  const net = await import("node:net");
-  const tls = await import("node:tls");
+/**
+ * Sends one message. Each reply must come within 20 s, and the whole send
+ * within the deadline (60 s), so a server that trickles a line now and then
+ * cannot hold the scheduled check that sends reports. Its deadline is a
+ * parameter for its test.
+ */
+export async function smtpSend(config: MailConfig, m: Message, from: string, deadline = 60_000): Promise<void> {
   const host = config.host!.trim();
   const security = config.security || "starttls";
   const port = Number(config.port) || (security === "tls" ? 465 : 587);
+  let socket: Socket | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      socket?.destroy();
+      reject(new MailError(`SMTP: ${host}:${port} took longer than ${Math.round(deadline / 1000)} s`, "mail_slow", { host: `${host}:${port}` }));
+    }, deadline);
+  });
+  try {
+    await Promise.race([converse(config, m, from, host, port, security, (s) => (socket = s)), late]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function converse(config: MailConfig, m: Message, from: string, host: string, port: number, security: string, track: (socket: Socket) => void): Promise<void> {
+  const net = await import("node:net");
+  const tls = await import("node:tls");
   const timeout = 20_000;
 
   let socket: Socket = await new Promise<Socket>((resolve, reject) => {
     const s: Socket = security === "tls" ? tls.connect({ host, port, servername: host }, () => resolve(s)) : net.connect({ host, port }, () => resolve(s));
+    track(s);
     s.setTimeout(timeout, () => s.destroy(new Error("timed out")));
     s.once("error", (e) => reject(new MailError(`SMTP: could not connect to ${host}:${port}: ${e.message}`, "mail_unreachable", { host: `${host}:${port}`, detail: e.message })));
   });
@@ -122,6 +145,7 @@ export async function smtpSend(config: MailConfig, m: Message, from: string): Pr
       reader.detach();
       socket = await new Promise<Socket>((resolve, reject) => {
         const secured = tls.connect({ socket, servername: host }, () => resolve(secured));
+        track(secured);
         secured.once("error", (e) => reject(new MailError(`SMTP: TLS failed: ${e.message}`)));
       });
       reader = replies(socket);

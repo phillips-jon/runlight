@@ -5,7 +5,7 @@ import { runlight } from "../src/index.js";
 import { seal, unseal } from "../src/mail/secret.js";
 import { signV4 } from "../src/mail/ses.js";
 import { mime, smtpSend } from "../src/mail/smtp.js";
-import { send } from "../src/mail/transports.js";
+import { MailError, send } from "../src/mail/transports.js";
 import { lastPeriod } from "../src/reports.js";
 import { sqlite } from "../src/stores/sqlite.js";
 
@@ -132,6 +132,33 @@ test("SMTP: STARTTLS refused is an error; a plain relay takes the message", asyn
   }
   const raw = mime({ ...message, subject: "Café report" }, "Runlight <reports@example.com>");
   assert.match(raw, /Subject: =\?UTF-8\?B\?/);
+});
+
+test("SMTP: a server that trickles a line now and then is cut off at the deadline", async () => {
+  let closed = false;
+  const server = createServer((socket) => {
+    const trickle = setInterval(() => socket.write("220-still here\r\n"), 100);
+    socket.on("error", () => {});
+    socket.on("close", () => {
+      closed = true;
+      clearInterval(trickle);
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const port = (server.address() as { port: number }).port;
+  try {
+    const started = Date.now();
+    await assert.rejects(smtpSend({ service: "smtp", host: "127.0.0.1", port: String(port), security: "none" }, message, "reports@example.com", 600), (error: MailError) => {
+      assert.equal(error.code, "mail_slow");
+      assert.deepEqual(error.params, { host: `127.0.0.1:${port}` });
+      return true;
+    });
+    assert.ok(Date.now() - started < 2000, "the send gives up at its deadline");
+    await new Promise((r) => setTimeout(r, 100));
+    assert.ok(closed, "the connection is closed");
+  } finally {
+    server.close();
+  }
 });
 
 test("report periods: last Monday to Sunday, or last month, due from 8am the day after, in the site's zone", () => {

@@ -761,6 +761,7 @@
   "error.token_refused": "{host} refused the token. Connect it again from the site's settings.",
   "error.mail_failed": "The email could not be sent ({detail}).",
   "error.mail_unreachable": "Could not reach {host}.",
+  "error.mail_slow": "{host} took too long to answer, so the email was not sent.",
   "error.mail_refused": "{host} turned the email down ({detail}).",
   "error.mail_service": "Pick a mail service.",
   "error.mail_field": "{field} is needed.",
