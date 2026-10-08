@@ -396,7 +396,7 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
       )}
       {/* DB-IP's free data asks for credit where its locations are shown. */}
       {map && geoCredit ? (
-        <a class="geo-credit" href="https://db-ip.com" rel="noopener">
+        <a class="geo-credit" href="https://db-ip.com" target="_blank" rel="noopener">
           {rich("panel.geoCredit", { name: <span>DB-IP</span> })}
         </a>
       ) : null}
