@@ -104,6 +104,19 @@ test("the Node adapter's requests carry a signal that fires when the client leav
   }
 });
 
+test("the Node adapter closes the connection after a 413, and the next request works", async () => {
+  const { server, port } = await serve(async () => new Response("{}", { headers: { "content-type": "application/json" } }));
+  try {
+    const big = await fetch(`http://127.0.0.1:${port}/runlight/api/links/import`, { method: "POST", body: "x".repeat(11 * 1024 * 1024) });
+    assert.equal(big.status, 413);
+    assert.equal(big.headers.get("connection"), "close");
+    for (let i = 0; i < 8; i++) assert.equal((await fetch(`http://127.0.0.1:${port}/runlight/api/sites`)).status, 200);
+  } finally {
+    server.closeAllConnections();
+    server.close();
+  }
+});
+
 test("a body that fails before its first byte is a 500, and one that fails partway cuts the connection", async () => {
   const { server, port } = await serve(async (request) => {
     const partway = new URL(request.url).pathname.endsWith("/partway");

@@ -156,7 +156,8 @@ async function main(): Promise<void> {
       const response = await server.handler(await toRequest(req, res), { ip: req.socket.remoteAddress ?? "" });
       await writeResponse(res, response);
     } catch (error) {
-      if (error instanceof BodyTooLarge) return void (res.headersSent || res.writeHead(413, { "content-type": "application/json" }).end(JSON.stringify({ error: "That request is too large" })));
+      // An upload cut off part way leaves the connection unfit for another request, so it closes.
+      if (error instanceof BodyTooLarge) return void (res.headersSent || res.writeHead(413, { "content-type": "application/json", connection: "close" }).end(JSON.stringify({ error: "That request is too large" })));
       console.error("Runlight:", error);
       if (!res.headersSent) res.writeHead(500).end();
     }

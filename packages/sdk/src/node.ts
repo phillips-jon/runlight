@@ -20,6 +20,13 @@ const MAX_COLLECT_BODY = 16 * 1024;
 /** Everything else, such as a link import of 5,000 rows. */
 const MAX_BODY = 10 * 1024 * 1024;
 
+/**
+ * How much of a body past its limit is read and thrown away, so the client
+ * finishes sending and reads the 413 rather than a reset connection. Past
+ * this the connection is cut.
+ */
+const MAX_DRAIN = 64 * 1024 * 1024;
+
 /** A body past the limit, answered with 413 rather than passed on empty. */
 export class BodyTooLarge extends Error {}
 
@@ -55,9 +62,10 @@ async function readBody(req: NodeRequest, limit: number): Promise<string> {
   for await (const chunk of req) {
     const buffer = typeof chunk === "string" ? Buffer.from(chunk) : (chunk as Buffer);
     size += buffer.length;
-    if (size > limit) throw new BodyTooLarge(`Request body over ${limit} bytes`);
-    chunks.push(buffer);
+    if (size > limit + MAX_DRAIN) break;
+    if (size <= limit) chunks.push(buffer);
   }
+  if (size > limit) throw new BodyTooLarge(`Request body over ${limit} bytes`);
   return Buffer.concat(chunks).toString("utf8");
 }
 
@@ -148,7 +156,9 @@ export function toNodeHandler(handler: FetchHandler): NodeHandler {
       await writeResponse(res, response);
     } catch (error) {
       if (error instanceof BodyTooLarge) {
+        // An upload cut off part way leaves the connection unfit for another request.
         res.statusCode = 413;
+        res.setHeader("connection", "close");
         res.setHeader("content-type", "application/json; charset=utf-8");
         return void res.end(JSON.stringify({ error: "That request is too large" }));
       }
