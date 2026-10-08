@@ -88,7 +88,7 @@ export function Funnels({ site, view }: { site: Site; view: View }) {
       ) : null}
       {error ? <p class="settings-error">{error}</p> : null}
       <div class="settings-actions start">
-        <button type="button" class="ghost" onClick={() => setEditing("new")}>
+        <button type="button" class="solid" onClick={() => setEditing("new")}>
           <Icon name="plus" />
           {t("funnels.add")}
         </button>
