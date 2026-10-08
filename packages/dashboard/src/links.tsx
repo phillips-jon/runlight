@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { api, type Link, type LinkStats, type Row, type View } from "./api.js";
 import { Chart } from "./chart.js";
 import { count, countryName, day, flag } from "./format.js";
-import { t, tn, type Key } from "./i18n.js";
+import { errorText, t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
 import { Icon } from "./icons.js";
 import { useDialogFocus } from "./focus.js";
@@ -345,11 +345,17 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
   const file = useRef<HTMLInputElement>(null);
 
   const load = () => {
-    api.links(view).then((r) => {
-      setLinks(r.links);
-      setPrefix(r.prefix);
-      setDomains(r.domains);
-    });
+    api
+      .links(view)
+      .then((r) => {
+        setLinks(r.links);
+        setPrefix(r.prefix);
+        setDomains(r.domains);
+      })
+      .catch((e: Error) => {
+        setLinks((current) => current ?? []);
+        setMessage({ text: e.message, failures: [] });
+      });
   };
   useEffect(load, [view]);
 
@@ -367,10 +373,20 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
   };
 
   const importFile = async (f: File) => {
-    const rows = parseCsv(await f.text());
-    const result = await api.importLinks(site, rows);
-    setMessage({ text: tn("links.importDone", result.created, { n: count(result.created) }), failures: result.failed });
-    changed();
+    try {
+      const rows = parseCsv(await f.text());
+      // Without a destination column every row would fail, so say why before sending anything.
+      if (!rows.some((row) => row.url || row.destination_url)) {
+        setMessage({ text: t("links.importNoUrl"), failures: [] });
+        return;
+      }
+      const result = await api.importLinks(site, rows);
+      const failures = result.failed.map((f) => ({ row: f.row, reason: (f.code && errorText(f.code, f.params)) || f.reason }));
+      setMessage({ text: tn("links.importDone", result.created, { n: count(result.created) }), failures });
+      changed();
+    } catch (e) {
+      setMessage({ text: (e as Error).message, failures: [] });
+    }
   };
 
   if (detail) return <LinkDetail view={view} id={detail} prefix={prefix} domains={domains} onClose={() => setDetail(null)} />;
@@ -450,7 +466,7 @@ export function LinkManager({ view, site, onClose, onChanged }: { view: View; si
                       <Icon name="edit" />
                       {t("links.editButton")}
                     </button>
-                    <DeleteButton name={l.name} onDelete={() => api.deleteLink(site, l.id).then(changed)} />
+                    <DeleteButton name={l.name} onDelete={() => api.deleteLink(site, l.id).then(changed, (e: Error) => setMessage({ text: e.message, failures: [] }))} />
                   </td>
                 </tr>
               );

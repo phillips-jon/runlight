@@ -744,5 +744,6 @@
   "error.account_exists": "{email} a déjà un compte.",
   "error.remove_self": "Vous ne pouvez pas vous retirer vous-même.",
   "error.last_owner": "Gardez au moins un propriétaire.",
-  "people.demoted": "Vous êtes désormais lecteur, donc les réglages sont fermés et rien ici ne peut être modifié. Un autre propriétaire peut vous rendre propriétaire."
+  "people.demoted": "Vous êtes désormais lecteur, donc les réglages sont fermés et rien ici ne peut être modifié. Un autre propriétaire peut vous rendre propriétaire.",
+  "links.importNoUrl": "Rien n'a été importé, car le fichier n'a pas de colonne url remplie d'adresses. Utilisez les colonnes name et url, plus slug et domain si vous les avez."
 }

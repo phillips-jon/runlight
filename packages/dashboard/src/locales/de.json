@@ -744,5 +744,6 @@
   "error.account_exists": "{email} hat bereits ein Konto.",
   "error.remove_self": "Du kannst dich nicht selbst entfernen.",
   "error.last_owner": "Behalte mindestens einen Eigentümer.",
-  "people.demoted": "Du bist jetzt Betrachter, deshalb sind die Einstellungen geschlossen und hier lässt sich nichts mehr ändern. Ein anderer Eigentümer kann dich wieder zum Eigentümer machen."
+  "people.demoted": "Du bist jetzt Betrachter, deshalb sind die Einstellungen geschlossen und hier lässt sich nichts mehr ändern. Ein anderer Eigentümer kann dich wieder zum Eigentümer machen.",
+  "links.importNoUrl": "Nichts wurde importiert, weil die Datei keine Spalte url mit Adressen hat. Nutze die Spalten name und url, dazu slug und domain, wenn du sie hast."
 }
