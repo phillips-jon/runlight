@@ -100,6 +100,9 @@ pre .c { color: var(--muted); }
 .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
 .install { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--sunk); border: 1px solid var(--rule); border-radius: 3px; padding: 10px 10px 10px 14px; font: 400 14.5px/1.4 var(--mono); }
 .install[hidden], .actions[hidden] { display: none; }
+/* For people who would rather not use a command line: a quiet line under the plugin commands. */
+.install-alt { margin: 10px 0 0; font-size: 14.5px; color: var(--muted); }
+.install-alt a { color: var(--ink); }
 .install code { min-width: 0; overflow-wrap: anywhere; }
 .install code::before { content: "$ "; color: var(--muted); }
 .copy { flex: none; font: 400 11px/1 var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--rule-2); border-radius: 2px; padding: 6px 8px; }
@@ -115,7 +118,8 @@ pre .c { color: var(--muted); }
 .body > p.small { font-size: 16px; }
 .body > p code, .stacks code { font-size: .84em; }
 .body > * + .out, .body > * + .browser, .body > * + .shot, .body > * + .pair, .body > * + .stacks, .body > * + .chips { margin-top: 32px; }
-.caption { margin-top: 14px; font-size: 15.5px; color: var(--muted); max-width: 70ch; }
+/* As wide as the screenshot above it, so a short caption stays on one line. */
+.body > p.caption { margin-top: 14px; font-size: 15.5px; color: var(--muted); max-width: none; }
 
 /* Printed things: a file or an output, with what it is above it. */
 .out { background: var(--sunk); border: 1px solid var(--rule); border-radius: 3px; min-width: 0; }
