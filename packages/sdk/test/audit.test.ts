@@ -273,3 +273,21 @@ test("a write signed in by cookie must be JSON, so a form on another page cannot
   const page = await POST(new Request("https://x.com/runlight/api/observe-key/new?site=a", { method: "POST", headers: { cookie: "session=ok", "content-type": "application/json" }, body: "{}" }));
   assert.equal(page.status, 200);
 });
+
+test("short link clicks are not visits in the heatmap, raw or rolled up, nor the first visit", async () => {
+  const now = Date.UTC(2026, 9, 7, 12);
+  let clock = now;
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "Site A", hostnames: ["a.com"] }], now: () => clock });
+  await rl.init();
+  const day = Date.UTC(2026, 9, 5, 15);
+  // A session opened only by a short link click, then a real visit.
+  await rl.store.db.run(`INSERT INTO rl_sessions (id, site, visitor, started_at, last_at, pageviews, events, imported) VALUES ('s1', 'a', 'v1', ?, ?, 0, 0, 0)`, [day - 3_600_000, day - 3_600_000]);
+  await rl.store.db.run(`INSERT INTO rl_sessions (id, site, visitor, started_at, last_at, pageviews, events, imported) VALUES ('s2', 'a', 'v2', ?, ?, 1, 0, 0)`, [day, day]);
+  assert.equal(await rl.store.firstOwnVisit("a"), day);
+  const query = { site: "a", from: Date.UTC(2026, 9, 1), to: Date.UTC(2026, 9, 7), filters: [] };
+  const sum = (rows: Array<{ visits: number }>) => rows.reduce((n, r) => n + r.visits, 0);
+  assert.equal(sum(await rl.store.hourly(query)), 1, "raw");
+  clock = now + 3 * 3_600_000;
+  await rl.buildRollups();
+  assert.equal(sum(await rl.store.hourly(query)), 1, "rolled up");
+});

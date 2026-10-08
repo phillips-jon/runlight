@@ -100,3 +100,52 @@ for (const kind of STORES) {
     assert.deepEqual(raw.events.map((r: any) => r.value), ["Signup"]);
   });
 }
+
+for (const kind of STORES) {
+  test(`${kind}: ties come in code point order, the same before and after the days are built`, async () => {
+    const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });
+    const values = ["alpha", "Zeta", "beta", "Gamma", "émile", "Émile", "_x", "a-b", "ab"];
+    t.advance(-24 * HOUR);
+    let n = 0;
+    for (const value of values) {
+      n++;
+      await t.send({ k: "pageview", u: `https://example.com/?utm_campaign=${encodeURIComponent(value)}`, r: "", i: `pv${n}` }, { ip: `203.0.113.${n}` });
+      t.advance(60_000);
+    }
+    t.advance(26 * HOUR);
+    const expected = [...values].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
+    const order = async () => ((await t.get(`/api/breakdown?period=7d&dimension=utm_campaign&limit=20`)).rows as Array<{ value: string }>).map((r) => r.value);
+    assert.deepEqual(await order(), expected, "read from every visit");
+    assert.ok((await t.rl.buildRollups()) >= 1);
+    assert.deepEqual(await order(), expected, "read from rollups");
+  });
+}
+
+for (const kind of STORES) {
+  test(`${kind}: after a timezone change, only days after it are built, so nothing counts twice`, async () => {
+    const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });
+    await t.rl.init();
+    const site = t.rl.sites[0]!;
+    // The same person in the morning and evening of October 3rd UTC, and a visit on the 4th.
+    t.advance(Date.UTC(2026, 9, 3, 10) - t.now);
+    await t.send({ k: "pageview", u: "https://example.com/", r: "", i: "a1" }, { ip: "203.0.113.1" });
+    t.advance(10 * HOUR);
+    await t.send({ k: "pageview", u: "https://example.com/", r: "", i: "a2" }, { ip: "203.0.113.1" });
+    t.advance(Date.UTC(2026, 9, 4, 12) - t.now);
+    await t.send({ k: "pageview", u: "https://example.com/", r: "", i: "b1" }, { ip: "203.0.113.2" });
+    t.advance(Date.UTC(2026, 9, 6, 12) - t.now);
+    assert.ok((await t.rl.buildRollups()) >= 2);
+    const range = "from=2026-10-03&to=2026-10-05";
+    const raw = async () => (await t.get(`/api/stats?${range}&compare=off`)).stats;
+
+    await t.rl.updateSite(site.id, { timezone: "Asia/Tokyo" });
+    const before = await raw();
+    assert.equal(await t.rl.buildRollups(), 0, "days before the change stay counted visit by visit");
+    assert.deepEqual(await raw(), before);
+    assert.equal(before.visitors, 2);
+
+    // A day that starts after the change is built as usual.
+    t.advance(3 * 24 * HOUR);
+    assert.ok((await t.rl.buildRollups()) >= 1);
+  });
+}

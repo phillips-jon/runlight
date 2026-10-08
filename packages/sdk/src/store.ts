@@ -608,11 +608,11 @@ export class SqlStore {
          SELECT ?, ?, 'event', e.name, COUNT(DISTINCT e.visitor), COUNT(*) ${ofDay("event")} GROUP BY e.name`,
         [site, day, ...window],
       );
-      // The heatmap's quarter hours, counted as hourly() counts them: every session that started.
+      // The heatmap's quarter hours, counted as hourly() counts them: every visit that started.
       await db.run(
         `INSERT INTO rl_rollups (site, day, dim, value, visitors, visits, pageviews, bounced)
          SELECT ?, ?, 'quarter', CAST(s.started_at / 900000 AS TEXT), COUNT(DISTINCT s.visitor), COUNT(*), COALESCE(SUM(s.pageviews), 0), COALESCE(SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END), 0)
-         FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? GROUP BY s.started_at / 900000`,
+         FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT} GROUP BY s.started_at / 900000`,
         [site, day, site, start, end],
       );
       for (const t of time) {
@@ -1361,7 +1361,7 @@ export class SqlStore {
       `SELECT ${col} AS value, COUNT(*) AS conversions, COUNT(DISTINCT e.visitor) AS visitors, ${revenue.sql} AS revenue
        FROM rl_events e ${session ? "JOIN rl_sessions s ON s.id = e.session" : ""}
        WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${scope.sql}${f.sql}
-       GROUP BY ${col} ORDER BY conversions DESC, value LIMIT ?`,
+       GROUP BY ${col} ORDER BY conversions DESC, ${col}${this.textOrder} LIMIT ?`,
       [...revenue.params, query.site, query.from, query.to, ...scope.params, ...f.params, limit],
     );
     return rows.map((r) => ({
@@ -1452,7 +1452,7 @@ export class SqlStore {
       `SELECT ${col} AS value, COUNT(*) AS clicks, COUNT(DISTINCT e.visitor) AS visitors
        FROM rl_events e JOIN rl_sessions s ON s.id = e.session
        WHERE e.site = ? AND e.link = ? AND e.kind = 'click' AND e.ts >= ? AND e.ts < ? AND ${col} <> ''
-       GROUP BY ${col} ORDER BY clicks DESC, value LIMIT ?`,
+       GROUP BY ${col} ORDER BY clicks DESC, ${col}${this.textOrder} LIMIT ?`,
       [site, link, from, to, limit],
     );
     return rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors), events: num(row.clicks) }));
@@ -1460,13 +1460,22 @@ export class SqlStore {
 
   // Reports
 
-  /** When the site's first visit was recorded, or null with no data yet. */
+  /**
+   * Ties are broken by the value in code point order, the order the rolled-up path sorts in, so a report
+   * reads the same before and after its days are built. Postgres would otherwise use its locale's order.
+   */
+  private get textOrder(): string {
+    return this.db.dialect === "postgres" ? ' COLLATE "C"' : "";
+  }
+
   /** When Runlight itself first counted a visit, leaving out imported history. */
   async firstOwnVisit(site: string): Promise<number | null> {
-    const [row] = await this.db.all(`SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ? AND imported = 0`, [site]);
+    // A session opened only by a short link click is not a visit, so it does not count as the first.
+    const [row] = await this.db.all(`SELECT MIN(started_at) AS t FROM rl_sessions s WHERE s.site = ? AND s.imported = 0 AND ${IS_VISIT}`, [site]);
     return row?.t === null || row?.t === undefined ? null : num(row.t);
   }
 
+  /** When the site's first visit was recorded, or null with no data yet. */
   async firstSeen(site: string): Promise<number | null> {
     const [row] = await this.db.all(`SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ?`, [site]);
     return row?.t === null || row?.t === undefined ? null : num(row.t);
@@ -1646,7 +1655,7 @@ export class SqlStore {
       const rows = await this.db.all(
         `SELECT ${col} AS value, COUNT(*) AS fetches FROM rl_events e
          WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'fetch'
-         GROUP BY ${col} ORDER BY fetches DESC, value LIMIT ? OFFSET ?`,
+         GROUP BY ${col} ORDER BY fetches DESC, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
         [query.site, query.from, query.to, ...page],
       );
       return rows.map((row) => ({ value: String(row.value), visitors: 0, fetches: num(row.fetches) }));
@@ -1666,7 +1675,7 @@ export class SqlStore {
         `SELECT ${col} AS value, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(s.pageviews) AS pageviews,
            SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
          FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${f.sql} AND ${col} <> ''
-         GROUP BY ${col} ORDER BY ${entryExit ? "visits DESC" : "visitors DESC, visits DESC"}, value LIMIT ? OFFSET ?`,
+         GROUP BY ${col} ORDER BY ${entryExit ? "visits DESC" : "visitors DESC, visits DESC"}, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
         [...params, ...page],
       );
       return rows.map((row) => {
@@ -1694,7 +1703,7 @@ export class SqlStore {
            SELECT DISTINCT e.session FROM rl_events e ${sessionJoin}
            WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})
          AND ${col} <> ''
-         GROUP BY ${col} ORDER BY visits DESC, value LIMIT ? OFFSET ?`,
+         GROUP BY ${col} ORDER BY visits DESC, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
         [...params, ...page],
       );
       return rows.map((row) => ({
@@ -1712,7 +1721,7 @@ export class SqlStore {
         `SELECT ${col} AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(*) AS pageviews
          FROM rl_events e ${join}
          WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'pageview'${f.sql}
-         GROUP BY ${col} ORDER BY visitors DESC, pageviews DESC, value LIMIT ? OFFSET ?`,
+         GROUP BY ${col} ORDER BY visitors DESC, pageviews DESC, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
         [...params, ...page],
       );
       const out: BreakdownRow[] = rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors), pageviews: num(row.pageviews) }));
@@ -1743,7 +1752,7 @@ export class SqlStore {
         `SELECT e.name AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(*) AS events
          FROM rl_events e ${join}
          WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'event'${f.sql}
-         GROUP BY e.name ORDER BY visitors DESC, events DESC, value LIMIT ? OFFSET ?`,
+         GROUP BY e.name ORDER BY visitors DESC, events DESC, e.name${this.textOrder} LIMIT ? OFFSET ?`,
         [...params, ...page],
       );
       return rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors), events: num(row.events) }));
@@ -1756,7 +1765,7 @@ export class SqlStore {
          SUM(CASE WHEN e.kind = 'pageview' THEN 1 ELSE 0 END) AS pageviews
        FROM rl_events e ${sessionJoin}
        WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql} AND ${col} <> ''
-       GROUP BY ${col} ORDER BY visitors DESC, visits DESC, value LIMIT ? OFFSET ?`,
+       GROUP BY ${col} ORDER BY visitors DESC, visits DESC, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
       [...params, ...page],
     );
     const out: BreakdownRow[] = rows.map((row) => ({
@@ -1819,7 +1828,7 @@ export class SqlStore {
       const raw = await this.db.all(
         `SELECT s.started_at / 900000 AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
            SUM(s.pageviews) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
-         FROM rl_sessions s WHERE s.site = ? AND ${w.sql} GROUP BY 1`,
+         FROM rl_sessions s WHERE s.site = ? AND ${w.sql} AND ${IS_VISIT} GROUP BY 1`,
         [query.site, ...w.params],
       );
       for (const row of raw) bump(Math.floor(num(row.quarter)), row);
@@ -1834,7 +1843,7 @@ export class SqlStore {
       `SELECT s.started_at / 900000 AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
          SUM(s.pageviews) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
        FROM rl_sessions s
-       WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ?${matching}
+       WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${matching}
        GROUP BY 1`,
       [query.site, query.from, query.to, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : [])],
     );
@@ -1855,13 +1864,13 @@ export class SqlStore {
     );
     const pages = await this.db.all(
       `SELECT path AS value, COUNT(DISTINCT visitor) AS visitors FROM rl_events
-       WHERE site = ? AND ts >= ? AND kind = 'pageview' GROUP BY path ORDER BY visitors DESC, value LIMIT 10`,
+       WHERE site = ? AND ts >= ? AND kind = 'pageview' GROUP BY path ORDER BY visitors DESC, path${this.textOrder} LIMIT 10`,
       [site, since],
     );
     const sources = await this.db.all(
       `SELECT s.source AS value, COUNT(DISTINCT e.visitor) AS visitors FROM rl_events e JOIN rl_sessions s ON s.id = e.session
        WHERE e.site = ? AND e.ts >= ? AND e.kind IN ('pageview', 'event') AND s.source <> ''
-       GROUP BY s.source ORDER BY visitors DESC, value LIMIT 10`,
+       GROUP BY s.source ORDER BY visitors DESC, s.source${this.textOrder} LIMIT 10`,
       [site, since],
     );
     const start = Math.floor(now / 60_000) * 60_000 - 29 * 60_000;
@@ -1878,7 +1887,7 @@ export class SqlStore {
     const countries = await this.db.all(
       `SELECT s.country AS value, COUNT(DISTINCT e.visitor) AS visitors FROM rl_events e JOIN rl_sessions s ON s.id = e.session
        WHERE e.site = ? AND e.ts >= ? AND e.kind IN ('pageview', 'event') AND s.country <> ''
-       GROUP BY s.country ORDER BY visitors DESC, value LIMIT 10`,
+       GROUP BY s.country ORDER BY visitors DESC, s.country${this.textOrder} LIMIT 10`,
       [site, since],
     );
     const recent = await this.db.all(

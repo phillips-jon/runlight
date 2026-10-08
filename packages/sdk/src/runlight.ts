@@ -90,6 +90,8 @@ export interface Remote {
 
 export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
 
+/** Raised whenever what a rolled-up day holds changes. 2: the heatmap counts visits only. */
+const ROLLUP_VERSION = 2;
 /** Days of rollups built per site in one scheduled check, and how long after a day ends it is built. */
 const ROLLUP_BATCH = 10;
 const ROLLUP_DELAY_MS = 2 * 3_600_000;
@@ -423,6 +425,10 @@ export class Runlight {
     if (!this.configured.some((site) => site.id === id)) throw new RangeError("Unknown site");
     await this.store.deleteSite(id);
     await this.store.setSetting(`retention:${id}`, null);
+    await this.store.setSetting(`observe-key:${id}`, null);
+    await this.store.setSetting(`rollup-zone:${id}`, null);
+    // A site made again with the same id starts its Umami import from the beginning.
+    for (const { key } of await this.store.settingsStartingWith(`import:umami-visits:${id}:`)) await this.store.setSetting(key, null);
     // A connected install keeps its own data; only the connection goes.
     if (this.remotes.delete(id)) await this.store.setSetting(`remote:${id}`, null);
     this.configured = this.configured.filter((site) => site.id !== id);
@@ -448,8 +454,7 @@ export class Runlight {
       if (patch.timezone !== undefined) {
         if (!isTimezone(String(patch.timezone))) throw new RangeError(`Unknown timezone "${patch.timezone}"`);
         next.timezone = String(patch.timezone);
-        // Days are the site's local days, so a new timezone means building them again.
-        if (next.timezone !== this.site(id)?.timezone) await this.store.clearRollups(id);
+        if (next.timezone !== this.site(id)?.timezone) await this.zoneChanged(id, next.timezone);
       }
       if (patch.hostnames !== undefined && !this.remotes.has(id)) next.hostnames = this.hostnamesFor(patch.hostnames, id);
       await this.store.upsertSite(next, this.now());
@@ -465,8 +470,7 @@ export class Runlight {
     if (patch.timezone !== undefined) {
       if (!isTimezone(String(patch.timezone))) throw new RangeError(`Unknown timezone "${patch.timezone}"`);
       next.timezone = String(patch.timezone);
-      // Days are the site's local days, so a new timezone means building them again.
-      if (next.timezone !== this.site(id)?.timezone) await this.store.clearRollups(id);
+      if (next.timezone !== this.site(id)?.timezone) await this.zoneChanged(id, next.timezone);
     }
     await this.store.setSiteOverrides(id, next);
     this.overrides.set(id, next);
@@ -494,6 +498,30 @@ export class Runlight {
   }
 
   /**
+   * Days are the site's local days, so a new timezone clears the built ones. Visitor ids recorded before
+   * the change were made per day of the old timezone, and could count one person twice in a new day, so
+   * only days that start after the change are built; earlier ones are always counted visit by visit.
+   */
+  private async zoneChanged(id: string, timezone: string): Promise<number> {
+    const since = this.now();
+    await this.store.clearRollups(id);
+    await this.store.setSetting(`rollup-zone:${id}`, JSON.stringify({ zone: timezone, since }));
+    return since;
+  }
+
+  /** Since when a site's days may be built: 0 for always, or when its timezone last changed. */
+  private async rollupSince(site: SiteRow): Promise<number> {
+    const stored = await this.store.setting(`rollup-zone:${site.id}`);
+    if (!stored) {
+      await this.store.setSetting(`rollup-zone:${site.id}`, JSON.stringify({ zone: site.timezone, since: 0 }));
+      return 0;
+    }
+    const zone = JSON.parse(stored) as { zone: string; since: number };
+    // Set in code and changed there since the last build.
+    return zone.zone === site.timezone ? zone.since : this.zoneChanged(site.id, site.timezone);
+  }
+
+  /**
    * Adds up each site's finished days, so long ranges read a row a day instead
    * of every visit. A day is built two hours after it ends in the site's
    * timezone, once late engagement has landed, and at most ROLLUP_BATCH days
@@ -503,6 +531,11 @@ export class Runlight {
    * could add to a day after it is built.
    */
   async buildRollups(): Promise<number> {
+    // Days rolled up by an earlier way of counting are cleared once, and built again below.
+    if ((await this.store.setting("rollup-version")) !== String(ROLLUP_VERSION)) {
+      for (const site of this.sites) await this.store.clearRollups(site.id);
+      await this.store.setSetting("rollup-version", String(ROLLUP_VERSION));
+    }
     let built = 0;
     const now = this.now();
     for (const site of this.sites) {
@@ -510,6 +543,7 @@ export class Runlight {
       const first = await this.store.firstSeen(site.id);
       if (first === null) continue;
       const cutoff = (await this.retentionCutoff(site.id)) ?? 0;
+      const since = await this.rollupSince(site);
       const done = await this.store.rollupDays(site.id);
       const today = localDate(now, site.timezone);
       let made = 0;
@@ -518,6 +552,7 @@ export class Runlight {
         if (done.has(day)) continue;
         const start = startOf(day, site.timezone);
         const end = startOf(addDays(day, 1), site.timezone);
+        if (start < since) break;
         if (now < end + ROLLUP_DELAY_MS || start < cutoff) continue;
         try {
           await this.store.buildRollupDay(site.id, day, start, end);

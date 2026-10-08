@@ -128,11 +128,15 @@ for (const kind of STORES) {
   });
 }
 
-test("deleting a site forgets its retention setting", async () => {
+test("deleting a site forgets its retention, its plugin key, and its Umami import progress", async () => {
   const rl = runlight({ store: freshStore("sqlite"), managedSites: true });
   await rl.init();
   const site = await rl.addSite({ hostnames: "gone.example.com" });
   await rl.setRetention(site.id, 12);
+  await rl.store.setSetting(`observe-key:${site.id}`, "rlo_x");
+  await rl.store.setSetting(`import:umami-visits:${site.id}:w1`, "{}");
   await rl.deleteSite(site.id);
   assert.equal(await rl.store.setting(`retention:${site.id}`), null);
+  assert.equal(await rl.store.setting(`observe-key:${site.id}`), null);
+  assert.equal(await rl.store.setting(`import:umami-visits:${site.id}:w1`), null);
 });
