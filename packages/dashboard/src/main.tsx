@@ -89,6 +89,11 @@ const isPeriod = (p: string) => (PERIODS as readonly string[]).includes(p);
 
 function Delta({ now, before, lowerIsBetter }: { now: number; before: number | undefined; lowerIsBetter?: boolean }) {
   const c = change(now, before);
+  // Nothing in the compared period has no percentage, so the card says it rose from zero.
+  if (c === null && before === 0) {
+    if (!now) return <span class="delta flat" title={t("delta.title")}>{t("delta.none")}</span>;
+    return <span class={`delta ${lowerIsBetter ? "down" : "up"}`} title={t("delta.title")}>{`↑ ${t("delta.fromNone")}`}</span>;
+  }
   if (c === null) return <span class="delta" />;
   const flat = Math.abs(c) < 0.005;
   const good = lowerIsBetter ? c < 0 : c > 0;

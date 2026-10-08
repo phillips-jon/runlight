@@ -943,5 +943,6 @@
   "journeys.emptyTitle": "Os caminhos das pessoas vão aparecer aqui",
   "props.emptyTitle": "Os detalhes deste evento vão aparecer aqui",
   "empty.mini": "Esta lista se preenche conforme chegam visitas.",
-  "empty.search": "Nada aqui corresponde ainda a “{q}”, tente outra palavra."
+  "empty.search": "Nada aqui corresponde ainda a “{q}”, tente outra palavra.",
+  "delta.fromNone": "de 0"
 }

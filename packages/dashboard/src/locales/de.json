@@ -943,5 +943,6 @@
   "journeys.emptyTitle": "Die Wege der Besucher erscheinen hier",
   "props.emptyTitle": "Die Details dieses Events erscheinen hier",
   "empty.mini": "Diese Liste füllt sich mit jedem Besuch.",
-  "empty.search": "Hier passt noch nichts zu „{q}“, versuch ein anderes Wort."
+  "empty.search": "Hier passt noch nichts zu „{q}“, versuch ein anderes Wort.",
+  "delta.fromNone": "von 0"
 }

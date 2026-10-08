@@ -943,5 +943,6 @@
   "journeys.emptyTitle": "The paths people take will show up here",
   "props.emptyTitle": "This event’s details will show up here",
   "empty.mini": "This list fills in as visits come in.",
-  "empty.search": "Nothing here matches “{q}” yet, so try another word."
+  "empty.search": "Nothing here matches “{q}” yet, so try another word.",
+  "delta.fromNone": "from 0"
 }
