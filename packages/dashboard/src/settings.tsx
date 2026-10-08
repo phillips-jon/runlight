@@ -513,52 +513,60 @@ function recordName(domain: string): string {
 function DomainSetup({ domain, target, onCheck }: { domain: string; target: { host: string; addresses: string[] }; onCheck: () => void }) {
   const name = recordName(domain);
   const apex = name === "@";
-  // A CNAME needs a name to point at, which a dashboard reached by its address or as localhost does not have.
-  const named = !/^[\d.]+$/.test(target.host) && !target.host.includes(":") && target.host !== "localhost" && !target.host.endsWith(".localhost");
-  const byAddress = target.addresses.map((ip) => ({ type: ip.includes(":") ? "AAAA" : "A", value: ip }));
-  const records = apex || !named ? byAddress : [{ type: "CNAME", value: target.host }];
+  // A dashboard reached by its address or as localhost has no public name yet; the record still shows
+  // what it will be, with a word that it works once there is one.
+  const local = /^[\d.]+$/.test(target.host) || target.host.includes(":") || target.host === "localhost" || target.host.endsWith(".localhost");
+  // A subdomain takes a CNAME. A bare domain takes A records to the server's public addresses, or an
+  // ALIAS to its name where they are not known.
+  const records = !apex
+    ? [{ type: "CNAME", value: target.host }]
+    : target.addresses.length
+      ? target.addresses.map((ip) => ({ type: ip.includes(":") ? "AAAA" : "A", value: ip }))
+      : [{ type: "ALIAS", value: target.host }];
   return (
     <div class="domain-setup">
-      {records.length ? <p class="settings-text">{apex ? t("links.setupApex", { domain }) : t("links.setupDns")}</p> : null}
-      {records.length ? (
-        <table class="dns-records">
-          <thead>
+      <table class="dns-records">
+        <thead>
+          <tr>
+            <th>{t("links.recordType")}</th>
+            <th>{t("links.recordName")}</th>
+            <th>{t("links.recordValue")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((r) => (
             <tr>
-              <th>{t("links.recordType")}</th>
-              <th>{t("links.recordName")}</th>
-              <th>{t("links.recordValue")}</th>
+              <td>
+                <code>{r.type}</code>
+              </td>
+              <td>
+                <code>{name}</code>
+                <Copy class="inline" text={name} />
+              </td>
+              <td>
+                <code>{r.value}</code>
+                <Copy class="inline" text={r.value} />
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {records.map((r) => (
-              <tr>
-                <td>
-                  <code>{r.type}</code>
-                </td>
-                <td>
-                  <code>{name}</code>
-                  <Copy class="inline" text={name} />
-                </td>
-                <td>
-                  <code>{r.value}</code>
-                  <Copy class="inline" text={r.value} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : null}
-      {!records.length ? (
-        <p class="field-hint">{rich("links.setupNoAddress", { host: <code>{target.host}</code> })}</p>
-      ) : apex && named ? (
-        <p class="field-hint">{t("links.setupAlias", { host: target.host })}</p>
-      ) : null}
-      <p class="settings-text">{t("links.step2")}</p>
-      <p class="settings-text">{t("links.setupCheck")}</p>
-      <button type="button" class="copy inline" onClick={onCheck}>
-        <Icon name="refresh" />
-        {t("links.recheck")}
-      </button>
+          ))}
+        </tbody>
+      </table>
+      <ol class="setup-steps">
+        <li>{t(records[0]!.type === "ALIAS" ? "links.doDnsAlias" : "links.doDns")}</li>
+        <li>{t("links.doHttps", { domain })}</li>
+        <li>{t("links.doCheck")}</li>
+      </ol>
+      {local ? <p class="field-hint">{t("links.localNote", { host: target.host })}</p> : null}
+      <div class="setup-actions">
+        <button type="button" class="copy inline" onClick={onCheck}>
+          <Icon name="refresh" />
+          {t("links.recheck")}
+        </button>
+        <a class="copy inline" href="https://runlight.sh/docs/links/#custom-domains" target="_blank" rel="noopener">
+          <Icon name="external" />
+          {t("links.guide")}
+        </a>
+      </div>
     </div>
   );
 }

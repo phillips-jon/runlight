@@ -2860,7 +2860,7 @@ h1 .home:hover {
   border-radius: 8px;
 }
 
-.domain-list li {
+.domain-list > li {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -2870,7 +2870,7 @@ h1 .home:hover {
   border-bottom: 1px solid var(--line);
 }
 
-.domain-list li:last-child {
+.domain-list > li:last-child {
   border-bottom: 0;
 }
 
@@ -2941,7 +2941,7 @@ h1 .home:hover {
   color: var(--ink);
 }
 
-.domain-list li {
+.domain-list > li {
   flex-wrap: wrap;
 }
 
@@ -3222,7 +3222,7 @@ select.field,
 }
 
 /* A domain row: name and status stacked on the left, actions together on the right. */
-.domain-list li {
+.domain-list > li {
   flex-wrap: nowrap;
   padding: 10px 12px;
 }
@@ -3236,7 +3236,7 @@ select.field,
 }
 
 /* A domain's setup steps open under its row, across the whole row. */
-.domain-list li.domain-row {
+.domain-list > li.domain-row {
   flex-wrap: wrap;
 }
 
@@ -3257,8 +3257,22 @@ select.field,
   font-size: 13px;
 }
 
-.domain-setup > .copy {
-  justify-self: start;
+.setup-steps {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+.setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.setup-actions a.copy {
+  text-decoration: none;
 }
 
 .dns-records {
@@ -4801,7 +4815,7 @@ a.ghost {
   }
 
   /* Every list row (people, shares, email reports, custom domains) puts its actions under its name. */
-  .domain-list li {
+  .domain-list > li {
     flex-wrap: wrap;
   }
 

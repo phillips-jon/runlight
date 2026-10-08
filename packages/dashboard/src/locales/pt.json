@@ -928,12 +928,13 @@
   "sites.connected": "Conectado a {host}.",
   "links.totalTip": "Todos os cliques nos seus links curtos nas datas escolhidas",
   "links.setup": "Como configurar",
-  "links.setupDns": "No seu provedor de DNS, adicione este registro, que aponta o domínio para este painel.",
-  "links.setupApex": "{domain} não tem subdomínio, então no seu provedor de DNS ela precisa de um registro A para o servidor deste painel.",
-  "links.setupAlias": "Se o seu provedor de DNS oferece um registro ALIAS ou ANAME, ou CNAME flattening, você pode apontar o domínio para {host} com ele, e continua funcionando se o endereço do servidor mudar.",
-  "links.setupNoAddress": "Este painel roda em {host}, que não tem nome nem endereço públicos para onde apontar um domínio. Quando ele rodar no próprio domínio, aponte este para lá com um registro CNAME para um subdomínio, ou com um registro A para o endereço público do servidor para um domínio sem subdomínio.",
-  "links.setupCheck": "Quando o registro estiver lá e o HTTPS funcionar, verifique de novo. Um registro DNS novo pode levar alguns minutos para chegar a todos.",
   "links.recordType": "Tipo",
   "links.recordName": "Nome",
-  "links.recordValue": "Valor"
+  "links.recordValue": "Valor",
+  "links.doDns": "Adicione este registro no seu provedor de DNS.",
+  "links.doDnsAlias": "Adicione este registro no seu provedor de DNS. Se ele não tiver ALIAS, use um registro A para o endereço IP do seu servidor.",
+  "links.doHttps": "Faça sua hospedagem servir {domain} com HTTPS.",
+  "links.doCheck": "Verifique de novo. Um registro novo pode levar alguns minutos para chegar.",
+  "links.localNote": "Este painel roda em {host}, então o registro funciona quando ele tiver um endereço público.",
+  "links.guide": "Guia de configuração"
 }
