@@ -33,7 +33,7 @@ Links can also live on a domain of their own, like `t.example.com/sale`. Set one
 2. Make your host accept the domain and serve HTTPS for it (on Vercel or Netlify, add it to the project’s domains).
 3. Add the domain in Settings. Runlight checks that it reaches your app and says so.
 
-A link domain answers every path on it, so it can never be your app's own domain or one of your sites. It must also be a public name, so names kept for private networks, such as `.internal` or `.local`, are refused. Pass `origin` to `routes()` with your app's address, and the first rule holds whatever Host header a request names. A connected hub can add link domains only once `origin` is set, since it cannot know which names your app answers on. Paths under the dashboard, such as `/runlight`, always reach your app, so you can open the dashboard on any of its names to remove a domain.
+A link domain answers every path on it, so it can never be your app’s own domain or one of your sites. It must also be a public name, so names kept for private networks, such as `.internal` or `.local`, are refused. Pass `origin` to `routes()` with your app’s address, and the first rule holds whatever Host header a request names. A connected hub can add link domains only once `origin` is set, since it cannot know which names your app answers on. Paths under the dashboard, such as `/runlight`, always reach your app, so you can open the dashboard on any of its names to remove a domain.
 
 Requests on that domain have to reach Runlight, which in Next.js happens in middleware (named `proxy.ts` from Next.js 16).
 

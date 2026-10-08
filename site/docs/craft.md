@@ -19,7 +19,7 @@ The Runlight plugin connects a Craft 5 site to a Runlight you run elsewhere, eit
 1. Install the plugin by running `composer require runlight/craft` and then `php craft plugin/install runlight`.
 2. In your Runlight, make sure the site’s hostname is counted (see [Configuration](/docs/configuration/#sites)).
 3. Go to Settings, Plugins, Runlight, and enter the address Runlight is mounted at, such as `https://stats.example.com/runlight`. The page checks that the address answers.
-4. To count AI agents, copy this site's key from **Settings**, **Install**, **Key for CMS plugins** in Runlight and put it in Craft’s `.env` as `RUNLIGHT_OBSERVE_KEY`. Then enter `$RUNLIGHT_OBSERVE_KEY` as the observe key, which keeps the key itself out of project config. The key can only report agent fetches for this one site.
+4. To count AI agents, copy this site’s key from **Settings**, **Install**, **Key for CMS plugins** in Runlight and put it in Craft’s `.env` as `RUNLIGHT_OBSERVE_KEY`. Then enter `$RUNLIGHT_OBSERVE_KEY` as the observe key, which keeps the key itself out of project config. The key can only report agent fetches for this one site.
 
 As with any Craft plugin, every setting can also come from `config/runlight.php`, and values there override the Control Panel.
 

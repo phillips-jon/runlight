@@ -1,6 +1,6 @@
 ---
 title: Email reports
-description: Runlight emails weekly or monthly summaries through your own email service, in each reader's language.
+description: Runlight emails weekly or monthly summaries through your own email service, in each reader’s language.
 group: Features
 order: 8
 ---

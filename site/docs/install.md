@@ -31,7 +31,7 @@ Runlight needs the Node runtime (it uses SQLite or Postgres), which is the defau
 
 ## Express and plain Node
 
-`@runlight/sdk/node` adapts the handler to Node's `http` module, and so to Express, Connect, and Koa (through `ctx.req` and `ctx.res`).
+`@runlight/sdk/node` adapts the handler to Node’s `http` module, and so to Express, Connect, and Koa (through `ctx.req` and `ctx.res`).
 
 ```ts file=server.ts
 import express from "express";
@@ -227,8 +227,8 @@ Route only `/runlight/*` to this Worker (or check the path first, as in the Bun 
 
 ## Anything else
 
-If your server gives you a web `Request`, pass it to `rl.routes().handler` and return the `Response`. If it gives you Node's `req` and `res`, use `toNodeHandler` from `@runlight/sdk/node`.
+If your server gives you a web `Request`, pass it to `rl.routes().handler` and return the `Response`. If it gives you Node’s `req` and `res`, use `toNodeHandler` from `@runlight/sdk/node`.
 
 ## Behind a proxy
 
-Runlight reads the visitor's address from the last entry in `X-Forwarded-For`, the one your proxy adds, then from `X-Real-IP` or `CF-Connecting-IP`. That is right behind Vercel, Netlify, Cloudflare, and most load balancers. When a request passes through two proxies, such as Cloudflare in front of nginx, name the header that holds the visitor's own address, like `trustProxy: "cf-connecting-ip"`. The address is used for the [daily visitor hash](/docs/privacy/) and the location lookup, and the rate limit counts it hashed. It is never stored. If your app is exposed directly with no proxy, set `trustProxy: false`.
+Runlight reads the visitor’s address from the last entry in `X-Forwarded-For`, the one your proxy adds, then from `X-Real-IP` or `CF-Connecting-IP`. That is right behind Vercel, Netlify, Cloudflare, and most load balancers. When a request passes through two proxies, such as Cloudflare in front of nginx, name the header that holds the visitor’s own address, like `trustProxy: "cf-connecting-ip"`. The address is used for the [daily visitor hash](/docs/privacy/) and the location lookup, and the rate limit counts it hashed. It is never stored. If your app is exposed directly with no proxy, set `trustProxy: false`.

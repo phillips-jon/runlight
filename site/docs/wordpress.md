@@ -19,7 +19,7 @@ The Runlight plugin connects a WordPress site to a Runlight you run elsewhere, e
 1. Install the plugin and activate it.
 2. In your Runlight, add the site’s hostname to `hostnames` so it is counted (see [Configuration](/docs/configuration/#sites)).
 3. In WordPress, go to Settings, Runlight, and enter the address Runlight is mounted at, such as `https://stats.example.com/runlight`. When you save, the plugin checks that the address answers and tells you the result.
-4. To count AI agents, copy this site's key from **Settings**, **Install**, **Key for CMS plugins** in Runlight and enter it in the plugin. The key can only report agent fetches for this one site, so it cannot read your stats or write into another site.
+4. To count AI agents, copy this site’s key from **Settings**, **Install**, **Key for CMS plugins** in Runlight and enter it in the plugin. The key can only report agent fetches for this one site, so it cannot read your stats or write into another site.
 
 ## Page caches
 
