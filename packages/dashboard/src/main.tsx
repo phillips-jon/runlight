@@ -218,7 +218,8 @@ function App() {
   };
   useEffect(refreshMe, []);
   // Without accounts (an app's own install) whoever signs in owns it; with them, only once the account says so.
-  const isOwner = accounts ? me?.role === "owner" : true;
+  // The owner and admins set up the assistant; members and viewers use it.
+  const isOwner = accounts ? me?.role === "owner" || me?.role === "admin" : true;
   /** A shared dashboard and a viewer see the numbers and change nothing. */
   const readOnly = Boolean(share) || me?.role === "viewer";
 
@@ -470,9 +471,12 @@ function App() {
             setView((v) => ({ ...v }));
           }}
           onLanguage={changeLanguage}
-          onDemoted={() => {
-            setSettingsOpen(null);
-            setNotice({ text: t("people.demoted"), error: false });
+          onDemoted={(role) => {
+            // Handing over ownership leaves you an admin, who still has every setting.
+            if (role !== "admin") {
+              setSettingsOpen(null);
+              setNotice({ text: t(role === "member" ? "people.demotedMember" : "people.demoted"), error: false });
+            }
             refreshMe();
           }}
           me={me}

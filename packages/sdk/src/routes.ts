@@ -37,11 +37,13 @@ export interface RoutesOptions {
    */
   token?: string | null;
   /**
-   * Your own check instead of a token. Return true for full access, "read" to
-   * let the request read every site's stats and change nothing (as an API
-   * token can), or false to refuse it.
+   * Your own check instead of a token. Return true for full access, "member"
+   * to let the request change everything but the install-wide controls (the
+   * mail service, the assistant's settings, and deleting a site), "read" to
+   * let it read every site's stats and change nothing (as an API token can),
+   * or false to refuse it.
    */
-  authorize?: (request: Request) => boolean | "read" | Promise<boolean | "read">;
+  authorize?: (request: Request) => boolean | "member" | "read" | Promise<boolean | "member" | "read">;
   /**
    * Also accepted as a bearer token on POST /api/check, so a platform cron
    * can run scheduled work. Defaults to process.env.CRON_SECRET.
@@ -408,6 +410,15 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
   // Requests from a manage token, already checked against its one site, act as the owner's.
   const managed = new WeakMap<Request, TokenRow>();
+  // Requests from a member: full access apart from the install-wide controls.
+  const members = new WeakSet<Request>();
+  /** The controls a member cannot change: the mail service and its keys, the assistant's settings, and deleting a site. */
+  const adminOnly = (path: string, method: string) =>
+    (path === "/api/mail" && (method === "PUT" || method === "DELETE")) ||
+    (path === "/api/assistant" && (method === "PUT" || method === "DELETE")) ||
+    (path === "/api/assistant/limits" && method === "PUT") ||
+    (path === "/api/assistant/models" && method === "POST") ||
+    (/^\/api\/sites\/[^/]+$/.test(path) && method === "DELETE");
   // When each report's last sample went out.
   const sampleSent = new Map<string, number>();
   // Each person's questions to the assistant in the last hour, and how many are being answered now.
@@ -418,7 +429,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (managed.has(request)) return true;
     if (options.authorize) {
       const answer = await options.authorize(request);
-      return answer === "read" ? "read" : answer === true;
+      // A member changes things like an owner, apart from the few controls adminOnly() names.
+      if (answer === "member") members.add(request);
+      return answer === "read" ? "read" : answer === true || answer === "member";
     }
     if (token === null) return true;
     if (!token) {
@@ -457,7 +470,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (options.authorize) {
       const answer = await options.authorize(request);
       // A read-only sign-in reads like an API token for every site.
-      return answer === "read" ? { id: "", name: "", site: "", scope: "read", hash: "", hint: "", createdAt: 0, lastUsedAt: null } : answer === true;
+      return answer === "read" ? { id: "", name: "", site: "", scope: "read", hash: "", hint: "", createdAt: 0, lastUsedAt: null } : answer === true || answer === "member";
     }
     const access = await canRead(request);
     return access === "read" ? false : access;
@@ -1220,7 +1233,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     // The assistant: an owner sets it up; anyone signed in to the dashboard can ask it.
     if (path === "/api/assistant") {
       const self = await canRead(request);
-      const owner = self === true;
+      // A member uses the assistant like anyone else, but its settings are for owners and admins.
+      const owner = self === true && !members.has(request);
       if (request.method === "GET") {
         const access = await reader(request);
         if (access === false || access === "unconfigured") return denied(access);
@@ -1240,7 +1254,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           providers: PROVIDERS,
         });
       }
-      if (!owner) return denied(self);
+      if (!owner) return self === true ? coded("Only an owner or admin can change this", "admin_only", 403) : denied(self);
       await runlight.init();
       if (request.method === "DELETE") {
         await runlight.saveAssistantSettings(null);
@@ -1734,6 +1748,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     const path = url.pathname.slice(base.length) || "/";
 
     try {
+      // Checked before any route, so a connected site's pass-through to its install is held to it too.
+      if (adminOnly(path, request.method) && (await canRead(request)) === true && members.has(request)) {
+        return coded("Only an owner or admin can change this", "admin_only", 403);
+      }
       if (path === "/s.js" && request.method === "GET") {
         const script = await trackerScript(url.searchParams.get("site"));
         const headers = {

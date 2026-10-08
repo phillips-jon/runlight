@@ -18,7 +18,7 @@ The same server runs in Docker.
 docker run -d --name runlight -p 3000:3000 -v runlight:/data ghcr.io/phillips-jon/runlight
 ```
 
-Owners invite other people as owners or viewers, and everyone can turn on two-factor sign-in. The server also makes short links on your own domains and emails weekly or monthly reports. It can show sites counted by Runlight inside other apps too.
+The owner invites other people as admins, members, or viewers, and everyone can turn on two-factor sign-in. The server also makes short links on your own domains and emails weekly or monthly reports. It can show sites counted by Runlight inside other apps too.
 
 The [server guide](https://runlight.sh/docs/server/) covers its settings, Postgres, and running it behind a proxy.
 

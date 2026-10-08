@@ -85,7 +85,7 @@ Every report takes the same query parameters.
 | `GET`, `PUT`, `DELETE /api/assistant` | Read, set, or remove the dashboard assistant’s `{ "provider", "model", "baseUrl", "key" }`. The key is never returned. Owners only, though anyone at the dashboard can ask whether it is set up. |
 | `POST /api/assistant/models` | The models a provider offers, from `{ "provider", "baseUrl", "key" }`, for the settings form. Leave `key` out to use the saved one, which works only for the same provider and address. Owners only. |
 | `POST /api/assistant/chat` | Ask the assistant, sending `{ "site", "messages", "view", "language" }`, where messages are `{ "role", "content" }` pairs ending with a question. It answers `{ "reply", "tools" }`. People at the dashboard only, never API tokens or share links. Each person can ask thirty questions an hour and two at once, and each viewer the owner’s daily number, with 429 past either. |
-| `PUT /api/assistant/limits` | Set how many questions each viewer can ask a day, from `{ "viewerDaily" }`, a whole number from 0 to 1,000. It starts at 50, and `GET /api/assistant` shows it to owners. Owners only. |
+| `PUT /api/assistant/limits` | Set how many questions each viewer can ask a day, from `{ "viewerDaily" }`, a whole number from 0 to 1,000. It starts at 50, and `GET /api/assistant` shows it to the owner and admins. The owner and admins only. |
 | `POST /mcp` | The MCP server for AI assistants, described in [Ask your AI](/docs/mcp/). |
 
 ## Errors
@@ -112,6 +112,7 @@ These are the codes and the params each one fills. An error a connected install 
 | Code | Params | What it says |
 | --- | --- | --- |
 | `account_exists` | `email` | {email} already has an account. |
+| `admin_only` |  | Only the owner or an admin can change this. |
 | `assistant_address` |  | Enter the service’s address in Settings, AI Assistant. |
 | `assistant_address_bad` |  | Enter the service’s address, starting with https:// |
 | `assistant_cancelled` |  | The question was cancelled. |
@@ -196,7 +197,6 @@ These are the codes and the params each one fills. An error a connected install 
 | `install_token` |  | Enter an API token from that install. |
 | `internal` |  | Something went wrong on the server. Try again. |
 | `invite_gone` |  | This invite has expired or was already used. Ask for a new one. |
-| `last_owner` |  | Keep at least one owner. |
 | `link_domain` | `domain` | Add {domain} as a link domain in Settings first. |
 | `link_long` |  | The destination is longer than 2,000 characters. |
 | `link_no_slug` |  | Could not find a free slug. Try again. |
@@ -221,11 +221,14 @@ These are the codes and the params each one fills. An error a connected install 
 | `observe_many` |  | Send at most 500 fetches at a time. |
 | `observe_url` |  | Send the page’s address. |
 | `origin_needed` |  | Set this Runlight’s own address first (RUNLIGHT_URL on the server, or origin in routes()), so a connected hub can add link domains and email reports. |
+| `owner_hand_over` |  | Only the owner can hand over ownership. |
+| `owner_needs_admin` |  | Make them an admin first. |
 | `owner_only` |  | Only an owner can change this. |
+| `owner_protected` |  | Nobody but the owner can change or remove the owner. |
 | `password_current_wrong` |  | Your current password is not right. |
 | `password_short` | `min` | Use a password of at least {min} characters. |
 | `password_wrong` |  | Your password is not right. |
-| `people_owner` |  | Only an owner can manage people. |
+| `people_owner` |  | Only the owner or an admin can manage people. |
 | `pick_hub` |  | This hub’s address is not the one it connected from. Connect the site again from here. |
 | `pick_origin` |  | Send the dashboard’s origin, such as https://stats.example.com |
 | `property_bad` |  | That is not a property name Runlight can read. |
@@ -237,7 +240,7 @@ These are the codes and the params each one fills. An error a connected install 
 | `report_exists` | `email` | {email} already gets this report. |
 | `report_limit` |  | A site can send to at most 50 addresses. |
 | `retention_bad` | `months` | Keep visits for {months} months, or forever. |
-| `role_needed` |  | Pick owner or viewer. |
+| `role_needed` |  | Pick admin, member, or viewer. |
 | `rows_needed` |  | Send the links as a list of rows. |
 | `sample_soon` |  | A sample went out a moment ago. Wait a minute and try again. |
 | `sample_soon_hub` |  | A connected hub can send one sample every ten minutes. Wait a few minutes and try again. |

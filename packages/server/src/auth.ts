@@ -31,8 +31,16 @@ export const MIN_PASSWORD = 10;
 /** The most sign-in keys the throttle remembers at once. */
 const MAX_THROTTLED = 10_000;
 
-/** An owner can do everything; a viewer can read every site's stats and change nothing. */
-export type Role = "owner" | "viewer";
+/**
+ * The owner can do everything, and nobody else can remove them or change their role; they can hand ownership to an
+ * admin. An admin can do everything the owner can apart from that. A member changes sites, goals, links, and the
+ * rest, but not people, the mail service, the assistant's settings, or deleting a site. A viewer reads every site's
+ * stats and changes nothing.
+ */
+export type Role = "owner" | "admin" | "member" | "viewer";
+const ROLES: readonly Role[] = ["owner", "admin", "member", "viewer"];
+/** A stored role read back; anything unknown reads as a viewer, the least it could be. */
+const roleFrom = (value: unknown): Role => (ROLES.includes(value as Role) ? (value as Role) : "viewer");
 
 export interface User {
   id: string;
@@ -180,6 +188,11 @@ export class Accounts {
       await this.store.db.run(
         `CREATE TABLE IF NOT EXISTS rl_invites (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, role TEXT NOT NULL, code_hash TEXT NOT NULL UNIQUE, invited_by TEXT NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL)`,
       );
+      // A server has one owner. One from before, with several, keeps the first and the rest become admins,
+      // who can still do everything but remove the owner. Invites to join as an owner become invites as an admin.
+      const owners = await this.store.db.all(`SELECT id FROM rl_users WHERE role = 'owner' ORDER BY created_at, id`);
+      for (const extra of owners.slice(1)) await this.store.db.run(`UPDATE rl_users SET role = 'admin' WHERE id = ?`, [String(extra.id)]);
+      await this.store.db.run(`UPDATE rl_invites SET role = 'admin' WHERE role = 'owner'`);
     };
     this.ready ??= (this.store.db.exclusive ? this.store.db.exclusive(create) : create()).catch((error) => {
         this.ready = null;
@@ -194,7 +207,7 @@ export class Accounts {
       id: String(r.id),
       email: String(r.email),
       hash: String(r.hash),
-      role: r.role === "viewer" ? "viewer" : "owner",
+      role: roleFrom(r.role),
       createdAt: Number(r.created_at),
       twoFactor: Boolean(r.totp_secret),
       recoveryLeft: recovery.length,
@@ -386,36 +399,53 @@ export class Accounts {
     return (await this.store.db.all(`SELECT * FROM rl_users ORDER BY created_at`)).map((r) => this.row(r));
   }
 
-  /** Changes a role. The last owner cannot become a viewer, or nobody could manage the server. */
+  /** Changes a role. The owner's never changes here, and nobody becomes the owner here: see handOver(). */
   async setRole(id: string, role: Role): Promise<User> {
     // The tables first: making them takes the same lock as a turn.
     await this.init();
     return this.turn(async () => {
-      const users = await this.list();
-      const user = users.find((u) => u.id === id);
+      const user = (await this.list()).find((u) => u.id === id);
       if (!user) throw new AccountError("Unknown account", "unknown_account");
-      if (user.role === "owner" && role === "viewer" && users.filter((u) => u.role === "owner").length === 1) throw new AccountError("Keep at least one owner", "last_owner");
+      if (user.role === "owner") throw new AccountError("Only the owner can change their own role, by handing ownership to an admin", "owner_protected");
+      if (role === "owner") throw new AccountError("Ownership is handed over by the owner", "owner_hand_over");
       await this.store.db.run(`UPDATE rl_users SET role = ? WHERE id = ?`, [role, id]);
       return { ...user, role };
     });
   }
 
-  /** Removes an account. The last owner cannot be removed. */
+  /** Makes an admin the owner, and the owner an admin. */
+  async handOver(from: string, to: string): Promise<void> {
+    await this.init();
+    return this.turn(async () => {
+      const users = await this.list();
+      const owner = users.find((u) => u.id === from);
+      const next = users.find((u) => u.id === to);
+      if (!owner || owner.role !== "owner") throw new AccountError("Only the owner can hand over ownership", "owner_hand_over");
+      if (!next) throw new AccountError("Unknown account", "unknown_account");
+      if (next.role !== "admin") throw new AccountError("Make them an admin first", "owner_needs_admin");
+      await this.store.db.run(`UPDATE rl_users SET role = 'owner' WHERE id = ?`, [to]);
+      await this.store.db.run(`UPDATE rl_users SET role = 'admin' WHERE id = ?`, [from]);
+    });
+  }
+
+  /** Removes an account. The owner cannot be removed. */
   async remove(id: string): Promise<void> {
     // The tables first: making them takes the same lock as a turn.
     await this.init();
     return this.turn(async () => {
-      const users = await this.list();
-      const user = users.find((u) => u.id === id);
+      const user = (await this.list()).find((u) => u.id === id);
       if (!user) throw new AccountError("Unknown account", "unknown_account");
-      if (user.role === "owner" && users.filter((u) => u.role === "owner").length === 1) throw new AccountError("Keep at least one owner", "last_owner");
+      if (user.role === "owner") throw new AccountError("The owner cannot be removed", "owner_protected");
       await this.store.db.run(`DELETE FROM rl_users WHERE id = ?`, [id]);
       await this.store.setSetting(`login-link-used:${id}`, null);
     });
   }
 
-  /** Makes an account, or sets a new password on an existing one. */
-  async setPassword(email: string, password: string, now: number, role: Role = "owner"): Promise<User> {
+  /**
+   * Makes an account, or sets a new password on an existing one. A new account is the owner when it is the first,
+   * and otherwise an admin unless a role is given, since a server has one owner.
+   */
+  async setPassword(email: string, password: string, now: number, role?: Role): Promise<User> {
     await this.init();
     const address = email.trim().toLowerCase();
     if (!EMAIL.test(address)) throw new AccountError("Enter an email address", "email_invalid");
@@ -426,13 +456,15 @@ export class Accounts {
       await this.store.db.run(`UPDATE rl_users SET hash = ? WHERE id = ?`, [hash, existing.id]);
       return { ...existing, hash };
     }
-    const user: User = { id: randomBytes(12).toString("hex"), email: address, hash, role, createdAt: now, twoFactor: false, recoveryLeft: 0 };
+    const first = (await this.count()) === 0;
+    const given = role ?? (first ? "owner" : "admin");
+    const user: User = { id: randomBytes(12).toString("hex"), email: address, hash, role: given === "owner" && !first ? "admin" : given, createdAt: now, twoFactor: false, recoveryLeft: 0 };
     await this.store.db.run(`INSERT INTO rl_users (id, email, hash, role, created_at) VALUES (?, ?, ?, ?, ?)`, [user.id, user.email, user.hash, user.role, user.createdAt]);
     return user;
   }
 
   private inviteRow(r: Record<string, unknown>): Invite {
-    return { id: String(r.id), email: String(r.email), role: r.role === "viewer" ? "viewer" : "owner", invitedBy: String(r.invited_by), createdAt: Number(r.created_at), expiresAt: Number(r.expires_at) };
+    return { id: String(r.id), email: String(r.email), role: roleFrom(r.role), invitedBy: String(r.invited_by), createdAt: Number(r.created_at), expiresAt: Number(r.expires_at) };
   }
 
   /** Invites that still work, newest first. Expired ones are cleared on the way. */

@@ -3,7 +3,7 @@ import { ApiError, api, type InviteSent, type PendingInvite, type Person } from 
 import { day } from "./format.js";
 import { errorText, t, tn, type Key } from "./i18n.js";
 import { Secret } from "./secret.js";
-import { Icon } from "./icons.js";
+import { Icon, type IconName } from "./icons.js";
 import { DeleteButton, Sheet } from "./links.js";
 import { strength } from "./strength.js";
 import { Code } from "./settings.js";
@@ -45,7 +45,7 @@ export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void 
   return (
     <Sheet title={t("account.title")} sub={me.email} onClose={onClose}>
       <form class="sheet-body link-form" onSubmit={save}>
-        <p class="settings-text">{t(me.role === "owner" ? "account.owner" : "account.viewer")}</p>
+        <p class="settings-text">{t(`account.${me.role}` as Key)}</p>
         <label class="field-row">
           <span class="field-label">{t("account.current")}</span>
           <Secret class="value" autoComplete="current-password" required value={current} onInput={(e) => edit(setCurrent, e)} />
@@ -267,7 +267,8 @@ function TwoFactor({ me }: { me: Person }) {
 }
 
 /** Resetting someone's two-factor asks for your own password first, like every two-factor change. */
-function ResetTwoFactor({ onReset, onCancel }: { onReset: (password: string) => Promise<void>; onCancel: () => void }) {
+/** Asks for your password again before something that matters: resetting someone's two-factor, or handing over ownership. */
+function WithPassword({ icon, label, onConfirm, onCancel }: { icon: IconName; label: string; onConfirm: (password: string) => Promise<void>; onCancel: () => void }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   // Shown under the form it belongs to, rather than at the foot of the list.
@@ -276,7 +277,7 @@ function ResetTwoFactor({ onReset, onCancel }: { onReset: (password: string) => 
     e.preventDefault();
     setBusy(true);
     setError("");
-    void onReset(password)
+    void onConfirm(password)
       .catch((err: Error) => setError(err.message))
       .finally(() => setBusy(false));
   };
@@ -284,8 +285,8 @@ function ResetTwoFactor({ onReset, onCancel }: { onReset: (password: string) => 
     <form class="reset-twofactor" onSubmit={submit}>
       <Secret class="value" autoComplete="current-password" required placeholder={t("twofa.password")} value={password} onInput={(e) => setPassword((e.target as HTMLInputElement).value)} />
       <button type="submit" class="copy inline armed" disabled={busy || !password}>
-        <Icon name="reset" />
-        {t("people.resetTwoFactor")}
+        <Icon name={icon} />
+        {label}
       </button>
       <button type="button" class="copy inline" onClick={onCancel}>
         {t("common.cancel")}
@@ -295,23 +296,30 @@ function ResetTwoFactor({ onReset, onCancel }: { onReset: (password: string) => 
   );
 }
 
+/** The roles anyone can be given here. The owner is never given, only handed over. */
+const ROLES = ["admin", "member", "viewer"] as const;
+const roleName = (role: Person["role"]) => t(`people.${role}` as Key);
+
 /**
- * Settings, People: everyone who can sign in, their role, and adding or removing someone.
- * `onDemoted` runs when the owner makes themselves a viewer, since owner settings no longer apply.
+ * Settings, People: everyone who can sign in, their role, and adding or removing someone. The owner's row has
+ * no role to pick and no remove button; the owner can hand ownership to an admin from that admin's row.
+ * `onDemoted` runs when you change your own role, with the role you now have.
  */
-export function People({ me, onDemoted }: { me: Person; onDemoted: () => void }) {
+export function People({ me, onDemoted }: { me: Person; onDemoted: (role: Person["role"]) => void }) {
   const [people, setPeople] = useState<Person[] | null>(null);
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<Person["role"]>("viewer");
+  const [role, setRole] = useState<Person["role"]>("member");
   const [sent, setSent] = useState<InviteSent | null>(null);
   const [error, setError] = useState("");
   // While an invite is on its way, its buttons wait, so a double click sends one.
   const [sending, setSending] = useState(false);
-  // Whose two-factor is being reset, while the owner's password is asked for.
+  // Whose two-factor is being reset, while your password is asked for.
   const [resetting, setResetting] = useState<string | null>(null);
-  // Making yourself a viewer takes a second click, since only another owner can undo it.
-  const [demoting, setDemoting] = useState(false);
+  // Who ownership is being handed to, while your password is asked for.
+  const [handing, setHanding] = useState<string | null>(null);
+  // Giving up managing people takes a second click, since only someone else can undo it.
+  const [demoting, setDemoting] = useState<Person["role"] | null>(null);
   const load = () =>
     api
       .people()
@@ -341,11 +349,12 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
       .finally(() => setSending(false));
   };
   const change = (id: string, next: Person["role"]) => {
-    if (id === me.id && next === "viewer" && !demoting) return setDemoting(true);
-    setDemoting(false);
+    const self = id === me.id && next !== "admin";
+    if (self && demoting !== next) return setDemoting(next);
+    setDemoting(null);
     return api
       .setRole(id, next)
-      .then(() => (id === me.id && next === "viewer" ? onDemoted() : load()))
+      .then(() => (self ? onDemoted(next) : load()))
       .catch((err: Error) => setError(err.message));
   };
   return (
@@ -384,9 +393,11 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
               </div>
               <div class="domain-actions">
                 {resetting === p.id ? (
-                  <ResetTwoFactor
+                  <WithPassword
+                    icon="reset"
+                    label={t("people.resetTwoFactor")}
                     onCancel={() => setResetting(null)}
-                    onReset={(password) =>
+                    onConfirm={(password) =>
                       api.resetTwoFactor(p.id, password).then(() => {
                         setResetting(null);
                         setError("");
@@ -394,8 +405,31 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
                       })
                     }
                   />
+                ) : handing === p.id ? (
+                  <WithPassword
+                    icon="key"
+                    label={t("people.handOverConfirm")}
+                    onCancel={() => setHanding(null)}
+                    onConfirm={(password) =>
+                      api.handOver(p.id, password).then(() => {
+                        setHanding(null);
+                        setError("");
+                        onDemoted("admin");
+                        return load();
+                      })
+                    }
+                  />
+                ) : p.role === "owner" ? (
+                  // Nobody changes the owner's role or removes them; they hand ownership over themselves.
+                  <span class="people-owner">{t("people.owner")}</span>
                 ) : (
                   <>
+                    {me.role === "owner" && p.role === "admin" ? (
+                      <button type="button" class="copy inline" title={t("people.handOverHint")} onClick={() => setHanding(p.id)}>
+                        <Icon name="key" />
+                        {t("people.handOver")}
+                      </button>
+                    ) : null}
                     {p.twoFactor && p.id !== me.id ? (
                       <button type="button" class="copy inline" title={t("people.resetTwoFactorHint")} onClick={() => setResetting(p.id)}>
                         <Icon name="reset" />
@@ -405,17 +439,18 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
                     {p.id === me.id && demoting ? (
                       <span class="confirm-demote">
                         <span class="settings-text">{t("people.demoteSelf")}</span>
-                        <button type="button" class="copy inline armed" onClick={() => void change(p.id, "viewer")}>
-                          {t("people.demoteConfirm")}
+                        <button type="button" class="copy inline armed" onClick={() => void change(p.id, demoting)}>
+                          {t("people.demoteConfirm", { role: roleName(demoting) })}
                         </button>
-                        <button type="button" class="copy inline" onClick={() => setDemoting(false)}>
+                        <button type="button" class="copy inline" onClick={() => setDemoting(null)}>
                           {t("common.cancel")}
                         </button>
                       </span>
                     ) : (
                       <select class="value people-role" value={p.role} aria-label={t("people.role")} onChange={(e) => void change(p.id, (e.target as HTMLSelectElement).value as Person["role"])}>
-                        <option value="owner">{t("people.owner")}</option>
-                        <option value="viewer">{t("people.viewer")}</option>
+                        {ROLES.map((r) => (
+                          <option value={r}>{roleName(r)}</option>
+                        ))}
                       </select>
                     )}
                     {p.id === me.id ? null : (
@@ -441,7 +476,7 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
                   {i.email}
                   <span class="people-you">{t("people.invited")}</span>
                 </span>
-                <span class="share-meta">{t("people.invitedMeta", { role: t(i.role === "owner" ? "people.owner" : "people.viewer"), date: dateOf(i.expiresAt) })}</span>
+                <span class="share-meta">{t("people.invitedMeta", { role: roleName(i.role), date: dateOf(i.expiresAt) })}</span>
               </div>
               <div class="domain-actions">
                 <button
@@ -470,8 +505,9 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
       <form class="domain-add token-add" onSubmit={add}>
         <input class="value" type="email" required placeholder={t("people.emailPlaceholder")} value={email} onInput={(e) => setEmail((e.target as HTMLInputElement).value)} />
         <select class="value" value={role} aria-label={t("people.role")} onChange={(e) => setRole((e.target as HTMLSelectElement).value as Person["role"])}>
-          <option value="viewer">{t("people.viewer")}</option>
-          <option value="owner">{t("people.owner")}</option>
+          {ROLES.map((r) => (
+            <option value={r}>{roleName(r)}</option>
+          ))}
         </select>
         <button type="submit" class="solid" disabled={sending}>
           <Icon name="send" />

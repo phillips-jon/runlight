@@ -116,7 +116,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved: (site: Site) => void; onLanguage: (code: string) => void; onDeleted: (id: string) => void }) {
+function General({ site, admin, onSaved, onLanguage, onDeleted }: { site: Site; admin: boolean; onSaved: (site: Site) => void; onLanguage: (code: string) => void; onDeleted: (id: string) => void }) {
   const [name, setName] = useState(site.name);
   const [hostnames, setHostnames] = useState(site.hostnames.join(", "));
   const [timezone, setTimezone] = useState(site.timezone);
@@ -203,7 +203,7 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
           <span class="field-hint">{t("settings.languageHint")}</span>
         </div>
       </div>
-      {install.managed ? (
+      {install.managed && admin ? (
         <div class="settings-group">
           <div class="field-row">
             <span class="field-label">{t(site.remote ? "sites.disconnect" : "sites.delete")}</span>
@@ -715,21 +715,24 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   onSaved: (site: Site) => void;
   onLanguage: (code: string) => void;
   onDeleted: (id: string) => void;
-  /** The owner made themselves a viewer in People. */
-  onDemoted: () => void;
-  /** Who is signed in, on the standalone server; owners also manage People there. */
+  /** You changed your own role in People, to this one. */
+  onDemoted: (role: Person["role"]) => void;
+  /** Who is signed in, on the standalone server; the owner and admins also manage People there. */
   me?: Person | null;
 }) {
+  // Without accounts (an app's own install) whoever signs in has full access. A member changes everything but
+  // people, the mail service, the assistant's settings, and deleting a site.
+  const admin = accounts ? me?.role === "owner" || me?.role === "admin" : true;
   // A connected site is managed on its own install; here it has a name, a timezone, and a way to disconnect.
   // A connected site is counted on its own install. With a manage token its site settings change here and are saved there;
   // install-wide things (people, tokens, imports, sharing) stay with that install.
-  const sections: Array<[Section, Key]> = site.remote
+  // People are this server's, whichever site is open, so they show for a connected site too.
+  const own: Array<[Section, Key]> = site.remote
     ? site.manage
       ? SECTIONS.filter(([id]) => ["general", "goals", "funnels", "email", "sharing", "links", "data", "assistant"].includes(id))
       : [["general", "settings.general"], ["assistant", "settings.assistant"]]
-    : me?.role === "owner"
-      ? [...SECTIONS, ["people", "settings.people"]]
-      : SECTIONS;
+    : SECTIONS;
+  const sections: Array<[Section, Key]> = me && admin ? [...own, ["people", "settings.people"]] : own;
   // A section this site does not have (a link from elsewhere, say) opens General instead.
   const [section, setSection] = useState<Section>(start && sections.some(([id]) => id === start) ? start : "general");
   const panel = useRef<HTMLDivElement>(null);
@@ -768,7 +771,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
           </header>
           <div class="settings-content">
             {section === "general" ? (
-              <General site={site} onSaved={onSaved} onLanguage={onLanguage} onDeleted={onDeleted} />
+              <General site={site} admin={admin} onSaved={onSaved} onLanguage={onLanguage} onDeleted={onDeleted} />
             ) : section === "install" ? (
               <Install site={site} sites={sites} />
             ) : section === "goals" ? (
@@ -776,7 +779,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
             ) : section === "funnels" ? (
               <Funnels site={site} view={view} />
             ) : section === "email" ? (
-              <EmailReports site={site} />
+              <EmailReports site={site} admin={admin} />
             ) : section === "sharing" ? (
               <Sharing site={site} />
             ) : section === "people" && me ? (
@@ -788,7 +791,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
             ) : section === "data" ? (
               <Data site={site} onSaved={onSaved} />
             ) : section === "assistant" ? (
-              <AssistantSettings owner={accounts ? me?.role === "owner" : true} />
+              <AssistantSettings owner={admin} />
             ) : (
               <Import site={site} />
             )}

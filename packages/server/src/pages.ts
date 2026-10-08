@@ -144,12 +144,19 @@ ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
   );
 }
 
+/** What someone invited with a role can do, after "as". */
+export function roleText(role: string): string {
+  if (role === "viewer") return "a viewer, who can read every site's stats";
+  if (role === "member") return "a member, who can change the settings of every site";
+  return "an admin, who can change everything and manage people";
+}
+
 /** Where an invited person chooses a password and joins. */
-export function invitePage(opts: { code: string; email: string; role: "owner" | "viewer"; host: string; error?: string }): string {
+export function invitePage(opts: { code: string; email: string; role: string; host: string; error?: string }): string {
   return page(
     "Join Runlight",
     `<h1>Join Runlight</h1>
-<p>You were invited to ${esc(opts.host)} as ${opts.role === "owner" ? "an owner, who can change settings and manage people" : "a viewer, who can read every site's stats"}. Choose a password to finish.</p>
+<p>You were invited to ${esc(opts.host)} as ${roleText(opts.role)}. Choose a password to finish.</p>
 ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
 <form method="post" action="/invite">
 <input type="hidden" name="code" value="${esc(opts.code)}">

@@ -37,11 +37,20 @@ docker logs runlight
 
 The link starts with `http://localhost:3000`. When the server runs somewhere else, keep everything from `/setup` on and put the server’s own address in front, such as `https://stats.example.com/setup?code=...`. Each start makes a new code, so after a restart use the link from the newest log lines.
 
-Owners invite people in **Settings**, **People**, as an owner or a viewer. An owner can change everything, and a viewer can read every site’s stats without changing anything. The invite goes out by email when the server has a mail service (set in **Settings**, **Email reports**), and the dashboard always shows the link too, so you can send it another way. The person opens it, chooses a password, and is signed in. A link works once, for seven days, and **Send again** makes a new one. Everyone can change their password later under **Account** at the bottom of the dashboard. The server always keeps at least one owner. Removing someone, or making them a viewer, also deletes the API tokens they made and the apps they connected, such as Claude or a hub. Tokens made with `RUNLIGHT_TOKEN`, or before this version, have no maker on record, so after removing someone, check **Settings**, **API and AI** for those.
+The person who sets up the server is its owner. The owner and admins invite people in **Settings**, **People**, as an admin, a member, or a viewer.
+
+| Role | What they can do |
+| --- | --- |
+| Owner | Everything. Nobody else can change the owner’s role or remove them. |
+| Admin | Everything the owner can, including managing people, apart from changing or removing the owner. |
+| Member | Change the settings of every site, such as goals, funnels, short links, link domains, share links, email reports, and imports, and make API tokens. Members cannot manage people, set up the mail service or the assistant, or delete a site. |
+| Viewer | Read every site’s stats without changing anything. |
+
+The owner can hand ownership to an admin with **Make owner** in **Settings**, **People**, after entering their password, and becomes an admin. The invite goes out by email when the server has a mail service (set in **Settings**, **Email reports**), and the dashboard always shows the link too, so you can send it another way. The person opens it, chooses a password, and is signed in. A link works once, for seven days, and **Send again** makes a new one. Everyone can change their password later under **Account** at the bottom of the dashboard. A server from before these roles keeps its first owner as the owner, and any other owners become admins. Removing someone, or making them a viewer, also deletes the API tokens they made and the apps they connected, such as Claude or a hub. Tokens made with `RUNLIGHT_TOKEN`, or before this version, have no maker on record, so after removing someone, check **Settings**, **API and AI** for those.
 
 ### Two-factor sign-in
 
-Anyone can turn on two-factor sign-in under **Account** at the bottom of the dashboard. Confirm your password, scan the QR code with an authenticator app such as 1Password, Google Authenticator, or Authy, and enter the code it shows. Signing in then asks for a fresh code after the password. You also get ten recovery codes, shown once, and each signs you in once if your phone is gone. An owner can reset someone else’s two-factor in **Settings**, **People**, after entering their own password. Turning two-factor on or off signs you out of every other browser, and the one you are using stays signed in.
+Anyone can turn on two-factor sign-in under **Account** at the bottom of the dashboard. Confirm your password, scan the QR code with an authenticator app such as 1Password, Google Authenticator, or Authy, and enter the code it shows. Signing in then asks for a fresh code after the password. You also get ten recovery codes, shown once, and each signs you in once if your phone is gone. The owner or an admin can reset someone else’s two-factor in **Settings**, **People**, after entering their own password, though only the owner can change the owner’s. Turning two-factor on or off signs you out of every other browser, and the one you are using stays signed in.
 
 ### Sign-in limits
 
@@ -49,7 +58,7 @@ One address gets ten wrong passwords for an account every fifteen minutes, and t
 
 ### Forgotten passwords
 
-If an owner is locked out, run the `password` command on the server to give the account a new password, which it prints. It also turns off two-factor sign-in for that account, since someone at the server is who they say. The same command makes a new owner account.
+If someone is locked out, run the `password` command on the server to give the account a new password, which it prints. It also turns off two-factor sign-in for that account, since someone at the server is who they say. The same command makes a new account, which is the owner on a server with nobody yet and an admin otherwise.
 
 ```bash
 npx runlight.sh password someone@example.com
@@ -105,7 +114,7 @@ stats.example.com, go.example.com {
 }
 ```
 
-Every link also answers at `/go/your-slug` on the server’s own domain. The server’s own pages, such as `/login` and everything under `/api`, answer as the server on a link domain too, so a link with one of those slugs works only at `/go/`. A link domain can never be the server’s public address or a name an owner has signed in from, and if one was added that way before, signing in at `/login` still opens the dashboard so you can remove it. The server remembers the first 20 names owners sign in from, so set `RUNLIGHT_URL` if it answers on more.
+Every link also answers at `/go/your-slug` on the server’s own domain. The server’s own pages, such as `/login` and everything under `/api`, answer as the server on a link domain too, so a link with one of those slugs works only at `/go/`. A link domain can never be the server’s public address or a name the owner or an admin has signed in from, and if one was added that way before, signing in at `/login` still opens the dashboard so you can remove it. The server remembers the first 20 names they sign in from, so set `RUNLIGHT_URL` if it answers on more.
 
 ## Locations
 

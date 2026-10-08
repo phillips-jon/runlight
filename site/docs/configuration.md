@@ -119,7 +119,7 @@ The address is dropped after the lookup, so only the place is kept.
 | --- | --- | --- |
 | `basePath` | `"/runlight"` | Where the routes are mounted, with the script at `{basePath}/s.js`. |
 | `token` | `RUNLIGHT_TOKEN` | Protects the dashboard and API. Send it as `Authorization: Bearer <token>`, or open the dashboard once with `?token=` to get a cookie. `null` leaves everything open, for example behind your own auth. |
-| `authorize` | | Your own check, used in place of a token. Return `true` for full access, `"read"` for someone who may only read, or `false`, from a function or a promise. |
+| `authorize` | | Your own check, used in place of a token. Return `true` for full access, `"member"` for someone who can change everything apart from the mail service, the assistant’s settings, and deleting a site, `"read"` for someone who may only read, or `false`, from a function or a promise. |
 | `cronSecret` | `CRON_SECRET` | A second secret the [scheduled check](/docs/cron/) accepts besides the token. |
 | `origin` | | Your app’s public address, such as `https://example.com`. A [link domain](/docs/links/#custom-domains) can never be its host, and links in email reports point to it, whatever Host header a request names. Without it, the request’s own host stands in, and a connected hub cannot add link domains or email reports. |
 | `ownHosts` | | A function that returns more names your app answers on, such as `["app.example.com"]`, which can never become link domains either. |

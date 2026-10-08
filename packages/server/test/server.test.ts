@@ -159,7 +159,7 @@ test("a link domain never takes over the dashboard's own name, sign-in, or API",
   assert.equal((await named.handler(req("/"))).status, 403, "the dashboard, waiting for setup");
 });
 
-test("only owners teach the server its names, and a hub adds no link domain until the server knows its address", async () => {
+test("only the owner and admins teach the server its names, and a hub adds no link domain until the server knows its address", async () => {
   const { server, handle } = make();
   const owner = await server.accounts.setPassword("jon@example.com", "a long password", Date.now());
   const viewer = await server.accounts.setPassword("viewer@example.com", "another long one", Date.now(), "viewer");
@@ -181,7 +181,7 @@ test("only owners teach the server its names, and a hub adds no link domain unti
   assert.equal(((await add.json()) as any).code, "origin_needed");
 });
 
-test("owners add people as owners or viewers; viewers read every site and change nothing", async () => {
+test("the owner adds people by invite; viewers read every site and change nothing", async () => {
   const { server, handle } = make();
   await server.accounts.setPassword("owner@example.com", "a long password", Date.now());
   const signIn = async (email: string, password: string) => cookieOf(await handle(req("/login", form({ email, password }))));
@@ -219,7 +219,7 @@ test("owners add people as owners or viewers; viewers read every site and change
   assert.equal(person.role, "viewer");
 
   // Sending again replaces the link; cancelling ends it.
-  const second = ((await (await json(owner, "POST", "/api/people", { email: "later@example.com", role: "owner" })).json()) as any);
+  const second = ((await (await json(owner, "POST", "/api/people", { email: "later@example.com", role: "admin" })).json()) as any);
   const resent = ((await (await json(owner, "POST", `/api/invites/${second.invite.id}/resend`)).json()) as any);
   assert.notEqual(resent.link, second.link);
   assert.equal((await handle(req(new URL(second.link).pathname + new URL(second.link).search))).status, 410, "the old link stopped working");
@@ -251,12 +251,13 @@ test("owners add people as owners or viewers; viewers read every site and change
   assert.equal((await json(fresh, "GET", "/api/account")).status, 200);
   assert.equal((await json(viewer, "GET", "/api/account")).status, 401, "the old sign-in ends");
 
-  // Roles change, and the last owner stays an owner.
+  // Roles change, apart from the owner's, which nobody changes or removes here.
   const ownerId = ((await (await json(owner, "GET", "/api/account")).json()) as any).account.id;
-  assert.equal((await json(owner, "PATCH", `/api/people/${ownerId}`, { role: "viewer" })).status, 400);
-  assert.equal((await json(owner, "DELETE", `/api/people/${ownerId}`)).status, 400);
-  assert.equal(((await (await json(owner, "PATCH", `/api/people/${person.id}`, { role: "owner" })).json()) as any).person.role, "owner");
-  assert.equal((await json(fresh, "POST", "/api/sites", { hostnames: "now.example.com" })).status, 201, "the promoted owner can change things");
+  assert.equal((await json(owner, "PATCH", `/api/people/${ownerId}`, { role: "viewer" })).status, 403);
+  assert.equal((await json(owner, "DELETE", `/api/people/${ownerId}`)).status, 400, "nobody removes themselves");
+  assert.equal((await json(owner, "PATCH", `/api/people/${person.id}`, { role: "owner" })).status, 400, "ownership is handed over, never given");
+  assert.equal(((await (await json(owner, "PATCH", `/api/people/${person.id}`, { role: "admin" })).json()) as any).person.role, "admin");
+  assert.equal((await json(fresh, "POST", "/api/sites", { hostnames: "now.example.com" })).status, 201, "the promoted admin can change things");
   assert.equal((await json(owner, "DELETE", `/api/people/${person.id}`)).status, 200);
   assert.equal((await json(fresh, "GET", "/api/account")).status, 401, "a removed person is signed out");
 });
@@ -265,7 +266,7 @@ test("removing someone deletes the tokens they made and the apps they connected"
   const { server, handle } = make();
   await server.accounts.setPassword("jon@example.com", "a long password", Date.now());
   const amy = await server.accounts.setPassword("amy@example.com", "a long password", Date.now());
-  await server.accounts.setRole(amy.id, "owner");
+  await server.accounts.setRole(amy.id, "admin");
   const signIn = async (email: string) => cookieOf(await handle(req("/login", form({ email, password: "a long password" }))));
   const jon = await signIn("jon@example.com");
   const her = await signIn("amy@example.com");
@@ -289,7 +290,7 @@ test("removing someone deletes the tokens they made and the apps they connected"
   assert.deepEqual([await works(mine), await works(hers), await works(app)], [200, 401, 401], "only Jon's own token is left");
 });
 
-test("an app's token belongs to whoever allowed it, however the swap is sent, and goes when they stop being an owner", async () => {
+test("an app's token belongs to whoever allowed it, however the swap is sent, and goes when they become a viewer or leave", async () => {
   const { server, handle } = make();
   await server.accounts.setPassword("jon@example.com", "a long password", Date.now());
   const bob = await server.accounts.setPassword("bob@example.com", "a long password", Date.now());
@@ -314,8 +315,8 @@ test("an app's token belongs to whoever allowed it, however the swap is sent, an
   assert.equal((await handle(req(`/api/people/${bob.id}`, { method: "PATCH", headers: { cookie: jon, "content-type": "application/json" }, body: JSON.stringify({ role: "viewer" }) }))).status, 200);
   assert.equal(await works(odd), 401);
 
-  // A code he allowed as an owner and the app swaps after he is removed gets nothing.
-  await server.accounts.setRole(bob.id, "owner");
+  // A code he allowed as an admin and the app swaps after he is removed gets nothing.
+  await server.accounts.setRole(bob.id, "admin");
   const late = await allow();
   assert.equal((await handle(req(`/api/people/${bob.id}`, { method: "DELETE", headers: { cookie: jon } }))).status, 200);
   const refused = await swap(late, "application/x-www-form-urlencoded");
@@ -349,4 +350,57 @@ test("an invite goes out by email when the server has a mail service", async () 
   } finally {
     hook.close();
   }
+});
+
+test("one owner, admins who manage everyone else, members kept from the install-wide controls, and handing over", async () => {
+  const store = sqlite({ path: ":memory:" });
+  const server = createServer({ store, secret: "s".repeat(64), now: () => Date.UTC(2026, 9, 8, 12) });
+  const handle = server.handler;
+  const owner = await server.accounts.setPassword("owner@example.com", "a long password", Date.now());
+  assert.equal(owner.role, "owner", "the first account is the owner");
+  const ada = await server.accounts.setPassword("ada@example.com", "a long password", Date.now());
+  assert.equal(ada.role, "admin", "a later one is an admin unless a role is given, since there is one owner");
+  const mo = await server.accounts.setPassword("mo@example.com", "a long password", Date.now(), "member");
+  const signIn = async (email: string, password = "a long password") => cookieOf(await handle(req("/login", form({ email, password }))));
+  const as = async (cookie: string, method: string, path: string, body?: unknown) =>
+    handle(req(path, { method, headers: { cookie, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
+  const [o, a, m] = [await signIn("owner@example.com"), await signIn("ada@example.com"), await signIn("mo@example.com")];
+
+  // A member changes a site's settings like anyone else.
+  assert.equal((await as(m, "POST", "/api/sites", { hostnames: "blog.example.com" })).status, 201);
+  assert.equal((await as(m, "POST", "/api/goals?site=blog.example.com", { name: "Signup", kind: "page", match: "/thanks" })).status, 201);
+  assert.equal((await as(m, "POST", "/api/tokens", { name: "Script" })).status, 201);
+  // Not people, the mail service, the assistant's settings, or deleting a site.
+  assert.equal((await as(m, "GET", "/api/people")).status, 403);
+  assert.equal((await as(m, "POST", "/api/people", { email: "x@example.com", role: "viewer" })).status, 403);
+  for (const [method, path] of [["PUT", "/api/mail"], ["DELETE", "/api/mail"], ["PUT", "/api/assistant"], ["DELETE", "/api/assistant"], ["PUT", "/api/assistant/limits"], ["POST", "/api/assistant/models"], ["DELETE", "/api/sites/blog.example.com"]] as const) {
+    const refused = await as(m, method, path, {});
+    assert.equal(refused.status, 403, `${method} ${path}`);
+    assert.equal(((await refused.json()) as any).code, "admin_only");
+  }
+  const assistant = ((await (await as(m, "GET", "/api/assistant")).json()) as any);
+  assert.equal(assistant.provider, undefined, "a member sees whether the assistant is set up, never its settings");
+
+  // An admin manages everyone but the owner, other admins included.
+  assert.equal((await as(a, "PATCH", `/api/people/${mo.id}`, { role: "viewer" })).status, 200);
+  assert.equal((await as(a, "PATCH", `/api/people/${owner.id}`, { role: "member" })).status, 403);
+  assert.equal((await as(a, "DELETE", `/api/people/${owner.id}`)).status, 403);
+  assert.equal((await as(a, "DELETE", `/api/people/${owner.id}/2fa`, { password: "a long password" })).status, 403);
+  assert.equal((await as(a, "POST", "/api/people", { email: "new@example.com", role: "owner" })).status, 400, "nobody is invited as the owner");
+  assert.equal((await as(a, "POST", "/api/people", { email: "new@example.com", role: "admin" })).status, 201);
+  assert.equal((await as(a, "POST", `/api/people/${ada.id}/owner`, { password: "a long password" })).status, 403, "only the owner hands over");
+  assert.equal((await as(a, "DELETE", "/api/sites/blog.example.com")).status, 200, "an admin can delete a site");
+
+  // The owner hands over to an admin, with their password, and becomes an admin.
+  assert.equal((await as(o, "POST", `/api/people/${mo.id}/owner`, { password: "a long password" })).status, 400, "only to an admin");
+  assert.equal((await as(o, "POST", `/api/people/${ada.id}/owner`, { password: "wrong one" })).status, 400);
+  const handed = ((await (await as(o, "POST", `/api/people/${ada.id}/owner`, { password: "a long password" })).json()) as any).people;
+  assert.deepEqual(handed.map((p: any) => [p.email, p.role]).sort(), [["ada@example.com", "owner"], ["mo@example.com", "viewer"], ["owner@example.com", "admin"]]);
+  assert.equal((await as(o, "DELETE", `/api/people/${ada.id}`)).status, 403, "the new owner is protected from the old one");
+
+  // A server from before with several owners keeps the first, and the rest become admins.
+  await store.db.run(`UPDATE rl_users SET role = 'owner'`);
+  const again = createServer({ store, secret: "s".repeat(64) });
+  const roles = (await again.accounts.list()).map((u) => [u.email, u.role]);
+  assert.deepEqual(roles, [["owner@example.com", "owner"], ["ada@example.com", "admin"], ["mo@example.com", "admin"]]);
 });

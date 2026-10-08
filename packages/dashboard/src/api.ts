@@ -140,7 +140,7 @@ export interface Funnel {
 export interface PendingInvite {
   id: string;
   email: string;
-  role: "owner" | "viewer";
+  role: "owner" | "admin" | "member" | "viewer";
   invitedBy: string;
   createdAt: number;
   expiresAt: number;
@@ -160,7 +160,7 @@ export interface InviteSent {
 export interface Person {
   id: string;
   email: string;
-  role: "owner" | "viewer";
+  role: "owner" | "admin" | "member" | "viewer";
   createdAt: number;
   /** Whether sign-in asks for an authenticator code. */
   twoFactor?: boolean;
@@ -395,6 +395,7 @@ export const api = {
   addPerson: (email: string, role: Person["role"]) => send<InviteSent>("POST", "people", { email, role }),
   resendInvite: (id: string) => send<InviteSent>("POST", `invites/${id}/resend`, {}),
   cancelInvite: (id: string) => del(`invites/${id}`),
+  handOver: (id: string, password: string) => send<{ people: Person[] }>("POST", `people/${id}/owner`, { password }),
   setRole: (id: string, role: Person["role"]) => send<{ person: Person }>("PATCH", `people/${id}`, { role }),
   removePerson: (id: string) => del(`people/${id}`),
   eventProps: (view: View, event: string, key: string | null) => {

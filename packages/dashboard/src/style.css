@@ -3943,6 +3943,17 @@ button.live:hover {
   font-size: 13px;
 }
 
+/* The owner's role, which nobody picks: a plain label where the others have a dropdown. */
+.people-owner {
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
 .people-you {
   margin-left: 8px;
   padding: 1px 7px;

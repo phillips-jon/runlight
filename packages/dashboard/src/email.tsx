@@ -13,7 +13,7 @@ const fieldLabel = (name: string, fallback: string) => {
 };
 
 /** The install-wide mail service: shown, changed, tested. A connected site's is its own install's, shown here only. */
-function MailService({ onChange, site }: { onChange: (ready: boolean) => void; site: Site }) {
+function MailService({ onChange, site, admin }: { onChange: (ready: boolean) => void; site: Site; admin: boolean }) {
   const [state, setState] = useState<MailState | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -85,6 +85,8 @@ function MailService({ onChange, site }: { onChange: (ready: boolean) => void; s
       .finally(() => setBusy(false));
   };
 
+  // A member sees the mail service and can send a test, but setting it up is for the owner or an admin.
+  if (!admin && !state.source) return <p class="settings-note">{t("mail.adminOnly")}</p>;
   // Nothing set up yet shows the form straight away.
   if (editing || !state.source) {
     return (
@@ -170,7 +172,7 @@ function MailService({ onChange, site }: { onChange: (ready: boolean) => void; s
             <span class="share-name">{service?.name ?? state.service}</span>
             <span class="share-meta">{t(state.source === "code" ? "mail.fromCode" : "mail.fromLine", { from: state.fromName ? `${state.fromName} <${state.from}>` : state.from })}</span>
           </div>
-          {state.source === "dashboard" ? (
+          {state.source === "dashboard" && admin ? (
             <div class="domain-actions">
               <button type="button" class="copy inline" onClick={() => setEditing(true)}>
                 <Icon name="edit" />
@@ -205,7 +207,7 @@ function ago(ms: number | null): string {
 }
 
 /** Settings, Email reports: the mail service, then who gets this site's reports. */
-export function EmailReports({ site }: { site: Site }) {
+export function EmailReports({ site, admin }: { site: Site; admin: boolean }) {
   const [ready, setReady] = useState(false);
   const [reports, setReports] = useState<Report[] | null>(null);
   const [email, setEmail] = useState("");
@@ -253,7 +255,7 @@ export function EmailReports({ site }: { site: Site }) {
           <span class="field-label">{t("mail.title")}</span>
           <span class="settings-text">{site.remote ? t("mail.introRemote", { host: new URL(site.remote).host }) : t("mail.intro")}</span>
         </div>
-        <MailService onChange={setReady} site={site} />
+        <MailService onChange={setReady} site={site} admin={admin} />
       </div>
       <div class="settings-group">
         <div class="field-row">

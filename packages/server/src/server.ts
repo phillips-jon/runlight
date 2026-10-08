@@ -6,7 +6,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { DOMAIN_NAME, LINK_DOMAIN_CHECK, coded, hostName, runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
 import { AccountError, Accounts, SESSION_COOKIE, SESSION_MS, Throttle, otpauthUri, type Invite, type Role, type User } from "./auth.js";
-import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
+import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, roleText, setupLockedPage, setupPage } from "./pages.js";
 
 export interface ServerOptions {
   store: SqlStore;
@@ -172,16 +172,18 @@ export function createServer(options: ServerOptions): RunlightServer {
       const auth = request.headers.get("authorization") ?? "";
       if (options.token && auth.toLowerCase().startsWith("bearer ") && equal(auth.slice(7).trim(), options.token)) return true;
       const user = await signedIn(request);
-      if (user?.role === "owner") await learnHost(request);
-      // A viewer reads every site and changes nothing.
-      return user ? (user.role === "viewer" ? "read" : true) : false;
+      const full = user?.role === "owner" || user?.role === "admin";
+      if (full) await learnHost(request);
+      // A member changes everything but the install-wide controls; a viewer reads every site and changes nothing.
+      return user ? (full ? true : user.role === "member" ? "member" : "read") : false;
     },
     ...(publicUrl ? { origin: publicUrl.origin } : {}),
     ownHosts: knownHosts,
     accountOf: async (request) => (await signedIn(request))?.id ?? null,
-    // Only an owner makes tokens; one removed or made a viewer since allowing an app gets none for it.
+    // A viewer makes no tokens; someone removed or made a viewer since allowing an app gets none for it.
     tokenMade: async (token, by) => {
-      if ((await accounts.byId(by))?.role !== "owner") return false;
+      const role = (await accounts.byId(by))?.role;
+      if (!role || role === "viewer") return false;
       await options.store.setSetting(`${MADE_BY}${token.id}`, by);
       return true;
     },
@@ -377,7 +379,7 @@ export function createServer(options: ServerOptions): RunlightServer {
     const home = publicUrl ?? new URL(request.url);
     const link = `${home.origin}/invite?code=${code}`;
     const host = home.host;
-    const what = invite.role === "owner" ? "an owner, who can change settings and manage people" : "a viewer, who can read every site's stats";
+    const what = roleText(invite.role);
     const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
     if (!(await rl.mailSettings())) return { link, emailed: false };
     try {
@@ -414,7 +416,7 @@ export function createServer(options: ServerOptions): RunlightServer {
     });
   }
 
-  /** Your own account, and for owners, everyone else's. */
+  /** Your own account, and for the owner and admins, everyone else's. */
   async function accountsApi(request: Request, path: string): Promise<Response> {
     const user = await signedIn(request);
     if (!user) return coded("Sign in first", "sign_in", 401);
@@ -476,9 +478,10 @@ export function createServer(options: ServerOptions): RunlightServer {
       }
       return coded("Not found", "not_found", 404);
     }
-    if (user.role !== "owner") return coded("Only an owner can manage people", "people_owner", 403);
-    // An owner can turn off someone else's two-factor, for a coworker who lost both phone and recovery codes.
-    // It asks for the owner's password like every other two-factor change, and their own goes through Account.
+    if (user.role !== "owner" && user.role !== "admin") return coded("Only the owner or an admin can manage people", "people_owner", 403);
+    // The owner or an admin can turn off someone else's two-factor, for a coworker who lost both phone and recovery
+    // codes, though never the owner's. It asks for their password like every other two-factor change, and their own
+    // goes through Account.
     const reset = /^\/api\/people\/([a-f0-9]{24})\/2fa$/.exec(path);
     if (reset && request.method === "DELETE") {
       if (reset[1] === user.id) return coded("Turn off your own two-factor sign-in under Account", "twofactor_self", 400);
@@ -487,11 +490,31 @@ export function createServer(options: ServerOptions): RunlightServer {
       if (!rechecks.take(user.id, now())) return coded("Too many tries. Wait fifteen minutes and try again.", "too_many_tries", 429);
       if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return coded("Your password is not right", "password_wrong", 400);
       rechecks.forgive(user.id);
-      if (!(await accounts.byId(reset[1]!))) return coded("Unknown account", "unknown_account", 404);
+      const target = await accounts.byId(reset[1]!);
+      if (!target) return coded("Unknown account", "unknown_account", 404);
+      if (target.role === "owner") return coded("Only the owner can change the owner's account", "owner_protected", 403);
       await accounts.disableTwoFactor(reset[1]!);
       return reply({ ok: true });
     }
-    const roleOf = (value: unknown): Role | null => (value === "owner" || value === "viewer" ? value : null);
+    // The owner hands ownership to an admin and becomes an admin, after typing their password again.
+    const handOver = /^\/api\/people\/([a-f0-9]{24})\/owner$/.exec(path);
+    if (handOver && request.method === "POST") {
+      if (user.role !== "owner") return coded("Only the owner can hand over ownership", "owner_hand_over", 403);
+      const input = await body(request);
+      if (!input) return coded("Send JSON", "send_json", 415);
+      if (!rechecks.take(user.id, now())) return coded("Too many tries. Wait fifteen minutes and try again.", "too_many_tries", 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return coded("Your password is not right", "password_wrong", 400);
+      rechecks.forgive(user.id);
+      try {
+        await accounts.handOver(user.id, handOver[1]!);
+        return reply({ people: (await accounts.list()).map(person) });
+      } catch (error) {
+        if (error instanceof AccountError) return coded(error.message, error.code, error.code === "unknown_account" ? 404 : 400, error.params);
+        throw error;
+      }
+    }
+    // Nobody is invited as, or made, the owner: there is one, and they hand it over themselves.
+    const roleOf = (value: unknown): Role | null => (value === "admin" || value === "member" || value === "viewer" ? value : null);
     if (path === "/api/people" && request.method === "GET") {
       return reply({ people: (await accounts.list()).map(person), invites: (await accounts.invites(now())).map(inviteView) });
     }
@@ -499,7 +522,7 @@ export function createServer(options: ServerOptions): RunlightServer {
       const input = await body(request);
       if (!input) return coded("Send JSON", "send_json", 415);
       const role = roleOf(input.role);
-      if (!role) return coded("Pick owner or viewer", "role_needed", 400);
+      if (!role) return coded("Pick admin, member, or viewer", "role_needed", 400);
       const email = String(input.email ?? "").trim().toLowerCase();
       if (await accounts.byEmail(email)) return coded(`${email} already has an account`, "account_exists", 409, { email });
       try {
@@ -534,13 +557,13 @@ export function createServer(options: ServerOptions): RunlightServer {
         const input = await body(request);
         if (!input) return coded("Send JSON", "send_json", 415);
         const role = roleOf(input.role);
-        if (!role) return coded("Pick owner or viewer", "role_needed", 400);
+        if (!role) return coded("Pick admin, member, or viewer", "role_needed", 400);
         const changed = await accounts.setRole(match[1]!, role);
-        // A viewer changes nothing, so the tokens they made as an owner go too.
+        // A viewer changes nothing, so the tokens they made before go too.
         if (role === "viewer") await dropTokensOf(match[1]!);
         return reply({ person: person(changed) });
       } catch (error) {
-        if (error instanceof AccountError) return coded(error.message, error.code, error.code === "unknown_account" ? 404 : 400, error.params);
+        if (error instanceof AccountError) return coded(error.message, error.code, error.code === "unknown_account" ? 404 : error.code === "owner_protected" ? 403 : 400, error.params);
         throw error;
       }
     }

@@ -141,7 +141,7 @@ async function main(): Promise<void> {
     const reset = user.twoFactor;
     if (reset) await server.accounts.disableTwoFactor(user.id);
     process.stdout.write(
-      `${existed ? "New password" : "Account made"} for ${email.trim().toLowerCase()}: ${password}\n${reset ? "Two-factor sign-in is now off for this account; turn it on again under Account.\n" : ""}Sign in, and change it by running this again whenever you like.\n`,
+      `${existed ? "New password" : `Account made, as ${user.role === "owner" ? "the owner" : "an admin"},`} for ${email.trim().toLowerCase()}: ${password}\n${reset ? "Two-factor sign-in is now off for this account; turn it on again under Account.\n" : ""}Sign in, and change it by running this again whenever you like.\n`,
     );
     await store.close();
     return;

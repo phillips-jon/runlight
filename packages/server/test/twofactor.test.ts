@@ -266,12 +266,13 @@ test("an account write must be JSON, so a form on another page cannot make one",
   assert.equal(forged.status, 415);
 });
 
-test("two owners demoting each other at once leave one owner, and a double-clicked invite makes one", async () => {
+test("handing ownership to two admins at once leaves one owner, and a double-clicked invite makes one", async () => {
   const now = Date.UTC(2026, 9, 7, 12);
   const server = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), now: () => now });
   const a = await server.accounts.setPassword("a@example.com", "a long password", now);
   const b = await server.accounts.setPassword("b@example.com", "a long password", now);
-  const results = await Promise.allSettled([server.accounts.setRole(a.id, "viewer"), server.accounts.setRole(b.id, "viewer")]);
+  const c = await server.accounts.setPassword("c@example.com", "a long password", now);
+  const results = await Promise.allSettled([server.accounts.handOver(a.id, b.id), server.accounts.handOver(a.id, c.id)]);
   assert.deepEqual(results.map((r) => r.status).sort(), ["fulfilled", "rejected"]);
   assert.equal((await server.accounts.list()).filter((u) => u.role === "owner").length, 1);
   const invites = await Promise.allSettled([server.accounts.invite("new@example.com", "viewer", "A", now), server.accounts.invite("new@example.com", "viewer", "A", now)]);
