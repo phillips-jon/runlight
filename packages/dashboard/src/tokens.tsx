@@ -79,6 +79,7 @@ export function Tokens({ sites }: { sites: Site[] }) {
                   {`rl_…${token.hint}`}
                   {" · "}
                   {token.site ? t("tokens.siteOnly", { site: siteName(token.site) }) : t("tokens.allSites")}
+                  {token.scope === "manage" ? ` · ${t("tokens.manages")}` : ""}
                   {" · "}
                   {t("links.createdOn", { date: dateOf(token.createdAt) })}
                   {" · "}

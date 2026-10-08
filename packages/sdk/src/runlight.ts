@@ -83,6 +83,8 @@ export interface Remote {
   token: string;
   site: string;
   hostnames: string[];
+  /** "manage" when the token may change the site's settings there; older connections read only. */
+  scope?: "read" | "manage";
 }
 
 export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
@@ -125,7 +127,7 @@ export class Runlight {
   readonly managedSites: boolean;
   /** Sites counted by another Runlight install, read through its API with a read-only token. */
   private readonly remotes = new Map<string, Remote>();
-  private readonly remoteSeen = new Map<string, { at: number; lastSeen: number | null }>();
+  private readonly remoteSeen = new Map<string, { at: number; lastSeen: number | null; retentionMonths: number | null }>();
   private overrides = new Map<string, SiteOverrides>();
   private readonly geo: GeoLookup | undefined;
   private readonly trustProxy: boolean;
@@ -312,20 +314,29 @@ export class Runlight {
 
   /** When a connected install's site last had a visit, asked at most once a minute. */
   async remoteLastSeen(id: string): Promise<number | null> {
+    return (await this.remoteInfo(id))?.lastSeen ?? null;
+  }
+
+  /** What a connected install says about its site: its last visit and how long it keeps visits. Asked at most once a minute. */
+  async remoteInfo(id: string): Promise<{ lastSeen: number | null; retentionMonths: number | null } | null> {
     const remote = this.remotes.get(id);
     if (!remote) return null;
     const cached = this.remoteSeen.get(id);
-    if (cached && this.now() - cached.at < 60_000) return cached.lastSeen;
-    let lastSeen: number | null = null;
+    if (cached && this.now() - cached.at < 60_000) return cached;
+    let info = { lastSeen: cached?.lastSeen ?? null, retentionMonths: cached?.retentionMonths ?? null };
     try {
       const answer = await fetch(`${remote.url}/api/sites`, { headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(8000) });
-      const body = (await answer.json().catch(() => null)) as { sites?: Array<{ id: string; lastSeen: number | null }> } | null;
-      lastSeen = body?.sites?.find((s) => s.id === remote.site)?.lastSeen ?? null;
-    } catch {
-      lastSeen = cached?.lastSeen ?? null;
-    }
-    this.remoteSeen.set(id, { at: this.now(), lastSeen });
-    return lastSeen;
+      const body = (await answer.json().catch(() => null)) as { sites?: Array<{ id: string; lastSeen: number | null; retentionMonths?: number | null }> } | null;
+      const there = body?.sites?.find((s) => s.id === remote.site);
+      if (there) info = { lastSeen: there.lastSeen ?? null, retentionMonths: there.retentionMonths ?? null };
+    } catch {}
+    this.remoteSeen.set(id, { at: this.now(), ...info });
+    return info;
+  }
+
+  /** Forgets what a connected install said, after a change made through it. */
+  forgetRemoteInfo(id: string): void {
+    this.remoteSeen.delete(id);
   }
 
   /**
@@ -347,14 +358,33 @@ export class Runlight {
     if (answer.status === 401 || answer.status === 403) throw new RangeError("That install refused the token");
     const body = (await answer.json().catch(() => null)) as { sites?: Array<{ id: string; name: string; timezone: string; hostnames: string[] }> } | null;
     if (!answer.ok || !body?.sites?.length) throw new RangeError(`${url} did not answer like a Runlight install`);
-    const there = body.sites.find((s) => s.id === input.site) ?? body.sites[0]!;
+    // What the token may do there; an install from before manage tokens has no /api/token and reads only.
+    let scope: "read" | "manage" = "read";
+    let tokenSite = "";
+    try {
+      const about = await fetch(`${url}/api/token`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
+      const info = about.ok ? ((await about.json().catch(() => null)) as { scope?: string; site?: string } | null) : null;
+      if (info?.scope === "manage") scope = "manage";
+      tokenSite = String(info?.site ?? "");
+    } catch {}
+    const there = body.sites.find((s) => s.id === (tokenSite || input.site)) ?? body.sites[0]!;
+    // Connecting the same site again (to allow changes, or with a new token) updates it in place.
+    for (const [existing, known] of this.remotes) {
+      if (known.url === url && known.site === there.id) {
+        const updated: Remote = { ...known, token, scope, hostnames: there.hostnames };
+        await this.store.setSetting(`remote:${existing}`, await seal(JSON.stringify(updated), this.secret));
+        this.remotes.set(existing, updated);
+        this.remoteSeen.delete(existing);
+        return this.site(existing)!;
+      }
+    }
     const host = (there.hostnames[0] ?? new URL(url).host).replace(/[^a-z0-9._-]/gi, "-").toLowerCase();
     let id = host.slice(0, 56);
     for (let n = 2; this.configured.some((site) => site.id === id); n++) id = `${host.slice(0, 56)}-${n}`;
     const name = String(input.name ?? "").trim().slice(0, 80) || there.name;
     // No hostnames: tracker hits never land on a site that is counted elsewhere.
     const site: SiteRow = { id, name, hostnames: [], timezone: isTimezone(there.timezone) ? there.timezone : "UTC" };
-    const remote: Remote = { url, token, site: there.id, hostnames: there.hostnames };
+    const remote: Remote = { url, token, site: there.id, hostnames: there.hostnames, scope };
     await this.store.upsertSite(site, this.now());
     await this.store.setSetting(`remote:${id}`, await seal(JSON.stringify(remote), this.secret));
     this.remotes.set(id, remote);

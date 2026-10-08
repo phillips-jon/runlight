@@ -13,6 +13,8 @@ curl https://example.com/runlight/api/stats?period=30d -H "Authorization: Bearer
 
 For scripts, make a read-only token in **Settings**, **API and AI**, and keep `RUNLIGHT_TOKEN` to yourself. A read-only token can read every report below and list short links. You can limit it to one site, and it stops working the moment you delete it. Endpoints that change something, along with the token, share, and mail endpoints, need `RUNLIGHT_TOKEN` itself (or your `authorize` check). The same tokens connect AI assistants, as [Ask your AI](/docs/mcp/) explains.
 
+A `manage` token belongs to a [standalone server](/docs/server/#connect-sites-that-count-themselves) that shows this site. It reads like a read-only token and can also change one site's goals, funnels, short links, link domains, and email reports, along with its name, timezone, and retention. It can never touch other sites, people, tokens, imports, sharing, or the mail service, and it cannot change where the site lives. The standalone server gets one through OAuth when you connect the site, so you rarely make one by hand.
+
 Requests that change something must send `content-type: application/json`.
 
 ## Reading reports
@@ -57,8 +59,9 @@ Every report takes the same query parameters.
 | `GET`, `POST /api/reports`, `DELETE /api/reports/:id`, `POST /api/reports/:id/send` | List, add, or remove report recipients, or send a sample. |
 | `GET` or `POST /api/check` | Runs the [scheduled check](/docs/cron/). |
 | `POST /api/observe` | Records a page served to an AI agent, sent as `{ "url", "userAgent" }`. It accepts the token or the observe key, and the CMS plugins call it. |
-| `GET /api/tokens` | Lists API tokens with each one's name, site, last four characters, and when it was last used. The tokens themselves are never returned. |
-| `POST /api/tokens` | Makes a read-only token from `{ "name", "site" }` and returns it once as `secret`. Leave `site` empty for every site. |
+| `GET /api/tokens` | Lists API tokens with each one's name, site, scope, last four characters, and when it was last used. The tokens themselves are never returned. |
+| `POST /api/tokens` | Makes a token from `{ "name", "site", "scope" }` and returns it once as `secret`. Leave `site` empty for every site. `scope` is `read` (the default) or `manage`, which needs a `site`. |
+| `GET /api/token` | Says what the token sent with it may do, as `{ "scope", "site" }`. A hub asks this before it offers to change anything. |
 | `DELETE /api/tokens/:id` | Deletes a token, which stops it working at once. |
 | `POST /mcp` | The MCP server for AI assistants, described in [Ask your AI](/docs/mcp/). |
 

@@ -22,12 +22,24 @@ export function AddSiteForm({ onAdded, onCancel }: { onAdded: (site: Site) => vo
   const [hostnames, setHostnames] = useState("");
   const [remoteUrl, setRemoteUrl] = useState("");
   const [token, setToken] = useState("");
+  // Connecting goes through the other install's consent page; a pasted token is the fallback.
+  const [withToken, setWithToken] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const submit = (e: Event) => {
     e.preventDefault();
     setBusy(true);
     setError("");
+    if (mode === "connect" && !withToken) {
+      api
+        .connect(remoteUrl.trim())
+        .then((r) => location.assign(r.authorize))
+        .catch((err: Error) => {
+          setError(err.message);
+          setBusy(false);
+        });
+      return;
+    }
     const input = mode === "here" ? { name: name.trim(), hostnames, timezone: localZone() } : { name: name.trim(), remote: { url: remoteUrl.trim(), token: token.trim() } };
     api
       .addSite(input)
@@ -59,18 +71,26 @@ export function AddSiteForm({ onAdded, onCancel }: { onAdded: (site: Site) => vo
             <span class="field-label">{t("sites.connectUrl")}</span>
             <input class="value" type="url" required placeholder="https://example.com/runlight" value={remoteUrl} onInput={(e) => setRemoteUrl((e.target as HTMLInputElement).value)} />
           </label>
-          <label class="field-row">
-            <span class="field-label">{t("sites.connectToken")}</span>
-            <input class="value" type="password" required autoComplete="off" placeholder="rl_..." value={token} onInput={(e) => setToken((e.target as HTMLInputElement).value)} />
-            <span class="field-hint">{t("sites.connectTokenHint")}</span>
-          </label>
+          {withToken ? (
+            <label class="field-row">
+              <span class="field-label">{t("sites.connectToken")}</span>
+              <input class="value" type="password" required autoComplete="off" placeholder="rl_..." value={token} onInput={(e) => setToken((e.target as HTMLInputElement).value)} />
+              <span class="field-hint">{t("sites.connectTokenHint")}</span>
+            </label>
+          ) : (
+            <button type="button" class="text-button" onClick={() => setWithToken(true)}>
+              {t("sites.useToken")}
+            </button>
+          )}
         </>
       )}
+      {mode === "connect" && !withToken ? null : (
       <label class="field-row">
         <span class="field-label">{t("sites.name")}</span>
         <input class="value" type="text" maxLength={80} placeholder={t("sites.namePlaceholder")} value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
         {mode === "here" ? <span class="field-hint">{t("sites.timezoneHint", { zone: localZone().replace(/_/g, " ") })}</span> : null}
       </label>
+      )}
       <div class="settings-actions">
         {error ? <span class="settings-error">{error}</span> : null}
         {onCancel ? (
@@ -78,7 +98,7 @@ export function AddSiteForm({ onAdded, onCancel }: { onAdded: (site: Site) => vo
             {t("common.cancel")}
           </button>
         ) : null}
-        <button type="submit" class="solid" disabled={busy || (mode === "here" ? !hostnames.trim() : !remoteUrl.trim() || !token.trim())}>
+        <button type="submit" class="solid" disabled={busy || (mode === "here" ? !hostnames.trim() : !remoteUrl.trim() || (withToken && !token.trim()))}>
           <Icon name="plus" />
           {t(mode === "here" ? "sites.add" : "sites.connect")}
         </button>

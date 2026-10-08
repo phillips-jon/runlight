@@ -183,9 +183,10 @@ function App() {
   const [stats, setStats] = useState<{ range: Range; compare?: { from: string; to: string }; stats: Stats; previous?: Stats } | null>(null);
   const [points, setPoints] = useState<Point[]>([]);
   const [previousPoints, setPreviousPoints] = useState<Point[] | undefined>(undefined);
-  const [failure, setFailure] = useState("");
+  // Coming back from connecting another Runlight: its settings open, or what went wrong shows.
+  const [failure, setFailure] = useState(() => new URLSearchParams(location.search).get("connect_error") ?? "");
   const [filtering, setFiltering] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState<Section | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState<Section | null>(() => (new URLSearchParams(location.search).get("settings") === "general" ? "general" : null));
   const [addingSite, setAddingSite] = useState(false);
   /** Who is signed in, on the standalone server. */
   const [me, setMe] = useState<Person | null>(null);
@@ -274,7 +275,8 @@ function App() {
   // A connected site is counted by its own install, so it never waits here for setup.
   const waiting = Boolean(site && site.lastSeen == null && !share && !site.remote);
   /** Counted by another install: its numbers show here and nothing about it can be changed. */
-  const elsewhere = Boolean(site?.remote);
+  // A connected site whose install only lets this server read it.
+  const elsewhere = Boolean(site?.remote && !site.manage);
   useEffect(() => {
     if (!waiting) return;
     const timer = setInterval(() => {

@@ -3880,3 +3880,21 @@ a.box-button {
 .table > .rows > li > .name {
   grid-column: name;
 }
+
+/* A quiet button that reads like a link, for a second way to do something. */
+.text-button {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.text-button:hover {
+  color: var(--ink);
+}

@@ -1,3 +1,4 @@
+import { finishConnect, startConnect } from "./connect.js";
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
@@ -110,24 +111,33 @@ function isJson(request: Request): boolean {
  * Answers a read for a site counted by another install by asking that install,
  * with its token and its own id for the site, and handing back what it says.
  */
-async function passThrough(remote: { url: string; token: string; site: string }, path: string, url: URL): Promise<Response> {
+async function passThrough(remote: { url: string; token: string; site: string }, path: string, url: URL, request?: Request): Promise<Response> {
   const target = new URL(`${remote.url}${path}`);
   url.searchParams.forEach((value, key) => target.searchParams.append(key, value));
   target.searchParams.set("site", remote.site);
+  // A change made from the hub goes on to the install with its JSON body; reads carry none.
+  const write = request && request.method !== "GET" && request.method !== "HEAD";
+  const headers: Record<string, string> = { authorization: `Bearer ${remote.token}` };
+  if (write && request.headers.get("content-type")) headers["content-type"] = request.headers.get("content-type")!;
   let answer: Response;
   try {
-    answer = await fetch(target, { headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(15_000) });
+    answer = await fetch(target, {
+      method: write ? request.method : "GET",
+      headers,
+      ...(write ? { body: await request.text() } : {}),
+      signal: AbortSignal.timeout(15_000),
+    });
   } catch {
     return json({ error: `Could not reach ${new URL(remote.url).host}` }, 502);
   }
-  const headers: Record<string, string> = { "cache-control": "private, no-store" };
+  const back: Record<string, string> = { "cache-control": "private, no-store" };
   for (const name of ["content-type", "content-disposition"]) {
     const value = answer.headers.get(name);
-    if (value) headers[name] = value;
+    if (value) back[name] = value;
   }
   // The install's own errors say what went wrong there; a refused token is this server's problem to report.
-  if (answer.status === 401) return json({ error: `${new URL(remote.url).host} refused the token. Connect it again with a new one.` }, 502);
-  return new Response(answer.body, { status: answer.status, headers });
+  if (answer.status === 401) return json({ error: `${new URL(remote.url).host} refused the token. Connect it again from the site's settings.` }, 502);
+  return new Response(answer.body, { status: answer.status, headers: back });
 }
 
 /** Rows of objects as CSV, with a column for every key the first row has. */
@@ -208,6 +218,20 @@ const SHARE_HEADER = "x-runlight-share";
 /** What a share can read: one site's reports, nothing that changes anything. */
 const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props", "/api/export", "/api/funnels"]);
 const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[a-f0-9]{24}$/.test(path);
+
+/**
+ * What a manage token, held by a Runlight hub, may read and change: one
+ * site's goals, funnels, short links, link domains, and email reports, and
+ * its name, timezone, and retention. Never people, tokens, the mail service,
+ * imports, or other sites.
+ */
+export function managePath(method: string, path: string): boolean {
+  if (/^\/api\/links\/import/.test(path)) return false;
+  if (/^\/api\/(links|link-domains|reports|goals|funnels)(\/|$)/.test(path)) return true;
+  if (path === "/api/mail") return method === "GET";
+  if (/^\/api\/sites\/[^/]+$/.test(path)) return method === "PATCH";
+  return false;
+}
 /** Where the tracker's click rules go; the script ships with this string in their place. */
 const RULES_PLACEHOLDER = '"__RUNLIGHT_RULES__"';
 const SHARE_ID = /^[a-f0-9]{32}$/;
@@ -222,7 +246,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const observeKey = options.observeKey ?? env("RUNLIGHT_OBSERVE_KEY");
   let warned = false;
 
+  // Requests from a manage token, already checked against its one site, act as the owner's.
+  const managed = new WeakSet<Request>();
+
   async function canRead(request: Request): Promise<boolean | "unconfigured"> {
+    if (managed.has(request)) return true;
     if (options.authorize) return (await options.authorize(request)) === true;
     if (token === null) return true;
     if (!token) {
@@ -261,7 +289,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (options.authorize) {
       const answer = await options.authorize(request);
       // A read-only sign-in reads like an API token for every site.
-      return answer === "read" ? { id: "", name: "", site: "", hash: "", hint: "", createdAt: 0, lastUsedAt: null } : answer === true;
+      return answer === "read" ? { id: "", name: "", site: "", scope: "read", hash: "", hint: "", createdAt: 0, lastUsedAt: null } : answer === true;
     }
     return canRead(request);
   }
@@ -688,7 +716,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
   async function tokensApi(request: Request, path: string): Promise<Response> {
     await runlight.init();
-    const view = (t: TokenRow) => ({ id: t.id, name: t.name, site: t.site, hint: t.hint, createdAt: t.createdAt, lastUsedAt: t.lastUsedAt });
+    const view = (t: TokenRow) => ({ id: t.id, name: t.name, site: t.site, scope: t.scope, hint: t.hint, createdAt: t.createdAt, lastUsedAt: t.lastUsedAt });
     if (path === "/api/tokens" && request.method === "GET") return json({ tokens: (await runlight.store.tokens()).map(view) });
     if (path === "/api/tokens" && request.method === "POST") {
       const body = await readJson(request);
@@ -697,8 +725,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (!name) return json({ error: "Name the token" }, 400);
       const site = String(body.site ?? "");
       if (site && !runlight.sites.some((s) => s.id === site)) return json({ error: "Unknown site" }, 404);
+      const scope = body.scope === "manage" ? "manage" : "read";
+      if (scope === "manage" && !site) return json({ error: "A token that changes settings is for one site. Pick the site." }, 400);
       const secret = `${TOKEN_PREFIX}${randomId(20)}`;
-      const row: TokenRow = { id: randomId(), name, site, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
+      const row: TokenRow = { id: randomId(), name, site, scope, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
       await runlight.store.insertToken(row);
       // The only time the token is ever shown.
       return json({ token: view(row), secret }, 201);
@@ -713,6 +743,59 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   async function api(request: Request, path: string, url: URL): Promise<Response> {
     if (path === "/api" && request.method === "GET") {
       return json({ name: "runlight", version: VERSION, api: API_VERSION, ...IMPLEMENTATION });
+    }
+
+    // A hub asks what its token may do before offering to change anything.
+    if (path === "/api/token" && request.method === "GET") {
+      const token = await apiToken(request);
+      if (!token) return denied(false);
+      return json({ scope: token.scope, site: token.site });
+    }
+
+    // Connecting another Runlight through its consent page, so nobody copies a token.
+    if (path === "/api/sites/connect" && request.method === "POST") {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      await runlight.init();
+      if (!runlight.managedSites) return json({ error: "Sites are set in code" }, 400);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      try {
+        return json({ authorize: await startConnect(runlight, body.url, `${url.origin}${base}/api/sites/connect/done`) });
+      } catch (error) {
+        if (error instanceof RangeError) return json({ error: error.message }, 400);
+        throw error;
+      }
+    }
+    if (path === "/api/sites/connect/done" && request.method === "GET") {
+      const home = base || "/";
+      const access = await canRead(request);
+      if (access !== true) return new Response(null, { status: 303, headers: { location: home, "cache-control": "no-store" } });
+      await runlight.init();
+      let to: string;
+      try {
+        const id = await finishConnect(runlight, url.searchParams);
+        to = `${home}?site=${encodeURIComponent(id)}&settings=general`;
+      } catch (error) {
+        if (!(error instanceof RangeError)) throw error;
+        to = `${home}?connect_error=${encodeURIComponent(error.message)}`;
+      }
+      return new Response(null, { status: 303, headers: { location: to, "cache-control": "no-store" } });
+    }
+
+    const token = bearer(request).startsWith(TOKEN_PREFIX) ? await apiToken(request) : null;
+    if (token?.scope === "manage" && managePath(request.method, path)) {
+      const asked = url.searchParams.get("site");
+      const siteMatch = /^\/api\/sites\/([^/]+)$/.exec(path);
+      if ((asked && asked !== token.site) || (siteMatch && decodeURIComponent(siteMatch[1]!) !== token.site)) return json({ error: "Unknown site" }, 404);
+      if (siteMatch && request.headers.get("content-type")?.includes("json")) {
+        // Where a site lives stays with its owner: a hub may rename it, never move it.
+        const body = (await request.clone().json().catch(() => null)) as Record<string, unknown> | null;
+        if (body && body.hostnames !== undefined) return json({ error: "A connected hub cannot change a site's domains" }, 403);
+      }
+      url = new URL(url);
+      url.searchParams.set("site", token.site);
+      managed.add(request);
     }
 
     // A page another site served to an AI agent, reported by a CMS plugin.
@@ -750,11 +833,18 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return json(await runlight.check());
     }
 
-    // A site counted by another install is read there; nothing about it can be changed from here.
+    // A site counted by another install is read there. Its settings change there too,
+    // through this server when the install gave a manage token, and only by an owner here.
     const asked = url.searchParams.get("site");
     const connected = asked ? runlight.remote(asked) : null;
+    if (connected && connected.scope === "manage" && managePath(request.method, path) && !(request.method === "GET" && sharedPath(path))) {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      if (request.method !== "GET") runlight.forgetRemoteInfo(asked!);
+      return passThrough(connected, path, url, request);
+    }
     if (connected && !(request.method === "GET" && (sharedPath(path) || path === "/api/links"))) {
-      return json({ error: "This site is counted by its own Runlight. Change it there." }, 400);
+      return json({ error: "This site is counted by its own Runlight. Connect it again from its settings to change it from here." }, 400);
     }
 
     // Visit history from Umami: list the account's websites, then import one a step at a time.
@@ -903,8 +993,21 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const body = await readJson(request);
       if (body instanceof Response) return body;
       try {
-        if (body.retentionMonths !== undefined) {
-          await runlight.setRetention(decodeURIComponent(siteMatch[1]!), body.retentionMonths === null ? null : Number(body.retentionMonths));
+        const id = decodeURIComponent(siteMatch[1]!);
+        const remote = runlight.remote(id);
+        if (body.retentionMonths !== undefined && remote) {
+          // How long a connected site keeps visits is the install's setting; this server only passes it on.
+          if (remote.scope !== "manage") return json({ error: "Connect this site again to change it from here" }, 400);
+          const answer = await passThrough(
+            remote,
+            `/api/sites/${encodeURIComponent(remote.site)}`,
+            new URL(url),
+            new Request(request.url, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ retentionMonths: body.retentionMonths }) }),
+          );
+          if (!answer.ok) return answer;
+          runlight.forgetRemoteInfo(id);
+        } else if (body.retentionMonths !== undefined) {
+          await runlight.setRetention(id, body.retentionMonths === null ? null : Number(body.retentionMonths));
         }
         const site = await runlight.updateSite(decodeURIComponent(siteMatch[1]!), {
           ...(body.name !== undefined ? { name: String(body.name) } : {}),
@@ -946,11 +1049,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         visible.map(async (site) => ({
           ...site,
           // A connected install's address, so the dashboard can say where the site is counted.
-          ...(runlight.remote(site.id) && !shared ? { remote: runlight.remote(site.id)!.url } : {}),
+          // Its domains as the install reported them, for the goal picker; tracker hits never match them here.
+          ...(runlight.remote(site.id) && !shared ? { remote: runlight.remote(site.id)!.url, manage: runlight.remote(site.id)!.scope === "manage", hostnames: runlight.remote(site.id)!.hostnames } : {}),
           // Hostnames say where the site lives; a share shows only its name.
           ...(shared ? { hostnames: [] } : {}),
           lastSeen: runlight.remote(site.id) ? await runlight.remoteLastSeen(site.id) : await runlight.store.lastSeen(site.id),
-          ...(shared || runlight.remote(site.id) ? {} : { retentionMonths: await runlight.retention(site.id) }),
+          ...(shared ? {} : { retentionMonths: runlight.remote(site.id) ? ((await runlight.remoteInfo(site.id))?.retentionMonths ?? null) : await runlight.retention(site.id) }),
         })),
       );
       // A share never learns how the install is run.

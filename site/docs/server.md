@@ -55,9 +55,13 @@ Add more sites from the menu beside the site's name. In **Settings**, **General*
 
 ## Connect sites that count themselves
 
-A site with Runlight inside its own app can join this server too, so every site is in one dashboard. On that app's install, make a token in **Settings**, **API and AI**. Then on this server choose **Add a site**, **Connect another Runlight**, and enter the app's Runlight address (such as `https://example.com/runlight`) with the token.
+A site with Runlight inside its own app can join this server too, so every site is in one dashboard. Choose **Add a site**, **Connect another Runlight**, and enter the app's Runlight address, such as `https://example.com/runlight`. Your browser opens that app's Runlight, where you sign in if you need to, pick the site, and choose **Allow**. You land back here with the site added.
 
-The site's numbers stay in the app's own database. This server reads them through the app's API each time you look, so they are always current, and it can never change anything there. Goals, links, and settings for that site are changed on the app's own dashboard. **All sites** in the site menu lines every site up side by side for the dates you pick.
+The site's numbers stay in the app's own database. This server reads them through the app's API each time you look, so they are always current. Its goals, funnels, short links, link domains, email reports, and how long it keeps visits can all be changed from here, and each change is saved in the app. People, tokens, imports, sharing, and the app's mail service stay with the app. **All sites** in the site menu lines every site up side by side for the dates you pick.
+
+The app keeps the permission as a token in its **Settings**, **API and AI**, limited to the one site. Deleting it there disconnects this server at once. A site connected with a read-only token before this existed shows **Allow changes** in its settings, which runs the same steps.
+
+If the app runs a Runlight older than this, connect it with a token instead. Make one in the app's **Settings**, **API and AI**, then choose **Use an API token instead** when you connect. A read token shows the site's numbers here, and its settings stay on the app.
 
 ## Put it on the internet
 

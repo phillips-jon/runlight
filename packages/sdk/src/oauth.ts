@@ -9,8 +9,10 @@
  * - /oauth/authorize asks the signed-in owner to allow the client, every site or one.
  * - POST /oauth/token swaps the one-time code, checked with PKCE, for a token.
  *
- * The token is an ordinary read-only API token, so it appears in Settings,
- * API and AI, beside the others, and deleting it there disconnects the app.
+ * The token is an ordinary API token, so it appears in Settings, API and AI,
+ * beside the others, and deleting it there disconnects the app. It reads
+ * stats, or with the "manage" scope (asked for by a Runlight hub) it also
+ * changes one site's settings.
  */
 import { randomId, sha256 } from "./hash.js";
 import type { Runlight } from "./runlight.js";
@@ -27,6 +29,7 @@ interface Code {
   redirect: string;
   challenge: string;
   site: string;
+  scope: "read" | "manage";
   expires: number;
 }
 
@@ -44,7 +47,7 @@ function json(body: unknown, status = 200): Response {
 const oauthError = (error: string, description: string, status = 400) => json({ error, error_description: description }, status);
 
 /** base64url of SHA-256, as PKCE's S256 method compares. */
-async function s256(verifier: string): Promise<string> {
+export async function s256(verifier: string): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
   let text = "";
   for (const b of digest) text += String.fromCharCode(b);
@@ -78,7 +81,7 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
   if (request.method === "OPTIONS" && (known.startsWith("/.well-known/oauth-") || path.startsWith("/oauth/"))) return new Response(null, { status: 204, headers: CORS });
 
   if (known.startsWith("/.well-known/oauth-protected-resource")) {
-    return json({ resource: `${issuer}/mcp`, authorization_servers: [issuer], scopes_supported: ["read"], bearer_methods_supported: ["header"] });
+    return json({ resource: `${issuer}/mcp`, authorization_servers: [issuer], scopes_supported: ["read", "manage"], bearer_methods_supported: ["header"] });
   }
   if (known.startsWith("/.well-known/oauth-authorization-server") || known.startsWith("/.well-known/openid-configuration")) {
     return json({
@@ -90,7 +93,7 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
       grant_types_supported: ["authorization_code"],
       code_challenge_methods_supported: ["S256"],
       token_endpoint_auth_methods_supported: ["none"],
-      scopes_supported: ["read"],
+      scopes_supported: ["read", "manage"],
     });
   }
 
@@ -126,6 +129,7 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
     if (form.get("response_type") !== "code") return back({ error: "unsupported_response_type" });
     const challenge = form.get("code_challenge") ?? "";
     if (form.get("code_challenge_method") !== "S256" || !/^[A-Za-z0-9_-]{43,128}$/.test(challenge)) return back({ error: "invalid_request", error_description: "PKCE with S256 is required" });
+    const manage = (form.get("scope") ?? "").split(/\s+/).includes("manage");
 
     if (!(await ctx.isOwner(request))) {
       const here = `${url.pathname}?${new URLSearchParams([...form.entries()].filter(([k]) => k !== "decision" && k !== "site")).toString()}`;
@@ -137,6 +141,20 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
       const hidden = ["response_type", "client_id", "redirect_uri", "code_challenge", "code_challenge_method", "state", "scope", "resource"]
         .map((k) => (form.get(k) !== null ? `<input type="hidden" name="${k}" value="${esc(form.get(k)!)}">` : ""))
         .join("");
+      if (manage) {
+        // Changing settings is for one site at a time, so there is no "every site" here.
+        const sites = runlight.sites.filter((s) => !runlight.remote(s.id));
+        const choices = sites.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+        return page(
+          `Connect ${esc(client.name)}`,
+          `<p><strong>${esc(client.name)}</strong> wants to show this site’s stats and change its settings, so you can manage it from there.</p>
+<p>It will be able to change goals, funnels, short links, link domains, and email reports for the site you pick. It cannot read other sites, add people, make tokens, or change how email is sent.</p>
+<form method="post" action="${esc(base)}/oauth/authorize">${hidden}
+<label>Site<select name="site">${choices}</select></label>
+<p class="note">Its token appears in Settings, API and AI, where deleting it disconnects ${esc(client.name)}.</p>
+<div class="buttons"><button type="submit" name="decision" value="deny" class="ghost">Deny</button><button type="submit" name="decision" value="allow">Allow</button></div></form>`,
+        );
+      }
       const options = runlight.sites.map((s) => `<option value="${esc(s.id)}">${esc(s.name)} only</option>`).join("");
       return page(
         `Connect ${esc(client.name)}`,
@@ -153,8 +171,9 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
     if (form.get("decision") !== "allow") return back({ error: "access_denied" });
     const site = form.get("site") ?? "";
     if (site && !runlight.site(site)) return back({ error: "invalid_request", error_description: "Unknown site" });
+    if (manage && (!site || runlight.remote(site))) return back({ error: "invalid_request", error_description: "Pick the site to manage" });
     const code = randomId(32);
-    const grant: Code = { client: clientId, redirect, challenge, site, expires: runlight.now() + CODE_MS };
+    const grant: Code = { client: clientId, redirect, challenge, site, scope: manage ? "manage" : "read", expires: runlight.now() + CODE_MS };
     await runlight.store.setSetting(`oauth-code:${await sha256(code)}`, JSON.stringify(grant));
     return back({ code });
   }
@@ -174,9 +193,11 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
     if ((await s256(form.get("code_verifier") ?? "")) !== grant.challenge) return oauthError("invalid_grant", "The code verifier does not match");
     const client = JSON.parse((await runlight.store.setting(`oauth-client:${grant.client}`)) ?? "{}") as Partial<Client>;
     const secret = `rl_${randomId(20)}`;
-    const row: TokenRow = { id: randomId(), name: `${client.name ?? "An app"} (OAuth)`.slice(0, 100), site: grant.site, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
+    const scope = grant.scope === "manage" ? "manage" : "read";
+    const row: TokenRow = { id: randomId(), name: `${client.name ?? "An app"} (OAuth)`.slice(0, 100), site: grant.site, scope, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
     await runlight.store.insertToken(row);
-    return json({ access_token: secret, token_type: "Bearer", scope: "read" });
+    // site is not part of OAuth, but a hub needs to know which site it was given.
+    return json({ access_token: secret, token_type: "Bearer", scope, ...(grant.site ? { site: grant.site } : {}) });
   }
 
   return null;

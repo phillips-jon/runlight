@@ -10,8 +10,8 @@ const fieldLabel = (name: string, fallback: string) => {
   return text === key ? fallback : text;
 };
 
-/** The install-wide mail service: shown, changed, tested. */
-function MailService({ onChange }: { onChange: (ready: boolean) => void }) {
+/** The install-wide mail service: shown, changed, tested. A connected site's is its own install's, shown here only. */
+function MailService({ onChange, site }: { onChange: (ready: boolean) => void; site: Site }) {
   const [state, setState] = useState<MailState | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -22,7 +22,7 @@ function MailService({ onChange }: { onChange: (ready: boolean) => void }) {
 
   const load = () =>
     api
-      .mail()
+      .mail(site.remote ? site.id : undefined)
       .then((m) => {
         setState(m);
         onChange(Boolean(m.source));
@@ -35,6 +35,20 @@ function MailService({ onChange }: { onChange: (ready: boolean) => void }) {
   if (!state) return error ? <p class="settings-error">{error}</p> : null;
 
   const service = state.services.find((x) => x.id === state.service);
+  if (site.remote) {
+    return state.source ? (
+      <ul class="domain-list">
+        <li>
+          <div class="domain-main">
+            <span class="share-name">{service?.name ?? state.service}</span>
+            <span class="share-meta">{t("mail.fromRemote", { from: state.fromName ? `${state.fromName} <${state.from}>` : state.from, host: new URL(site.remote).host })}</span>
+          </div>
+        </li>
+      </ul>
+    ) : (
+      <p class="settings-warning">{t("mail.noneRemote", { host: new URL(site.remote).host })}</p>
+    );
+  }
   const chosen = state.services.find((x) => x.id === form.service) ?? state.services[0]!;
 
   const save = (e: Event) => {
@@ -222,7 +236,7 @@ export function EmailReports({ site }: { site: Site }) {
           <span class="field-label">{t("mail.title")}</span>
           <span class="settings-text">{t("mail.intro")}</span>
         </div>
-        <MailService onChange={setReady} />
+        <MailService onChange={setReady} site={site} />
       </div>
       <div class="settings-group">
         <div class="field-row">

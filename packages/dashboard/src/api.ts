@@ -7,6 +7,8 @@ export interface Site {
   lastSeen?: number | null;
   /** The address of the Runlight install this site is counted by, when it is connected rather than counted here. */
   remote?: string;
+  /** True when the connected install lets this server change the site's settings. */
+  manage?: boolean;
   /** How many months of visits the site keeps; null keeps everything. */
   retentionMonths?: number | null;
 }
@@ -203,6 +205,8 @@ export interface ApiToken {
   name: string;
   /** "" for every site. */
   site: string;
+  /** "manage" also changes its site's settings, for a Runlight hub. */
+  scope?: "read" | "manage";
   hint: string;
   createdAt: number;
   lastUsedAt: number | null;
@@ -338,7 +342,9 @@ export const api = {
   createGoal: (site: string, input: GoalInput) => send<{ goal: Goal }>("POST", `goals${siteQuery(site)}`, input),
   updateGoal: (site: string, id: string, input: GoalInput) => send<{ goal: Goal }>("PATCH", `goals/${id}${siteQuery(site)}`, input),
   deleteGoal: (site: string, id: string) => del(`goals/${id}${siteQuery(site)}`),
-  mail: () => get<MailState>("mail", new URLSearchParams()),
+  // A connected site's reports go out through its own install's mail service.
+  mail: (site?: string) => get<MailState>("mail", new URLSearchParams(site ? { site } : {})),
+  connect: (url: string) => send<{ authorize: string }>("POST", "sites/connect", { url }),
   saveMail: (input: Record<string, string>) => send<{ ok: true }>("PUT", "mail", input),
   removeMail: () => del("mail"),
   testMail: (to: string, lang: string) => send<{ ok: true }>("POST", "mail/test", { to, lang }),

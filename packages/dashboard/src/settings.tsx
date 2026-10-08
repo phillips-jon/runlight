@@ -117,21 +117,7 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
 
   return (
     <>
-      {site.remote ? (
-        <div class="prompt-row">
-          <span class="callout-icon" aria-hidden="true">
-            <Icon name="external" />
-          </span>
-          <span class="callout-text settings-text">
-            <strong>{t("sites.remoteTitle")}</strong>
-            {t("sites.remoteNote", { url: site.remote })}
-          </span>
-          <a class="box-button" href={site.remote} target="_blank" rel="noopener">
-            <Icon name="external" />
-            {t("sites.openRemote")}
-          </a>
-        </div>
-      ) : null}
+      {site.remote ? <RemoteCallout site={site} /> : null}
       <form class="settings-group" onSubmit={save}>
         <Field label={t("settings.siteName")}>
           <input class="value" type="text" maxLength={80} value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
@@ -278,6 +264,48 @@ function Data({ site, onSaved }: { site: Site; onSaved: (site: Site) => void }) 
           </div>
         </div>
       </div>
+    </>
+  );
+}
+
+/** Where a connected site is counted, and either that its settings change from here or a way to allow it. */
+function RemoteCallout({ site }: { site: Site }) {
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const allow = () => {
+    setError("");
+    setBusy(true);
+    api
+      .connect(site.remote!)
+      .then((r) => location.assign(r.authorize))
+      .catch((err: Error) => {
+        setError(err.message);
+        setBusy(false);
+      });
+  };
+  return (
+    <>
+      <div class="prompt-row">
+        <span class="callout-icon" aria-hidden="true">
+          <Icon name="external" />
+        </span>
+        <span class="callout-text settings-text">
+          <strong>{t("sites.remoteTitle")}</strong>
+          {t(site.manage ? "sites.remoteManaged" : "sites.remoteNote", { url: site.remote! })}
+        </span>
+        {site.manage ? (
+          <a class="box-button" href={site.remote} target="_blank" rel="noopener">
+            <Icon name="external" />
+            {t("sites.openRemote")}
+          </a>
+        ) : (
+          <button type="button" class="box-button solid" disabled={busy} onClick={allow}>
+            <Icon name="key" />
+            {t("sites.allowChanges")}
+          </button>
+        )}
+      </div>
+      {error ? <p class="settings-error">{error}</p> : null}
     </>
   );
 }
@@ -467,6 +495,10 @@ function DomainRow({ site, domain, onRemove }: { site: string; domain: string; o
 
 /** Custom domains for short links, such as t.example.com, with the steps to set one up. */
 function LinkDomains({ site }: { site: Site }) {
+  // A connected site's links are answered by its own install, so its domains point there.
+  const home = site.remote ? new URL(site.remote) : null;
+  const hostname = home ? home.hostname : location.hostname;
+  const host = home ? home.host : location.host;
   const [domains, setDomains] = useState<string[] | null>(null);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState("");
@@ -502,17 +534,17 @@ function LinkDomains({ site }: { site: Site }) {
         <Copy
           class="prompt-button"
           label={t("prompt.copy")}
-          text={domainPrompt({ domain: draft.trim() || domains?.[0] || "t.example.com", host: location.hostname, origin: location.origin, base, linkPath: "/go" })}
+          text={domainPrompt({ domain: draft.trim() || domains?.[0] || "t.example.com", host: hostname, origin: home ? home.origin : location.origin, base: home ? home.pathname.replace(/\/$/, "") : base, linkPath: "/go" })}
         />
       </div>
       <ol class="steps">
-        <li>{rich("links.step1", { host: <code>{location.hostname}</code> })}</li>
+        <li>{rich("links.step1", { host: <code>{hostname}</code> })}</li>
         <li>{t("links.step2")}</li>
         <li>{t("links.step3")}</li>
       </ol>
       <ul class="domain-list">
         <li>
-          <span class="domain-name">{t("links.ownDomain", { prefix: `${location.host}/go` })}</span>
+          <span class="domain-name">{t("links.ownDomain", { prefix: `${host}/go` })}</span>
         </li>
         {(domains ?? []).map((d) => (
           <DomainRow
@@ -527,7 +559,7 @@ function LinkDomains({ site }: { site: Site }) {
           />
         ))}
       </ul>
-      <p class="field-hint domain-note">{t("links.removeNote", { fallback: `${location.host}/go` })}</p>
+      <p class="field-hint domain-note">{t("links.removeNote", { fallback: `${host}/go` })}</p>
       <form class="domain-add" onSubmit={add}>
         <input class="value" type="text" placeholder={t("links.domainPlaceholder")} value={draft} onInput={(e) => setDraft((e.target as HTMLInputElement).value)} />
         <button type="submit" class="solid" disabled={!draft.trim()}>
@@ -553,7 +585,15 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   me?: Person | null;
 }) {
   // A connected site is managed on its own install; here it has a name, a timezone, and a way to disconnect.
-  const sections: Array<[Section, Key]> = site.remote ? [["general", "settings.general"]] : me?.role === "owner" ? [...SECTIONS, ["people", "settings.people"]] : SECTIONS;
+  // A connected site is counted on its own install. With a manage token its site settings change here and are saved there;
+  // install-wide things (people, tokens, imports, sharing) stay with that install.
+  const sections: Array<[Section, Key]> = site.remote
+    ? site.manage
+      ? SECTIONS.filter(([id]) => ["general", "goals", "email", "links", "data"].includes(id))
+      : [["general", "settings.general"]]
+    : me?.role === "owner"
+      ? [...SECTIONS, ["people", "settings.people"]]
+      : SECTIONS;
   const [section, setSection] = useState<Section>(start ?? "general");
   const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {

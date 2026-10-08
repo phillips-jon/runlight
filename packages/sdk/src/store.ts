@@ -153,6 +153,11 @@ export interface TokenRow {
   name: string;
   /** "" reads every site; otherwise the one site it may read. */
   site: string;
+  /**
+   * "read" reads stats. "manage" also changes its one site's settings (goals,
+   * funnels, links, link domains, and email reports), for a Runlight hub.
+   */
+  scope: "read" | "manage";
   hash: string;
   /** The token's last four characters, so people can tell theirs apart. */
   hint: string;
@@ -294,7 +299,7 @@ function visitsOnly(filters: Filter[]): boolean {
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
-const SCHEMA_VERSION = 9;
+const SCHEMA_VERSION = 10;
 
 function schema(dialect: Db["dialect"]): string[] {
   const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
@@ -356,7 +361,7 @@ function schema(dialect: Db["dialect"]): string[] {
     // Version 8: read-only API tokens, for scripts and AI assistants over MCP.
     `CREATE TABLE IF NOT EXISTS rl_tokens (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, site ${text}, hash TEXT NOT NULL, hint ${text},
-      created_at BIGINT NOT NULL, last_used_at BIGINT)`,
+      created_at BIGINT NOT NULL, last_used_at BIGINT, scope TEXT NOT NULL DEFAULT 'read')`,
     `CREATE UNIQUE INDEX IF NOT EXISTS rl_tokens_hash ON rl_tokens (hash)`,
     // Version 9: funnels.
     `CREATE TABLE IF NOT EXISTS rl_funnels (id TEXT PRIMARY KEY, site TEXT NOT NULL, name TEXT NOT NULL, steps TEXT NOT NULL, created_at BIGINT NOT NULL)`,
@@ -440,6 +445,8 @@ export class SqlStore {
       // Version 2: settings changed in the dashboard, kept apart from the ones in code.
       if (from < 2) await db.run(`ALTER TABLE rl_sites ADD COLUMN overrides TEXT NOT NULL DEFAULT '{}'`);
       if (from < 4) await db.run(`DROP INDEX IF EXISTS rl_links_slug`);
+      // Version 10: tokens that may change one site's settings, for a hub.
+      if (from >= 8 && from < 10) await db.run(`ALTER TABLE rl_tokens ADD COLUMN scope TEXT NOT NULL DEFAULT 'read'`);
       await db.run(
         `INSERT INTO rl_meta (key, value) VALUES ('schema', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
         [String(SCHEMA_VERSION)],
@@ -732,6 +739,7 @@ export class SqlStore {
       id: String(r.id),
       name: String(r.name),
       site: String(r.site ?? ""),
+      scope: r.scope === "manage" ? "manage" : "read",
       hash: String(r.hash),
       hint: String(r.hint ?? ""),
       createdAt: Number(r.created_at),
@@ -749,10 +757,11 @@ export class SqlStore {
   }
 
   async insertToken(t: TokenRow): Promise<void> {
-    await this.db.run(`INSERT INTO rl_tokens (id, name, site, hash, hint, created_at, last_used_at) VALUES (?, ?, ?, ?, ?, ?, ?)`, [
+    await this.db.run(`INSERT INTO rl_tokens (id, name, site, scope, hash, hint, created_at, last_used_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [
       t.id,
       t.name,
       t.site,
+      t.scope,
       t.hash,
       t.hint,
       t.createdAt,
