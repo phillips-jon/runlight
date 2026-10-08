@@ -6,7 +6,8 @@ import { rich, t, tn, type Key } from "./i18n.js";
 import { MapOverlay, WorldMap } from "./map.js";
 import { EventProps } from "./eventprops.js";
 import { JourneysSheet } from "./journeys.js";
-import { Icon } from "./icons.js";
+import { Empty } from "./empty.js";
+import { Icon, type IconName } from "./icons.js";
 import { useDialogFocus } from "./focus.js";
 
 export interface Tab {
@@ -330,6 +331,8 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
   }, [view, tab.dimension]);
 
   const all = rows ?? [];
+  // A box with nothing to list says what would be here, without headings or tools that need rows.
+  const empty = !error && rows !== null && all.length === 0;
   let mix: Array<{ name: string; n: number; slot: number }> = [];
   if (tab.colors) {
     mix = all.filter((r) => tab.colors![r.value] !== undefined).map((r) => ({ name: label(tab.dimension, r.value), n: Number(r[column] ?? 0), slot: tab.colors![r.value]! }));
@@ -361,14 +364,14 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
               ))}
             </nav>
           ) : null}
-          {title === "panel.pages" ? (
+          {title === "panel.pages" && !empty ? (
             <button type="button" class="tool" title={t("journeys.open")} aria-label={t("journeys.open")} onClick={() => setJourneys(true)}>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2 3.5h3.5c2.5 0 2.5 4.5 5 4.5H14M2 12.5h3.5c2.5 0 2.5-4.5 5-4.5M11.5 5.5L14 8l-2.5 2.5" />
               </svg>
             </button>
           ) : null}
-          {map ? (
+          {map && !empty ? (
             <>
               <button type="button" class={showMap ? "tool on" : "tool"} aria-label={t(showMap ? "panel.showList" : "panel.showMap")} title={t(showMap ? "panel.showList" : "panel.showMap")} onClick={() => setShowMap(!showMap)}>
                 <svg viewBox="0 0 16 16" aria-hidden="true">
@@ -388,7 +391,9 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
       {journeysOpen ? <JourneysSheet view={view} onClose={() => setJourneys(false)} /> : null}
       {detail ? <EventProps view={view} event={detail} onClose={() => setDetail(null)} /> : null}
       {showAll ? <AllRows title={title} tab={tab} view={view} onFilter={onFilter} onClose={() => setShowAll(false)} /> : null}
-      {showMap ? (
+      {empty ? (
+        <Empty icon={EMPTY[title]?.icon ?? "chart"} title={t(EMPTY[title]?.title ?? "panel.empty")} hint={EMPTY[title] ? t(EMPTY[title]!.hint) : undefined} />
+      ) : showMap ? (
         <WorldMap view={view} onFilter={onFilter} />
       ) : (
         <>
@@ -396,7 +401,6 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
           <div class="table">
             <Columns tab={tab} />
             {error ? <p class="empty">{error}</p> : null}
-            {!error && rows && all.length === 0 ? <p class="empty">{t("panel.empty")}</p> : null}
             {!rows && !error ? <p class="empty">{t("common.loading")}</p> : null}
             <Rows rows={all.slice(0, SHORT)} tab={tab} onFilter={onFilter} onDetail={tab.dimension === "event" ? setDetail : undefined} />
           </div>
@@ -417,6 +421,17 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
     </section>
   );
 }
+
+/** Each box's empty state: its icon, and what would be listed there. */
+const EMPTY: Partial<Record<Key, { icon: IconName; title: Key; hint: Key }>> = {
+  "panel.pages": { icon: "page", title: "empty.pages.title", hint: "empty.pages.hint" },
+  "panel.sources": { icon: "arrive", title: "empty.sources.title", hint: "empty.sources.hint" },
+  "panel.locations": { icon: "globe", title: "empty.locations.title", hint: "empty.locations.hint" },
+  "panel.ai": { icon: "robot", title: "empty.ai.title", hint: "empty.ai.hint" },
+  "panel.devices": { icon: "monitor", title: "empty.devices.title", hint: "empty.devices.hint" },
+  "panel.events": { icon: "bolt", title: "empty.events.title", hint: "empty.events.hint" },
+  "panel.campaigns": { icon: "megaphone", title: "empty.campaigns.title", hint: "empty.campaigns.hint" },
+};
 
 const STEPS = 6;
 
@@ -464,7 +479,8 @@ export function Rhythm({ view, wide }: { view: View; wide?: boolean }) {
       </header>
       {error ? <p class="empty">{error}</p> : null}
       {!grid && !error ? <p class="empty">{t("common.loading")}</p> : null}
-      {grid ? (
+      {grid && max === 0 ? <Empty icon="clock" title={t("empty.rhythm.title")} hint={t("empty.rhythm.hint")} /> : null}
+      {grid && max > 0 ? (
         <div class="rhythm" role="table" aria-label={t("rhythm.table")} ref={box} onPointerLeave={() => setHover(null)}>
           {grid.map((row, d) => (
             <div class="rhythm-row" role="row">

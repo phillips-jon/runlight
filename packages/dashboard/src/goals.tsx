@@ -3,6 +3,7 @@ import { api, type Funnel, type Goal, type GoalInput, type GoalReport, type Goal
 import { Chart } from "./chart.js";
 import { count, money, percent } from "./format.js";
 import { currentLocale, t, type Key } from "./i18n.js";
+import { Empty } from "./empty.js";
 import { Icon } from "./icons.js";
 import { Funnels, FunnelBars } from "./funnels.js";
 import { DeleteButton, Sheet } from "./links.js";
@@ -118,12 +119,7 @@ export function ConversionsPanel({ view, readOnly, onAdd }: { view: View; readOn
       </header>
       {error ? <p class="empty">{error}</p> : null}
       {!rows && !error ? <p class="empty">{t("common.loading")}</p> : null}
-      {rows && rows.length === 0 ? (
-        <div class="goals-empty">
-          <p>{t("goals.emptyTitle")}</p>
-          <p class="field-hint">{t("goals.emptyHint")}</p>
-        </div>
-      ) : null}
+      {rows && rows.length === 0 ? <Empty icon="target" title={t("goals.emptyTitle")} hint={t("goals.emptyHint")} /> : null}
       {rows && rows.length ? (
         <>
           <div class="table">

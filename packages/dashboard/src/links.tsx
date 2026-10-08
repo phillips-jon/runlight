@@ -5,6 +5,7 @@ import { Chart } from "./chart.js";
 import { count, countryName, day, flag } from "./format.js";
 import { errorText, t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
+import { Empty } from "./empty.js";
 import { Icon } from "./icons.js";
 import { useDialogFocus } from "./focus.js";
 
@@ -546,9 +547,10 @@ export function LinksPanel({ view, site, readOnly }: { view: View; site: string;
     <section class="panel wide">
       <header class="panel-head">
         <h2>
-          {t("panel.links")} {links ? <span class="aside">{tn("links.total", total, { n: count(total) })}</span> : null}
+          {t("panel.links")} {links?.length ? <span class="aside">{tn("links.total", total, { n: count(total) })}</span> : null}
         </h2>
         <div class="head-tools">
+          {links && links.length === 0 ? null : (
           <nav class="tabs" aria-label={t("links.sortBy")}>
             <button type="button" class={order === "newest" ? "tab on" : "tab"} aria-pressed={order === "newest"} onClick={() => setOrder("newest")}>
               {t("links.sortNewest")}
@@ -557,12 +559,15 @@ export function LinksPanel({ view, site, readOnly }: { view: View; site: string;
               {t("links.sortClicks")}
             </button>
           </nav>
+          )}
           {readOnly ? null : (
             <>
-              <button type="button" class="box-button" onClick={() => setOpen("manage")}>
-                <Icon name="list" />
-                {t("links.manage")}
-              </button>
+              {links?.length ? (
+                <button type="button" class="box-button" onClick={() => setOpen("manage")}>
+                  <Icon name="list" />
+                  {t("links.manage")}
+                </button>
+              ) : null}
               <button type="button" class="box-button solid" onClick={() => setOpen("new")}>
                 <Icon name="plus" />
                 {t("links.new")}
@@ -571,12 +576,13 @@ export function LinksPanel({ view, site, readOnly }: { view: View; site: string;
           )}
         </div>
       </header>
+      {links && links.length === 0 ? <Empty icon="share" title={t("empty.links.title")} hint={t(readOnly ? "links.noneYet" : "empty.links.hint")} /> : null}
+      {links && links.length === 0 ? null : (
       <div class="table">
       <div class="cols">
         <span>{t("panel.links")}</span>
         <span class="num-head">{t("links.clicks")}</span>
       </div>
-      {links && top.length === 0 ? <p class="empty">{t(readOnly ? "links.noneYet" : "links.empty")}</p> : null}
       {!links ? <p class="empty">{t("common.loading")}</p> : null}
       <ol class="rows">
         {top.map((l) => (
@@ -591,6 +597,7 @@ export function LinksPanel({ view, site, readOnly }: { view: View; site: string;
         ))}
       </ol>
       </div>
+      )}
       {links && links.length > top.length ? (
         <button type="button" class="more" onClick={() => setOpen("manage")}>
           <Icon name="expand" />
