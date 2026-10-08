@@ -227,7 +227,7 @@ export function AssistantDrawer({ site, view, owner, onSetup, onClose }: { site:
   );
 }
 
-/** Settings, Assistant: the provider, model, and key the assistant uses, set by an owner. */
+/** Settings, AI Assistant: the provider, model, and key the assistant uses, set by an owner. */
 export function AssistantSettings({ owner }: { owner: boolean }) {
   const [state, setState] = useState<AssistantState | null>(null);
   const [form, setForm] = useState({ provider: "anthropic", model: "", baseUrl: "", key: "" });

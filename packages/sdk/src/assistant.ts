@@ -95,11 +95,11 @@ const toolText = async (name: string, args: unknown, readApi: ApiRead): Promise<
 /** Answers the last question in `messages`, calling tools as the model asks. Returns the reply and the tools it used. */
 export async function chat(settings: AssistantSettings, messages: ChatMessage[], context: ChatContext, readApi: ApiRead): Promise<{ reply: string; tools: string[] }> {
   const provider = PROVIDERS.find((p) => p.id === settings.provider);
-  if (!provider) throw new AssistantError("Choose a provider in Settings, Assistant");
+  if (!provider) throw new AssistantError("Choose a provider in Settings, AI Assistant");
   const base = (settings.baseUrl || provider.baseUrl).replace(/\/+$/, "");
-  if (!base) throw new AssistantError("Enter the service's address in Settings, Assistant");
+  if (!base) throw new AssistantError("Enter the service's address in Settings, AI Assistant");
   const model = settings.model || provider.model;
-  if (!model) throw new AssistantError("Enter a model in Settings, Assistant");
+  if (!model) throw new AssistantError("Enter a model in Settings, AI Assistant");
   const used: string[] = [];
   const history = messages.slice(-20).map((m) => ({ role: m.role, content: String(m.content).slice(0, 8000) }));
 

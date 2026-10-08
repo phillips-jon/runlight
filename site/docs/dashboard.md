@@ -67,11 +67,11 @@ The import stops where Runlight's own visits begin, so no day is counted twice. 
 
 The arrows button in the **Pages** box opens Journeys, the paths visits take through the site a page at a time. Each column is a step, with its most common pages and how many visits went no further, and the lines between columns show where visits went next, thicker for more. A page seen twice in a row, as a refresh makes, counts once. Pick how many steps to show, start from a page such as your pricing page, or end at one such as a thank-you page. Click any page to follow only the visits that passed through it at that step. The same answer comes from `/api/journeys` and the MCP tool `get_journeys`.
 
-## The assistant
+## The AI Assistant
 
 The robot button beside **Filter** opens an assistant you can ask about your stats in plain words, such as where visitors came from last month or which pages keep people reading. It reads the numbers with the same read-only tools as the [MCP server](/docs/mcp/), for the site and dates on screen unless you ask about others, and it can never change anything.
 
-An owner sets it up once in **Settings**, **Assistant**. Choose Anthropic, OpenAI, Google Gemini, OpenRouter, Ollama, LM Studio, or any service with an OpenAI-compatible API, then a model and a key. Ollama and LM Studio run a model on your own machine with no key, as long as the server running Runlight can reach it. The key is kept on the server, encrypted with `RUNLIGHT_SECRET`, and never sent back to a browser.
+An owner sets it up once in **Settings**, **AI Assistant**. Choose Anthropic, OpenAI, Google Gemini, OpenRouter, Ollama, LM Studio, or any service with an OpenAI-compatible API, then a model and a key. Ollama and LM Studio run a model on your own machine with no key, as long as the server running Runlight can reach it. The key is kept on the server, encrypted with `RUNLIGHT_SECRET`, and never sent back to a browser.
 
 Each question goes to the service you chose, along with the numbers the assistant reads to answer it. Runlight keeps nothing about individual visitors, so nothing personal is sent. Owners and viewers can ask it; API tokens and share links cannot. The conversation lives in the browser tab and is gone when the tab closes.
 

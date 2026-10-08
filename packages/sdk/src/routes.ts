@@ -970,7 +970,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (request.headers.get(SHARE_HEADER) !== null) return json({ error: "Not available on a shared dashboard" }, 403);
       await runlight.init();
       const settings = await runlight.assistantSettings();
-      if (!settings) return json({ error: "The assistant is not set up yet. An owner can set it up in Settings, Assistant." }, 400);
+      if (!settings) return json({ error: "The assistant is not set up yet. An owner can set it up in Settings, AI Assistant." }, 400);
       const body = await readJson(request);
       if (body instanceof Response) return body;
       const site = runlight.site(String(body.site ?? "") || null);

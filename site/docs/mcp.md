@@ -9,7 +9,7 @@ Runlight has a built-in MCP server at `/runlight/mcp`, next to the dashboard. On
 
 The server is part of `rl.routes()`, so it runs wherever your dashboard does.
 
-To ask from the dashboard itself with no assistant app of your own, use [the assistant](/docs/dashboard/#the-assistant) behind the robot button, which uses the same tools with a key you add in Settings.
+To ask from the dashboard itself with no assistant app of your own, use [the assistant](/docs/dashboard/#the-ai-assistant) behind the robot button, which uses the same tools with a key you add in Settings.
 
 ## Make a token
 
