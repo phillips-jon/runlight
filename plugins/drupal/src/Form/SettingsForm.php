@@ -52,7 +52,7 @@ final class SettingsForm extends ConfigFormBase {
     $form['observe_key'] = [
       '#type' => 'password',
       '#title' => $this->t('Observe key'),
-      '#attributes' => ['placeholder' => (string) $config->get('observe_key') !== '' ? $this->t('Saved. Leave blank to keep it.') : ''],
+      '#attributes' => ['placeholder' => (string) $config->get('observe_key') !== '' ? $this->t('Saved. Leave blank to keep it for this address.') : ''],
       '#description' => $this->t('Optional. With your Runlight’s RUNLIGHT_OBSERVE_KEY, the module reports AI agents such as ChatGPT and Claude reading your pages. They run no JavaScript, so the script cannot see them. The key can report fetches and nothing else.'),
     ];
     $form['skip_admins'] = [
@@ -91,11 +91,14 @@ final class SettingsForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $config = $this->config('runlight.settings');
     $key = trim((string) $form_state->getValue('observe_key'));
+    $address = self::tidy((string) $form_state->getValue('address'));
+    // Left blank, a saved key stays, so it never has to be shown again, but only for the same
+    // address: pointed somewhere else, the module must never send that Runlight's key there.
+    $kept = $address === (string) $config->get('address') ? (string) $config->get('observe_key') : '';
     $config
-      ->set('address', self::tidy((string) $form_state->getValue('address')))
+      ->set('address', $address)
       ->set('site', (string) preg_replace('/[^a-z0-9._-]/i', '', (string) $form_state->getValue('site')))
-      // Left blank, a saved key stays, so it never has to be shown again.
-      ->set('observe_key', $key === '' ? (string) $config->get('observe_key') : $key)
+      ->set('observe_key', $key === '' ? $kept : $key)
       ->set('skip_admins', (bool) $form_state->getValue('skip_admins'))
       ->set('outbound', (bool) $form_state->getValue('outbound'))
       ->set('downloads', (bool) $form_state->getValue('downloads'))
