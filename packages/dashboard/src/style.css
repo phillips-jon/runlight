@@ -1281,22 +1281,15 @@ button.name:hover {
 }
 
 @media (max-width: 720px) {
-  /* On a phone the pickers open as a sheet from the bottom, the full width of the screen. */
+  /* On a phone a picker drops down just under the toolbar, as wide as the page's content. */
   .flyout {
-    position: fixed;
-    top: auto;
-    bottom: 0;
+    position: absolute;
+    top: calc(100% + 8px);
     left: 0;
     right: 0;
-    max-height: 85vh;
+    max-height: 75vh;
     overflow: auto;
     flex-direction: column;
-    border-radius: 16px 16px 0 0;
-    border-bottom: 0;
-    padding-bottom: env(safe-area-inset-bottom);
-    animation: rise 0.18s ease-out;
-    /* Dims the page behind; a tap there closes the sheet, as a tap anywhere outside a picker does. */
-    box-shadow: 0 0 0 100vmax rgba(9, 9, 11, 0.45);
   }
 
   .presets {
@@ -4501,11 +4494,17 @@ a.ghost {
   }
 }
 
-/* On a phone the toolbar wraps: Reset, the assistant, and Filter on one row, then the two pickers sharing the next. */
+/* On a phone the toolbar wraps: Reset, the assistant, and Filter on one row, then the two pickers sharing the next.
+   The toolbar is what a picker's dropdown hangs from, so it spans the page's width. */
 @media (max-width: 720px) {
   .actions {
+    position: relative;
     flex-wrap: wrap;
     width: 100%;
+  }
+
+  .actions .picker {
+    position: static;
   }
 
   .actions .picker {
