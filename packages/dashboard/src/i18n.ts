@@ -69,6 +69,11 @@ function fill(text: string, vars: Record<string, string | number>): string {
   return text.replace(/\{(\w+)\}/g, (whole, name: string) => (name in vars ? String(vars[name]) : whole));
 }
 
+/** Whether a key has words, for keys made from a code. */
+export function hasKey(key: string): key is Key {
+  return Object.prototype.hasOwnProperty.call(en, key);
+}
+
 /** A message, with {name} placeholders filled. */
 export function t(key: Key, vars: Record<string, string | number> = {}): string {
   return fill(messages[key] ?? en[key] ?? key, vars);

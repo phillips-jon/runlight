@@ -4,7 +4,7 @@
  * the caller's own credentials, so the MCP server can see exactly what the
  * token can and nothing more.
  */
-import { DIMENSIONS } from "./query.js";
+import { DIMENSIONS, MAX_FILTERS } from "./query.js";
 import { VERSION } from "./version.js";
 
 /** Newest first; a client asking for one we do not know is answered with the newest. */
@@ -30,7 +30,8 @@ const RANGE = {
   filters: {
     type: "array",
     items: { type: "string" },
-    description: 'Narrow to matching visits, each "dimension:op:value" with op is, not, or contains.',
+    maxItems: MAX_FILTERS,
+    description: `Narrow to matching visits, up to ${MAX_FILTERS} at once, each "dimension:op:value" with op is, not, or contains.`,
   },
 } as const;
 

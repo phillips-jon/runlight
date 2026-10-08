@@ -22,7 +22,7 @@ const PENDING_MS = 15 * 60_000;
 /** The install's address as its dashboard is, without a trailing slash. */
 export function installUrl(value: unknown): string {
   const url = String(value ?? "").trim().replace(/\/+$/, "");
-  if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) throw new RangeError("Enter the install's address, like https://example.com/runlight");
+  if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) throw new ConnectError("Enter the install's address, like https://example.com/runlight", "url");
   return url;
 }
 
@@ -39,9 +39,9 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
   const url = installUrl(input);
   type Meta = { authorization_endpoint?: string; token_endpoint?: string; registration_endpoint?: string; scopes_supported?: string[] };
   const answer = await fetch(`${url}/.well-known/oauth-authorization-server`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
-  if (!answer) throw new RangeError(`Could not reach ${url}`);
+  if (!answer) throw new ConnectError(`Could not reach ${url}`, "unreachable", { url });
   const meta = answer.ok ? ((await answer.json().catch(() => null)) as Meta | null) : null;
-  if (!meta?.authorization_endpoint || !meta.token_endpoint || !meta.registration_endpoint) throw new RangeError(`${url} did not answer like a Runlight install`);
+  if (!meta?.authorization_endpoint || !meta.token_endpoint || !meta.registration_endpoint) throw new ConnectError(`${url} did not answer like a Runlight install`, "not_runlight", { url });
   // Its endpoints must be its own, so an address cannot steer this server into requests elsewhere.
   const own = (endpoint: string) => {
     try {
@@ -50,8 +50,8 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
       return false;
     }
   };
-  if (![meta.authorization_endpoint, meta.token_endpoint, meta.registration_endpoint].every(own)) throw new RangeError(`${url} named endpoints on another address`);
-  if (!meta.scopes_supported?.includes("manage")) throw new RangeError(`${url} runs an older Runlight. Update it, or connect it with an API token from its Settings.`);
+  if (![meta.authorization_endpoint, meta.token_endpoint, meta.registration_endpoint].every(own)) throw new ConnectError(`${url} named endpoints on another address`, "endpoints", { url });
+  if (!meta.scopes_supported?.includes("manage")) throw new ConnectError(`${url} runs an older Runlight. Update it, or connect it with an API token from its Settings.`, "old", { url });
 
   const registered = await fetch(meta.registration_endpoint, {
     method: "POST",
@@ -59,12 +59,12 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
     body: JSON.stringify({ client_name: `Runlight at ${new URL(back).host}`, redirect_uris: [back] }),
     signal: AbortSignal.timeout(10_000),
   }).catch(() => null);
-  if (!registered) throw new RangeError(`Could not reach ${url}`);
+  if (!registered) throw new ConnectError(`Could not reach ${url}`, "unreachable", { url });
   const client = (await registered.json().catch(() => null)) as { client_id?: string; error_description?: string } | null;
   if (!registered.ok || !client?.client_id) {
     // Say why, in the install's own words when it gives them.
     const reason = client?.error_description ? `${String(client.error_description).slice(0, 200)}.` : registered.status === 400 ? "This server's address must use https." : `It answered ${registered.status}.`;
-    throw new RangeError(`${url} would not let this server connect. ${reason}`);
+    throw new ConnectError(`${url} would not let this server connect. ${reason}`, "register", { url, reason });
   }
   await clearExpired(runlight);
 
@@ -92,10 +92,15 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
  * dashboard turns into its own words. The page it lands on is this server's
  * own, so it never shows text that came in the address.
  */
+/**
+ * Why connecting failed, as a code the dashboard says in its own words. The
+ * first four come back from the consent page, the rest from starting.
+ */
 export class ConnectError extends RangeError {
   constructor(
     message: string,
-    readonly code: "expired" | "denied" | "refused" | "token",
+    readonly code: "expired" | "denied" | "refused" | "token" | "url" | "unreachable" | "not_runlight" | "endpoints" | "old" | "register",
+    readonly params: Record<string, string> = {},
   ) {
     super(message);
   }

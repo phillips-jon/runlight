@@ -16,6 +16,9 @@ export const FIELDS: Array<{ group: Key; fields: string[] }> = [
 
 export const fieldName = (dimension: string): string => t(`field.${dimension}` as Key);
 
+/** The most filters the API applies at once. */
+export const MAX_FILTERS = 6;
+
 const OPS: Filter["op"][] = ["is", "not", "contains"];
 export const opName = (op: Filter["op"]): string => t(`filter.${op}`);
 
@@ -149,10 +152,14 @@ export function FilterDrawer({ view, onApply, onClose }: { view: View; onApply: 
                 onRemove={() => setDrafts(drafts.filter((x) => x.id !== d.id))}
               />
             ))}
-            <button type="button" class="add" onClick={() => setDrafts([...drafts, { dimension: "country", op: "is", value: "", id: nextId++ }])}>
-              <Icon name="plus" />
-              {t("filter.add").replace(/^\+\s*/, "")}
-            </button>
+            {drafts.length < MAX_FILTERS ? (
+              <button type="button" class="add" onClick={() => setDrafts([...drafts, { dimension: "country", op: "is", value: "", id: nextId++ }])}>
+                <Icon name="plus" />
+                {t("filter.add").replace(/^\+\s*/, "")}
+              </button>
+            ) : (
+              <p class="drawer-note">{t("filter.max", { max: MAX_FILTERS })}</p>
+            )}
             <p class="drawer-note">{t("filter.note")}</p>
           </div>
           <footer class="drawer-foot">

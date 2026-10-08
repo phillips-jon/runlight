@@ -4,7 +4,7 @@
  * answered on any domain pointed at it.
  */
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { DOMAIN_NAME, LINK_DOMAIN_CHECK, hostName, runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
+import { DOMAIN_NAME, LINK_DOMAIN_CHECK, coded, hostName, runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
 import { AccountError, Accounts, SESSION_COOKIE, SESSION_MS, Throttle, otpauthUri, type Invite, type Role, type User } from "./auth.js";
 import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
 
@@ -349,7 +349,7 @@ export function createServer(options: ServerOptions): RunlightServer {
       return await routes.handler(request, context);
     } catch (error) {
       console.error("Runlight:", error);
-      return new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: { "content-type": "application/json" } });
+      return coded("Internal error", "internal", 500);
     }
   };
 
@@ -417,23 +417,23 @@ export function createServer(options: ServerOptions): RunlightServer {
   /** Your own account, and for owners, everyone else's. */
   async function accountsApi(request: Request, path: string): Promise<Response> {
     const user = await signedIn(request);
-    if (!user) return reply({ error: "Sign in first" }, 401);
+    if (!user) return coded("Sign in first", "sign_in", 401);
     // Writes must be JSON, which a form on another page cannot send, even those with no body.
     const type = (request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase();
-    if (request.method === "POST" && type !== "application/json") return reply({ error: "Send JSON" }, 415);
+    if (request.method === "POST" && type !== "application/json") return coded("Send JSON", "send_json", 415);
     if (path === "/api/account" && request.method === "GET") return reply({ account: person(user) });
     if (path === "/api/account/password" && request.method === "POST") {
       const input = await body(request);
-      if (!input) return reply({ error: "Send JSON" }, 415);
-      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again.", code: "too_many_tries" }, 429);
-      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) return reply({ error: "Your current password is not right", code: "password_current_wrong" }, 400);
+      if (!input) return coded("Send JSON", "send_json", 415);
+      if (!rechecks.take(user.id, now())) return coded("Too many tries. Wait fifteen minutes and try again.", "too_many_tries", 429);
+      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) return coded("Your current password is not right", "password_current_wrong", 400);
       rechecks.forgive(user.id);
       try {
         const updated = await accounts.setPassword(user.email, String(input.next ?? ""), now());
         // The new password ends every other sign-in; this browser gets a fresh one.
         return reply({ ok: true }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
       } catch (error) {
-        if (error instanceof AccountError) return reply({ error: error.message, code: error.code, params: error.params }, 400);
+        if (error instanceof AccountError) return coded(error.message, error.code, 400, error.params);
         throw error;
       }
     }
@@ -441,23 +441,23 @@ export function createServer(options: ServerOptions): RunlightServer {
     // Each change asks for the password again, so a browser left signed in cannot quietly change it.
     if (path.startsWith("/api/account/2fa") && request.method === "POST") {
       const input = await body(request);
-      if (!input) return reply({ error: "Send JSON" }, 415);
+      if (!input) return coded("Send JSON", "send_json", 415);
       const action = path.slice("/api/account/2fa".length);
       // Confirming asks for no password, so it has its own few tries, after which the set-up starts again.
       if (action === "/confirm") {
         if (!confirmTries.take(user.id, now())) {
           await accounts.cancelTwoFactorSetup(user.id);
-          return reply({ error: "Too many wrong codes. Start turning on two-factor sign-in again.", code: "twofactor_restart" }, 429);
+          return coded("Too many wrong codes. Start turning on two-factor sign-in again.", "twofactor_restart", 429);
         }
         const codes = await accounts.confirmTwoFactor(user.id, String(input.code ?? "").replace(/\s/g, ""), now());
-        if (!codes) return reply({ error: "That code is not right. Check the time on your phone and try the next one.", code: "code_wrong" }, 400);
+        if (!codes) return coded("That code is not right. Check the time on your phone and try the next one.", "code_wrong", 400);
         confirmTries.clear(user.id);
         // Turning it on signs out every other browser; this one gets a new session.
         const updated = (await accounts.byId(user.id))!;
         return reply({ recovery: codes }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
       }
-      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again.", code: "too_many_tries" }, 429);
-      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right", code: "password_wrong" }, 400);
+      if (!rechecks.take(user.id, now())) return coded("Too many tries. Wait fifteen minutes and try again.", "too_many_tries", 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return coded("Your password is not right", "password_wrong", 400);
       rechecks.forgive(user.id);
       if (action === "/start") {
         confirmTries.clear(user.id);
@@ -465,7 +465,7 @@ export function createServer(options: ServerOptions): RunlightServer {
         return reply({ secret, uri: otpauthUri(secret, user.email, new URL(request.url).host) });
       }
       if (action === "/recovery") {
-        if (!user.twoFactor) return reply({ error: "Turn on two-factor sign-in first", code: "twofactor_off" }, 400);
+        if (!user.twoFactor) return coded("Turn on two-factor sign-in first", "twofactor_off", 400);
         return reply({ recovery: await accounts.newRecoveryCodes(user.id) });
       }
       if (action === "/disable") {
@@ -474,20 +474,20 @@ export function createServer(options: ServerOptions): RunlightServer {
         const updated = (await accounts.byId(user.id))!;
         return reply({ ok: true }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
       }
-      return reply({ error: "Not found" }, 404);
+      return coded("Not found", "not_found", 404);
     }
-    if (user.role !== "owner") return reply({ error: "Only an owner can manage people", code: "people_owner" }, 403);
+    if (user.role !== "owner") return coded("Only an owner can manage people", "people_owner", 403);
     // An owner can turn off someone else's two-factor, for a coworker who lost both phone and recovery codes.
     // It asks for the owner's password like every other two-factor change, and their own goes through Account.
     const reset = /^\/api\/people\/([a-f0-9]{24})\/2fa$/.exec(path);
     if (reset && request.method === "DELETE") {
-      if (reset[1] === user.id) return reply({ error: "Turn off your own two-factor sign-in under Account", code: "twofactor_self" }, 400);
+      if (reset[1] === user.id) return coded("Turn off your own two-factor sign-in under Account", "twofactor_self", 400);
       const input = await body(request);
-      if (!input) return reply({ error: "Send JSON" }, 415);
-      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again.", code: "too_many_tries" }, 429);
-      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right", code: "password_wrong" }, 400);
+      if (!input) return coded("Send JSON", "send_json", 415);
+      if (!rechecks.take(user.id, now())) return coded("Too many tries. Wait fifteen minutes and try again.", "too_many_tries", 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return coded("Your password is not right", "password_wrong", 400);
       rechecks.forgive(user.id);
-      if (!(await accounts.byId(reset[1]!))) return reply({ error: "Unknown account", code: "unknown_account" }, 404);
+      if (!(await accounts.byId(reset[1]!))) return coded("Unknown account", "unknown_account", 404);
       await accounts.disableTwoFactor(reset[1]!);
       return reply({ ok: true });
     }
@@ -497,26 +497,26 @@ export function createServer(options: ServerOptions): RunlightServer {
     }
     if (path === "/api/people" && request.method === "POST") {
       const input = await body(request);
-      if (!input) return reply({ error: "Send JSON" }, 415);
+      if (!input) return coded("Send JSON", "send_json", 415);
       const role = roleOf(input.role);
-      if (!role) return reply({ error: "Pick owner or viewer", code: "role_needed" }, 400);
+      if (!role) return coded("Pick owner or viewer", "role_needed", 400);
       const email = String(input.email ?? "").trim().toLowerCase();
-      if (await accounts.byEmail(email)) return reply({ error: `${email} already has an account`, code: "account_exists", params: { email } }, 409);
+      if (await accounts.byEmail(email)) return coded(`${email} already has an account`, "account_exists", 409, { email });
       try {
         const { invite, code } = await accounts.invite(email, role, user.email, now());
         return reply({ invite: inviteView(invite), ...(await sendInvite(request, invite, code)) }, 201);
       } catch (error) {
-        if (error instanceof AccountError) return reply({ error: error.message, code: error.code, params: error.params }, 400);
+        if (error instanceof AccountError) return coded(error.message, error.code, 400, error.params);
         throw error;
       }
     }
     const inviteMatch = /^\/api\/invites\/([a-f0-9]{24})(\/resend)?$/.exec(path);
     if (inviteMatch && request.method === "DELETE" && !inviteMatch[2]) {
-      return (await accounts.cancelInvite(inviteMatch[1]!)) ? reply({ ok: true }) : reply({ error: "Unknown invite", code: "unknown_invite" }, 404);
+      return (await accounts.cancelInvite(inviteMatch[1]!)) ? reply({ ok: true }) : coded("Unknown invite", "unknown_invite", 404);
     }
     if (inviteMatch && request.method === "POST" && inviteMatch[2]) {
       const old = (await accounts.invites(now())).find((i) => i.id === inviteMatch[1]);
-      if (!old) return reply({ error: "Unknown invite", code: "unknown_invite" }, 404);
+      if (!old) return coded("Unknown invite", "unknown_invite", 404);
       // A new link replaces the old one, which stops working.
       const { invite, code } = await accounts.invite(old.email, old.role, user.email, now());
       return reply({ invite: inviteView(invite), ...(await sendInvite(request, invite, code)) });
@@ -525,26 +525,26 @@ export function createServer(options: ServerOptions): RunlightServer {
     if (match && (request.method === "PATCH" || request.method === "DELETE")) {
       try {
         if (request.method === "DELETE") {
-          if (match[1] === user.id) return reply({ error: "You cannot remove yourself", code: "remove_self" }, 400);
+          if (match[1] === user.id) return coded("You cannot remove yourself", "remove_self", 400);
           await accounts.remove(match[1]!);
           // The tokens they made, and the apps they connected, stop working with them.
           await dropTokensOf(match[1]!);
           return reply({ ok: true });
         }
         const input = await body(request);
-        if (!input) return reply({ error: "Send JSON" }, 415);
+        if (!input) return coded("Send JSON", "send_json", 415);
         const role = roleOf(input.role);
-        if (!role) return reply({ error: "Pick owner or viewer", code: "role_needed" }, 400);
+        if (!role) return coded("Pick owner or viewer", "role_needed", 400);
         const changed = await accounts.setRole(match[1]!, role);
         // A viewer changes nothing, so the tokens they made as an owner go too.
         if (role === "viewer") await dropTokensOf(match[1]!);
         return reply({ person: person(changed) });
       } catch (error) {
-        if (error instanceof AccountError) return reply({ error: error.message, code: error.code, params: error.params }, error.code === "unknown_account" ? 404 : 400);
+        if (error instanceof AccountError) return coded(error.message, error.code, error.code === "unknown_account" ? 404 : 400, error.params);
         throw error;
       }
     }
-    return reply({ error: "Not found" }, 404);
+    return coded("Not found", "not_found", 404);
   }
 
   return {

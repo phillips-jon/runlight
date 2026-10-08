@@ -3,9 +3,9 @@ import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import { ApiError, accounts, api, base, download, install, share, viewParams, type Person, signIn, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
-import { FilterDrawer, fieldName, opName } from "./filters.js";
+import { FilterDrawer, MAX_FILTERS, fieldName, opName } from "./filters.js";
 import { Icon } from "./icons.js";
-import { LANGUAGES, currentLocale, initialLocale, rich, setLocale, t, tn, type Key } from "./i18n.js";
+import { LANGUAGES, currentLocale, hasKey, initialLocale, rich, setLocale, t, tn, type Key } from "./i18n.js";
 import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey } from "./metrics.js";
 import { LinksPanel, Sheet } from "./links.js";
 import { AddSiteForm, AllSites, FirstSite, SiteMenu } from "./sites.js";
@@ -195,7 +195,8 @@ function App() {
   // as a code, shown in the dashboard's own words, so a link can never put its text on screen.
   const [notice, setNotice] = useState<{ text?: string; key?: Key; error: boolean } | null>(() => {
     const code = new URLSearchParams(location.search).get("connect_error");
-    return code === null ? null : { key: `sites.connectError.${["expired", "denied", "refused", "token"].includes(code) ? code : "failed"}` as Key, error: true };
+    // Only a code with words of its own is shown as itself; anything else reads as "failed".
+    return code === null ? null : { key: (/^[a-z]+$/.test(code) && hasKey(`sites.connectError.${code}`) ? `sites.connectError.${code}` : "sites.connectError.failed") as Key, error: true };
   });
   const [filtering, setFiltering] = useState(false);
   const [asking, setAsking] = useState(false);
@@ -253,7 +254,8 @@ function App() {
   const update = useCallback((patch: Partial<View>) => setView((v) => ({ ...v, ...patch })), []);
   const addFilter = useCallback(
     (dimension: string, value: string) =>
-      setView((v) => ({ ...v, filters: [...v.filters.filter((f) => f.dimension !== dimension), { dimension, op: "is", value }] })),
+      // Past the most the API applies at once, the oldest filter makes way.
+      setView((v) => ({ ...v, filters: [...v.filters.filter((f) => f.dimension !== dimension), { dimension, op: "is" as const, value }].slice(-MAX_FILTERS) })),
     [],
   );
   const toggleMetric = (key: MetricKey) =>
@@ -570,9 +572,8 @@ function App() {
             <Panel title={panel.title} tabs={panel.tabs} view={view} onFilter={addFilter} wide={panel.wide} map={panel.title === "panel.locations"} key={i} />
           ),
         )}
-        {/* The last row: Conversions narrow, Links wide, so the zigzag carries on. */}
-        {/* Wide then narrow, so the zigzag of the rows above carries on. */}
-        {/* A viewer reads the links without changing them; a share never shows them. */}
+        {/* The last row, Links wide and Conversions narrow, so the zigzag of the rows above carries on. A viewer
+            reads the links without changing them, and a share never shows them. */}
         {site && !share && !elsewhere ? <LinksPanel view={view} site={site.id} readOnly={readOnly} /> : null}
         {site ? <ConversionsPanel view={view} readOnly={readOnly || elsewhere} onAdd={() => setSettingsOpen("goals")} /> : null}
       </div>

@@ -112,8 +112,17 @@ function isDevelopment(): boolean {
  * An error the dashboard can show in its own language: `code` names it and
  * `params` fill its placeholders, while `error` stays the English message.
  */
-function coded(error: string, code: string, status: number, params?: Record<string, string>): Response {
-  return json({ error, code, ...(params ? { params } : {}) }, status);
+export function coded(error: string, code: string, status: number, params?: Record<string, string>, headers: Record<string, string> = {}): Response {
+  return json({ error, code, ...(params ? { params } : {}) }, status, headers);
+}
+
+/**
+ * A refusal from a check elsewhere: its own code and params when the error
+ * carries them, or else `fallback` with its English words as `detail`.
+ */
+function refused(error: Error, fallback: string, status = 400): Response {
+  const own = error as Error & { code?: unknown; params?: Record<string, string> };
+  return typeof own.code === "string" ? coded(error.message, own.code, status, own.params) : coded(error.message, fallback, status, { detail: error.message });
 }
 
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
@@ -413,21 +422,21 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   function denied(result: false | "unconfigured" | "read"): Response {
     if (result === "read") return coded("Only an owner can change this", "owner_only", 403);
     return result === "unconfigured"
-      ? json({ error: "Set RUNLIGHT_TOKEN, or pass token or authorize to routes(). Without one, Runlight only runs open when NODE_ENV is development." }, 503)
-      : json({ error: "Unauthorized" }, 401);
+      ? coded("Set RUNLIGHT_TOKEN, or pass token or authorize to routes(). Without one, Runlight only runs open when NODE_ENV is development.", "token_unset", 503)
+      : coded("Unauthorized", "unauthorized", 401);
   }
 
   async function querySite(url: URL): Promise<SiteRow | Response> {
     const site = runlight.site(url.searchParams.get("site"));
-    return site ?? json({ error: "Unknown site" }, 404);
+    return site ?? coded("Unknown site", "unknown_site", 404);
   }
 
   async function readQuery(url: URL, site: SiteRow) {
     const filters: Filter[] = [];
-    if (url.searchParams.getAll("filter").length > MAX_FILTERS) return json({ error: `Use at most ${MAX_FILTERS} filters at once.` }, 400);
+    if (url.searchParams.getAll("filter").length > MAX_FILTERS) return coded(`Use at most ${MAX_FILTERS} filters at once.`, "filters_max", 400, { max: String(MAX_FILTERS) });
     for (const raw of url.searchParams.getAll("filter")) {
       const filter = parseFilter(raw);
-      if (!filter) return json({ error: `Bad filter "${raw}". Use dimension:is|not|contains:value.` }, 400);
+      if (!filter) return coded(`Bad filter "${raw}". Use dimension:is|not|contains:value.`, "filter_bad", 400, { filter: raw });
       filters.push(filter);
     }
     const now = runlight.now();
@@ -447,22 +456,22 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       now,
       firstDate,
     );
-    if (!range) return json({ error: "Bad date range. Use period, or from and to as YYYY-MM-DD." }, 400);
+    if (!range) return coded("Bad date range. Use period, or from and to as YYYY-MM-DD.", "range_bad", 400);
     const query: Query = { site: site.id, from: range.from, to: range.to, filters };
     // compare=false is the older spelling of off.
     const raw = url.searchParams.get("compare") ?? "previous";
     const mode = (raw === "false" ? "off" : raw) as CompareMode;
-    if (!["previous", "year", "custom", "off"].includes(mode)) return json({ error: `Bad compare "${raw}". Use previous, year, custom, or off.` }, 400);
+    if (!["previous", "year", "custom", "off"].includes(mode)) return coded(`Bad compare "${raw}". Use previous, year, custom, or off.`, "compare_bad", 400, { compare: raw });
     const compared = compareRange(range, mode, site.timezone, { from: url.searchParams.get("compare_from"), to: url.searchParams.get("compare_to") });
-    if (mode === "custom" && !compared) return json({ error: "Bad comparison range. Use compare_from and compare_to as YYYY-MM-DD." }, 400);
+    if (mode === "custom" && !compared) return coded("Bad comparison range. Use compare_from and compare_to as YYYY-MM-DD.", "compare_range_bad", 400);
     return { query, range, compared };
   }
 
   async function readJson(request: Request): Promise<Record<string, unknown> | Response> {
     // A form posted from another site cannot carry this content type without CORS.
-    if (!isJson(request)) return json({ error: "Send JSON" }, 415);
+    if (!isJson(request)) return coded("Send JSON", "send_json", 415);
     const body = (await request.json().catch(() => null)) as unknown;
-    return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : json({ error: "Send a JSON object" }, 400);
+    return body && typeof body === "object" && !Array.isArray(body) ? (body as Record<string, unknown>) : coded("Send a JSON object", "send_object", 400);
   }
 
   async function linksApi(request: Request, path: string, url: URL): Promise<Response> {
@@ -497,7 +506,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const checkMatch = /^\/api\/link-domains\/([^/]+)\/check$/.exec(path);
       if (checkMatch && request.method === "GET") {
         const domain = decodeURIComponent(checkMatch[1]!);
-        if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return json({ error: "Unknown domain" }, 404);
+        if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return coded("Unknown domain", "unknown_domain", 404);
         // One added before names inside private networks were refused is never fetched.
         if (!DOMAIN_NAME.test(domain) || privateName(domain)) return json({ domain, working: false, reason: "is not a public domain name" });
         let working = false;
@@ -518,7 +527,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const domainMatch = /^\/api\/link-domains\/([^/]+)$/.exec(path);
       if (domainMatch && request.method === "DELETE") {
         const domain = decodeURIComponent(domainMatch[1]!);
-        if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return json({ error: "Unknown domain" }, 404);
+        if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return coded("Unknown domain", "unknown_domain", 404);
         await runlight.store.removeLinkDomain(domain);
         runlight.forgetLinkDomains();
         return json({ ok: true });
@@ -563,7 +572,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           );
           return json(step);
         } catch (error) {
-          if (error instanceof ImportError) return json({ error: error.message }, 400);
+          if (error instanceof ImportError) return refused(error, "import_failed");
           throw error;
         }
       }
@@ -573,7 +582,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         if (body instanceof Response) return body;
         // Rows that are not objects (null, a number) are dropped rather than failing the import.
         const rows = Array.isArray(body.rows) ? (body.rows as unknown[]).filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object" && !Array.isArray(row)).slice(0, 5000) : null;
-        if (!rows) return json({ error: "Send rows as a list" }, 400);
+        if (!rows) return coded("Send rows as a list", "rows_needed", 400);
         return json(await runlight.links.import(site.id, rows));
       }
 
@@ -582,7 +591,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         const id = linkMatch[1]!;
         if (request.method === "GET") {
           const link = await runlight.store.linkById(id);
-          if (!link || link.site !== site.id) return json({ error: "Unknown link" }, 404);
+          if (!link || link.site !== site.id) return coded("Unknown link", "unknown_link", 404);
           const read = await readQuery(url, site);
           if (read instanceof Response) return read;
           const { range } = read;
@@ -610,7 +619,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           });
         }
         const owned = await runlight.store.linkById(id);
-        if (!owned || owned.site !== site.id) return json({ error: "Unknown link" }, 404);
+        if (!owned || owned.site !== site.id) return coded("Unknown link", "unknown_link", 404);
         if (request.method === "PATCH") {
           const body = await readJson(request);
           if (body instanceof Response) return body;
@@ -624,10 +633,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       }
     } catch (error) {
       if (error instanceof LinkError) return coded(error.message, error.code, 400, error.params);
-      if (error instanceof RangeError) return json({ error: error.message }, 404);
+      if (error instanceof RangeError) return coded(error.message, "unknown_link", 404);
       throw error;
     }
-    return json({ error: "Not found" }, 404);
+    return coded("Not found", "not_found", 404);
   }
 
   // The tracker with click rules inside, rebuilt when goals change. With ?site= it
@@ -685,7 +694,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (site instanceof Response) return site;
     const existing = await runlight.store.goals(site.id);
     const id = path === "/api/goals" ? undefined : decodeURIComponent(path.slice("/api/goals/".length));
-    if (id !== undefined && !existing.some((g) => g.id === id)) return json({ error: "Unknown goal" }, 404);
+    if (id !== undefined && !existing.some((g) => g.id === id)) return coded("Unknown goal", "unknown_goal", 404);
     trackers.clear();
     if (request.method === "DELETE") {
       await runlight.store.deleteGoal(id!);
@@ -698,7 +707,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       await runlight.store.saveGoal(goal, existing.find((g) => g.id === id));
       return json({ goal }, id ? 200 : 201);
     } catch (error) {
-      if (error instanceof GoalError) return json({ error: error.message }, 400);
+      if (error instanceof GoalError) return refused(error, "goal_invalid");
       throw error;
     }
   }
@@ -743,7 +752,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           await runlight.saveMailSettings(null);
           return json({ ok: true });
         }
-        return json({ error: "Method not allowed" }, 405);
+        return coded("Method not allowed", "method_not_allowed", 405);
       }
 
       if (path === "/api/mail/test" && request.method === "POST") {
@@ -796,12 +805,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           await runlight.store.insertReport(report);
           return json({ report: reportView(report) }, 201);
         }
-        return json({ error: "Method not allowed" }, 405);
+        return coded("Method not allowed", "method_not_allowed", 405);
       }
 
       const match = /^\/api\/reports\/([a-f0-9]{24})(\/send)?$/.exec(path);
       const report = match ? await runlight.store.reportBy("id", match[1]!) : null;
-      if (!report || report.site !== site.id) return json({ error: "Unknown report" }, 404);
+      if (!report || report.site !== site.id) return coded("Unknown report", "unknown_report", 404);
       if (match![2] && request.method === "POST") {
         // A sample at most once a minute per report, so the send button cannot be used to flood an inbox. A hub
         // sends one every ten minutes for the whole site, so adding reports again does not start a new count.
@@ -817,7 +826,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         await runlight.store.deleteReport(report.id);
         return json({ ok: true });
       }
-      return json({ error: "Method not allowed" }, 405);
+      return coded("Method not allowed", "method_not_allowed", 405);
     } catch (error) {
       if (error instanceof MailError) return coded(error.message, error.code, 400, error.params);
       throw error;
@@ -869,12 +878,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         await runlight.store.insertShare(share);
         return json({ share: view(share) }, 201);
       }
-      return json({ error: "Method not allowed" }, 405);
+      return coded("Method not allowed", "method_not_allowed", 405);
     }
 
     const id = decodeURIComponent(path.slice("/api/shares/".length));
     const share = SHARE_ID.test(id) ? await runlight.store.shareById(id) : null;
-    if (!share || share.site !== site.id) return json({ error: "Unknown share" }, 404);
+    if (!share || share.site !== site.id) return coded("Unknown share", "unknown_share", 404);
     if (request.method === "PATCH") {
       const body = await readJson(request);
       if (body instanceof Response) return body;
@@ -886,7 +895,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       await runlight.store.deleteShare(share.id);
       return json({ ok: true });
     }
-    return json({ error: "Method not allowed" }, 405);
+    return coded("Method not allowed", "method_not_allowed", 405);
   }
 
   /** How many questions each viewer may ask the assistant a day, as an owner set it. */
@@ -931,11 +940,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const body = await readJson(request);
       if (body instanceof Response) return body;
       const name = String(body.name ?? "").trim().slice(0, 100);
-      if (!name) return json({ error: "Name the token" }, 400);
+      if (!name) return coded("Name the token", "token_name", 400);
       const site = String(body.site ?? "");
-      if (site && !runlight.sites.some((s) => s.id === site)) return json({ error: "Unknown site" }, 404);
+      if (site && !runlight.sites.some((s) => s.id === site)) return coded("Unknown site", "unknown_site", 404);
       const scope = body.scope === "manage" ? "manage" : "read";
-      if (scope === "manage" && !site) return json({ error: "A token that changes settings is for one site. Pick the site." }, 400);
+      if (scope === "manage" && !site) return coded("A token that changes settings is for one site. Pick the site.", "token_site", 400);
       const secret = `${TOKEN_PREFIX}${randomId(20)}`;
       const row: TokenRow = { id: randomId(), name, site, scope, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
       await runlight.store.insertToken(row);
@@ -949,9 +958,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     }
     const match = /^\/api\/tokens\/([a-f0-9]{24})$/.exec(path);
     if (match && request.method === "DELETE") {
-      return (await runlight.store.deleteToken(match[1]!)) ? json({ ok: true }) : json({ error: "Unknown token" }, 404);
+      return (await runlight.store.deleteToken(match[1]!)) ? json({ ok: true }) : coded("Unknown token", "unknown_token", 404);
     }
-    return json({ error: "Not found" }, 404);
+    return coded("Not found", "not_found", 404);
   }
 
   async function api(request: Request, path: string, url: URL): Promise<Response> {
@@ -959,7 +968,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     // That holds without a cookie too, since a browser also sends Basic credentials or comes from an
     // allowed address on its own. A bearer token is never sent by the browser on its own, so it needs no check.
     if (!["GET", "HEAD", "OPTIONS", "DELETE"].includes(request.method) && !bearer(request) && !isJson(request)) {
-      return json({ error: "Send JSON" }, 415);
+      return coded("Send JSON", "send_json", 415);
     }
     if (path === "/api" && request.method === "GET") {
       return json({ name: "runlight", version: VERSION, api: API_VERSION, ...IMPLEMENTATION });
@@ -984,13 +993,14 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const access = await canRead(request);
       if (access !== true) return denied(access);
       await runlight.init();
-      if (!runlight.managedSites) return json({ error: "Sites are set in code" }, 400);
+      if (!runlight.managedSites) return coded("Sites are set in code", "sites_in_code", 400);
       const body = await readJson(request);
       if (body instanceof Response) return body;
       try {
         return json({ authorize: await startConnect(runlight, body.url, `${url.origin}${base}/api/sites/connect/done`, typeof body.site === "string" ? body.site : "") });
       } catch (error) {
-        if (error instanceof RangeError) return json({ error: error.message }, 400);
+        if (error instanceof ConnectError) return coded(error.message, `connect_${error.code}`, 400, error.params);
+        if (error instanceof RangeError) return refused(error, "connect_failed");
         throw error;
       }
     }
@@ -1015,11 +1025,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (token?.scope === "manage" && managePath(request.method, path)) {
       const asked = url.searchParams.get("site");
       const siteMatch = /^\/api\/sites\/([^/]+)$/.exec(path);
-      if ((asked && asked !== token.site) || (siteMatch && decodeURIComponent(siteMatch[1]!) !== token.site)) return json({ error: "Unknown site" }, 404);
+      if ((asked && asked !== token.site) || (siteMatch && decodeURIComponent(siteMatch[1]!) !== token.site)) return coded("Unknown site", "unknown_site", 404);
       if (siteMatch && isJson(request)) {
         // Where a site lives stays with its owner: a hub may rename it, never move it.
         const body = (await request.clone().json().catch(() => null)) as Record<string, unknown> | null;
-        if (body && body.hostnames !== undefined) return json({ error: "A connected hub cannot change a site's domains" }, 403);
+        if (body && body.hostnames !== undefined) return coded("A connected hub cannot change a site's domains", "hub_domains", 403);
       }
       url = new URL(url);
       url.searchParams.set("site", token.site);
@@ -1031,21 +1041,21 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const given = bearer(request);
       // The install-wide key and the owner's access can report for any site.
       const anySite = Boolean(observeKey && given && constantTimeEqual(given, observeKey)) || (await canRead(request)) === true;
-      if (!anySite && !given) return json({ error: "Unauthorized" }, 401);
+      if (!anySite && !given) return coded("Unauthorized", "unauthorized", 401);
       const body = await readJson(request);
       if (body instanceof Response) return body;
       // One fetch as { url, userAgent, at? }, or up to 500 as { fetches: [...] } from a log reader.
       const list = Array.isArray(body.fetches) ? (body.fetches as Array<Record<string, unknown>>) : [body];
-      if (list.length > 500) return json({ error: "Send at most 500 fetches at a time" }, 413);
+      if (list.length > 500) return coded("Send at most 500 fetches at a time", "observe_many", 413);
       const pages: Array<{ page: URL; userAgent: string; at?: number }> = [];
       for (const item of list) {
         let page: URL;
         try {
           page = new URL(String(item?.url ?? ""));
         } catch {
-          return json({ error: "Send the page's url" }, 400);
+          return coded("Send the page's url", "observe_url", 400);
         }
-        if (page.protocol !== "https:" && page.protocol !== "http:") return json({ error: "Send the page's url" }, 400);
+        if (page.protocol !== "https:" && page.protocol !== "http:") return coded("Send the page's url", "observe_url", 400);
         const at = typeof item.at === "number" ? item.at : typeof item.at === "string" ? Date.parse(item.at) : undefined;
         pages.push({ page, userAgent: String(item.userAgent ?? "").slice(0, 500), ...(at !== undefined && Number.isFinite(at) ? { at } : {}) });
       }
@@ -1059,10 +1069,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           const key = await runlight.store.setting(`observe-key:${site.id}`);
           if (key && constantTimeEqual(given, key)) keySite = site.id;
         }
-        if (!keySite) return json({ error: "Unauthorized" }, 401);
+        if (!keySite) return coded("Unauthorized", "unauthorized", 401);
         keep = pages.filter((p) => runlight.siteFor(p.page.hostname)?.id === keySite);
         // A single report for another site's page is a misconfigured plugin, which should hear about it.
-        if (!Array.isArray(body.fetches) && keep.length === 0) return json({ error: "Unauthorized" }, 401);
+        if (!Array.isArray(body.fetches) && keep.length === 0) return coded("Unauthorized", "unauthorized", 401);
       }
       let recorded = 0;
       for (const p of keep) if (await runlight.observe(new Request(p.page, { headers: { "user-agent": p.userAgent } }), p.at)) recorded++;
@@ -1076,7 +1086,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const given = bearer(request);
       const allowed =
         (cronSecret && given && constantTimeEqual(given, cronSecret)) || (await canRead(request)) === true;
-      if (!allowed) return json({ error: "Unauthorized" }, 401);
+      if (!allowed) return coded("Unauthorized", "unauthorized", 401);
       return json(await runlight.check());
     }
 
@@ -1091,7 +1101,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return passThrough(connected, path, url, request);
     }
     if (connected && !(request.method === "GET" && (sharedPath(path) || path === "/api/links"))) {
-      return json({ error: "This site is counted by its own Runlight. Connect it again from its settings to change it from here." }, 400);
+      return coded("This site is counted by its own Runlight. Connect it again from its settings to change it from here.", "site_remote", 400);
     }
 
     // Visit history from Umami: list the account's websites, then import one a step at a time.
@@ -1111,7 +1121,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         const step = await importUmamiVisits(runlight, site.id, credentials, String(body.website ?? ""), typeof body.cursor === "string" ? body.cursor : null);
         return json(step);
       } catch (error) {
-        if (error instanceof ImportError) return json({ error: error.message }, 400);
+        if (error instanceof ImportError) return refused(error, "import_failed");
         throw error;
       }
     }
@@ -1141,7 +1151,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (site instanceof Response) return site;
       const existing = await runlight.store.funnels(site.id);
       const id = path === "/api/funnels" ? undefined : path.slice("/api/funnels/".length);
-      if (id !== undefined && !existing.some((f) => f.id === id)) return json({ error: "Unknown funnel" }, 404);
+      if (id !== undefined && !existing.some((f) => f.id === id)) return coded("Unknown funnel", "unknown_funnel", 404);
       if (request.method === "DELETE") {
         await runlight.store.deleteFunnel(id!);
         return json({ ok: true });
@@ -1153,7 +1163,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         await runlight.store.saveFunnel(funnel);
         return json({ funnel }, id ? 200 : 201);
       } catch (error) {
-        if (error instanceof FunnelError) return json({ error: error.message }, 400);
+        if (error instanceof FunnelError) return refused(error, "funnel_invalid");
         throw error;
       }
     }
@@ -1166,7 +1176,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         const access = await reader(request);
         if (access === false || access === "unconfigured") return denied(access);
         // Only people at the dashboard, never an API token or a share, so nobody spends the owner's AI credit from outside.
-        if (access !== true && access.id) return json({ error: "Only the dashboard can use the assistant" }, 403);
+        if (access !== true && access.id) return coded("Only the dashboard can use the assistant", "assistant_dashboard", 403);
         await runlight.init();
         const settings = await runlight.assistantSettings();
         if (!owner) return json({ configured: Boolean(settings) });
@@ -1194,11 +1204,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           await runlight.saveAssistantSettings(body);
           return json({ ok: true });
         } catch (error) {
-          if (error instanceof RangeError) return json({ error: error.message }, 400);
+          if (error instanceof RangeError) return refused(error, "assistant_invalid");
           throw error;
         }
       }
-      return json({ error: "Method not allowed" }, 405);
+      return coded("Method not allowed", "method_not_allowed", 405);
     }
     // How many questions each viewer may ask a day; 0 keeps the assistant for owners.
     if (path === "/api/assistant/limits" && request.method === "PUT") {
@@ -1228,26 +1238,26 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       try {
         return json({ models: await listModels({ provider, baseUrl: String(body.baseUrl ?? "").trim(), key }) });
       } catch (error) {
-        if (error instanceof AssistantError) return json({ error: error.message }, 400);
+        if (error instanceof AssistantError) return refused(error, "assistant_failed");
         throw error;
       }
     }
     if (path === "/api/assistant/chat" && request.method === "POST") {
       const access = await reader(request);
       if (access === false || access === "unconfigured") return denied(access);
-      if (access !== true && access.id) return json({ error: "Only the dashboard can use the assistant" }, 403);
-      if (request.headers.get(SHARE_HEADER) !== null) return json({ error: "Not available on a shared dashboard" }, 403);
+      if (access !== true && access.id) return coded("Only the dashboard can use the assistant", "assistant_dashboard", 403);
+      if (request.headers.get(SHARE_HEADER) !== null) return coded("Not available on a shared dashboard", "share_not_available", 403);
       await runlight.init();
       const settings = await runlight.assistantSettings();
-      if (!settings) return json({ error: "The assistant is not set up yet. An owner can set it up in Settings, AI Assistant." }, 400);
+      if (!settings) return coded("The assistant is not set up yet. An owner can set it up in Settings, AI Assistant.", "assistant_unset", 400);
       const body = await readJson(request);
       if (body instanceof Response) return body;
       const site = runlight.site(String(body.site ?? "") || null);
-      if (!site) return json({ error: "Unknown site" }, 404);
+      if (!site) return coded("Unknown site", "unknown_site", 404);
       const messages = Array.isArray(body.messages)
         ? (body.messages as Array<Record<string, unknown> | null>).filter((m): m is Record<string, unknown> => Boolean(m) && (m!.role === "user" || m!.role === "assistant") && typeof m!.content === "string").map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
         : [];
-      if (!messages.length || messages[messages.length - 1]!.role !== "user") return json({ error: "Ask a question" }, 400);
+      if (!messages.length || messages[messages.length - 1]!.role !== "user") return coded("Ask a question", "question_needed", 400);
       const owner = access === true;
       const turn = await askTurn((await options.accountOf?.(request)) ?? (owner ? "owner" : "viewer"), owner);
       if (turn instanceof Response) return turn;
@@ -1276,7 +1286,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         );
         return json(answer);
       } catch (error) {
-        if (error instanceof AssistantError) return json({ error: error.message }, 502);
+        if (error instanceof AssistantError) return refused(error, "assistant_failed", 502);
         throw error;
       } finally {
         turn();
@@ -1294,7 +1304,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const access = await reader(request);
       if (access === false || access === "unconfigured") return denied(access);
       // A token limited to one site reads only that site's links, here as everywhere else.
-      if (access !== true && access.site && access.site !== asked) return json({ error: "Unknown site" }, 404);
+      if (access !== true && access.site && access.site !== asked) return coded("Unknown site", "unknown_site", 404);
       return passThrough(connected, path, url);
     }
 
@@ -1305,7 +1315,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (access !== true) {
         await runlight.init();
         const site = runlight.site(url.searchParams.get("site") ?? (access.site || null));
-        if (!site || (access.site && site.id !== access.site)) return json({ error: "Unknown site" }, 404);
+        if (!site || (access.site && site.id !== access.site)) return coded("Unknown site", "unknown_site", 404);
         const scoped = new URL(url);
         scoped.searchParams.set("site", site.id);
         return linksApi(request, path, scoped);
@@ -1365,7 +1375,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       try {
         return json({ site: await runlight.addSite(body) }, 201);
       } catch (error) {
-        if (error instanceof RangeError) return json({ error: error.message }, 400);
+        if (error instanceof RangeError) return refused(error, "site_invalid");
         throw error;
       }
     }
@@ -1378,7 +1388,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         await runlight.deleteSite(decodeURIComponent(siteMatch[1]!));
         return json({ ok: true });
       } catch (error) {
-        if (error instanceof RangeError) return json({ error: error.message }, error.message === "Unknown site" ? 404 : 400);
+        if (error instanceof RangeError) return error.message === "Unknown site" ? coded(error.message, "unknown_site", 404) : refused(error, "site_invalid");
         throw error;
       }
     }
@@ -1390,10 +1400,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (body instanceof Response) return body;
       await runlight.init();
       // Every field is checked before any changes, since a shorter retention deletes visits at once.
-      if (body.name !== undefined && !(String(body.name).trim() && String(body.name).trim().length <= 80)) return json({ error: "A site name is 1 to 80 characters" }, 400);
-      if (body.timezone !== undefined && !isTimezone(String(body.timezone))) return json({ error: `Unknown timezone "${body.timezone}"` }, 400);
+      if (body.name !== undefined && !(String(body.name).trim() && String(body.name).trim().length <= 80)) return coded("A site name is 1 to 80 characters", "site_name", 400);
+      if (body.timezone !== undefined && !isTimezone(String(body.timezone))) return coded(`Unknown timezone "${body.timezone}"`, "unknown_timezone", 400, { timezone: String(body.timezone) });
       if (body.retentionMonths !== undefined && body.retentionMonths !== null && !RETENTION_MONTHS.includes(Number(body.retentionMonths))) {
-        return json({ error: `Keep visits for ${RETENTION_MONTHS.join(", ")} months, or forever` }, 400);
+        return coded(`Keep visits for ${RETENTION_MONTHS.join(", ")} months, or forever`, "retention_bad", 400, { months: RETENTION_MONTHS.join(", ") });
       }
       try {
         const id = decodeURIComponent(siteMatch[1]!);
@@ -1405,7 +1415,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           ...(body.timezone !== undefined && String(body.timezone) !== runlight.site(id)?.timezone ? { timezone: String(body.timezone) } : {}),
         };
         if (remote && Object.keys(forward).length) {
-          if (remote.scope !== "manage") return json({ error: "Connect this site again to change it from here" }, 400);
+          if (remote.scope !== "manage") return coded("Connect this site again to change it from here", "connect_again", 400);
           const answer = await passThrough(
             remote,
             `/api/sites/${encodeURIComponent(remote.site)}`,
@@ -1425,12 +1435,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         // A connected site answers as the list shows it, so the dashboard keeps its install and domains.
         return json({ site: remote ? { ...site, remote: remote.url, remoteSite: remote.site, manage: remote.scope === "manage", hostnames: remote.hostnames } : site });
       } catch (error) {
-        if (error instanceof RangeError) return json({ error: error.message }, error.message === "Unknown site" ? 404 : 400);
+        if (error instanceof RangeError) return error.message === "Unknown site" ? coded(error.message, "unknown_site", 404) : refused(error, "site_invalid");
         throw error;
       }
     }
 
-    if (request.method !== "GET") return json({ error: "Method not allowed" }, 405);
+    if (request.method !== "GET") return coded("Method not allowed", "method_not_allowed", 405);
 
     await runlight.init();
     // A shared dashboard sees exactly what its visitors see, even for someone signed in.
@@ -1440,14 +1450,14 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     let only: string | null = null;
     if (shareId !== null) {
       shared = SHARE_ID.test(shareId) ? await runlight.store.shareById(shareId) : null;
-      if (!shared) return json({ error: "This share link no longer works" }, 404);
-      if (!sharedPath(path)) return json({ error: "Not available on a shared dashboard" }, 403);
+      if (!shared) return coded("This share link no longer works", "share_gone", 404);
+      if (!sharedPath(path)) return coded("Not available on a shared dashboard", "share_not_available", 403);
       only = shared.site;
     } else {
       const access = await reader(request);
       if (access === false || access === "unconfigured") return denied(access);
       if (access !== true) {
-        if (!sharedPath(path)) return json({ error: "API tokens can only read" }, 403);
+        if (!sharedPath(path)) return coded("API tokens can only read", "token_read_only", 403);
         only = access.site || null;
       }
     }
@@ -1475,7 +1485,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     const site = shared ? runlight.site(shared.site) : only ? runlight.site(url.searchParams.get("site") ?? only) : await querySite(url);
     if (site instanceof Response) return site;
-    if (!site || (only && site.id !== only)) return json({ error: "Unknown site" }, 404);
+    if (!site || (only && site.id !== only)) return coded("Unknown site", "unknown_site", 404);
     const remote = runlight.remote(site.id);
     if (remote) return passThrough(remote, path, url, request);
 
@@ -1483,7 +1493,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const host = site.hostnames[0];
       // Only a site's own domain, never the request's Host header, which a caller can write.
       const icon = host ? await fetchIcon(`https://${host}`) : null;
-      if (!icon) return json({ error: "No icon" }, 404, { "cache-control": "private, max-age=3600" });
+      if (!icon) return coded("No icon", "icon_none", 404, undefined, { "cache-control": "private, max-age=3600" });
       return new Response(icon.body, {
         headers: {
           "content-type": icon.type,
@@ -1534,7 +1544,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     const goalMatch = /^\/api\/goals\/([a-f0-9]{24})$/.exec(path);
     if (goalMatch) {
       const goal = await runlight.store.goalById(goalMatch[1]!);
-      if (!goal || goal.site !== site.id) return json({ error: "Unknown goal" }, 404);
+      if (!goal || goal.site !== site.id) return coded("Unknown goal", "unknown_goal", 404);
       const visitors = await runlight.store.visitors(query);
       const totals = await runlight.store.goalTotals(query, goal);
       const [series, sources, channels, pages] = await Promise.all([
@@ -1601,11 +1611,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     if (path === "/api/event-props") {
       const event = url.searchParams.get("event") ?? "";
-      if (!event) return json({ error: "Name the event" }, 400);
+      if (!event) return coded("Name the event", "event_needed", 400);
       const keys = await runlight.store.eventPropKeys(query, event);
       const asked = url.searchParams.get("key");
       // A property name goes into a JSON path on SQLite, so quotes and backslashes are refused.
-      if (asked !== null && !/^[^"\\]{1,64}$/.test(asked)) return json({ error: "Bad property name" }, 400);
+      if (asked !== null && !/^[^"\\]{1,64}$/.test(asked)) return coded("Bad property name", "property_bad", 400);
       const key = asked ?? keys[0]?.key ?? null;
       const limit = Math.min(1000, Math.max(1, Number(url.searchParams.get("limit")) || 100));
       const rows = key ? await runlight.store.eventPropValues(query, event, key, limit) : [];
@@ -1614,7 +1624,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     if (path === "/api/breakdown") {
       const dimension = url.searchParams.get("dimension") ?? "";
-      if (!isDimension(dimension)) return json({ error: `Unknown dimension "${dimension}"` }, 400);
+      if (!isDimension(dimension)) return coded(`Unknown dimension "${dimension}"`, "unknown_dimension", 400, { dimension });
       const limit = Math.min(1000, Math.max(1, Number(url.searchParams.get("limit")) || 10));
       const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
       const rows = await runlight.store.breakdown(query, dimension, limit, (page - 1) * limit);
@@ -1649,7 +1659,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return download(`${site.id}-${range.fromDate}-${range.toDate}.zip`, zip(files, new Date(runlight.now())), "application/zip");
     }
 
-    return json({ error: "Not found" }, 404);
+    return coded("Not found", "not_found", 404);
   }
 
   const oauth = {
@@ -1665,8 +1675,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const handler: FetchHandler = async (request, context = {}) => {
     const url = new URL(request.url);
     // OAuth clients look for these at the site's root; an app routes them here when it wants OAuth.
-    if (base && url.pathname.startsWith("/.well-known/oauth-")) return (await oauthResponse(oauth, request, url.pathname, url, context)) ?? json({ error: "Not found" }, 404);
-    if (base && url.pathname !== base && !url.pathname.startsWith(`${base}/`)) return json({ error: "Not found" }, 404);
+    if (base && url.pathname.startsWith("/.well-known/oauth-")) return (await oauthResponse(oauth, request, url.pathname, url, context)) ?? coded("Not found", "not_found", 404);
+    if (base && url.pathname !== base && !url.pathname.startsWith(`${base}/`)) return coded("Not found", "not_found", 404);
     const path = url.pathname.slice(base.length) || "/";
 
     try {
@@ -1707,7 +1717,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
       if (path.startsWith("/assets/app.") && request.method === "GET") {
         const asset = path === `/assets/app.${DASHBOARD_HASH}.js` ? DASHBOARD_JS : path === `/assets/app.${DASHBOARD_HASH}.css` ? DASHBOARD_CSS : null;
-        if (asset === null) return json({ error: "Not found" }, 404);
+        if (asset === null) return coded("Not found", "not_found", 404);
         return new Response(asset, {
           headers: {
             "content-type": path.endsWith(".js") ? "application/javascript; charset=utf-8" : "text/css; charset=utf-8",
@@ -1723,7 +1733,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             headers: { "access-control-allow-origin": "*", "access-control-allow-methods": "POST", "access-control-max-age": "86400" },
           });
         }
-        if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+        if (request.method !== "POST") return coded("Method not allowed", "method_not_allowed", 405);
         try {
           await runlight.collect(request, context);
         } catch (error) {
@@ -1742,7 +1752,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
       if (path === "/mcp") {
         // No server-sent stream and no sessions: every message is one POST.
-        if (request.method !== "POST") return json({ error: "Method not allowed" }, 405, { allow: "POST" });
+        if (request.method !== "POST") return coded("Method not allowed", "method_not_allowed", 405, undefined, { allow: "POST" });
         const access = await reader(request);
         if (access === false || access === "unconfigured") {
           const refused = denied(access);
@@ -1808,10 +1818,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         });
       }
 
-      return json({ error: "Not found" }, 404);
+      return coded("Not found", "not_found", 404);
     } catch (error) {
       console.error("Runlight:", error);
-      return json({ error: "Internal error" }, 500);
+      return coded("Internal error", "internal", 500);
     }
   };
 

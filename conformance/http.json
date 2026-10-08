@@ -4506,7 +4506,11 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Give the goal a name"
+              "error": "Give the goal a name",
+              "code": "goal_invalid",
+              "params": {
+                "detail": "Give the goal a name"
+              }
             }
           }
         },
@@ -5081,7 +5085,8 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Unauthorized"
+              "error": "Unauthorized",
+              "code": "unauthorized"
             }
           }
         },
@@ -5097,7 +5102,8 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Unauthorized"
+              "error": "Unauthorized",
+              "code": "unauthorized"
             }
           }
         },
@@ -5181,7 +5187,8 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Unauthorized"
+              "error": "Unauthorized",
+              "code": "unauthorized"
             }
           }
         },
@@ -5215,7 +5222,8 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Send JSON"
+              "error": "Send JSON",
+              "code": "send_json"
             }
           }
         },
@@ -5231,7 +5239,8 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Bad date range. Use period, or from and to as YYYY-MM-DD."
+              "error": "Bad date range. Use period, or from and to as YYYY-MM-DD.",
+              "code": "range_bad"
             }
           }
         },
@@ -5247,7 +5256,11 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Bad filter \"nope\". Use dimension:is|not|contains:value."
+              "error": "Bad filter \"nope\". Use dimension:is|not|contains:value.",
+              "code": "filter_bad",
+              "params": {
+                "filter": "nope"
+              }
             }
           }
         },
@@ -5263,7 +5276,8 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Unknown site"
+              "error": "Unknown site",
+              "code": "unknown_site"
             }
           }
         },
@@ -5279,7 +5293,11 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Unknown dimension \"nope\""
+              "error": "Unknown dimension \"nope\"",
+              "code": "unknown_dimension",
+              "params": {
+                "dimension": "nope"
+              }
             }
           }
         },
@@ -5292,7 +5310,8 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "Method not allowed"
+              "error": "Method not allowed",
+              "code": "method_not_allowed"
             }
           }
         },
