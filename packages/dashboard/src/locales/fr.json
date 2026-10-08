@@ -779,5 +779,6 @@
   "error.code_wrong": "Ce code n'est pas correct. Vérifiez l'heure de votre téléphone et essayez le suivant.",
   "error.twofactor_off": "Activez d'abord la connexion à deux facteurs.",
   "error.twofactor_self": "Désactivez votre propre connexion à deux facteurs dans Compte.",
-  "error.unknown_invite": "Cette invitation n'existe plus."
+  "error.unknown_invite": "Cette invitation n'existe plus.",
+  "error.origin_needed": "Indiquez d’abord l’adresse de ce Runlight (RUNLIGHT_URL sur le serveur, ou origin dans routes()) pour qu’un hub connecté puisse ajouter des domaines de liens et des rapports par e-mail."
 }

@@ -779,5 +779,6 @@
   "error.code_wrong": "Esse código não está certo. Confira a hora do seu celular e tente o próximo.",
   "error.twofactor_off": "Ative primeiro o login em duas etapas.",
   "error.twofactor_self": "Desative seu próprio login em duas etapas em Conta.",
-  "error.unknown_invite": "Esse convite não existe mais."
+  "error.unknown_invite": "Esse convite não existe mais.",
+  "error.origin_needed": "Defina primeiro o endereço deste Runlight (RUNLIGHT_URL no servidor, ou origin em routes()) para que um hub ligado possa adicionar domínios de links e relatórios por e-mail."
 }

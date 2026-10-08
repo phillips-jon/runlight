@@ -125,22 +125,24 @@ function isJson(request: Request): boolean {
 }
 
 /** A Host or X-Forwarded-Host value as a bare name: lowercase, with no port, no final dot, and no www. */
-function hostName(value: string): string {
+export function hostName(value: string): string {
   const first = value.split(",")[0]!.trim().toLowerCase();
   const name = first.startsWith("[") ? first.slice(0, first.indexOf("]") + 1) : first.replace(/:\d*$/, "");
   return name.replace(/\.+$/, "").replace(/^www\./, "");
 }
 
+/** A domain name, such as go.example.com. */
+export const DOMAIN_NAME = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+
 /**
- * Whether a link domain names a public host: a domain name, with no IPv4
- * address inside it (as nip.io answers), and not under a name kept for
- * private networks or tests. The check fetches from it, so a name inside
- * the install's own network must never get that far.
+ * Whether a domain name is one kept for private networks or tests, or has
+ * an IPv4 address inside it (as nip.io answers). The link-domain check
+ * fetches from it, so a name inside the install's own network must never
+ * get that far; names that only resolve there are refused when fetched.
  */
-function publicName(domain: string): boolean {
-  if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return false;
-  if (/(^|\.)\d{1,3}(\.\d{1,3}){3}(\.|$)/.test(domain)) return false;
-  return !/\.(internal|intranet|private|local|localhost|localdomain|lan|home|corp|home\.arpa|arpa|test|invalid|example)$/.test(domain);
+function privateName(domain: string): boolean {
+  if (/(^|\.)\d{1,3}(\.\d{1,3}){3}(\.|$)/.test(domain)) return true;
+  return /\.(internal|intranet|private|local|localhost|localdomain|lan|home|corp|home\.arpa|arpa|test|invalid|example)$/.test(domain);
 }
 
 /**
@@ -303,10 +305,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const cronSecret = options.cronSecret ?? env("CRON_SECRET");
   const observeKey = options.observeKey ?? env("RUNLIGHT_OBSERVE_KEY");
   const origin = options.origin ? new URL(options.origin).origin : null;
+  // A link domain leaves these paths to the app, so the dashboard stays reachable on every name.
+  runlight.routeBases.add(base || "/");
   let warned = false;
 
   // Requests from a manage token, already checked against its one site, act as the owner's.
-  const managed = new WeakSet<Request>();
+  const managed = new WeakMap<Request, TokenRow>();
   // When each report's last sample went out.
   const sampleSent = new Map<string, number>();
 
@@ -359,6 +363,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     const access = await canRead(request);
     return access === "read" ? false : access;
   }
+
+  /** The refusal for a hub that asks for something only safe once this app knows its own address. */
+  const originNeeded = () =>
+    coded("Set this Runlight's own address first (RUNLIGHT_URL on the server, or origin in routes()), so a connected hub can add link domains and email reports.", "origin_needed", 400);
 
   function denied(result: false | "unconfigured" | "read"): Response {
     if (result === "read") return coded("Only an owner can change this", "owner_only", 403);
@@ -426,11 +434,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           const body = await readJson(request);
           if (body instanceof Response) return body;
           const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/\.+$/, "").replace(/^www\./, "");
-          if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return coded("That is not a domain name", "domain_invalid", 400);
-          if (!publicName(domain)) return coded(`${domain} is not a public domain name. Use one that browsers anywhere can reach.`, "domain_not_public", 400, { domain });
+          if (!DOMAIN_NAME.test(domain)) return coded("That is not a domain name", "domain_invalid", 400);
+          if (privateName(domain)) return coded(`${domain} is not a public domain name. Use one that browsers anywhere can reach.`, "domain_not_public", 400, { domain });
           // A link domain answers every path on it, so it must never be where the dashboard or a counted site lives.
           // The request's own Host is the caller's to choose, so the configured address and the names people
-          // signed in from count too.
+          // signed in from count too. A hub cannot know every name this app answers on, so it adds none until
+          // the app knows its own address.
+          if (managed.has(request) && !origin) return originNeeded();
           const here = [request.headers.get("host"), request.headers.get("x-forwarded-host"), url.host].filter((h): h is string => Boolean(h));
           const own = [...(origin ? [new URL(origin).host] : []), ...here, ...((await options.ownHosts?.()) ?? [])].map(hostName);
           const taken = new Set([...own, ...runlight.sites.flatMap((s) => s.hostnames), ...runlight.sites.flatMap((s) => runlight.remote(s.id)?.hostnames ?? [])]);
@@ -447,7 +457,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         const domain = decodeURIComponent(checkMatch[1]!);
         if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return json({ error: "Unknown domain" }, 404);
         // One added before names inside private networks were refused is never fetched.
-        if (!publicName(domain)) return json({ domain, working: false, reason: "is not a public domain name" });
+        if (!DOMAIN_NAME.test(domain) || privateName(domain)) return json({ domain, working: false, reason: "is not a public domain name" });
         let working = false;
         let reason = "";
         try {
@@ -717,9 +727,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           if (existing.some((r) => r.email === email && r.frequency === frequency)) return coded(`${email} already gets the ${frequency} report`, "report_exists", 400, { email });
           if (existing.length >= 50) return coded("A site can send to at most 50 addresses", "report_limit", 400);
           // Links in the email point back to the configured address, or else to this dashboard as the
-          // browser sees it. A report made from a hub uses this install's own address, where its
-          // unsubscribe link answers, and never the Host its request names.
-          const given = managed.has(request) || origin ? "" : String(body.origin ?? "");
+          // browser sees it. A report made from a hub needs the configured address, where its unsubscribe
+          // link answers, since the Host its request names is the hub's to choose.
+          if (managed.has(request) && !origin) return originNeeded();
+          const given = origin ? "" : String(body.origin ?? "");
           const home = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${origin ?? url.origin}${base}`;
           // A period already due counts as sent, so a report added mid-week first goes out on the next Monday, as the form says.
           const due = lastPeriod(frequency, runlight.now(), site.timezone);
@@ -926,7 +937,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       }
       url = new URL(url);
       url.searchParams.set("site", token.site);
-      managed.add(request);
+      managed.set(request, token);
     }
 
     // A page another site served to an AI agent, reported by a CMS plugin.

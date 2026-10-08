@@ -73,10 +73,12 @@ test("a standalone server reads a connected app install through its API, and cha
 test("a hub connects an app through its consent page and changes that site's settings there", async () => {
   // The app, with two sites, run as a real server so the hub reaches it over HTTP.
   const app = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "shop", name: "Shop", hostnames: ["shop.example.com"] }, { id: "blog", name: "Blog", hostnames: ["blog.example.com"] }] });
-  const appRoutes = app.routes({ token: "app-owner" });
-  const server = createServer(toNodeHandler(appRoutes.handler));
+  // The app knows its own address, so a hub may add email reports there.
+  let appRoutes: ReturnType<typeof app.routes> | null = null;
+  const server = createServer(toNodeHandler((request) => appRoutes!.handler(request)));
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const appUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/runlight`;
+  appRoutes = app.routes({ token: "app-owner", origin: new URL(appUrl).origin });
   const asAppOwner = (url: string, init: RequestInit = {}) => fetch(url, { ...init, redirect: "manual", headers: { ...(init.headers as Record<string, string>), authorization: "Bearer app-owner" } });
 
   try {

@@ -6,7 +6,7 @@ import { sqlite } from "../src/stores/sqlite.js";
 /** An app with two sites and an owner token, as a hub would connect to. */
 async function app() {
   const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "blog", hostnames: ["blog.example.com"] }, { id: "shop", hostnames: ["shop.example.com"] }] });
-  const routes = rl.routes({ token: "owner" });
+  const routes = rl.routes({ token: "owner", origin: "https://app.example.com" });
   const call = async (method: string, path: string, auth: string, body?: unknown) => {
     const answer = await routes.handler(new Request(`https://app.example.com/runlight${path}`, {
       method,
@@ -91,6 +91,29 @@ test("link domains stay off the configured address and the names people signed i
   await call("DELETE", `/api/reports/${second.id}?site=blog`, manage);
   const again = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "b@example.com" })).json()) as any).report;
   assert.equal((await call("POST", `/api/reports/${again.id}/send?site=blog`, manage)).status, 429, "and so does one added again");
+});
+
+test("without its own address, an app gives a hub no link domains or reports, and a link domain leaves the dashboard alone", async () => {
+  // As the quickstart sets it up: one site, no origin, and the app answers on more names than the site's.
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { name: "example.com", hostnames: ["example.com"] } });
+  const routes = rl.routes({ token: "owner" });
+  const call = async (host: string, method: string, path: string, auth: string, body?: unknown) => {
+    const answer = await routes.handler(new Request(`https://${host}/runlight${path}`, { method, headers: { host, authorization: `Bearer ${auth}`, ...(body === undefined ? {} : { "content-type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
+    return { status: answer.status, body: (await answer.json().catch(() => null)) as any };
+  };
+  const manage = (await call("app.example.com", "POST", "/api/tokens", "owner", { name: "Hub", site: "default", scope: "manage" })).body.secret as string;
+  // From the deployment's other name, where the app's own name is not the request's Host.
+  const add = await call("example-app.vercel.app", "POST", "/api/link-domains", manage, { domain: "app.example.com" });
+  assert.equal(add.status, 400);
+  assert.equal(add.body.code, "origin_needed");
+  assert.equal((await call("example-app.vercel.app", "POST", "/api/reports", manage, { email: "cfo@example.com" })).body.code, "origin_needed");
+  assert.equal((await call("app.example.com", "POST", "/api/link-domains", "owner", { domain: "go.example.com" })).status, 201, "the owner still adds them");
+  // On a link domain the dashboard's paths pass to the app, so the owner can always reach it there.
+  for (const path of ["/runlight", "/runlight/api/sites"]) assert.equal(await rl.linkDomainResponse(new Request(`https://go.example.com${path}`, { headers: { host: "go.example.com" } })), null, path);
+  assert.equal((await rl.linkDomainResponse(new Request("https://go.example.com/nothing", { headers: { host: "go.example.com" } })))?.status, 404);
+  // Middleware that never made the routes leaves the default path alone too.
+  const apart = runlight({ store: rl.store, site: { name: "example.com", hostnames: ["example.com"] } });
+  assert.equal(await apart.linkDomainResponse(new Request("https://go.example.com/runlight", { headers: { host: "go.example.com" } })), null);
 });
 
 test("the hub never passes on an install's answer as a page, nor follows its redirects", async () => {

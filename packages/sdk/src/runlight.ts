@@ -149,6 +149,11 @@ export class Runlight {
   readonly links: Links;
   /** Where links on the app's own domain are served, such as "/go". */
   readonly linkPath: string;
+  /**
+   * Where routes() serves the dashboard and API, which a link domain leaves alone. Middleware often runs
+   * apart from the routes, where none were made, so the default "/runlight" stands in there.
+   */
+  readonly routeBases = new Set<string>();
   private ready: Promise<void> | null = null;
   private linkDomainCache: { at: number; domains: Set<string> } | null = null;
   /** Work queued per key by oneAtATime, such as one visitor's session. */
@@ -912,7 +917,8 @@ export class Runlight {
    * For middleware: when a request arrives on a link domain added in
    * Settings (such as t.example.com), answers `/{slug}` there with the
    * redirect, and anything else with a 404. Null for every other host, so
-   * the app carries on as normal.
+   * the app carries on as normal, and for the dashboard's own paths, so
+   * its owner can always reach it to remove the domain.
    */
   async linkDomainResponse(request: Request, context: RequestContext = {}): Promise<Response | null> {
     const url = new URL(request.url);
@@ -925,6 +931,9 @@ export class Runlight {
       return new Response(JSON.stringify({ runlight: true, domain: host }), {
         headers: { "content-type": "application/json", "cache-control": "no-store" },
       });
+    }
+    for (const base of this.routeBases.size ? this.routeBases : ["/runlight"]) {
+      if (base !== "/" && (url.pathname === base || url.pathname.startsWith(`${base}/`))) return null;
     }
     const slug = decodeURIComponent(url.pathname.slice(1));
     const found = slug && !slug.includes("/") ? await this.redirect(request, slug, host, context) : null;

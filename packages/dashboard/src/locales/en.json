@@ -779,5 +779,6 @@
   "error.code_wrong": "That code is not right. Check the time on your phone and try the next one.",
   "error.twofactor_off": "Turn on two-factor sign-in first.",
   "error.twofactor_self": "Turn off your own two-factor sign-in under Account.",
-  "error.unknown_invite": "That invite no longer exists."
+  "error.unknown_invite": "That invite no longer exists.",
+  "error.origin_needed": "Set this Runlight's own address first (RUNLIGHT_URL on the server, or origin in routes()), so a connected hub can add link domains and email reports."
 }
