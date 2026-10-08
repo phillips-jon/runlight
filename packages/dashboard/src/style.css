@@ -1281,28 +1281,35 @@ button.name:hover {
 }
 
 @media (max-width: 720px) {
+  /* On a phone the pickers open as a sheet from the bottom, the full width of the screen. */
   .flyout {
     position: fixed;
-    top: 72px;
-    left: 8px;
-    right: 8px;
-    max-height: calc(100vh - 88px);
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    max-height: 85vh;
     overflow: auto;
     flex-direction: column;
+    border-radius: 16px 16px 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    animation: rise 0.18s ease-out;
+    /* Dims the page behind; a tap there closes the sheet, as a tap anywhere outside a picker does. */
+    box-shadow: 0 0 0 100vmax rgba(9, 9, 11, 0.45);
   }
 
   .presets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 8px;
     width: auto;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
 
   .preset {
-    width: auto;
-    border: 1px solid var(--line);
+    width: 100%;
   }
 
   .months {
@@ -4485,4 +4492,64 @@ a.ghost {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+}
+
+/* On a phone the toolbar wraps: Reset, the assistant, and Filter on one row, then the two pickers sharing the next. */
+@media (max-width: 720px) {
+  .actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .actions .picker {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+  }
+
+  .actions .picker-button {
+    width: 100%;
+    justify-content: space-between;
+    overflow: hidden;
+  }
+
+  .actions .picker-button > span:not(.compare-vs) {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .compare-flyout .presets {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  .presets-title {
+    grid-column: 1 / -1;
+  }
+
+  .months {
+    width: 100%;
+  }
+}
+
+/* A box's header tools (the Links box has tabs and two buttons) wrap rather than push the page wider. */
+@media (max-width: 560px) {
+  .head-tools {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+}
+
+/* On the smallest phones a box's tabs wrap, so every one stays in view. */
+@media (max-width: 420px) {
+  .panel-head .tabs {
+    flex-wrap: wrap;
+    white-space: normal;
+  }
 }
