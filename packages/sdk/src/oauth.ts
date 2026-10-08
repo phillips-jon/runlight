@@ -34,6 +34,8 @@ interface Code {
   site: string;
   scope: "read" | "manage";
   expires: number;
+  /** Who allowed it, where the app has accounts, so the token goes when they do. */
+  by?: string;
 }
 
 const CODE_MS = 5 * 60_000;
@@ -116,6 +118,10 @@ export interface OAuthContext {
   signIn?: string;
   /** Whether the request comes from someone signed in who may only read, such as a viewer. */
   isReader?: (request: Request) => Promise<boolean>;
+  /** The account a request comes from, where the app has accounts. */
+  accountOf?: (request: Request) => Promise<string | null>;
+  /** Notes who made a token; false when they can no longer make one, which takes it back. */
+  tokenMade?: (token: TokenRow, by: string) => Promise<boolean>;
 }
 
 /** The URL that a 401 from the MCP endpoint points clients at, to start OAuth. */
@@ -236,7 +242,8 @@ ${sendsTo}
     if (site && !runlight.site(site)) return back({ error: "invalid_request", error_description: "Unknown site" });
     if (manage && (!site || runlight.remote(site))) return back({ error: "invalid_request", error_description: "Pick the site to manage" });
     const code = randomId(32);
-    const grant: Code = { client: clientId, redirect, challenge, site, scope: manage ? "manage" : "read", expires: runlight.now() + CODE_MS };
+    const by = (await ctx.accountOf?.(request)) ?? null;
+    const grant: Code = { client: clientId, redirect, challenge, site, scope: manage ? "manage" : "read", expires: runlight.now() + CODE_MS, ...(by ? { by } : {}) };
     await runlight.store.setSetting(`oauth-code:${await sha256(code)}`, JSON.stringify(grant));
     return back({ code });
   }
@@ -265,6 +272,11 @@ ${sendsTo}
     const scope = grant.scope === "manage" ? "manage" : "read";
     const row: TokenRow = { id: randomId(), name: `${client.name ?? "An app"} (OAuth)`.slice(0, 100), site: grant.site, scope, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
     await runlight.store.insertToken(row);
+    // Someone removed, or no longer an owner, between allowing the app and its swapping the code gets nothing.
+    if (grant.by && ctx.tokenMade && !(await ctx.tokenMade(row, grant.by))) {
+      await runlight.store.deleteToken(row.id);
+      return oauthError("invalid_grant", "Whoever allowed this app can no longer connect it");
+    }
     // site is not part of OAuth, but a hub needs to know which site it was given.
     return json({ access_token: secret, token_type: "Bearer", scope, ...(grant.site ? { site: grant.site } : {}) });
   }

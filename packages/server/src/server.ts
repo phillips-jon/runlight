@@ -3,7 +3,7 @@
  * behind a sign-in, with sites managed in the dashboard and short links
  * answered on any domain pointed at it.
  */
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual } from "node:crypto";
 import { DOMAIN_NAME, LINK_DOMAIN_CHECK, hostName, runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
 import { AccountError, Accounts, SESSION_COOKIE, SESSION_MS, Throttle, otpauthUri, type Invite, type Role, type User } from "./auth.js";
 import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
@@ -131,48 +131,15 @@ export function createServer(options: ServerOptions): RunlightServer {
     await options.store.setSetting("server-hosts", JSON.stringify([...known].slice(0, MAX_OWN_HOSTS)));
   };
 
-  // Who made each token, kept beside it as a setting, so removing someone deletes the tokens they made and
-  // the apps they connected. Tokens made with RUNLIGHT_TOKEN, or before this was kept, have no maker.
+  // Who made each token, kept beside it as a setting, so removing someone, or making them a viewer, deletes the
+  // tokens they made and the apps they connected. Tokens made with RUNLIGHT_TOKEN, or before this was kept, have no maker.
   const MADE_BY = "token-by:";
-  const CODE_BY = "oauth-code-by:";
-  const digest = (value: string) => createHash("sha256").update(value).digest("hex");
-  /** Notes the maker of a token the routes just made, or of the OAuth code that becomes one. */
-  const noteMaker = async (request: Request, form: URLSearchParams | null, answer: Response) => {
-    const path = new URL(request.url).pathname;
-    if (path === "/api/tokens" && request.method === "POST" && answer.status === 201) {
-      const user = await signedIn(request);
-      const made = (await answer.clone().json().catch(() => null)) as { token?: { id?: string } } | null;
-      if (user && made?.token?.id) await options.store.setSetting(`${MADE_BY}${made.token.id}`, user.id);
-    }
-    // An owner allowed an app: the code in the redirect is theirs until it is swapped for a token.
-    if (path === "/oauth/authorize" && request.method === "POST" && answer.status === 303) {
-      const code = new URL(answer.headers.get("location") ?? "", "http://x").searchParams.get("code");
-      const user = code ? await signedIn(request) : null;
-      if (code && user) await options.store.setSetting(`${CODE_BY}${digest(code)}`, user.id);
-    }
-    if (path === "/oauth/token" && request.method === "POST" && answer.status === 200 && form) {
-      const key = `${CODE_BY}${digest(form.get("code") ?? "")}`;
-      const maker = await options.store.setting(key);
-      if (!maker) return;
+  const dropTokensOf = async (id: string) => {
+    for (const { key, value } of await options.store.settingsStartingWith(MADE_BY)) {
+      if (value !== id) continue;
+      await options.store.deleteToken(key.slice(MADE_BY.length));
       await options.store.setSetting(key, null);
-      const granted = (await answer.clone().json().catch(() => null)) as { access_token?: string } | null;
-      const row = granted?.access_token ? await options.store.tokenByHash(digest(granted.access_token)) : null;
-      if (row) await options.store.setSetting(`${MADE_BY}${row.id}`, maker);
     }
-  };
-
-  /** The token endpoint's fields, sent as a form or as JSON. */
-  const formOf = async (request: Request) => {
-    const text = await request.text();
-    if (!(request.headers.get("content-type") ?? "").startsWith("application/json")) return new URLSearchParams(text);
-    const fields = (() => {
-      try {
-        return JSON.parse(text) as Record<string, unknown>;
-      } catch {
-        return null;
-      }
-    })();
-    return new URLSearchParams(fields && typeof fields === "object" ? Object.entries(fields).map(([k, v]) => [k, String(v)]) : []);
   };
 
   const signedIn = async (request: Request) => {
@@ -207,6 +174,13 @@ export function createServer(options: ServerOptions): RunlightServer {
     },
     ...(publicUrl ? { origin: publicUrl.origin } : {}),
     ownHosts: knownHosts,
+    accountOf: async (request) => (await signedIn(request))?.id ?? null,
+    // Only an owner makes tokens; one removed or made a viewer since allowing an app gets none for it.
+    tokenMade: async (token, by) => {
+      if ((await accounts.byId(by))?.role !== "owner") return false;
+      await options.store.setSetting(`${MADE_BY}${token.id}`, by);
+      return true;
+    },
   });
   const links = rl.linkHandler();
 
@@ -349,11 +323,7 @@ export function createServer(options: ServerOptions): RunlightServer {
         return redirect(`/login${url.search ? `?next=${encodeURIComponent(`/${url.search}`)}` : ""}`);
       }
 
-      // The token endpoint's form is read here too, to find who allowed the code it swaps.
-      const form = path === "/oauth/token" && method === "POST" ? await formOf(request.clone()) : null;
-      const answer = await routes.handler(request, context);
-      if (path === "/api/tokens" || path.startsWith("/oauth/")) await noteMaker(request, form, answer);
-      return answer;
+      return await routes.handler(request, context);
     } catch (error) {
       console.error("Runlight:", error);
       return new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: { "content-type": "application/json" } });
@@ -509,18 +479,17 @@ export function createServer(options: ServerOptions): RunlightServer {
           if (match[1] === user.id) return reply({ error: "You cannot remove yourself", code: "remove_self" }, 400);
           await accounts.remove(match[1]!);
           // The tokens they made, and the apps they connected, stop working with them.
-          for (const { key, value } of await options.store.settingsStartingWith(MADE_BY)) {
-            if (value !== match[1]) continue;
-            await options.store.deleteToken(key.slice(MADE_BY.length));
-            await options.store.setSetting(key, null);
-          }
+          await dropTokensOf(match[1]!);
           return reply({ ok: true });
         }
         const input = await body(request);
         if (!input) return reply({ error: "Send JSON" }, 415);
         const role = roleOf(input.role);
         if (!role) return reply({ error: "Pick owner or viewer", code: "role_needed" }, 400);
-        return reply({ person: person(await accounts.setRole(match[1]!, role)) });
+        const changed = await accounts.setRole(match[1]!, role);
+        // A viewer changes nothing, so the tokens they made as an owner go too.
+        if (role === "viewer") await dropTokensOf(match[1]!);
+        return reply({ person: person(changed) });
       } catch (error) {
         if (error instanceof AccountError) return reply({ error: error.message, code: error.code, params: error.params }, error.code === "unknown_account" ? 404 : 400);
         throw error;

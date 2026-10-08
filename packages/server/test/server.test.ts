@@ -289,6 +289,40 @@ test("removing someone deletes the tokens they made and the apps they connected"
   assert.deepEqual([await works(mine), await works(hers), await works(app)], [200, 401, 401], "only Jon's own token is left");
 });
 
+test("an app's token belongs to whoever allowed it, however the swap is sent, and goes when they stop being an owner", async () => {
+  const { server, handle } = make();
+  await server.accounts.setPassword("jon@example.com", "a long password", Date.now());
+  const bob = await server.accounts.setPassword("bob@example.com", "a long password", Date.now());
+  const signIn = async (email: string) => cookieOf(await handle(req("/login", form({ email, password: "a long password" }))));
+  const jon = await signIn("jon@example.com");
+  const his = await signIn("bob@example.com");
+  const { client_id } = (await (await handle(req("/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: "Script", redirect_uris: ["https://app.example/cb"] }) }))).json()) as any;
+  const verifier = "v".repeat(50);
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  const allow = async () => {
+    const allowed = await handle(req("/oauth/authorize", { method: "POST", headers: { cookie: his, origin, "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ response_type: "code", client_id, redirect_uri: "https://app.example/cb", code_challenge: challenge, code_challenge_method: "S256", decision: "allow" }).toString() }));
+    return new URL(allowed.headers.get("location")!).searchParams.get("code")!;
+  };
+  const swap = async (code: string, type: string) =>
+    handle(req("/oauth/token", { method: "POST", headers: { "content-type": type }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id, redirect_uri: "https://app.example/cb", code_verifier: verifier }).toString() }));
+  const works = async (token: string) => (await handle(req("/api/sites", { headers: { authorization: `Bearer ${token}` } }))).status;
+
+  // A media type the token endpoint reads as a form, which once kept the maker from being noted.
+  const odd = ((await (await swap(await allow(), "application/jsonx")).json()) as any).access_token as string;
+  assert.equal(await works(odd), 200);
+  // Made a viewer: every token he made goes.
+  assert.equal((await handle(req(`/api/people/${bob.id}`, { method: "PATCH", headers: { cookie: jon, "content-type": "application/json" }, body: JSON.stringify({ role: "viewer" }) }))).status, 200);
+  assert.equal(await works(odd), 401);
+
+  // A code he allowed as an owner and the app swaps after he is removed gets nothing.
+  await server.accounts.setRole(bob.id, "owner");
+  const late = await allow();
+  assert.equal((await handle(req(`/api/people/${bob.id}`, { method: "DELETE", headers: { cookie: jon } }))).status, 200);
+  const refused = await swap(late, "application/x-www-form-urlencoded");
+  assert.equal(((await refused.json()) as any).error, "invalid_grant");
+  assert.equal(((await (await handle(req("/api/tokens", { headers: { cookie: jon } }))).json()) as any).tokens.length, 0);
+});
+
 test("an invite goes out by email when the server has a mail service", async () => {
   const { createServer: listen } = await import("node:http");
   const got: any[] = [];

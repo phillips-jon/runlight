@@ -72,9 +72,17 @@ export interface RoutesOptions {
   origin?: string;
   /**
    * More names the dashboard is reached at, which can never be link domains
-   * either. The standalone server passes the ones people signed in from.
+   * either. The standalone server passes the ones owners signed in from.
    */
   ownHosts?: () => Promise<Iterable<string>>;
+  /**
+   * @internal For the standalone server's accounts: the account a request
+   * comes from, so the tokens someone makes and the apps they connect are
+   * noted against them.
+   */
+  accountOf?: (request: Request) => Promise<string | null>;
+  /** @internal Notes who made a token. False when they can no longer make one, which takes it back. */
+  tokenMade?: (token: TokenRow, by: string) => Promise<boolean>;
 }
 
 export type FetchHandler = (request: Request, context?: RequestContext) => Promise<Response>;
@@ -861,6 +869,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const secret = `${TOKEN_PREFIX}${randomId(20)}`;
       const row: TokenRow = { id: randomId(), name, site, scope, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
       await runlight.store.insertToken(row);
+      const by = (await options.accountOf?.(request)) ?? null;
+      if (by && options.tokenMade && !(await options.tokenMade(row, by))) {
+        await runlight.store.deleteToken(row.id);
+        return denied("read");
+      }
       // The only time the token is ever shown.
       return json({ token: view(row), secret }, 201);
     }
@@ -1549,6 +1562,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     isOwner: async (request: Request) => (await canRead(request)) === true,
     isReader: async (request: Request) => (options.authorize ? (await options.authorize(request)) === "read" : false),
     ...(options.signIn ? { signIn: options.signIn } : {}),
+    ...(options.accountOf ? { accountOf: options.accountOf } : {}),
+    ...(options.tokenMade ? { tokenMade: options.tokenMade } : {}),
   };
 
   const handler: FetchHandler = async (request, context = {}) => {
