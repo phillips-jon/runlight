@@ -252,29 +252,13 @@ function TwoFactor({ me }: { me: Person }) {
 }
 
 /** Resetting someone's two-factor asks for your own password first, like every two-factor change. */
-function ResetTwoFactor({ onReset }: { onReset: (password: string) => Promise<void> }) {
-  const [asking, setAsking] = useState(false);
+function ResetTwoFactor({ onReset, onCancel }: { onReset: (password: string) => Promise<void>; onCancel: () => void }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const close = () => {
-    setAsking(false);
-    setPassword("");
-  };
-  if (!asking) {
-    return (
-      <button type="button" class="copy inline" title={t("people.resetTwoFactorHint")} onClick={() => setAsking(true)}>
-        <Icon name="reset" />
-        {t("people.resetTwoFactor")}
-      </button>
-    );
-  }
   const submit = (e: Event) => {
     e.preventDefault();
     setBusy(true);
-    void onReset(password).finally(() => {
-      setBusy(false);
-      close();
-    });
+    void onReset(password).finally(() => setBusy(false));
   };
   return (
     <form class="reset-twofactor" onSubmit={submit}>
@@ -283,7 +267,7 @@ function ResetTwoFactor({ onReset }: { onReset: (password: string) => Promise<vo
         <Icon name="reset" />
         {t("people.resetTwoFactor")}
       </button>
-      <button type="button" class="copy inline" onClick={close}>
+      <button type="button" class="copy inline" onClick={onCancel}>
         {t("common.cancel")}
       </button>
     </form>
@@ -300,6 +284,8 @@ export function People({ me }: { me: Person }) {
   const [error, setError] = useState("");
   // While an invite is on its way, its buttons wait, so a double click sends one.
   const [sending, setSending] = useState(false);
+  // Whose two-factor is being reset, while the owner's password is asked for.
+  const [resetting, setResetting] = useState<string | null>(null);
   const load = () =>
     api
       .people()
@@ -368,23 +354,44 @@ export function People({ me }: { me: Person }) {
                 <span class="share-meta">{t("links.createdOn", { date: dateOf(p.createdAt) })}</span>
               </div>
               <div class="domain-actions">
-                {p.twoFactor && p.id !== me.id ? (
-                  <ResetTwoFactor onReset={(password) => api.resetTwoFactor(p.id, password).then(load).catch((err: Error) => setError(err.message))} />
-                ) : null}
-                <select class="value people-role" value={p.role} aria-label={t("people.role")} onChange={(e) => void change(p.id, (e.target as HTMLSelectElement).value as Person["role"])}>
-                  <option value="owner">{t("people.owner")}</option>
-                  <option value="viewer">{t("people.viewer")}</option>
-                </select>
-                {p.id === me.id ? null : (
-                  <DeleteButton
-                    name={p.email}
-                    onDelete={() =>
-                      void api
-                        .removePerson(p.id)
-                        .then(load)
+                {resetting === p.id ? (
+                  <ResetTwoFactor
+                    onCancel={() => setResetting(null)}
+                    onReset={(password) =>
+                      api
+                        .resetTwoFactor(p.id, password)
+                        .then(() => {
+                          setResetting(null);
+                          setError("");
+                          return load();
+                        })
                         .catch((err: Error) => setError(err.message))
                     }
                   />
+                ) : (
+                  <>
+                    {p.twoFactor && p.id !== me.id ? (
+                      <button type="button" class="copy inline" title={t("people.resetTwoFactorHint")} onClick={() => setResetting(p.id)}>
+                        <Icon name="reset" />
+                        {t("people.resetTwoFactor")}
+                      </button>
+                    ) : null}
+                    <select class="value people-role" value={p.role} aria-label={t("people.role")} onChange={(e) => void change(p.id, (e.target as HTMLSelectElement).value as Person["role"])}>
+                      <option value="owner">{t("people.owner")}</option>
+                      <option value="viewer">{t("people.viewer")}</option>
+                    </select>
+                    {p.id === me.id ? null : (
+                      <DeleteButton
+                        name={p.email}
+                        onDelete={() =>
+                          void api
+                            .removePerson(p.id)
+                            .then(load)
+                            .catch((err: Error) => setError(err.message))
+                        }
+                      />
+                    )}
+                  </>
                 )}
               </div>
             </li>

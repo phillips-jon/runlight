@@ -3093,11 +3093,18 @@ select.field,
 }
 
 .reset-twofactor {
-  display: contents;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .reset-twofactor .secret {
-  width: 180px;
+  width: 150px;
+}
+
+.reset-twofactor .value {
+  height: 30px;
+  font-size: 13px;
 }
 
 .domain-note {
