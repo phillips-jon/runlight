@@ -80,7 +80,7 @@ export const umami: Importer = {
     const links = [];
     for (const l of list.data) {
       if (l.deletedAt) continue;
-      if (await known(l.id)) {
+      if (await known(l.id, l.slug, l.url)) {
         links.push({ link: { sourceId: l.id, slug: l.slug, domain: "", name: l.name, url: l.url, createdAt: 0 }, known: true });
         continue;
       }

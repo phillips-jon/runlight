@@ -38,7 +38,7 @@ export const dub: Importer = {
 
     const links = [];
     for (const l of list) {
-      if (await known(l.id)) {
+      if (await known(l.id, l.key, l.url)) {
         links.push({ link: { sourceId: l.id, slug: l.key, domain: "", name: "", url: l.url, createdAt: 0 }, known: true });
         continue;
       }

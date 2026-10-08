@@ -5,7 +5,7 @@ import { dub } from "./dub.js";
 import { rebrandly } from "./rebrandly.js";
 import { shortio } from "./shortio.js";
 import { umami } from "./umami.js";
-import { importedLinkId, writeLink } from "./write.js";
+import { importedLinkId, sameUrl, writeLink } from "./write.js";
 
 export const IMPORTERS: Record<string, Importer> = { umami, dub, bitly, shortio, rebrandly };
 
@@ -25,7 +25,12 @@ export async function importStep(
   const importer = IMPORTERS[source];
   if (!importer) throw new ImportError(`Runlight cannot import from ${source}`);
   await runlight.init();
-  const known = async (sourceId: string) => Boolean(await runlight.store.linkById(await importedLinkId(source, sourceId)));
+  const known = async (sourceId: string, slug?: string, url?: string) => {
+    if (await runlight.store.linkById(await importedLinkId(source, sourceId))) return true;
+    if (!slug || !url) return false;
+    const taken = await runlight.store.linkBySlug(slug);
+    return Boolean(taken && sameUrl(taken.url, url));
+  };
   const result = await importer.step({ credentials, cursor, known });
   const step: ImportStep = { cursor: result.cursor, done, total: result.total, links: 0, clicks: 0, skipped: 0, failed: [] };
   for (const item of result.links) {

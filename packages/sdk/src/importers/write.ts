@@ -11,6 +11,9 @@ export const hexId = async (value: string, length = 24) => (await sha256(value))
 /** The Runlight id an imported link gets, from its source and its id there. */
 export const importedLinkId = (source: string, sourceId: string) => hexId(`${source}:${sourceId}`);
 
+/** Two destinations are the same link when they differ only by a trailing slash. */
+export const sameUrl = (a: string, b: string) => a.replace(/\/$/, "") === b.replace(/\/$/, "");
+
 // Browser and system names as other tools write them, in Runlight's spelling.
 export const BROWSERS: Record<string, string> = {
   chrome: "Chrome", crios: "Chrome", "chromium-webview": "Android WebView", "chrome webview": "Android WebView", safari: "Safari", ios: "Safari", "ios-webview": "Safari",
@@ -49,7 +52,7 @@ export async function writeLink(
   if (await runlight.store.linkById(id)) return { status: "skipped", clicks: 0 };
   const taken = await runlight.store.linkBySlug(foreign.slug);
   // The same slug to the same place is this link, brought in earlier some other way.
-  if (taken && taken.url.replace(/\/$/, "") === foreign.url.replace(/\/$/, "")) return { status: "skipped", clicks: 0 };
+  if (taken && sameUrl(taken.url, foreign.url)) return { status: "skipped", clicks: 0 };
   if (taken) return { status: "failed", clicks: 0, reason: `/${foreign.slug} is already used by "${taken.name}"` };
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$/.test(foreign.slug)) return { status: "failed", clicks: 0, reason: `/${foreign.slug} has characters Runlight slugs cannot use` };
 

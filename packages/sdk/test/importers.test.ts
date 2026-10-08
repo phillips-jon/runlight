@@ -143,3 +143,18 @@ test("Umami: signs in with a username and password, and re-runs skip what is the
   await assert.rejects(importStep(rl, "default", "umami", { url: "nope" }, null, 0), /Umami address/);
   await assert.rejects(importStep(rl, "default", "nowhere", {}, null, 0), /cannot import/);
 });
+
+test("Umami: a link already here with the same slug and destination is skipped before its history is fetched", async () => {
+  const calls = serve([
+    [/\/api\/links\?/, () => ({ body: { data: [{ id: "u-9", name: "Golden", url: "https://a.com/", slug: "golden", createdAt: "2026-01-01T00:00:00Z", deletedAt: null }], count: 1 } })],
+    [/\/websites\/u-9\//, () => ({ body: { data: [], count: 0 } })],
+  ]);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }) });
+  await rl.init();
+  // Brought in earlier some other way, such as a CSV, so it has no Umami id.
+  await rl.links.create("default", { url: "https://a.com", slug: "golden", name: "Golden" });
+  const step = await importStep(rl, "default", "umami", { url: "https://stats.example.com/", apiKey: "k" }, null, 0);
+  assert.equal(step.skipped, 1);
+  assert.equal(step.links, 0);
+  assert.ok(!calls.some((c) => c.includes("/websites/u-9/")), "no history was fetched for it");
+});

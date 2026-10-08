@@ -48,7 +48,7 @@ export const bitly: Importer = {
     const links = [];
     for (const b of page.links) {
       if (b.is_deleted) continue;
-      if (await known(b.id)) {
+      if (await known(b.id, split(b.custom_bitlinks?.[0] ?? b.id).slug, b.long_url)) {
         links.push({ link: { sourceId: b.id, slug: "", domain: "", name: "", url: b.long_url, createdAt: 0 }, known: true });
         continue;
       }

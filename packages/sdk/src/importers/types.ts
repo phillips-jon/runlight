@@ -60,8 +60,12 @@ export interface Importer {
   step(input: {
     credentials: Credentials;
     cursor: string | null;
-    /** Whether a link from this source is already in Runlight, so its history need not be fetched again. */
-    known: (sourceId: string) => Promise<boolean>;
+    /**
+     * Whether a link from this source is already in Runlight, so its history
+     * need not be fetched again: imported from this source before, or the
+     * same slug to the same destination brought in some other way.
+     */
+    known: (sourceId: string, slug?: string, url?: string) => Promise<boolean>;
   }): Promise<{
     cursor: string | null;
     total: number | null;

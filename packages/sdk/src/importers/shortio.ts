@@ -49,7 +49,7 @@ export const shortio: Importer = {
     const links = [];
     for (const l of page.links) {
       const id = String(l.idString ?? l.id);
-      if (await known(id)) {
+      if (await known(id, l.path, l.originalURL)) {
         links.push({ link: { sourceId: id, slug: l.path, domain: "", name: "", url: l.originalURL, createdAt: 0 }, known: true });
         continue;
       }
