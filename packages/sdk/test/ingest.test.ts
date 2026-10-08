@@ -231,3 +231,24 @@ test("a region name from a location database is kept readable, and a code stays 
   const rows = (await (await GET(new Request("https://x.com/runlight/api/breakdown?period=today&dimension=region"))).json()) as any;
   assert.deepEqual(rows.rows.map((r: any) => r.value).sort(), ["CA-Ontario", "GB-ENG"]);
 });
+
+test("tracker requests over the per-address limit are dropped until the next minute", async () => {
+  const { runlight } = await import("../src/index.js");
+  const { sqlite } = await import("../src/stores/sqlite.js");
+  let now = Date.UTC(2026, 9, 6, 12, 0, 0);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["example.com"] }, rateLimit: 3, now: () => now });
+  const { POST, GET } = rl.routes({ token: "t" });
+  const hit = (ip: string, n: number) =>
+    POST(new Request("https://example.com/runlight/e", {
+      method: "POST",
+      headers: { "user-agent": "Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36", "x-forwarded-for": ip },
+      body: JSON.stringify({ k: "pageview", u: `https://example.com/${n}` }),
+    }));
+  for (let n = 0; n < 5; n++) assert.equal((await hit("203.0.113.9", n)).status, 202, "the answer never changes");
+  await hit("198.51.100.1", 9);
+  const views = async () => ((await (await GET(new Request("https://example.com/runlight/api/stats?period=today", { headers: { authorization: "Bearer t" } }))).json()) as any).stats.pageviews;
+  assert.equal(await views(), 4, "three from the busy address, one from the other");
+  now += 60_000;
+  await hit("203.0.113.9", 7);
+  assert.equal(await views(), 5, "a new minute starts a new count");
+});

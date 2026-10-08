@@ -77,6 +77,7 @@ This store uses Bun’s built-in SQLite, for apps on Bun, where `better-sqlite3`
 | `geo` | | Your own location lookup, for hosts that send no location headers. |
 | `trustProxy` | `true` | Read the visitor’s address from proxy headers. |
 | `linkPath` | `"/go"` | Where short links on your app’s own domain live. |
+| `rateLimit` | `120` | Tracker requests allowed from one address each minute, or `false` for no limit. |
 | `mail` | | The mail service for [email reports](/docs/reports/), set in code. |
 | `secret` | `RUNLIGHT_SECRET`, then `RUNLIGHT_TOKEN` | Encrypts mail service keys stored in the database. |
 
@@ -90,6 +91,10 @@ This store uses Bun’s built-in SQLite, for apps on Bun, where `better-sqlite3`
 | `timezone` | `"UTC"` | IANA timezone for days, weeks, and the hours on the dashboard, such as `"America/Toronto"`, and editable in Settings. |
 
 A visit from a hostname no site claims is ignored, so a staging copy of your site does not count unless you add its hostname.
+
+### Rate limit
+
+Each process counts tracker requests per visitor address over one minute and drops the rest quietly, so a script cannot flood a site with made-up visits. A real visitor sends a few requests a minute, far below the default of 120. The count lives in memory under a hashed address and is cleared every minute, so no address is ever kept. On hosts that run many short-lived copies of your app, such as Cloudflare Workers, each copy counts on its own, so the limit there is looser.
 
 ### Location
 

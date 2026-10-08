@@ -5,6 +5,7 @@ import { MailError, SERVICES, checkConfig, send, type MailConfig, type Message }
 import { buildReport, lastPeriod } from "./reports.js";
 import { parsePayload, MAX_BODY, type Payload } from "./payload.js";
 import { Links } from "./links.js";
+import { RateLimit } from "./limit.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww, type Page } from "./sources.js";
 import type { ReportRow, SiteOverrides, SiteRow, SqlStore } from "./store.js";
@@ -56,6 +57,12 @@ export interface RunlightOptions {
    * RUNLIGHT_SECRET environment variable, then RUNLIGHT_TOKEN.
    */
   secret?: string;
+  /**
+   * Tracker requests allowed per visitor address per minute, counted in
+   * memory by each process. Default 120, which a real visitor never reaches;
+   * false turns the limit off.
+   */
+  rateLimit?: number | false;
   /** For tests. */
   now?: () => number;
 }
@@ -119,6 +126,7 @@ export class Runlight {
   private overrides = new Map<string, SiteOverrides>();
   private readonly geo: GeoLookup | undefined;
   private readonly trustProxy: boolean;
+  private readonly limit: RateLimit | null;
   readonly now: () => number;
   /** Short links: create, change, delete, and import. */
   readonly links: Links;
@@ -148,6 +156,8 @@ export class Runlight {
     }
     this.geo = options.geo;
     this.trustProxy = options.trustProxy ?? true;
+    const perMinute = options.rateLimit ?? 120;
+    this.limit = perMinute === false ? null : new RateLimit(perMinute, () => this.now());
     this.now = options.now ?? Date.now;
     this.links = new Links(this);
     this.linkPath = `/${(options.linkPath ?? "/go").replace(/^\/+|\/+$/g, "")}`;
@@ -508,6 +518,7 @@ export class Runlight {
 
     const ua = request.headers.get("user-agent") ?? "";
     if (aiAgent(ua) || isBot(ua)) return;
+    if (this.limit && !(await this.limit.allow(this.clientIp(request, context)))) return;
 
     // Managed sites load from the database in init(), so it must come first.
     await this.init();
