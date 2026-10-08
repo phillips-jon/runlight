@@ -6,7 +6,7 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
 import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle, type Role, type User } from "./auth.js";
-import { AUTH_CSS, loginPage, setupLockedPage, setupPage } from "./pages.js";
+import { AUTH_CSS, AUTH_JS, loginPage, setupLockedPage, setupPage } from "./pages.js";
 
 export interface ServerOptions {
   store: SqlStore;
@@ -34,7 +34,7 @@ export interface RunlightServer {
   check(): Promise<void>;
 }
 
-const HTML = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; style-src 'self'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "x-frame-options": "DENY", "referrer-policy": "same-origin" };
+const HTML = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "x-frame-options": "DENY", "referrer-policy": "same-origin" };
 
 function readCookie(request: Request, name: string): string {
   for (const part of (request.headers.get("cookie") ?? "").split(";")) {
@@ -133,6 +133,7 @@ export function createServer(options: ServerOptions): RunlightServer {
 
       if (path === "/healthz") return new Response("ok", { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
       if (path === "/auth.css") return new Response(AUTH_CSS, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=3600" } });
+      if (path === "/auth.js") return new Response(AUTH_JS, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
       if (/^\/go\/[^/]+\/?$/.test(path) && method === "GET") return await links(request, context);
 
       if (path === "/setup") {
