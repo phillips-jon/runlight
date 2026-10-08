@@ -971,6 +971,58 @@ main {
   white-space: nowrap;
 }
 
+/* A count beside a box's title (Links' clicks, Conversions' revenue) sits a little apart from it. */
+h2 .aside {
+  margin-left: 6px;
+}
+
+/* A hover or focus tip above its trigger, with a small arrow pointing down at it. */
+.has-tip {
+  position: relative;
+  cursor: help;
+  outline: none;
+}
+
+.has-tip .hover-tip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  z-index: 20;
+  width: max-content;
+  max-width: 240px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--ink);
+  color: var(--card);
+  font: 500 12px/1.4 var(--sans);
+  letter-spacing: normal;
+  white-space: normal;
+  text-align: center;
+  box-shadow: var(--shadow);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.12s ease, transform 0.12s ease, visibility 0.12s;
+  pointer-events: none;
+}
+
+.has-tip .hover-tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 6px solid transparent;
+  border-top-color: var(--ink);
+  transform: translateX(-50%);
+}
+
+.has-tip:hover .hover-tip,
+.has-tip:focus-visible .hover-tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, 0);
+}
+
 .tabs {
   display: flex;
   flex-wrap: wrap;
@@ -2163,6 +2215,43 @@ h1 .home:hover {
   color: var(--faint);
   text-align: left;
   white-space: nowrap;
+}
+
+/* A heading sorts its column: it reads as the heading, with an arrow that darkens once it sorts. */
+.sheet-table .sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sheet-table .sort svg {
+  width: 11px;
+  height: 11px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  opacity: 0;
+}
+
+.sheet-table .sort:hover,
+.sheet-table .sort.on {
+  color: var(--ink);
+}
+
+.sheet-table .sort:hover svg {
+  opacity: 0.5;
+}
+
+.sheet-table .sort.on svg {
+  opacity: 1;
 }
 
 .sheet-table .numeric {

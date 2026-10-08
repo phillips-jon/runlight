@@ -76,6 +76,26 @@ export function Sheet({ title, sub, wide, onClose, children }: { title: string; 
   );
 }
 
+const DOMAIN_KEY = (site: string) => `runlight_link_domain:${site}`;
+
+/** The domain last used for a new link on a site, when it is still one of its domains ("" is the app's own path). */
+function lastDomain(site: string, domains: string[]): string | null {
+  try {
+    const value = localStorage.getItem(DOMAIN_KEY(site));
+    return value !== null && (value === "" || domains.includes(value)) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberDomain(site: string, domain: string): void {
+  try {
+    localStorage.setItem(DOMAIN_KEY(site), domain);
+  } catch {
+    // Private windows may refuse; the form then starts as it always did.
+  }
+}
+
 /** Create or edit one link. */
 export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
   site: string;
@@ -88,12 +108,14 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
   const [url, setUrl] = useState(link?.url ?? "");
   const [name, setName] = useState(link?.name ?? "");
   const [slug, setSlug] = useState(link?.slug ?? "");
-  // A new link starts on the first custom domain only once that domain answers, so the defaults never
+  // A new link starts on the domain last used for one on this site, in this browser, while it is still
+  // there. Otherwise it starts on the first custom domain once that domain answers, so the defaults never
   // make a link that does not work yet.
-  const [domain, setDomain] = useState(link?.domain ?? "");
+  const remembered = lastDomain(site, domains);
+  const [domain, setDomain] = useState(link?.domain ?? remembered ?? "");
   const touched = useRef(false);
   useEffect(() => {
-    if (link || !domains.length) return;
+    if (link || !domains.length || remembered !== null) return;
     void api
       .checkLinkDomain(site, domains[0]!)
       .then((r) => {
@@ -120,7 +142,10 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
       .then((r) => {
         onSaved();
         if (link) onClose();
-        else setMade(r.link);
+        else {
+          rememberDomain(site, domain);
+          setMade(r.link);
+        }
       })
       .catch((err: Error) => setError(err.message))
       .finally(() => setBusy(false));
@@ -547,7 +572,15 @@ export function LinksPanel({ view, site, readOnly }: { view: View; site: string;
     <section class="panel wide">
       <header class="panel-head">
         <h2>
-          {t("panel.links")} {links?.length ? <span class="aside">{tn("links.total", total, { n: count(total) })}</span> : null}
+          {t("panel.links")}{" "}
+          {links?.length ? (
+            <span class="aside has-tip" tabindex={0} aria-describedby="links-total-tip">
+              {tn("links.total", total, { n: count(total) })}
+              <span class="hover-tip" role="tooltip" id="links-total-tip">
+                {t("links.totalTip")}
+              </span>
+            </span>
+          ) : null}
         </h2>
         <div class="head-tools">
           {links && links.length === 0 ? null : (

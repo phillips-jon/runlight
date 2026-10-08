@@ -925,5 +925,6 @@
   "empty.links.title": "Vos liens courts apparaîtront ici",
   "empty.links.hint": "Créez un lien court à partager, et chaque clic sera compté.",
   "sites.refused": "{host} n’accepte plus la connexion de ce serveur, donc ses chiffres ne peuvent pas être lus. Reconnectez-le pour corriger cela.",
-  "sites.connected": "Connecté à {host}."
+  "sites.connected": "Connecté à {host}.",
+  "links.totalTip": "Tous les clics sur vos liens courts aux dates choisies"
 }

@@ -125,43 +125,40 @@ function Columns({ tab }: { tab: Tab }) {
   );
 }
 
-type SheetColumn = { label: Key; value: (row: Row, total: number) => string };
+/** A full list's column: its heading, the text each row shows, and the number it sorts by. */
+type SheetColumn = { label: Key; value: (row: Row, total: number) => string; by: (row: Row) => number };
 
 const VISIT_DIMENSIONS = new Set(["referrer", "source", "channel", "utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content", "country", "region", "city", "browser", "browser_version", "os", "os_version", "device", "screen", "language"]);
 
 /** The columns a full list shows: everything the API knows about that kind of row. */
 function sheetColumns(tab: Tab): SheetColumn[] {
-  const n = (key: keyof Row) => (row: Row) => count(Number(row[key] ?? 0));
-  const share = (key: keyof Row) => (row: Row, total: number) => (total ? percent(Number(row[key] ?? 0) / total) : "");
-  if (tab.column === "fetches") return [{ label: "column.fetches", value: n("fetches") }, { label: "column.share", value: share("fetches") }];
-  if (tab.column === "events") return [{ label: "column.visitors", value: n("visitors") }, { label: "column.events", value: n("events") }, { label: "column.share", value: share("events") }];
+  const num = (key: keyof Row) => (row: Row) => Number(row[key] ?? 0);
+  const n = (label: Key, key: keyof Row): SheetColumn => ({ label, value: (row) => count(num(key)(row)), by: num(key) });
+  const share = (key: keyof Row): SheetColumn => ({ label: "column.share", value: (row, total) => (total ? percent(num(key)(row) / total) : ""), by: num(key) });
+  const bounce: SheetColumn = { label: "column.bounce", value: (r) => percent(r.bounceRate ?? 0), by: num("bounceRate") };
+  if (tab.column === "fetches") return [n("column.fetches", "fetches"), share("fetches")];
+  if (tab.column === "events") return [n("column.visitors", "visitors"), n("column.events", "events"), share("events")];
   if (tab.dimension === "page") {
     return [
-      { label: "column.visitors", value: n("visitors") },
-      { label: "column.pageviews", value: n("pageviews") },
-      { label: "column.time", value: (r) => (r.timeOnPage ? duration(r.timeOnPage) : "") },
-      { label: "column.scroll", value: (r) => (r.scrollDepth ? `${r.scrollDepth}%` : "") },
+      n("column.visitors", "visitors"),
+      n("column.pageviews", "pageviews"),
+      { label: "column.time", value: (r) => (r.timeOnPage ? duration(r.timeOnPage) : ""), by: num("timeOnPage") },
+      { label: "column.scroll", value: (r) => (r.scrollDepth ? `${r.scrollDepth}%` : ""), by: num("scrollDepth") },
     ];
   }
-  if (tab.dimension === "hostname") return [{ label: "column.visitors", value: n("visitors") }, { label: "column.pageviews", value: n("pageviews") }];
-  if (tab.dimension === "entry" || tab.dimension === "exit") {
-    return [
-      { label: "column.visitors", value: n("visitors") },
-      { label: "column.visits", value: n("visits") },
-      { label: "column.bounce", value: (r) => percent(r.bounceRate ?? 0) },
-    ];
-  }
+  if (tab.dimension === "hostname") return [n("column.visitors", "visitors"), n("column.pageviews", "pageviews")];
+  if (tab.dimension === "entry" || tab.dimension === "exit") return [n("column.visitors", "visitors"), n("column.visits", "visits"), bounce];
   if (VISIT_DIMENSIONS.has(tab.dimension)) {
     return [
-      { label: "column.visitors", value: n("visitors") },
-      { label: "column.visits", value: n("visits") },
-      { label: "column.pageviews", value: n("pageviews") },
-      { label: "column.bounce", value: (r) => percent(r.bounceRate ?? 0) },
-      { label: "column.duration", value: (r) => duration(r.visitDuration ?? 0) },
-      { label: "column.share", value: share("visitors") },
+      n("column.visitors", "visitors"),
+      n("column.visits", "visits"),
+      n("column.pageviews", "pageviews"),
+      bounce,
+      { label: "column.duration", value: (r) => duration(r.visitDuration ?? 0), by: num("visitDuration") },
+      share("visitors"),
     ];
   }
-  return [{ label: "column.visitors", value: n("visitors") }];
+  return [n("column.visitors", "visitors")];
 }
 
 function SheetTable({ rows, tab, onFilter }: { rows: Row[]; tab: Tab; onFilter: (dimension: string, value: string) => void }) {
@@ -169,18 +166,39 @@ function SheetTable({ rows, tab, onFilter }: { rows: Row[]; tab: Tab; onFilter: 
   const columns = sheetColumns(tab);
   const total = rows.reduce((sum, r) => sum + Number(r[column] ?? 0), 0);
   const top = Math.max(1, ...rows.map((r) => Number(r[column] ?? 0)));
+  // Any heading sorts by it, and again the other way: numbers start largest first, names from A. Until
+  // one is chosen, rows keep the order they came in, most visitors first.
+  const [sort, setSort] = useState<{ by: number; descending: boolean } | null>(null);
+  const pick = (by: number) => setSort(sort?.by === by ? { by, descending: !sort.descending } : { by, descending: by >= 0 });
+  const sorted = sort
+    ? [...rows].sort((a, b) => {
+        const order =
+          sort.by < 0
+            ? label(tab.dimension, a.value).localeCompare(label(tab.dimension, b.value), undefined, { numeric: true, sensitivity: "base" })
+            : columns[sort.by]!.by(a) - columns[sort.by]!.by(b);
+        return sort.descending ? -order : order;
+      })
+    : rows;
+  const heading = (text: string, by: number, numeric: boolean) => (
+    <th class={numeric ? "numeric" : undefined} aria-sort={sort?.by === by ? (sort.descending ? "descending" : "ascending") : undefined}>
+      <button type="button" class={sort?.by === by ? "sort on" : "sort"} onClick={() => pick(by)}>
+        {text}
+        <svg viewBox="0 0 16 16" aria-hidden="true">
+          <path d={sort?.by === by && !sort.descending ? "M5 10l3-3 3 3" : "M5 6.5l3 3 3-3"} />
+        </svg>
+      </button>
+    </th>
+  );
   return (
     <table class="sheet-table">
       <thead>
         <tr>
-          <th>{t(tab.label)}</th>
-          {columns.map((c) => (
-            <th class="numeric">{t(c.label)}</th>
-          ))}
+          {heading(t(tab.label), -1, false)}
+          {columns.map((c, i) => heading(t(c.label), i, true))}
         </tr>
       </thead>
       <tbody>
-        {rows.map((row) => {
+        {sorted.map((row) => {
           const text = label(tab.dimension, row.value);
           return (
             <tr>
