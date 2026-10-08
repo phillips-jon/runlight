@@ -371,6 +371,9 @@ function schema(dialect: Db["dialect"]): string[] {
     // Goals and events read one kind of row in a range; created on start for older databases too.
     `CREATE INDEX IF NOT EXISTS rl_events_site_kind_ts ON rl_events (site, kind, ts)`,
     `CREATE INDEX IF NOT EXISTS rl_events_pageview ON rl_events (site, pageview)`,
+    // Page and event filters find the visits they pick through these, rather than reading every row in the range.
+    `CREATE INDEX IF NOT EXISTS rl_events_site_path ON rl_events (site, path, ts)`,
+    `CREATE INDEX IF NOT EXISTS rl_events_site_name ON rl_events (site, name, ts) WHERE kind = 'event'`,
     // Version 3: short links; "" is the app's own domain. Version 4: a slug is unique
     // across every domain, so a link whose domain is removed can fall back to the
     // app's own link path without colliding with another.
@@ -493,7 +496,9 @@ function visitScope(filters: Filter[], site: string, from: number, to: number, d
       parts.push(own.sql);
       params.push(...own.params);
     } else {
-      const rows = `FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS} AND ${c.sql}`;
+      // An event filter reads events only, which lets it use the index of event names.
+      const kinds = filter.dimension === "event" ? "e.kind = 'event'" : VISIT_KINDS;
+      const rows = `FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${kinds} AND ${c.sql}`;
       // Postgres plans NOT IN over a list too big for its memory as a scan of the list for every visit,
       // which runs for hours, so it gets NOT EXISTS, an anti join. SQLite reads NOT IN through a
       // temporary index, and runs NOT EXISTS once a visit.
