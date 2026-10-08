@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { appendFileSync, chmodSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { appendFileSync, chmodSync, mkdtempSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -168,6 +169,46 @@ test("a failed batch sends none of the earlier ones again, and a bad state file 
     assert.match(said[0]!, /Could not read .*state\.json/);
     assert.equal(stored, 1200, "read from the top");
     assert.equal(JSON.parse(readFileSync(state, "utf8")).offset, readFileSync(log).length);
+  } finally {
+    server.close();
+  }
+});
+
+test("one run at a time uses a state file, a crashed run's lock is taken over, and the state is written whole", async () => {
+  let stored = 0;
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      const n = (JSON.parse(body) as { fetches: unknown[] }).fetches.length;
+      setTimeout(() => {
+        stored += n;
+        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ recorded: n }));
+      }, 100);
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const to = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const dir = mkdtempSync(path.join(tmpdir(), "runlight-lock-"));
+  const log = path.join(dir, "access.log");
+  const state = path.join(dir, "state.json");
+  const run = () => runAgents({ log, to, key: "k", site: "https://example.com", state, out: () => {} });
+  try {
+    writeFileSync(log, Array.from({ length: 1500 }, (_, i) => `${line(`/p${i}`, GPTBOT)}\n`).join(""));
+    const [first, second] = await Promise.allSettled([run(), run()]);
+    assert.equal(first.status, "fulfilled");
+    assert.equal(second.status, "rejected");
+    assert.match(String((second as PromiseRejectedResult).reason), /Another run is using .*state\.json \(process \d+\)/);
+    assert.equal(stored, 1500, "each line once");
+    assert.deepEqual(readdirSync(dir).sort(), ["access.log", "state.json"], "the lock is released and no temporary file is left");
+
+    // A lock from a process that has ended is stale.
+    const ended = spawnSync(process.execPath, ["-e", ""]).pid!;
+    writeFileSync(`${state}.lock`, String(ended));
+    appendFileSync(log, `${line("/late", GPTBOT)}\n`);
+    assert.equal(await run(), 1);
+    assert.equal(stored, 1501);
+    assert.deepEqual(readdirSync(dir).sort(), ["access.log", "state.json"]);
   } finally {
     server.close();
   }

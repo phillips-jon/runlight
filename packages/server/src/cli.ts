@@ -79,7 +79,8 @@ Usage:
   --key <key>     The site's key from Settings, Install, Key for CMS plugins (or RUNLIGHT_OBSERVE_KEY)
   --site <url>    The site's address, such as https://example.com, when the log has no host in it
   --follow        Keep running and send fetches as they happen
-  --state <file>  Remember where it stopped, so the next run, or a restarted --follow, starts there
+  --state <file>  Remember where it stopped, so the next run, or a restarted --follow, starts there.
+                  Only one run at a time can use it.
 
 Docs: https://runlight.sh/docs/server/#ai-agents-from-a-log
 `;
