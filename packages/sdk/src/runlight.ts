@@ -871,7 +871,7 @@ export class Runlight {
    * every page request; it ignores everything else and never throws.
    * Agents do not run JavaScript, so the tracker cannot see them.
    */
-  async observe(request: Request): Promise<void> {
+  async observe(request: Request, at?: number): Promise<void> {
     try {
       if (request.method !== "GET") return;
       const agent = aiAgent(request.headers.get("user-agent") ?? "");
@@ -884,9 +884,12 @@ export class Runlight {
       await this.init();
       const site = this.siteFor(host.split(":")[0] ?? host);
       if (!site) return;
+      // A log reader sends when the page was served; anything older than a week, or ahead, counts as now.
+      const now = this.now();
+      const ts = at !== undefined && Number.isFinite(at) && at > now - 7 * 86_400_000 && at <= now + 300_000 ? Math.floor(at) : now;
       await this.store.insertEvent({
         site: site.id,
-        ts: this.now(),
+        ts,
         kind: "fetch",
         visitor: "",
         session: "",

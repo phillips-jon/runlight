@@ -29,3 +29,4 @@ export type { Db, Stats, SeriesPoint, BreakdownRow, Realtime } from "./store.js"
 export { DIMENSIONS } from "./query.js";
 export type { Dimension, Filter, Query } from "./query.js";
 export { VERSION, API_VERSION } from "./version.js";
+export { aiAgent } from "./ua.js";

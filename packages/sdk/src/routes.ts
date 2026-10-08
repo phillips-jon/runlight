@@ -806,21 +806,31 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (!anySite && !given) return json({ error: "Unauthorized" }, 401);
       const body = await readJson(request);
       if (body instanceof Response) return body;
-      let page: URL;
-      try {
-        page = new URL(String(body.url ?? ""));
-      } catch {
-        return json({ error: "Send the page's url" }, 400);
+      // One fetch as { url, userAgent, at? }, or up to 500 as { fetches: [...] } from a log reader.
+      const list = Array.isArray(body.fetches) ? (body.fetches as Array<Record<string, unknown>>) : [body];
+      if (list.length > 500) return json({ error: "Send at most 500 fetches at a time" }, 413);
+      const pages: Array<{ page: URL; userAgent: string; at?: number }> = [];
+      for (const item of list) {
+        let page: URL;
+        try {
+          page = new URL(String(item?.url ?? ""));
+        } catch {
+          return json({ error: "Send the page's url" }, 400);
+        }
+        if (page.protocol !== "https:" && page.protocol !== "http:") return json({ error: "Send the page's url" }, 400);
+        const at = typeof item.at === "number" ? item.at : typeof item.at === "string" ? Date.parse(item.at) : undefined;
+        pages.push({ page, userAgent: String(item.userAgent ?? "").slice(0, 500), ...(at !== undefined && Number.isFinite(at) ? { at } : {}) });
       }
-      if (page.protocol !== "https:" && page.protocol !== "http:") return json({ error: "Send the page's url" }, 400);
       if (!anySite) {
         // A site's own key reports only pages on that site's domains.
         await runlight.init();
-        const site = runlight.siteFor(page.hostname);
-        const key = site ? await runlight.store.setting(`observe-key:${site.id}`) : null;
-        if (!key || !constantTimeEqual(given, key)) return json({ error: "Unauthorized" }, 401);
+        for (const host of new Set(pages.map((p) => p.page.hostname))) {
+          const site = runlight.siteFor(host);
+          const key = site ? await runlight.store.setting(`observe-key:${site.id}`) : null;
+          if (!key || !constantTimeEqual(given, key)) return json({ error: "Unauthorized" }, 401);
+        }
       }
-      await runlight.observe(new Request(page, { headers: { "user-agent": String(body.userAgent ?? "").slice(0, 500) } }));
+      for (const p of pages) await runlight.observe(new Request(p.page, { headers: { "user-agent": p.userAgent } }), p.at);
       return new Response(null, { status: 204 });
     }
 

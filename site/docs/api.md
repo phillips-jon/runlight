@@ -65,7 +65,7 @@ Every report takes the same query parameters.
 | `GET`, `PUT`, `DELETE /api/mail`, `POST /api/mail/test` | Read, set, remove, or test the mail service. Keys are never returned. |
 | `GET`, `POST /api/reports`, `DELETE /api/reports/:id`, `POST /api/reports/:id/send` | List, add, or remove report recipients, or send a sample. |
 | `GET` or `POST /api/check` | Runs the [scheduled check](/docs/cron/). |
-| `POST /api/observe` | Records a page served to an AI agent, sent as `{ "url", "userAgent" }`. It accepts the token or the observe key, and the CMS plugins call it. |
+| `POST /api/observe` | Records a page served to an AI agent, sent as `{ "url", "userAgent", "at" }`, where `at` is when it was served (within the last week, as epoch milliseconds or an ISO date) and can be left out. Send up to 500 at once as `{ "fetches": [...] }`. It accepts the token or an observe key, and the CMS plugins and the [log reader](/docs/server/#ai-agents-from-a-log) call it. |
 | `GET /api/tokens` | Lists API tokens with each one's name, site, scope, last four characters, and when it was last used. The tokens themselves are never returned. |
 | `POST /api/tokens` | Makes a token from `{ "name", "site", "scope" }` and returns it once as `secret`. Leave `site` empty for every site. `scope` is `read` (the default) or `manage`, which needs a `site`. |
 | `GET /api/token` | Says what the token sent with it may do, as `{ "scope", "site" }`. A hub asks this before it offers to change anything. |

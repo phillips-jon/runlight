@@ -28,6 +28,7 @@ const HELP = `Runlight ${VERSION}, privacy friendly web analytics for any number
 Usage:
   npx runlight.sh                      Start the server
   npx runlight.sh password <email>     Make an account, or give one a new password
+  npx runlight.sh agents --log <file>  Count AI agents from a web server's access log
   npx runlight.sh --version            Print the version
 
 Settings are environment variables. PORT (3000) and HOST (0.0.0.0) set where it
@@ -65,10 +66,46 @@ function secretFor(dataDir: string): string {
   return made;
 }
 
+const AGENTS_HELP = `Count AI agents on a site that has only the script tag, from its web server's log.
+
+Usage:
+  npx runlight.sh agents --log /var/log/nginx/access.log --to https://stats.example.com --key rlo_...
+
+  --log <file>    The access log, in nginx or Apache's combined format, or Caddy's JSON
+  --to <url>      Your Runlight, as its dashboard address (or RUNLIGHT_URL)
+  --key <key>     The site's key from Settings, Install, Key for CMS plugins (or RUNLIGHT_OBSERVE_KEY)
+  --site <url>    The site's address, such as https://example.com, when the log has no host in it
+  --follow        Keep running and send fetches as they happen
+  --state <file>  Without --follow, remember where this run stopped, so the next one starts there
+
+Docs: https://runlight.sh/docs/server/#ai-agents-from-a-log
+`;
+
+async function agents(args: string[]): Promise<void> {
+  const flag = (name: string) => {
+    const at = args.indexOf(`--${name}`);
+    return at >= 0 ? args[at + 1] : undefined;
+  };
+  if (args.includes("--help") || args.includes("-h")) return void process.stdout.write(AGENTS_HELP);
+  const log = flag("log");
+  const to = flag("to") ?? env("RUNLIGHT_URL");
+  const key = flag("key") ?? env("RUNLIGHT_OBSERVE_KEY");
+  if (!log || !to || !key) {
+    process.stderr.write(AGENTS_HELP);
+    process.exitCode = 1;
+    return;
+  }
+  const { runAgents } = await import("./agents.js");
+  const site = flag("site");
+  const state = flag("state");
+  await runAgents({ log: path.resolve(log), to, key, follow: args.includes("--follow"), ...(site ? { site } : {}), ...(state ? { state: path.resolve(state) } : {}) });
+}
+
 async function main(): Promise<void> {
   const [command, ...args] = process.argv.slice(2);
   if (command === "--help" || command === "-h" || command === "help") return void process.stdout.write(HELP);
   if (command === "--version" || command === "-v") return void process.stdout.write(`${VERSION}\n`);
+  if (command === "agents") return agents(args);
 
   const dataDir = path.resolve(env("DATA_DIR") ?? "./runlight-data");
   mkdirSync(dataDir, { recursive: true });
