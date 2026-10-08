@@ -91,7 +91,7 @@ stats.example.com {
 }
 ```
 
-Set `RUNLIGHT_URL` to the server's public address, such as `https://stats.example.com`. Short links can then never take over that name, and invite emails link to it whatever Host header a request names.
+Set `RUNLIGHT_URL` to the server's public address, such as `https://stats.example.com`. Short links can then never take over that name, and invite and report emails link to it whatever Host header a request names.
 
 Runlight reads each visitor's address from the last `X-Forwarded-For` entry, the one your proxy adds. Set `TRUST_PROXY` to `x-real-ip` or `cf-connecting-ip` when that header holds the address instead, such as behind Cloudflare and another proxy. Set `TRUST_PROXY=false` when nothing sits in front of the server, so a visitor cannot send a false address.
 
@@ -124,7 +124,7 @@ The server reads its settings from environment variables.
 | `DATA_DIR` | The folder for the SQLite file, the secret, and the location data. The default is `./runlight-data`, or `/data` in Docker. |
 | `DATABASE_URL` | A `postgres://` address, to keep the data in Postgres instead of SQLite. |
 | `RUNLIGHT_SECRET` | The key that signs sign-ins and encrypts saved keys, for mail, the AI Assistant, connected installs, and two-factor sign-in. Without it, the server makes one and keeps it in `DATA_DIR`. |
-| `RUNLIGHT_URL` | The server's public address, such as `https://stats.example.com`, which can never become a link domain. Invite emails link to it. |
+| `RUNLIGHT_URL` | The server's public address, such as `https://stats.example.com`, which can never become a link domain. Invite and report emails link to it. |
 | `RUNLIGHT_TOKEN` | A token that scripts can send as a bearer, in addition to the [API tokens](/docs/mcp/) made in the dashboard. |
 | `RUNLIGHT_OBSERVE_KEY` | One key a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site can use to report AI agents, for any site. Each site also has its own key in **Settings**, **Install**, limited to that site, which is the better choice. |
 | `TRUST_PROXY` | Set to `false` when no proxy sits in front of the server. |

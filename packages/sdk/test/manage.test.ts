@@ -81,6 +81,16 @@ test("link domains stay off the configured address and the names people signed i
   await rl.store.addLinkDomain("db.internal", "blog", Date.now());
   assert.deepEqual(await (await call("GET", "/api/link-domains/db.internal/check?site=blog")).json(), { domain: "db.internal", working: false, reason: "is not a public domain name" });
 
+  // A hub's reports link to the configured address, never to the Host it names, and its samples share one wait.
+  const manage = ((await (await call("POST", "/api/tokens", "owner", { name: "Hub", scope: "manage", site: "blog" })).json()) as any).secret as string;
+  const first = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "a@example.com" })).json()) as any).report;
+  const second = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "b@example.com" })).json()) as any).report;
+  assert.deepEqual((await rl.store.reports("blog")).map((r) => r.origin), ["https://stats.example.com/runlight", "https://stats.example.com/runlight"]);
+  assert.notEqual((await call("POST", `/api/reports/${first.id}/send?site=blog`, manage)).status, 429);
+  assert.equal((await call("POST", `/api/reports/${second.id}/send?site=blog`, manage)).status, 429, "another report waits too");
+  await call("DELETE", `/api/reports/${second.id}?site=blog`, manage);
+  const again = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "b@example.com" })).json()) as any).report;
+  assert.equal((await call("POST", `/api/reports/${again.id}/send?site=blog`, manage)).status, 429, "and so does one added again");
 });
 
 test("the hub never passes on an install's answer as a page, nor follows its redirects", async () => {

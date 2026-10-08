@@ -660,10 +660,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           const existing = await runlight.store.reports(site.id);
           if (existing.some((r) => r.email === email && r.frequency === frequency)) return json({ error: `${email} already gets the ${frequency} report` }, 400);
           if (existing.length >= 50) return json({ error: "A site can send to at most 50 addresses" }, 400);
-          // Links in the email point back to this dashboard, as the browser sees it. A report made
-          // from a hub uses this install's own address, where its unsubscribe link answers.
-          const given = managed.has(request) ? "" : String(body.origin ?? "");
-          const home = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${url.origin}${base}`;
+          // Links in the email point back to the configured address, or else to this dashboard as the
+          // browser sees it. A report made from a hub uses this install's own address, where its
+          // unsubscribe link answers, and never the Host its request names.
+          const given = managed.has(request) || origin ? "" : String(body.origin ?? "");
+          const home = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${origin ?? url.origin}${base}`;
           const report: ReportRow = {
             id: randomId(),
             site: site.id,
@@ -686,10 +687,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const report = match ? await runlight.store.reportBy("id", match[1]!) : null;
       if (!report || report.site !== site.id) return json({ error: "Unknown report" }, 404);
       if (match![2] && request.method === "POST") {
-        // A sample at most once a minute per report, so the send button cannot be used to flood an inbox.
-        const last = sampleSent.get(report.id) ?? 0;
-        if (runlight.now() - last < 60_000) return json({ error: "A sample went out less than a minute ago. Wait a moment and try again." }, 429);
-        sampleSent.set(report.id, runlight.now());
+        // A sample at most once a minute per report, so the send button cannot be used to flood an inbox. A hub
+        // sends one every ten minutes for the whole site, so adding reports again does not start a new count.
+        const key = managed.has(request) ? `site:${site.id}` : report.id;
+        const wait = managed.has(request) ? 600_000 : 60_000;
+        const last = sampleSent.get(key) ?? 0;
+        if (runlight.now() - last < wait) return json({ error: "A sample went out a moment ago. Wait a few minutes and try again." }, 429);
+        sampleSent.set(key, runlight.now());
         await runlight.deliverReport(report, site);
         return json({ ok: true });
       }
