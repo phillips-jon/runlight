@@ -853,7 +853,6 @@
   "people.demoteSelf": "Only another owner can make you an owner again.",
   "people.demoteConfirm": "Make me a viewer",
   "error.check_not_public": "it is not a public domain name",
-  "error.check_private": "it points at an address that is not public",
   "error.check_timeout": "it took too long to answer",
   "error.check_https": "it could not be reached over HTTPS",
   "error.check_not_runlight": "something answered, but not Runlight",

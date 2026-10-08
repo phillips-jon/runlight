@@ -16,7 +16,7 @@ import { FunnelError, funnelFrom } from "./funnels.js";
 import { MailError, SERVICES } from "./mail/transports.js";
 import { languages, translator } from "./messages.js";
 import { fetchIcon } from "./icon.js";
-import { PrivateAddressError, publicFetch, resolvesPrivately } from "./safefetch.js";
+import { publicFetch, resolvesPrivately } from "./safefetch.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
@@ -567,7 +567,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           if (answer.ok && body?.runlight === true && body.domain === domain) return result("", "");
           return answer.ok ? result("check_not_runlight", "answered, but not from Runlight") : result("check_status", `answered ${answer.status}`, { status: String(answer.status) });
         } catch (error) {
-          if (error instanceof PrivateAddressError) return result("check_private", "is not a public address");
+          // A refused private address answers as a closed port does, so the check tells nothing about a private network.
           return error instanceof Error && error.name === "TimeoutError" ? result("check_timeout", "timed out") : result("check_https", "could not connect over HTTPS");
         }
       }

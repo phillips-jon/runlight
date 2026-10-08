@@ -134,7 +134,6 @@ These are the codes and the params each one fills. An error a connected install 
 | `check_https` |  | it could not be reached over HTTPS |
 | `check_not_public` |  | it is not a public domain name |
 | `check_not_runlight` |  | something answered, but not Runlight |
-| `check_private` |  | it points at an address that is not public |
 | `check_status` | `status` | it answered {status} |
 | `check_timeout` |  | it took too long to answer |
 | `code_wrong` |  | That code is not right. Check the time on your phone and try the next one. |

@@ -853,7 +853,6 @@
   "people.demoteSelf": "Seul un autre propriétaire pourra vous rendre propriétaire.",
   "people.demoteConfirm": "Me rendre lecteur",
   "error.check_not_public": "ce n’est pas un nom de domaine public",
-  "error.check_private": "il pointe vers une adresse qui n’est pas publique",
   "error.check_timeout": "il a mis trop de temps à répondre",
   "error.check_https": "il est injoignable en HTTPS",
   "error.check_not_runlight": "quelque chose a répondu, mais pas Runlight",
