@@ -1476,6 +1476,11 @@ body.locked {
   }
 }
 
+/* The filter drawer's form, there so Enter applies; the drawer lays out its parts. */
+.drawer-form {
+  display: contents;
+}
+
 .drawer-head {
   display: flex;
   align-items: center;
