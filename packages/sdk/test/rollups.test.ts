@@ -57,7 +57,9 @@ for (const kind of STORES) {
     t.advance(start - t.now + 2 * HOUR);
 
     const before = await everything(t.get);
-    const built = await t.rl.buildRollups();
+    // D1 builds a few days a check, the others ten.
+    let built = 0;
+    for (let made = await t.rl.buildRollups(); made > 0; made = await t.rl.buildRollups()) built += made;
     assert.ok(built >= 8, `built ${built} days`);
     assert.equal(await t.rl.buildRollups(), 0, "a built day is not built again");
     const afterwards = await everything(t.get);

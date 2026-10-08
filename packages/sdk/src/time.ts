@@ -97,7 +97,8 @@ export function addMonths(date: string, months: number): string {
 }
 
 export function isDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  // Years from 1900 to 9998, so the day after any date is a date too.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < "1900" || value >= "9999") return false;
   // A month or day that does not exist (2026-13-01) makes no date at all, rather than a wrong one.
   const date = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;

@@ -1312,7 +1312,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         for (const [key, value] of params) target.searchParams.append(key, value);
         // A tool that names no site reads the one on screen, not the install's first.
         if (apiPath !== "/api/sites" && !target.searchParams.has("site")) target.searchParams.set("site", site.id);
-        return api(new Request(target, { headers }), apiPath, target);
+        // The asker leaving stops the tool's reading too.
+        return api(new Request(target, { headers, signal: request.signal }), apiPath, target);
       };
       try {
         const answer = await chat(
@@ -1643,12 +1644,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
     if (path === "/api/funnels") {
       const funnels = await runlight.store.funnels(site.id);
-      const rows = await Promise.all(
-        funnels.map(async (funnel) => {
-          const counts = await runlight.store.funnelCounts(query, funnel);
-          return { ...funnel, steps: funnel.steps.map((step, i) => ({ ...step, visits: counts[i]! })) };
-        }),
-      );
+      // One funnel at a time, so a page of funnels never takes every database connection at once.
+      const rows = [];
+      for (const funnel of funnels) {
+        const counts = await runlight.store.funnelCounts(query, funnel);
+        rows.push({ ...funnel, steps: funnel.steps.map((step, i) => ({ ...step, visits: counts[i]! })) });
+      }
       return json({ site: site.id, range: rangeOut, funnels: rows });
     }
 
@@ -1810,7 +1811,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         return await mcpResponse(request, (apiPath, params) => {
           const target = new URL(`${base}${apiPath}`, url.origin);
           for (const [key, value] of params) target.searchParams.append(key, value);
-          return api(new Request(target, { headers }), apiPath, target);
+          return api(new Request(target, { headers, signal: request.signal }), apiPath, target);
         });
       }
 

@@ -31,6 +31,11 @@ export interface Db {
    */
   transaction?<T>(fn: (db: Db) => Promise<T>): Promise<T>;
   close?(): Promise<void>;
+  /**
+   * True for a database reached one statement at a time over the network with a cap on statements per
+   * request (Cloudflare D1), so long jobs send fewer, larger pieces.
+   */
+  metered?: boolean;
 }
 
 /** Lets other work run: resolves once the event loop has come round. */
@@ -600,10 +605,29 @@ export class SqlStore {
   /** Creates the tables on first use. Safe to call any number of times. */
   migrate(): Promise<void> {
     const create = async (db: Db) => {
+      // On Postgres an index on a big table takes a while to build, so the build may run past the
+      // statement timeout, and goes CONCURRENTLY, so another process still serving keeps writing meanwhile.
+      const postgres = db.dialect === "postgres";
+      if (postgres) await db.run("SET statement_timeout = 0");
+      try {
+        await upgrade(db, postgres);
+      } finally {
+        if (postgres) await db.run("RESET statement_timeout").catch(() => {});
+      }
+    };
+    const upgrade = async (db: Db, postgres: boolean) => {
       await db.run(`CREATE TABLE IF NOT EXISTS rl_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
       const [found] = await db.all<{ value: string }>(`SELECT value FROM rl_meta WHERE key = 'schema'`);
       const from = found ? Number(found.value) : SCHEMA_VERSION;
-      for (const statement of schema(db.dialect)) await db.run(statement);
+      if (postgres) {
+        // A concurrent build that was stopped leaves its index unusable; it goes, and is built again below.
+        const broken = await db.all<{ name: string }>(
+          `SELECT c.relname AS name FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+           WHERE NOT i.indisvalid AND c.relname LIKE 'rl\\_%' AND c.relnamespace = current_schema()::regnamespace`,
+        );
+        for (const { name } of broken) await db.run(`DROP INDEX IF EXISTS "${name.replace(/"/g, "")}"`);
+      }
+      for (const statement of schema(db.dialect)) await db.run(postgres ? statement.replace(/^CREATE (UNIQUE )?INDEX IF NOT EXISTS/, "CREATE $1INDEX CONCURRENTLY IF NOT EXISTS") : statement);
       // A column added by an upgrade that stopped before it recorded the new version is already there.
       const addColumn = (sql: string) =>
         db.run(sql).catch((error) => {
@@ -634,9 +658,10 @@ export class SqlStore {
    * choose a plan that reads a table once for every row of another. A sample of each index is enough,
    * so this takes milliseconds even on a large database. Postgres gathers its own.
    */
-  async optimize(): Promise<void> {
+  async optimize(onlyWhenMissing = false): Promise<void> {
     if (this.db.dialect !== "sqlite") return;
     try {
+      if (onlyWhenMissing && (await this.db.all(`SELECT name FROM sqlite_master WHERE name = 'sqlite_stat1'`)).length) return;
       await this.db.run("PRAGMA analysis_limit = 1000");
       await this.db.run("ANALYZE");
     } catch {
@@ -695,11 +720,11 @@ export class SqlStore {
    * the whole server) for minutes, and what is left goes in one transaction.
    */
   async deleteSite(id: string): Promise<void> {
+    const piece = this.db.metered ? 30 * PIECE_MS : PIECE_MS;
     for (const [table, col] of [["rl_events", "ts"], ["rl_sessions", "started_at"]] as const) {
-      const [range] = await this.db.all(`SELECT MIN(${col}) AS a, MAX(${col}) AS b FROM ${table} WHERE site = ?`, [id]);
-      if (range?.a === null || range?.a === undefined) continue;
-      for (let from = num(range.a); from <= num(range.b); from += PIECE_MS) {
-        await this.db.run(`DELETE FROM ${table} WHERE site = ? AND ${col} < ?`, [id, from + PIECE_MS]);
+      // A piece at a time from the oldest row, skipping straight over stretches with none.
+      for (let from = await this.oldest(table, col, id, -Infinity); from !== null; from = await this.oldest(table, col, id, from + piece)) {
+        await this.db.run(`DELETE FROM ${table} WHERE site = ? AND ${col} < ?`, [id, from + piece]);
         await pause();
       }
     }
@@ -710,15 +735,24 @@ export class SqlStore {
     });
   }
 
+  /** When a site's oldest row at or after `from` is, or null when there is none. */
+  private async oldest(table: "rl_events" | "rl_sessions", col: "ts" | "started_at", site: string, from: number): Promise<number | null> {
+    const [row] = await this.db.all(`SELECT MIN(${col}) AS t FROM ${table} WHERE site = ?${from === -Infinity ? "" : ` AND ${col} >= ?`}`, from === -Infinity ? [site] : [site, from]);
+    return row?.t === null || row?.t === undefined ? null : num(row.t);
+  }
+
   /** Deletes a site's visits and events from before a time, for its retention setting. */
   async dropBefore(site: string, ts: number): Promise<void> {
     // A day at a time from the oldest, each its own short transaction, with a pause between, so a long
-    // history goes without holding the database (on SQLite, the whole server) for minutes.
-    const [oldest] = await this.db.all(`SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ?`, [site]);
-    const [oldestEvent] = await this.db.all(`SELECT MIN(ts) AS t FROM rl_events WHERE site = ?`, [site]);
-    const first = Math.min(...[oldest?.t, oldestEvent?.t].filter((v) => v !== null && v !== undefined).map((v) => num(v)), ts);
-    for (let from = first; from < ts; from += PIECE_MS) {
-      const to = Math.min(from + PIECE_MS, ts);
+    // history goes without holding the database (on SQLite, the whole server) for minutes. Stretches
+    // with nothing in them are skipped, so one stray old row does not cost a piece for every day since.
+    const piece = this.db.metered ? 30 * PIECE_MS : PIECE_MS;
+    const next = async (at: number) => {
+      const found = [await this.oldest("rl_sessions", "started_at", site, at), await this.oldest("rl_events", "ts", site, at)].filter((t): t is number => t !== null);
+      return found.length ? Math.max(at, Math.min(...found)) : null;
+    };
+    for (let from = await next(-Infinity); from !== null && from < ts; from = await next(Math.min(from + piece, ts))) {
+      const to = Math.min(from + piece, ts);
       await this.transaction(async (store) => {
         // A visit's events go with it, even ones after the cutoff, so nothing is left without its visit.
         // They come after it starts and within EVENT_TAIL_MS, so the time bounds let the (site, ts) index find them.
@@ -737,10 +771,11 @@ export class SqlStore {
 
   /** Deletes a site's events from `from` on whose visit no longer exists, a day at a time. */
   async dropOrphans(site: string, from: number, until: number): Promise<void> {
-    for (let at = from; at < until; at += PIECE_MS) {
+    const piece = this.db.metered ? 30 * PIECE_MS : PIECE_MS;
+    for (let at = await this.oldest("rl_events", "ts", site, from); at !== null && at < until; at = await this.oldest("rl_events", "ts", site, at + piece)) {
       await this.db.run(
         `DELETE FROM rl_events WHERE site = ? AND ts >= ? AND ts < ? AND session <> '' AND NOT EXISTS (SELECT 1 FROM rl_sessions s WHERE s.id = rl_events.session)`,
-        [site, at, at + PIECE_MS],
+        [site, at, at + piece],
       );
       await pause();
     }
@@ -754,58 +789,50 @@ export class SqlStore {
    * the days of a range add up to exactly what counting the range would give.
    */
   async buildRollupDay(site: string, day: string, start: number, end: number): Promise<void> {
-    const visits = `FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}`;
     // A day with no visits still gets its row of zeros, so it counts as built.
     const sums = `COUNT(DISTINCT s.visitor), COUNT(*), COALESCE(SUM(s.pageviews), 0), COALESCE(SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END), 0), COALESCE(SUM(${DURATION}), 0)`;
     const cols = "(site, day, dim, value, visitors, visits, pageviews, bounced, duration)";
+    // Each piece names its own site and day, as text, so Postgres knows their type inside a UNION.
+    const head = "CAST(? AS TEXT), CAST(? AS TEXT)";
+    // The day's totals, each visit dimension, and the heatmap's quarter hours (counted as hourly() counts
+    // them: every visit that started), in one statement over the day's visits, since a Cloudflare D1
+    // check may only send so many.
+    const pieces = [
+      `SELECT ${head}, '', '', ${sums} FROM v s`,
+      ...Object.entries(SESSION_DIMENSIONS).map(([dim, col]) => `SELECT ${head}, '${dim}', s.${col}, ${sums} FROM v s WHERE s.${col} <> '' GROUP BY s.${col}`),
+      `SELECT ${head}, 'quarter', CAST(s.started_at / 900000 AS TEXT), COUNT(DISTINCT s.visitor), COUNT(*), COALESCE(SUM(s.pageviews), 0), COALESCE(SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END), 0), 0 FROM v s GROUP BY s.started_at / 900000`,
+    ];
+    // Pages and events, from the rows of the day's visits. The time bounds let the (site, kind, ts) index
+    // find them; a visit's last row comes at most EVENT_TAIL_MS after it starts.
+    const ofDay = (kind: string) =>
+      `FROM rl_events e JOIN rl_sessions s ON s.id = e.session
+       WHERE e.site = ? AND e.kind = '${kind}' AND e.ts >= ? AND e.ts < ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}`;
+    const window = [site, start, end + EVENT_TAIL_MS, start, end];
     await this.transaction(async (store) => {
       const db = store.db;
       await db.run(`DELETE FROM rl_rollups WHERE site = ? AND day = ?`, [site, day]);
-      await db.run(`INSERT INTO rl_rollups ${cols} SELECT ?, ?, '', '', ${sums} ${visits}`, [site, day, site, start, end]);
-      for (const [dim, col] of Object.entries(SESSION_DIMENSIONS)) {
-        await db.run(`INSERT INTO rl_rollups ${cols} SELECT ?, ?, ?, s.${col}, ${sums} ${visits} AND s.${col} <> '' GROUP BY s.${col}`, [site, day, dim, site, start, end]);
-      }
-      // Pages, from the pageviews of the day's visits, with their engaged time and scroll.
-      // The time bounds let the (site, kind, ts) index find the events; a visit's last
-      // event comes at most 30 idle minutes after the one before, so two days is ample.
-      const ofDay = (kind: string) =>
-        `FROM rl_events e JOIN rl_sessions s ON s.id = e.session
-         WHERE e.site = ? AND e.kind = '${kind}' AND e.ts >= ? AND e.ts < ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}`;
-      const window = [site, start, end + EVENT_TAIL_MS, start, end];
       await db.run(
-        `INSERT INTO rl_rollups (site, day, dim, value, visitors, visits, pageviews, views)
-         SELECT ?, ?, 'page', e.path, COUNT(DISTINCT e.visitor), COUNT(DISTINCT e.session), COUNT(*), ${LIVE_VIEWS} ${ofDay("pageview")} GROUP BY e.path`,
-        [site, day, ...window],
+        `WITH v AS (SELECT * FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT})
+         INSERT INTO rl_rollups ${cols} ${pieces.join(" UNION ALL ")}`,
+        [site, start, end, ...pieces.flatMap(() => [site, day])],
       );
-      // Per pageview first (its engaged time added up, its deepest scroll), as the raw report counts them.
-      const time = await db.all(
-        `SELECT value, SUM(total) AS engaged, SUM(deepest) AS scroll_sum, COUNT(deepest) AS scroll_n FROM (
-           SELECT e.path AS value, SUM(e.engaged_ms) AS total, MAX(e.scroll) AS deepest
-           ${ofDay("engagement")} GROUP BY e.path, e.pageview) t GROUP BY value`,
-        window,
+      // A page's engaged time and scroll come per pageview first (its time added up, its deepest scroll),
+      // as the raw report counts them.
+      await db.run(
+        `INSERT INTO rl_rollups (site, day, dim, value, visitors, visits, pageviews, views, engaged, scroll_sum, scroll_n)
+         SELECT ?, ?, 'page', p.value, p.visitors, p.visits, p.pageviews, p.views, COALESCE(t.engaged, 0), COALESCE(t.scroll_sum, 0), COALESCE(t.scroll_n, 0)
+         FROM (SELECT e.path AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(DISTINCT e.session) AS visits, COUNT(*) AS pageviews, ${LIVE_VIEWS} AS views
+               ${ofDay("pageview")} GROUP BY e.path) p
+         LEFT JOIN (SELECT value, SUM(total) AS engaged, SUM(deepest) AS scroll_sum, COUNT(deepest) AS scroll_n FROM (
+               SELECT e.path AS value, SUM(e.engaged_ms) AS total, MAX(e.scroll) AS deepest ${ofDay("engagement")} GROUP BY e.path, e.pageview) x
+               GROUP BY value) t ON t.value = p.value`,
+        [site, day, ...window, ...window],
       );
       await db.run(
         `INSERT INTO rl_rollups (site, day, dim, value, visitors, events)
          SELECT ?, ?, 'event', e.name, COUNT(DISTINCT e.visitor), COUNT(*) ${ofDay("event")} GROUP BY e.name`,
         [site, day, ...window],
       );
-      // The heatmap's quarter hours, counted as hourly() counts them: every visit that started.
-      await db.run(
-        `INSERT INTO rl_rollups (site, day, dim, value, visitors, visits, pageviews, bounced)
-         SELECT ?, ?, 'quarter', CAST(s.started_at / 900000 AS TEXT), COUNT(DISTINCT s.visitor), COUNT(*), COALESCE(SUM(s.pageviews), 0), COALESCE(SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END), 0)
-         FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT} GROUP BY s.started_at / 900000`,
-        [site, day, site, start, end],
-      );
-      for (const t of time) {
-        await db.run(`UPDATE rl_rollups SET engaged = ?, scroll_sum = ?, scroll_n = ? WHERE site = ? AND day = ? AND dim = 'page' AND value = ?`, [
-          num(t.engaged),
-          num(t.scroll_sum),
-          num(t.scroll_n),
-          site,
-          day,
-          String(t.value),
-        ]);
-      }
       await db.run(`DELETE FROM rl_rollup_days WHERE site = ? AND day = ?`, [site, day]);
       await db.run(`INSERT INTO rl_rollup_days (site, day, start_at, end_at) VALUES (?, ?, ?, ?)`, [site, day, start, end]);
     });
@@ -1192,36 +1219,34 @@ export class SqlStore {
    * after the step before it. Filters choose which visits enter the funnel.
    */
   async funnelCounts(query: Query, funnel: FunnelRow): Promise<number[]> {
-    // A funnel follows the visits a query picks (see visitRows), from their first step.
+    // The rows of the picked visits that match any step, in order, read once and walked here: a join from
+    // each step to the next is planned badly by Postgres, which cannot guess how many visits go on.
     const v = visitRows(query.filters, query.site, query.from, query.to, this.db.dialect);
-    const ctes: string[] = [];
-    const params: unknown[] = [];
-    funnel.steps.forEach((step, i) => {
-      const scope = this.goalScope({ kind: step.kind, match: step.match, name: step.match } as GoalRow);
-      // Each step is the first matching row after the step before, ordered by time and then by row, so two
-      // steps in the same millisecond both count and one row never counts as two steps.
-      if (i === 0) {
-        ctes.push(`c0 AS (SELECT e.session AS session, e.ts AS ts, e.id AS id FROM ${v.from} WHERE ${v.sql} AND ${scope.sql})`);
-        params.push(...v.params, ...scope.params);
-      } else {
-        ctes.push(
-          `c${i} AS (SELECT e.session AS session, e.ts AS ts, e.id AS id FROM rl_events e
-            JOIN s${i - 1} p ON p.session = e.session AND (e.ts > p.t OR (e.ts = p.t AND e.id > p.id))
-            WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${scope.sql})`,
-        );
-        params.push(query.site, query.from, query.to + EVENT_TAIL_MS, ...scope.params);
-      }
-      ctes.push(
-        `s${i} AS (SELECT c.session AS session, c.ts AS t, MIN(c.id) AS id FROM c${i} c
-          JOIN (SELECT session, MIN(ts) AS t FROM c${i} GROUP BY session) m ON m.session = c.session AND m.t = c.ts
-          GROUP BY c.session, c.ts)`,
-      );
-    });
-    const [row] = await this.db.all(
-      `WITH ${ctes.join(", ")} SELECT ${funnel.steps.map((_, i) => `(SELECT COUNT(*) FROM s${i}) AS n${i}`).join(", ")}`,
-      params,
+    const scopes = funnel.steps.map((step) => this.goalScope({ kind: step.kind, match: step.match, name: step.match } as GoalRow));
+    const rows = await this.db.all<Record<string, unknown>>(
+      `SELECT e.session AS session, ${scopes.map((scope, i) => `CASE WHEN ${scope.sql} THEN 1 ELSE 0 END AS m${i}`).join(", ")}
+       FROM ${v.from} WHERE ${v.sql} AND (${scopes.map((scope) => `(${scope.sql})`).join(" OR ")})
+       ORDER BY e.session, e.ts, e.id`,
+      [...scopes.flatMap((scope) => scope.params), ...v.params, ...scopes.flatMap((scope) => scope.params)],
     );
-    return funnel.steps.map((_, i) => num(row?.[`n${i}`]));
+    const counts = funnel.steps.map(() => 0);
+    let session: unknown = undefined;
+    let reached = 0;
+    const close = () => {
+      for (let i = 0; i < reached; i++) counts[i]!++;
+    };
+    for (const row of rows) {
+      if (row.session !== session) {
+        close();
+        session = row.session;
+        reached = 0;
+      }
+      // Each step is the first matching row after the step before, so two steps in the same millisecond
+      // both count, and one row never counts as two steps.
+      if (reached < counts.length && num(row[`m${reached}`]) === 1) reached++;
+    }
+    close();
+    return counts;
   }
 
   /**
@@ -1232,9 +1257,14 @@ export class SqlStore {
   async journeyPages(query: Query, perVisit: number): Promise<{ rows: Array<{ session: string; path: string }>; sampled: boolean }> {
     const scope = visitScope(query.filters, query.site, query.from, query.to, this.db.dialect);
     // The newest visits the filters pick, JOURNEY_VISITS at most, so a long range stays quick and small in memory.
-    const newest = (limit: number) => `SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}
+    const newest = (columns: string, limit: number) => `SELECT ${columns} FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}
          ORDER BY s.started_at DESC LIMIT ${limit}`;
     const visitParams = [query.site, query.from, query.to, ...scope.params];
+    // How many there are, one past the cap telling whether it was reached, and when the oldest of them began,
+    // so the rows are read from there on rather than from the start of a long range.
+    const [first] = await this.db.all(`SELECT COUNT(*) AS n, MIN(started_at) AS t FROM (${newest("s.started_at AS started_at", JOURNEY_VISITS + 1)}) x`, visitParams);
+    if (!num(first?.n)) return { rows: [], sampled: false };
+    const from = Math.max(query.from, num(first?.t));
     const rows = await this.db.all(
       // The visits are read as an IN list, which every database probes from the events side, so the
       // plan does not depend on the planner's statistics. Refreshes (the same page twice in a row) are
@@ -1243,19 +1273,14 @@ export class SqlStore {
          SELECT e.session AS session, e.path AS path, e.ts AS ts, e.id AS id,
            LAG(e.path) OVER (PARTITION BY e.session ORDER BY e.ts, e.id) AS before
          FROM rl_events e
-         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ? AND e.session IN (${newest(JOURNEY_VISITS)})),
+         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ? AND e.session IN (${newest("s.id", JOURNEY_VISITS)})),
        v AS (
          SELECT session, path, ROW_NUMBER() OVER (PARTITION BY session ORDER BY ts, id) AS n
          FROM raw WHERE before IS NULL OR before <> path)
        SELECT session, path FROM v WHERE n <= ? ORDER BY session, n`,
-      [query.site, query.from, query.to + EVENT_TAIL_MS, ...visitParams, perVisit],
+      [query.site, from, query.to + EVENT_TAIL_MS, ...visitParams, perVisit],
     );
-    const [count] = await this.db.all(
-      // One past the cap tells whether it was reached.
-      `SELECT COUNT(*) AS n FROM (${newest(JOURNEY_VISITS + 1)}) x`,
-      visitParams,
-    );
-    return { rows: rows.map((r) => ({ session: String(r.session), path: String(r.path) })), sampled: num(count?.n) > JOURNEY_VISITS };
+    return { rows: rows.map((r) => ({ session: String(r.session), path: String(r.path) })), sampled: num(first?.n) > JOURNEY_VISITS };
   }
 
   // API tokens

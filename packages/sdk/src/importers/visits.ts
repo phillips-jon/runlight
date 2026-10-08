@@ -12,7 +12,7 @@ import { addDays, localDate } from "../time.js";
 import type { Runlight } from "../runlight.js";
 import { SESSION_IDLE_MS } from "../runlight.js";
 import { attribute, parsePage } from "../sources.js";
-import type { SqlStore } from "../store.js";
+import { EVENT_TAIL_MS, type SqlStore } from "../store.js";
 import { getJson } from "./http.js";
 import { ImportError } from "./types.js";
 import { umamiSignIn } from "./umami.js";
@@ -143,7 +143,8 @@ export async function importUmamiVisits(
   let to = state.day;
   while (to < state.end && to - from < STEP_DAYS * DAY && events.length < STEP_EVENTS) {
     const next = Math.min(to + DAY, state.end);
-    events.push(...(await all<UmamiEvent>(base, `/websites/${website}/events?startAt=${to}&endAt=${next - 1}`, headers, MAX_DAY_EVENTS)));
+    // One at a time: spreading a busy day's events as arguments would pass the call stack's limit.
+    for (const e of await all<UmamiEvent>(base, `/websites/${website}/events?startAt=${to}&endAt=${next - 1}`, headers, MAX_DAY_EVENTS)) events.push(e);
     to = next;
   }
   const sessions = events.length ? await all<UmamiSession>(base, `/websites/${website}/sessions?startAt=${from}&endAt=${to - 1}`, headers, MAX_DAY_EVENTS * STEP_DAYS) : [];
@@ -162,9 +163,12 @@ export async function importUmamiVisits(
     // have left part of them behind. Clear it, so every step can safely run again.
     const imported = `SELECT id FROM rl_sessions WHERE site = ? AND imported = 1`;
     await store.db.run(`DELETE FROM rl_events WHERE site = ? AND ts >= ? AND ts < ? AND kind IN ('pageview', 'event') AND session IN (${imported})`, [siteId, from, to, siteId]);
+    // Visits of these days that kept no rows go too. Their rows would come within EVENT_TAIL_MS of the step,
+    // so the time bounds let the (site, ts) index find them, with no scan of every event.
     await store.db.run(
-      `DELETE FROM rl_sessions WHERE site = ? AND imported = 1 AND started_at >= ? AND started_at < ? AND NOT EXISTS (SELECT 1 FROM rl_events e WHERE e.session = rl_sessions.id)`,
-      [siteId, from, to],
+      `DELETE FROM rl_sessions WHERE site = ? AND imported = 1 AND started_at >= ? AND started_at < ?
+         AND id NOT IN (SELECT e.session FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ?)`,
+      [siteId, from, to, siteId, from, to + EVENT_TAIL_MS],
     );
     for (const e of visits) {
       const made = await writeEvent(store, site, website, e, info.get(e.sessionId));
@@ -173,22 +177,45 @@ export async function importUmamiVisits(
       else counts.events++;
     }
     // A visit that began in an earlier step and went on into this one is counted
-    // again from its events, so a repeated step cannot leave it with doubled totals.
+    // again from its rows, so a repeated step cannot leave it with doubled totals.
     // The day it began may already be built, so that day is built again too.
-    const [earliest] = await store.db.all(
-      `SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ? AND imported = 1 AND started_at < ? AND id IN (SELECT DISTINCT session FROM rl_events WHERE site = ? AND ts >= ? AND ts < ?)`,
-      [siteId, from, siteId, from, to],
+    const carried = await store.db.all<{ id: string; started_at: unknown }>(
+      `SELECT s.id AS id, s.started_at AS started_at FROM rl_sessions s
+       WHERE s.site = ? AND s.imported = 1 AND s.started_at < ? AND s.started_at >= ?
+         AND s.id IN (SELECT e.session FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ?)`,
+      [siteId, from, from - EVENT_TAIL_MS, siteId, from, to],
     );
-    if (earliest?.t !== null && earliest?.t !== undefined) await store.clearRollups(siteId, { from: Number(earliest.t), to: from });
-    await store.db.run(
-      `UPDATE rl_sessions SET
-         pageviews = (SELECT COUNT(*) FROM rl_events e WHERE e.session = rl_sessions.id AND e.kind = 'pageview'),
-         events = (SELECT COUNT(*) FROM rl_events e WHERE e.session = rl_sessions.id AND e.kind = 'event'),
-         last_at = (SELECT MAX(e.ts) FROM rl_events e WHERE e.session = rl_sessions.id),
-         exit_path = COALESCE((SELECT e.path FROM rl_events e WHERE e.session = rl_sessions.id AND e.kind = 'pageview' ORDER BY e.ts DESC LIMIT 1), exit_path)
-       WHERE site = ? AND imported = 1 AND started_at < ? AND id IN (SELECT DISTINCT session FROM rl_events WHERE site = ? AND ts >= ? AND ts < ?)`,
-      [siteId, from, siteId, from, to],
-    );
+    if (carried.length) {
+      const earliest = Math.min(...carried.map((c) => Number(c.started_at)));
+      await store.clearRollups(siteId, { from: earliest, to: from });
+      // Their rows lie between the earliest start and this step's end, which the (site, ts) index reads in one pass.
+      // Ninety ids a statement, within Cloudflare D1's 100 values.
+      const rows: Array<{ session: string; kind: string; ts: unknown; path: string }> = [];
+      for (let i = 0; i < carried.length; i += 90) {
+        const ids = carried.slice(i, i + 90).map((c) => c.id);
+        rows.push(
+          ...(await store.db.all<{ session: string; kind: string; ts: unknown; path: string }>(
+            `SELECT e.session AS session, e.kind AS kind, e.ts AS ts, e.path AS path FROM rl_events e
+             WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind IN ('pageview', 'event') AND e.session IN (${ids.map(() => "?").join(", ")})
+             ORDER BY e.ts, e.id`,
+            [siteId, earliest, to, ...ids],
+          )),
+        );
+      }
+      const totals = new Map<string, { pageviews: number; events: number; last: number; exit: string | null }>();
+      for (const r of rows) {
+        const t = totals.get(r.session) ?? { pageviews: 0, events: 0, last: 0, exit: null };
+        if (r.kind === "pageview") {
+          t.pageviews++;
+          t.exit = r.path;
+        } else t.events++;
+        t.last = Math.max(t.last, Number(r.ts));
+        totals.set(r.session, t);
+      }
+      for (const [id, t] of totals) {
+        await store.db.run(`UPDATE rl_sessions SET pageviews = ?, events = ?, last_at = ?, exit_path = COALESCE(?, exit_path) WHERE id = ?`, [t.pageviews, t.events, t.last, t.exit, id]);
+      }
+    }
     await store.setSetting(progressKey(siteId, website), String(to));
   });
 

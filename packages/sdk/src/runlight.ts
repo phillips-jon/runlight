@@ -97,6 +97,8 @@ export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
 const ROLLUP_VERSION = 3;
 /** Days of rollups built per site in one scheduled check, and how long after a day ends it is built. */
 const ROLLUP_BATCH = 10;
+/** On a database that caps statements per request (Cloudflare D1), fewer days a check, about 30 statements. */
+const METERED_ROLLUP_BATCH = 4;
 const ROLLUP_DELAY_MS = 2 * 3_600_000;
 
 /** The choices for how long a site keeps its visits. */
@@ -294,6 +296,9 @@ export class Runlight {
   init(): Promise<void> {
     this.ready ??= (async () => {
       await this.store.migrate();
+      // A database that never had its statistics gathered gets them now, before any report is read, rather
+      // than at the first scheduled check, which an app may never run.
+      await this.store.optimize(true);
       if (this.managedSites) {
         this.configured = await this.store.sites();
         await this.loadRemotes();
@@ -602,7 +607,7 @@ export class Runlight {
       const today = localDate(now, site.timezone);
       let made = 0;
       // Newest first, so recent ranges speed up before a long history is done.
-      for (let day = addDays(today, -1); day >= localDate(Math.max(first, cutoff), site.timezone) && made < ROLLUP_BATCH; day = addDays(day, -1)) {
+      for (let day = addDays(today, -1); day >= localDate(Math.max(first, cutoff), site.timezone) && made < (this.store.db.metered ? METERED_ROLLUP_BATCH : ROLLUP_BATCH); day = addDays(day, -1)) {
         if (done.has(day)) continue;
         const start = startOf(day, site.timezone);
         const end = startOf(addDays(day, 1), site.timezone);
@@ -781,12 +786,25 @@ export class Runlight {
     if (aiAgent(ua) || isBot(ua)) return;
     if (this.limit && !(await this.limit.allow(this.clientIp(request, context)))) return;
 
+    // A database too busy to take the hit right now (every pooled connection held by long reports, or
+    // another process writing the SQLite file) gets it a little later, at the time it arrived.
+    const now = this.now();
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await this.record(payload, request, context, now);
+      } catch (error) {
+        if (attempt >= 3 || !busy(error)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, 500 * attempt));
+      }
+    }
+  }
+
+  private async record(payload: Payload, request: Request, context: RequestContext, now: number): Promise<void> {
     // Managed sites load from the database in init(), so it must come first.
     await this.init();
     const site = this.siteFor(payload.url.hostname, payload.site) ?? (await this.setupSite(payload.url.hostname, payload.site));
     if (!site) return;
 
-    const now = this.now();
     if (payload.kind === "engagement") return this.engagement(site, payload, now);
 
     const page = parsePage(payload.url);
@@ -1117,6 +1135,11 @@ export class Runlight {
     await this.buildRollups();
     return { ok: true, reports: await this.sendReports() };
   }
+}
+
+/** True for a database that could not take a statement just now and may a moment later. */
+function busy(error: unknown): boolean {
+  return /timeout exceeded when trying to connect|connection timeout|SQLITE_BUSY|database is locked/i.test(String((error as Error)?.message ?? error));
 }
 
 /** A request body as text, or null when it is longer than `max` bytes. */

@@ -103,3 +103,46 @@ for (const kind of STORES) {
     assert.equal(await t.rl.store.setting("orphans-swept:default"), "1");
   });
 }
+
+test("a tracker hit that finds the database busy is tried again, at the time it arrived", async () => {
+  const t = setup("sqlite", { site: { hostnames: ["example.com"], timezone: "UTC" } });
+  await t.rl.init();
+  const db = t.rl.store.db;
+  const all = db.all.bind(db);
+  let refused = 0;
+  db.all = (async (sql: string, params?: unknown[]) => {
+    if (refused < 2 && sql.includes("FROM rl_sessions WHERE site = ? AND visitor IN")) {
+      refused++;
+      throw new Error("timeout exceeded when trying to connect");
+    }
+    return all(sql, params);
+  }) as typeof db.all;
+  await t.send({ k: "pageview", u: "https://example.com/", i: "busy" });
+  db.all = all;
+  assert.equal(refused, 2);
+  assert.equal((await t.get("/api/stats?period=today&compare=off")).stats.pageviews, 1);
+});
+
+test("on Cloudflare D1 a check sends a modest number of statements, and one stray old row costs no more", async () => {
+  const t = setup("d1", { site: { hostnames: ["example.com"], timezone: "UTC" } });
+  await t.rl.init();
+  t.advance(-20 * DAY);
+  for (let d = 0; d < 20; d++) {
+    for (let p = 0; p < 30; p++) await t.send({ k: "pageview", u: `https://example.com/p${p}`, i: `d${d}p${p}` }, { ip: `203.0.113.${p + 1}` });
+    await t.send({ k: "engagement", u: "https://example.com/p1", i: `d${d}p1`, e: 5000 }, { ip: "203.0.113.2" });
+    t.advance(DAY);
+  }
+  // A row from 1970, as a bad import might leave.
+  await t.rl.store.db.run(`INSERT INTO rl_events (site, ts, kind, visitor, session, path, hostname) VALUES ('default', 1000, 'pageview', 'old', 'old', '/', 'example.com')`);
+  const db = t.rl.store.db;
+  const run = db.run.bind(db);
+  const all = db.all.bind(db);
+  let statements = 0;
+  db.run = ((sql: string, params?: unknown[]) => (statements++, run(sql, params))) as typeof db.run;
+  db.all = ((sql: string, params?: unknown[]) => (statements++, all(sql, params))) as typeof db.all;
+  await t.rl.check();
+  assert.ok(statements < 120, `one check sent ${statements} statements`);
+  statements = 0;
+  await t.rl.store.deleteSite("default");
+  assert.ok(statements < 200, `deleting the site sent ${statements} statements`);
+});

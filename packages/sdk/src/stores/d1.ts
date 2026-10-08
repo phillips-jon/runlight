@@ -31,6 +31,8 @@ export function d1(options: D1Options): SqlStore {
   };
   const db: Db = {
     dialect: "sqlite",
+    // A Worker may only send so many queries per request, so long jobs go in fewer, larger pieces.
+    metered: true,
     async all<T>(sql: string, params: unknown[] = []): Promise<T[]> {
       return (await stmt(sql, params).all<T>()).results;
     },

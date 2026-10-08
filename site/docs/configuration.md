@@ -34,7 +34,7 @@ import { postgres } from "@runlight/sdk/postgres";
 postgres({ url: process.env.DATABASE_URL });
 ```
 
-Postgres needs `pg`. Pass `url`, or pass `pool` to share a pool your app already has (Runlight never ends a pool it did not make). A pool needs at least 2 connections. When Runlight makes the pool, `max` sets its connections and defaults to 5, a request waits at most 10 seconds for a free one, and `statementTimeout` stops any one query after that many milliseconds, 120000 by default (0 turns it off). If several processes start at once, the tables are still created only once.
+Postgres needs `pg`. Pass `url`, or pass `pool` to share a pool your app already has (Runlight never ends a pool it did not make). A pool needs at least 2 connections. When Runlight makes the pool, `max` sets its connections and defaults to 10, a request waits at most 10 seconds for a free one (a tracker hit tries twice more before it is let go), and `statementTimeout` stops any one query after that many milliseconds, 120000 by default (0 turns it off). If several processes start at once, the tables are still created only once.
 
 ### libSQL and Turso
 

@@ -6,7 +6,7 @@ export interface PostgresOptions {
   url?: string;
   /** Or a pool the app already has. Runlight never ends a pool it did not make. */
   pool?: pg.Pool;
-  /** Connections in the pool Runlight makes. Default 5, and at least 2. */
+  /** Connections in the pool Runlight makes. Default 10, and at least 2. */
   max?: number;
   /**
    * The longest one statement may run in the pool Runlight makes, in milliseconds, so a report over a
@@ -68,13 +68,13 @@ export function postgres(options: PostgresOptions): SqlStore {
   if (!options.pool && !options.url) throw new Error("Runlight: postgres() needs a url or a pool");
   const owned = !options.pool;
   // Settings changes hold one connection while they read through another, so one connection would wait on itself.
-  if ((options.max ?? options.pool?.options.max ?? 5) < 2) throw new Error("Runlight: postgres() needs a pool of at least 2 connections");
+  if ((options.max ?? options.pool?.options.max ?? 10) < 2) throw new Error("Runlight: postgres() needs a pool of at least 2 connections");
   const timeout = options.statementTimeout ?? 120_000;
   const pool =
     options.pool ??
     new pg.Pool({
       connectionString: options.url,
-      max: options.max ?? 5,
+      max: options.max ?? 10,
       // A tracker hit waits at most this long for a busy pool, rather than for good.
       connectionTimeoutMillis: 10_000,
       ...(timeout > 0 ? { statement_timeout: timeout } : {}),
@@ -108,7 +108,11 @@ export function postgres(options: PostgresOptions): SqlStore {
     ...driver((sql, params) => pool.query(sql, params)),
     async exclusive<T>(fn: (db: Db) => Promise<T>): Promise<T> {
       return withClient(async (client) => {
-        await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK]);
+        // Asked for again and again rather than waited on: a waiting statement would hold up an index being
+        // built CONCURRENTLY by whoever has the lock, and the two would wait on each other for good.
+        while (!(await client.query("SELECT pg_try_advisory_lock($1) AS ok", [MIGRATION_LOCK])).rows[0]?.ok) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
         try {
           return await fn({ dialect: "postgres", ...driver((sql, params) => client.query(sql, params)) });
         } finally {
