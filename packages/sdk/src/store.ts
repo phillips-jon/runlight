@@ -279,6 +279,18 @@ export interface Realtime {
 export const BOUNCE_MS = 10_000;
 const BOUNCE = `(s.pageviews = 1 AND s.events = 0 AND (s.engaged_ms IS NULL OR s.engaged_ms < ${BOUNCE_MS}))`;
 const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
+/** A session that is a visit: a short link click alone opens one that is not. */
+const IS_VISIT = "(s.pageviews > 0 OR s.events > 0)";
+
+/**
+ * True when every filter is a visit dimension, so visit reports can read the
+ * sessions table alone, one row per visit, through its (site, started_at)
+ * index. A visit belongs to the range it started in. Page and event filters
+ * still need the events table.
+ */
+function visitsOnly(filters: Filter[]): boolean {
+  return filters.every((filter) => isSessionDimension(filter.dimension));
+}
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
@@ -1136,6 +1148,24 @@ export class SqlStore {
 
   async stats(query: Query): Promise<Stats> {
     const f = filterSql(query.filters);
+    if (visitsOnly(query.filters)) {
+      const [row] = await this.db.all(
+        `SELECT COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(s.pageviews) AS pageviews,
+           SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
+         FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${f.sql}`,
+        [query.site, query.from, query.to, ...f.params],
+      );
+      const visits = num(row?.visits);
+      const pageviews = num(row?.pageviews);
+      return {
+        visitors: num(row?.visitors),
+        visits,
+        pageviews,
+        viewsPerVisit: visits > 0 ? Math.round((pageviews / visits) * 100) / 100 : 0,
+        bounceRate: visits > 0 ? num(row?.bounced) / visits : 0,
+        visitDuration: visits > 0 ? Math.round(num(row?.duration) / visits) : 0,
+      };
+    }
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
     const scope = `FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql}`;
     const params = [query.site, query.from, query.to, ...f.params];
@@ -1173,6 +1203,31 @@ export class SqlStore {
       .map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)"))
       .join(", ");
     const params: unknown[] = buckets.flatMap((b, i) => [i, b.start, b.end]);
+    if (visitsOnly(query.filters)) {
+      const rows = await this.db.all<Record<string, unknown>>(
+        `WITH b (i, bs, be) AS (VALUES ${values})
+         SELECT b.i AS i, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS n, SUM(s.pageviews) AS views,
+           SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
+         FROM b JOIN rl_sessions s ON s.site = ? AND s.started_at >= b.bs AND s.started_at < b.be
+         WHERE ${IS_VISIT}${f.sql}
+         GROUP BY b.i`,
+        [...params, query.site, ...f.params],
+      );
+      const found = new Map(rows.map((row) => [num(row.i), row]));
+      return buckets.map((bucket, i) => {
+        const row = found.get(i);
+        const n = num(row?.n);
+        return {
+          start: bucket.start,
+          visitors: num(row?.visitors),
+          visits: n,
+          pageviews: num(row?.views),
+          viewsPerVisit: n > 0 ? Math.round((num(row?.views) / n) * 100) / 100 : 0,
+          bounceRate: n > 0 ? num(row?.bounced) / n : 0,
+          visitDuration: n > 0 ? Math.round(num(row?.duration) / n) : 0,
+        };
+      });
+    }
     const rows = await this.db.all<{ i: unknown; visitors: unknown; visits: unknown; pageviews: unknown }>(
       `WITH b (i, bs, be) AS (VALUES ${values})
        SELECT b.i AS i, COUNT(DISTINCT e.visitor) AS visitors, COUNT(DISTINCT e.session) AS visits,
@@ -1233,6 +1288,32 @@ export class SqlStore {
     const f = filterSql(query.filters);
     const params = [query.site, query.from, query.to, ...f.params];
     const sessionJoin = "JOIN rl_sessions s ON s.id = e.session";
+
+    if (visitsOnly(query.filters) && isSessionDimension(dimension) && !isEventDimension(dimension)) {
+      const col = `s.${SESSION_DIMENSIONS[dimension]}`;
+      const entryExit = dimension === "entry" || dimension === "exit";
+      const rows = await this.db.all(
+        `SELECT ${col} AS value, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(s.pageviews) AS pageviews,
+           SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
+         FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${f.sql} AND ${col} <> ''
+         GROUP BY ${col} ORDER BY ${entryExit ? "visits DESC" : "visitors DESC, visits DESC"}, value LIMIT ? OFFSET ?`,
+        [...params, ...page],
+      );
+      return rows.map((row) => {
+        const visits = num(row.visits);
+        const out: BreakdownRow = {
+          value: String(row.value),
+          visitors: num(row.visitors),
+          visits,
+          bounceRate: visits > 0 ? num(row.bounced) / visits : 0,
+        };
+        if (!entryExit) {
+          out.pageviews = num(row.pageviews);
+          out.visitDuration = visits > 0 ? Math.round(num(row.duration) / visits) : 0;
+        }
+        return out;
+      });
+    }
 
     if (dimension === "entry" || dimension === "exit") {
       const col = `s.${SESSION_DIMENSIONS[dimension]}`;

@@ -27,6 +27,7 @@ input:focus { outline: 2px solid #2a78d6; outline-offset: -1px; }
 main button { width: 100%; height: 40px; margin-top: 6px; border: 0; border-radius: 8px; background: var(--ink); color: var(--card); font: inherit; font-weight: 600; cursor: pointer; }
 .error { margin: 0 0 14px; color: var(--bad); font-size: 14px; }
 .hint { margin: 16px 0 0; font-size: 13px; }
+.hint a { color: var(--ink); }
 .theme { position: fixed; right: 16px; bottom: 16px; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--muted); cursor: pointer; }
 .theme:hover { color: var(--ink); }
 .theme svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
@@ -94,7 +95,7 @@ ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
 <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
 <button type="submit">Sign in</button>
 </form>
-<p class="hint">If you have forgotten your password, run <code>npx runlight.sh password you@example.com</code> on the server to set a new one.</p>`,
+<p class="hint">If you have forgotten your password, <a href="https://runlight.sh/docs/server/#forgotten-passwords" target="_blank" rel="noopener">the docs say how to set a new one</a>.</p>`,
   );
 }
 
