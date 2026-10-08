@@ -234,6 +234,24 @@ export function AssistantSettings({ owner }: { owner: boolean }) {
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [models, setModels] = useState<Array<{ id: string; name: string }> | null>(null);
+  const [typing, setTyping] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [modelError, setModelError] = useState("");
+  const loadModels = () => {
+    setModelError("");
+    setLoading(true);
+    api
+      .assistantModels({ provider: form.provider, baseUrl: form.baseUrl, key: form.key })
+      .then((r) => {
+        setModels(r.models);
+        setTyping(false);
+        // Keep a model already chosen; otherwise start on the service's default, or the first listed.
+        if (!form.model) setForm((f) => ({ ...f, model: r.models.some((m) => m.id === chosen?.model) ? chosen!.model : (r.models[0]?.id ?? "") }));
+      })
+      .catch((err: Error) => setModelError(err.message))
+      .finally(() => setLoading(false));
+  };
   const load = () =>
     api
       .assistant()
@@ -282,6 +300,8 @@ export function AssistantSettings({ owner }: { owner: boolean }) {
             onChange={(e) => {
               const id = (e.target as HTMLSelectElement).value;
               setForm({ provider: id, model: id === state.provider ? (state.model ?? "") : "", baseUrl: id === state.provider ? (state.baseUrl ?? "") : "", key: "" });
+              setModels(null);
+              setModelError("");
               setSaved(false);
             }}
           >
@@ -297,11 +317,6 @@ export function AssistantSettings({ owner }: { owner: boolean }) {
             <span class="field-hint">{t(chosen.key === "no" ? "assistant.addressLocal" : "assistant.addressHint")}</span>
           </label>
         ) : null}
-        <label class="field-row">
-          <span class="field-label">{t("assistant.model")}</span>
-          <input class="value" type="text" spellcheck={false} placeholder={chosen?.model || t("assistant.modelPlaceholder")} value={form.model} onInput={(e) => setForm({ ...form, model: (e.target as HTMLInputElement).value })} />
-          <span class="field-hint">{chosen?.model ? t("assistant.modelDefault", { model: chosen.model }) : t("assistant.modelHint")}</span>
-        </label>
         {chosen?.key !== "no" ? (
           <label class="field-row">
             <span class="field-label">{t("assistant.key")}</span>
@@ -314,6 +329,35 @@ export function AssistantSettings({ owner }: { owner: boolean }) {
             />
           </label>
         ) : null}
+        {/* The model comes last: load the service's own list with the key above, or type a name. */}
+        <div class="field-row">
+          <span class="field-label">{t("assistant.model")}</span>
+          <div class="model-row">
+            {models && !typing ? (
+              <select class="value" value={form.model} onChange={(e) => setForm({ ...form, model: (e.target as HTMLSelectElement).value })}>
+                {!form.model ? <option value="">{t("assistant.pickModel")}</option> : null}
+                {form.model && !models.some((m) => m.id === form.model) ? <option value={form.model}>{form.model}</option> : null}
+                {models.map((m) => (
+                  <option value={m.id}>{m.name === m.id ? m.id : `${m.name} (${m.id})`}</option>
+                ))}
+              </select>
+            ) : (
+              <input class="value" type="text" spellcheck={false} aria-label={t("assistant.model")} placeholder={chosen?.model || t("assistant.modelPlaceholder")} value={form.model} onInput={(e) => setForm({ ...form, model: (e.target as HTMLInputElement).value })} />
+            )}
+            <button type="button" class="ghost" disabled={loading} onClick={loadModels}>
+              <Icon name="refresh" />
+              {t(loading ? "assistant.loadingModels" : "assistant.loadModels")}
+            </button>
+          </div>
+          {models ? (
+            <button type="button" class="text-button" onClick={() => setTyping(!typing)}>
+              {t(typing ? "assistant.chooseFromList" : "assistant.typeModel")}
+            </button>
+          ) : (
+            <span class="field-hint">{chosen?.model ? t("assistant.modelDefault", { model: chosen.model }) : t("assistant.modelHint")}</span>
+          )}
+          {modelError ? <span class="settings-error">{modelError}</span> : null}
+        </div>
         <div class="settings-actions">
           <button type="submit" class="solid" disabled={busy}>
             <Icon name="save" />

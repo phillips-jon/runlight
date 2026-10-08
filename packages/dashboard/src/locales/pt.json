@@ -670,7 +670,7 @@
   "assistant.model": "Modelo",
   "assistant.modelPlaceholder": "O nome do modelo, como o serviço o lista",
   "assistant.modelDefault": "Deixe vazio para usar {model}.",
-  "assistant.modelHint": "Use o nome exatamente como o serviço o lista. Um modelo que sabe usar ferramentas funciona melhor.",
+  "assistant.modelHint": "Digite a chave acima e carregue os modelos do serviço, ou digite o nome de um modelo. Funciona melhor um modelo que sabe usar ferramentas.",
   "assistant.key": "Chave de API",
   "assistant.remove": "Desligar o assistente",
   "assistant.removeHint": "Remove o serviço e a chave. O botão do robô então pede a um proprietário para configurá-lo de novo.",
@@ -718,5 +718,10 @@
   "twofa.saved": "Já salvei",
   "people.twoFactor": "duas etapas",
   "people.resetTwoFactor": "Redefinir duas etapas",
-  "people.resetTwoFactorHint": "Desliga o login em duas etapas desta pessoa, caso tenha perdido o celular e os códigos de recuperação"
+  "people.resetTwoFactorHint": "Desliga o login em duas etapas desta pessoa, caso tenha perdido o celular e os códigos de recuperação",
+  "assistant.loadModels": "Carregar modelos",
+  "assistant.loadingModels": "Carregando",
+  "assistant.pickModel": "Escolha um modelo",
+  "assistant.typeModel": "Digitar o nome de um modelo",
+  "assistant.chooseFromList": "Escolher da lista"
 }

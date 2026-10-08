@@ -1,4 +1,4 @@
-import { AssistantError, PROVIDERS, chat } from "./assistant.js";
+import { AssistantError, PROVIDERS, chat, listModels } from "./assistant.js";
 import { finishConnect, startConnect } from "./connect.js";
 import { PAGES_PER_VISIT, journeys } from "./journeys.js";
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
@@ -962,6 +962,22 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         }
       }
       return json({ error: "Method not allowed" }, 405);
+    }
+    // The models a service offers, for the setup form's dropdown. The key can be the one already saved.
+    if (path === "/api/assistant/models" && request.method === "POST") {
+      if ((await canRead(request)) !== true) return denied(false);
+      await runlight.init();
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const provider = String(body.provider ?? "");
+      const saved = await runlight.assistantSettings();
+      const key = String(body.key ?? "").trim() || (saved?.provider === provider ? saved.key : "");
+      try {
+        return json({ models: await listModels({ provider, baseUrl: String(body.baseUrl ?? "").trim(), key }) });
+      } catch (error) {
+        if (error instanceof AssistantError) return json({ error: error.message }, 400);
+        throw error;
+      }
     }
     if (path === "/api/assistant/chat" && request.method === "POST") {
       const access = await reader(request);

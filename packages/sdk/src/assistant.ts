@@ -148,3 +148,39 @@ export async function chat(settings: AssistantSettings, messages: ChatMessage[],
   }
   throw new AssistantError("The assistant needed too many steps for that question. Try asking something narrower.");
 }
+
+/**
+ * The models a service offers with a key, from its own list: Anthropic's
+ * /models, or the /models of an OpenAI-compatible API. Newest or most
+ * relevant first where the service orders them; otherwise by name.
+ */
+export async function listModels(settings: Omit<AssistantSettings, "model">): Promise<Array<{ id: string; name: string }>> {
+  const provider = PROVIDERS.find((p) => p.id === settings.provider);
+  if (!provider) throw new AssistantError("Choose a provider");
+  const base = (settings.baseUrl || provider.baseUrl).replace(/\/+$/, "");
+  if (!base) throw new AssistantError("Enter the service's address first");
+  if (provider.key === "yes" && !settings.key) throw new AssistantError(`Enter your ${provider.name} key first`);
+  const headers: Record<string, string> =
+    provider.protocol === "anthropic" ? { "x-api-key": settings.key, "anthropic-version": "2023-06-01" } : settings.key ? { authorization: `Bearer ${settings.key}` } : {};
+  let answer: Response;
+  try {
+    answer = await fetch(`${base}/models${provider.protocol === "anthropic" ? "?limit=100" : ""}`, { headers, signal: AbortSignal.timeout(20_000) });
+  } catch {
+    throw new AssistantError(`Could not reach ${new URL(base).host}`);
+  }
+  const data = (await answer.json().catch(() => null)) as { data?: Array<{ id?: unknown; display_name?: unknown; name?: unknown }>; error?: { message?: unknown } | string } | null;
+  if (!answer.ok) {
+    const message = typeof data?.error === "string" ? data.error : typeof data?.error?.message === "string" ? data.error.message : `it answered ${answer.status}`;
+    throw new AssistantError(`${new URL(base).host}: ${String(message).slice(0, 300)}`);
+  }
+  const models = (data?.data ?? [])
+    .filter((m) => typeof m.id === "string" && m.id)
+    // Gemini lists ids as "models/gemini-...", which its OpenAI-compatible API takes without the prefix.
+    .map((m) => {
+      const id = String(m.id).replace(/^models\//, "");
+      return { id, name: typeof m.display_name === "string" ? m.display_name : id };
+    });
+  if (!models.length) throw new AssistantError(`${new URL(base).host} listed no models. Type the model's name instead.`);
+  // Anthropic lists newest first already; others come in no useful order.
+  return provider.protocol === "anthropic" ? models : models.sort((a, b) => a.id.localeCompare(b.id));
+}

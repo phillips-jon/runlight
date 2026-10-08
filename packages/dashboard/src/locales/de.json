@@ -670,7 +670,7 @@
   "assistant.model": "Modell",
   "assistant.modelPlaceholder": "Der Name des Modells, wie der Dienst ihn nennt",
   "assistant.modelDefault": "Leer lassen, um {model} zu verwenden.",
-  "assistant.modelHint": "Verwende den Namen genau so, wie der Dienst ihn nennt. Ein Modell, das Werkzeuge aufrufen kann, funktioniert am besten.",
+  "assistant.modelHint": "Gib oben den Schlüssel ein und lade dann die Modelle des Dienstes, oder tippe einen Modellnamen. Ein Modell, das Werkzeuge aufrufen kann, funktioniert am besten.",
   "assistant.key": "API-Schlüssel",
   "assistant.remove": "Assistent ausschalten",
   "assistant.removeHint": "Entfernt den Dienst und seinen Schlüssel. Der Roboter-Knopf bittet dann einen Eigentümer, ihn neu einzurichten.",
@@ -718,5 +718,10 @@
   "twofa.saved": "Ich habe sie gespeichert",
   "people.twoFactor": "Zwei-Faktor",
   "people.resetTwoFactor": "Zwei-Faktor zurücksetzen",
-  "people.resetTwoFactorHint": "Schaltet die Zwei-Faktor-Anmeldung für diese Person aus, falls Handy und Wiederherstellungscodes verloren sind"
+  "people.resetTwoFactorHint": "Schaltet die Zwei-Faktor-Anmeldung für diese Person aus, falls Handy und Wiederherstellungscodes verloren sind",
+  "assistant.loadModels": "Modelle laden",
+  "assistant.loadingModels": "Lädt",
+  "assistant.pickModel": "Modell wählen",
+  "assistant.typeModel": "Stattdessen einen Modellnamen eingeben",
+  "assistant.chooseFromList": "Aus der Liste wählen"
 }

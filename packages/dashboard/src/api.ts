@@ -404,6 +404,7 @@ export const api = {
   assistant: () => get<AssistantState>("assistant", new URLSearchParams()),
   saveAssistant: (input: { provider: string; model: string; baseUrl: string; key: string }) => send<{ ok: true }>("PUT", "assistant", input),
   removeAssistant: () => del("assistant"),
+  assistantModels: (input: { provider: string; baseUrl: string; key: string }) => send<{ models: Array<{ id: string; name: string }> }>("POST", "assistant/models", input),
   ask: (site: string, messages: Array<{ role: "user" | "assistant"; content: string }>, view: string, language: string) =>
     send<{ reply: string; tools: string[] }>("POST", "assistant/chat", { site, messages, view, language }),
   saveMail: (input: Record<string, string>) => send<{ ok: true }>("PUT", "mail", input),

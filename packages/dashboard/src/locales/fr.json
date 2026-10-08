@@ -670,7 +670,7 @@
   "assistant.model": "Modèle",
   "assistant.modelPlaceholder": "Le nom du modèle, tel que le service l’indique",
   "assistant.modelDefault": "Laissez vide pour utiliser {model}.",
-  "assistant.modelHint": "Utilisez le nom exact indiqué par le service. Un modèle qui sait appeler des outils fonctionne le mieux.",
+  "assistant.modelHint": "Saisissez la clé ci-dessus, puis chargez les modèles du service, ou tapez le nom d’un modèle. Un modèle qui sait appeler des outils fonctionne le mieux.",
   "assistant.key": "Clé d’API",
   "assistant.remove": "Désactiver l’assistant",
   "assistant.removeHint": "Supprime le service et sa clé. Le bouton robot demande alors à un propriétaire de le reconfigurer.",
@@ -718,5 +718,10 @@
   "twofa.saved": "Je les ai enregistrés",
   "people.twoFactor": "deux facteurs",
   "people.resetTwoFactor": "Réinitialiser les deux facteurs",
-  "people.resetTwoFactorHint": "Désactive la connexion à deux facteurs pour cette personne, si elle a perdu son téléphone et ses codes de secours"
+  "people.resetTwoFactorHint": "Désactive la connexion à deux facteurs pour cette personne, si elle a perdu son téléphone et ses codes de secours",
+  "assistant.loadModels": "Charger les modèles",
+  "assistant.loadingModels": "Chargement",
+  "assistant.pickModel": "Choisissez un modèle",
+  "assistant.typeModel": "Saisir plutôt le nom d’un modèle",
+  "assistant.chooseFromList": "Choisir dans la liste"
 }

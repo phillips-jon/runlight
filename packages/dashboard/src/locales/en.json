@@ -670,7 +670,7 @@
   "assistant.model": "Model",
   "assistant.modelPlaceholder": "The model's name, as the service lists it",
   "assistant.modelDefault": "Leave it empty to use {model}.",
-  "assistant.modelHint": "Use the name exactly as the service lists it. A model that can call tools works best.",
+  "assistant.modelHint": "Enter the key above, then load the service's models, or type a model's name. A model that can call tools works best.",
   "assistant.key": "API key",
   "assistant.remove": "Turn off the assistant",
   "assistant.removeHint": "Removes the service and its key. The robot button then asks an owner to set it up again.",
@@ -718,5 +718,10 @@
   "twofa.saved": "I saved them",
   "people.twoFactor": "two-factor",
   "people.resetTwoFactor": "Reset two-factor",
-  "people.resetTwoFactorHint": "Turns off two-factor sign-in for this person, for when they lost their phone and recovery codes"
+  "people.resetTwoFactorHint": "Turns off two-factor sign-in for this person, for when they lost their phone and recovery codes",
+  "assistant.loadModels": "Load models",
+  "assistant.loadingModels": "Loading",
+  "assistant.pickModel": "Choose a model",
+  "assistant.typeModel": "Type a model's name instead",
+  "assistant.chooseFromList": "Choose from the list"
 }

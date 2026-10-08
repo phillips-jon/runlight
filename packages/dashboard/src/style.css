@@ -4468,3 +4468,21 @@ a.ghost {
 .box-button:not(.solid) {
   border-color: color-mix(in srgb, var(--ink) 22%, var(--line));
 }
+
+/* The model field and its Load models button, side by side at one height. */
+.model-row {
+  display: flex;
+  gap: 8px;
+}
+
+.model-row .value {
+  flex: 1;
+  min-width: 0;
+}
+
+.model-row .ghost {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

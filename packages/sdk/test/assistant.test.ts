@@ -30,6 +30,11 @@ async function fakeModel() {
       if (last.role !== "tool") return res.end(JSON.stringify({ choices: [{ message: { content: null, tool_calls: [{ id: "c1", type: "function", function: { name: "get_stats", arguments: '{"period":"today"}' } }] } }] }));
       return res.end(JSON.stringify({ choices: [{ message: { content: `Visitors: ${JSON.parse(last.content).stats.visitors}` } }] }));
     }
+    if (req.url === "/v1/models?limit=100") {
+      if (req.headers["x-api-key"] !== "sk-ant-secret") return res.writeHead(401).end(JSON.stringify({ error: { message: "invalid x-api-key" } }));
+      return res.end(JSON.stringify({ data: [{ id: "claude-opus-5-5", display_name: "Claude Opus 5.5" }, { id: "claude-sonnet-5-5", display_name: "Claude Sonnet 5.5" }] }));
+    }
+    if (req.url === "/v1/models") return res.end(JSON.stringify({ data: [{ id: "models/zeta" }, { id: "alpha" }] }));
     res.statusCode = 404;
     res.end(JSON.stringify({ error: { message: "no such model" } }));
   });
@@ -60,10 +65,18 @@ test("the assistant answers through the stats tools, with the key kept on the se
     assert.notEqual(await rl.store.setting("assistant"), null);
     assert.equal((await rl.store.setting("assistant"))!.includes("sk-ant-secret"), false, "and it is kept sealed");
 
+    // Loading models with the key saved for this provider, and with a wrong one.
+    const models = await call("POST", "/api/assistant/models", { provider: "anthropic", baseUrl: model.url });
+    assert.deepEqual(models.body.models, [{ id: "claude-opus-5-5", name: "Claude Opus 5.5" }, { id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" }]);
+    const refused = await call("POST", "/api/assistant/models", { provider: "anthropic", baseUrl: model.url, key: "wrong" });
+    assert.equal(refused.status, 400);
+    assert.match(refused.body.error, /invalid x-api-key/);
+    assert.deepEqual((await call("POST", "/api/assistant/models", { provider: "ollama", baseUrl: model.url })).body.models.map((m: any) => m.id), ["alpha", "zeta"], "sorted, without Gemini's models/ prefix");
+
     const claude = await ask("How many visitors today?");
     assert.equal(claude.status, 200);
     assert.deepEqual(claude.body, { reply: "You had 2 visitors today.", tools: ["get_stats"] }, "a tool that names no site reads the one on screen, not the first");
-    const sent = model.seen[0]!;
+    const sent = model.seen.find((r) => r.path === "/v1/messages")!;
     assert.equal(sent.headers["x-api-key"], "sk-ant-secret");
     assert.equal(sent.body.model, "claude-sonnet-5-5");
     assert.match(sent.body.system, /"Blog"/, "it knows which site is on screen");
@@ -78,6 +91,7 @@ test("the assistant answers through the stats tools, with the key kept on the se
     const token = (await call("POST", "/api/tokens", { name: "Script" })).body.secret;
     assert.equal((await call("POST", "/api/assistant/chat", { site: "default", messages: [{ role: "user", content: "hi" }] }, token)).status, 403);
     assert.equal((await call("PUT", "/api/assistant", { provider: "ollama", model: "x" }, token)).status, 401);
+    assert.equal((await call("POST", "/api/assistant/models", { provider: "anthropic" }, token)).status, 401, "only owners list models with the saved key");
 
     // A service's own error comes back in plain words, never with the key in it.
     assert.equal((await call("PUT", "/api/assistant", { provider: "custom", model: "m", baseUrl: `${model.url}/missing`, key: "k-secret" })).status, 200);
