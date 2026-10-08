@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { api, type Person } from "./api.js";
+import { api, type InviteSent, type PendingInvite, type Person } from "./api.js";
 import { day } from "./format.js";
 import { t, type Key } from "./i18n.js";
 import { Secret } from "./secret.js";
@@ -80,27 +80,34 @@ export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void 
 /** Settings, People: everyone who can sign in, their role, and adding or removing someone. */
 export function People({ me }: { me: Person }) {
   const [people, setPeople] = useState<Person[] | null>(null);
+  const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Person["role"]>("viewer");
-  const [made, setMade] = useState<{ email: string; password: string } | null>(null);
+  const [sent, setSent] = useState<InviteSent | null>(null);
   const [error, setError] = useState("");
   const load = () =>
     api
       .people()
-      .then((r) => setPeople(r.people))
+      .then((r) => {
+        setPeople(r.people);
+        setInvites(r.invites ?? []);
+      })
       .catch((e: Error) => setError(e.message));
   useEffect(() => {
     void load();
   }, []);
+  const done = (r: InviteSent) => {
+    setSent(r);
+    return load();
+  };
   const add = (e: Event) => {
     e.preventDefault();
     setError("");
     api
       .addPerson(email.trim(), role)
       .then((r) => {
-        setMade({ email: r.person.email, password: r.password });
         setEmail("");
-        return load();
+        return done(r);
       })
       .catch((err: Error) => setError(err.message));
   };
@@ -112,13 +119,20 @@ export function People({ me }: { me: Person }) {
   return (
     <div class="settings-group">
       <p class="settings-text">{t("people.intro")}</p>
-      {made ? (
+      {sent ? (
         <div class="token-made">
           <p class="settings-text">
-            <strong>{made.email}</strong> {t("people.made")}
+            {sent.emailed
+              ? t("people.emailed", { email: sent.invite.email })
+              : sent.mailError
+                ? t("people.mailFailed", { email: sent.invite.email, error: sent.mailError })
+                : t("people.noMail", { email: sent.invite.email })}
           </p>
-          <Code>{made.password}</Code>
-          <button type="button" class="ghost token-done" onClick={() => setMade(null)}>
+          <div class="invite-link">
+            <Code>{sent.link}</Code>
+          </div>
+          <p class="field-hint">{t("people.linkHint")}</p>
+          <button type="button" class="ghost token-done" onClick={() => setSent(null)}>
             <Icon name="check" />
             {t("tokens.done")}
           </button>
@@ -154,6 +168,24 @@ export function People({ me }: { me: Person }) {
               </div>
             </li>
           ))}
+          {invites.map((i) => (
+            <li key={i.id} class="invited">
+              <div class="domain-main">
+                <span class="share-name">
+                  {i.email}
+                  <span class="people-you">{t("people.invited")}</span>
+                </span>
+                <span class="share-meta">{t("people.invitedMeta", { role: t(i.role === "owner" ? "people.owner" : "people.viewer"), date: dateOf(i.expiresAt) })}</span>
+              </div>
+              <div class="domain-actions">
+                <button type="button" class="copy inline" onClick={() => void api.resendInvite(i.id).then(done).catch((err: Error) => setError(err.message))}>
+                  <Icon name="send" />
+                  {t("people.resend")}
+                </button>
+                <DeleteButton name={i.email} onDelete={() => void api.cancelInvite(i.id).then(load).catch((err: Error) => setError(err.message))} />
+              </div>
+            </li>
+          ))}
         </ul>
       ) : null}
       <p class="field-hint domain-note">{t("people.roles")}</p>
@@ -164,8 +196,8 @@ export function People({ me }: { me: Person }) {
           <option value="owner">{t("people.owner")}</option>
         </select>
         <button type="submit" class="solid">
-          <Icon name="plus" />
-          {t("people.add")}
+          <Icon name="send" />
+          {t("people.invite")}
         </button>
       </form>
       {error ? <span class="settings-error">{error}</span> : null}

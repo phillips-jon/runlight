@@ -127,6 +127,32 @@ ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
   );
 }
 
+/** Where an invited person chooses a password and joins. */
+export function invitePage(opts: { code: string; email: string; role: "owner" | "viewer"; host: string; error?: string }): string {
+  return page(
+    "Join Runlight",
+    `<h1>Join Runlight</h1>
+<p>You were invited to ${esc(opts.host)} as ${opts.role === "owner" ? "an owner, who can change settings and manage people" : "a viewer, who can read every site's stats"}. Choose a password to finish.</p>
+${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
+<form method="post" action="/invite">
+<input type="hidden" name="code" value="${esc(opts.code)}">
+<label>Email<input type="email" value="${esc(opts.email)}" disabled></label>
+<label>Password<input type="password" name="password" autocomplete="new-password" minlength="10" required autofocus></label>
+<label>Password again<input type="password" name="again" autocomplete="new-password" minlength="10" required></label>
+<button type="submit">Join</button>
+</form>
+<p class="hint">Use at least ten characters.</p>`,
+  );
+}
+
+export function inviteGonePage(): string {
+  return page(
+    "This invite no longer works",
+    `<h1>This invite no longer works</h1>
+<p>It has expired or was already used. Ask whoever invited you to send a new one.</p>`,
+  );
+}
+
 export function setupPage(opts: { code: string; error?: string; email?: string }): string {
   return page(
     "Create your account",

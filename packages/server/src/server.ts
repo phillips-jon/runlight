@@ -5,8 +5,8 @@
  */
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
-import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle, type Role, type User } from "./auth.js";
-import { AUTH_CSS, AUTH_JS, loginPage, setupLockedPage, setupPage } from "./pages.js";
+import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle, type Invite, type Role, type User } from "./auth.js";
+import { AUTH_CSS, AUTH_JS, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
 
 export interface ServerOptions {
   store: SqlStore;
@@ -182,7 +182,31 @@ export function createServer(options: ServerOptions): RunlightServer {
 
       if (path === "/logout") return redirect("/login", { "set-cookie": sessionCookie(request, "", 0) });
 
-      if (path === "/api/account" || path === "/api/account/password" || path === "/api/people" || path.startsWith("/api/people/")) {
+      if (path === "/invite") {
+        if (method === "GET") {
+          const code = url.searchParams.get("code") ?? "";
+          const invite = await accounts.inviteByCode(code, now());
+          return invite ? html(invitePage({ code, email: invite.email, role: invite.role, host: url.host })) : html(inviteGonePage(), 410);
+        }
+        if (method === "POST") {
+          const form = new URLSearchParams(await request.text());
+          const code = form.get("code") ?? "";
+          const invite = await accounts.inviteByCode(code, now());
+          if (!invite) return html(inviteGonePage(), 410);
+          const again = (error: string) => html(invitePage({ code, email: invite.email, role: invite.role, host: url.host, error }), 400);
+          if ((form.get("password") ?? "") !== (form.get("again") ?? "")) return again("The two passwords are not the same.");
+          try {
+            const user = await accounts.acceptInvite(code, form.get("password") ?? "", now());
+            hasAccount = true;
+            return redirect("/", { "set-cookie": sessionCookie(request, accounts.sessionFor(user, now()), SESSION_MS / 1000) });
+          } catch (error) {
+            if (error instanceof RangeError) return again(error.message);
+            throw error;
+          }
+        }
+      }
+
+      if (path === "/api/account" || path === "/api/account/password" || path === "/api/people" || path.startsWith("/api/people/") || path.startsWith("/api/invites/")) {
         return await accountsApi(request, path);
       }
 
@@ -209,6 +233,32 @@ export function createServer(options: ServerOptions): RunlightServer {
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
   };
 
+  const inviteView = (i: Invite) => ({ id: i.id, email: i.email, role: i.role, invitedBy: i.invitedBy, createdAt: i.createdAt, expiresAt: i.expiresAt });
+
+  /**
+   * Emails an invite through the mail service when there is one. The link
+   * always comes back too, for the owner to pass on another way.
+   */
+  async function sendInvite(request: Request, invite: Invite, code: string): Promise<{ link: string; emailed: boolean; mailError?: string }> {
+    const origin = new URL(request.url).origin;
+    const link = `${origin}/invite?code=${code}`;
+    const host = new URL(request.url).host;
+    const what = invite.role === "owner" ? "an owner, who can change settings and manage people" : "a viewer, who can read every site's stats";
+    const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+    if (!(await rl.mailSettings())) return { link, emailed: false };
+    try {
+      await rl.sendMail({
+        to: invite.email,
+        subject: `${invite.invitedBy} invited you to Runlight`,
+        text: `${invite.invitedBy} invited you to the Runlight at ${host} as ${what}.\n\nChoose a password to join:\n${link}\n\nThe link works for seven days.\n`,
+        html: `<div style="font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111827;max-width:480px"><p>${esc(invite.invitedBy)} invited you to the Runlight at ${esc(host)} as ${what}.</p><p><a href="${esc(link)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#111827;color:#ffffff;text-decoration:none;font-weight:600">Choose a password and join</a></p><p style="color:#6b7280;font-size:13px">The link works for seven days. If you were not expecting this, you can ignore it.</p></div>`,
+      });
+      return { link, emailed: true };
+    } catch (error) {
+      return { link, emailed: false, mailError: (error as Error).message };
+    }
+  }
+
   /** Your own account, and for owners, everyone else's. */
   async function accountsApi(request: Request, path: string): Promise<Response> {
     const user = await signedIn(request);
@@ -229,7 +279,9 @@ export function createServer(options: ServerOptions): RunlightServer {
     }
     if (user.role !== "owner") return reply({ error: "Only an owner can manage people" }, 403);
     const roleOf = (value: unknown): Role | null => (value === "owner" || value === "viewer" ? value : null);
-    if (path === "/api/people" && request.method === "GET") return reply({ people: (await accounts.list()).map(person) });
+    if (path === "/api/people" && request.method === "GET") {
+      return reply({ people: (await accounts.list()).map(person), invites: (await accounts.invites(now())).map(inviteView) });
+    }
     if (path === "/api/people" && request.method === "POST") {
       const input = await body(request);
       if (!input) return reply({ error: "Send JSON" }, 415);
@@ -237,15 +289,24 @@ export function createServer(options: ServerOptions): RunlightServer {
       if (!role) return reply({ error: "Pick owner or viewer" }, 400);
       const email = String(input.email ?? "").trim().toLowerCase();
       if (await accounts.byEmail(email)) return reply({ error: `${email} already has an account` }, 409);
-      const password = randomBytes(12).toString("base64url");
       try {
-        const made = await accounts.setPassword(email, password, now(), role);
-        // The only time the password is shown; the new person changes it after signing in.
-        return reply({ person: person(made), password }, 201);
+        const { invite, code } = await accounts.invite(email, role, user.email, now());
+        return reply({ invite: inviteView(invite), ...(await sendInvite(request, invite, code)) }, 201);
       } catch (error) {
         if (error instanceof RangeError) return reply({ error: error.message }, 400);
         throw error;
       }
+    }
+    const inviteMatch = /^\/api\/invites\/([a-f0-9]{24})(\/resend)?$/.exec(path);
+    if (inviteMatch && request.method === "DELETE" && !inviteMatch[2]) {
+      return (await accounts.cancelInvite(inviteMatch[1]!)) ? reply({ ok: true }) : reply({ error: "Unknown invite" }, 404);
+    }
+    if (inviteMatch && request.method === "POST" && inviteMatch[2]) {
+      const old = (await accounts.invites(now())).find((i) => i.id === inviteMatch[1]);
+      if (!old) return reply({ error: "Unknown invite" }, 404);
+      // A new link replaces the old one, which stops working.
+      const { invite, code } = await accounts.invite(old.email, old.role, user.email, now());
+      return reply({ invite: inviteView(invite), ...(await sendInvite(request, invite, code)) });
     }
     const match = /^\/api\/people\/([a-f0-9]{24})$/.exec(path);
     if (match && (request.method === "PATCH" || request.method === "DELETE")) {

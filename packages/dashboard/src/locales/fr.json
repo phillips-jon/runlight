@@ -568,7 +568,7 @@
   "account.save": "Changer le mot de passe",
   "account.saved": "Mot de passe changé",
   "settings.people": "Personnes",
-  "people.intro": "Toutes les personnes listées peuvent se connecter à ce serveur. Les propriétaires peuvent tout modifier, et les lecteurs consultent les statistiques de chaque site sans rien modifier.",
+  "people.intro": "Tout le monde ici peut se connecter à ce serveur. Les propriétaires peuvent tout modifier, et les lecteurs peuvent lire les statistiques de chaque site sans rien changer. Invitez un collègue et il choisit son propre mot de passe.",
   "people.made": "peut maintenant se connecter avec ce mot de passe. Transmettez-le en privé ; la personne pourra le changer dans Compte une fois connectée.",
   "people.you": "vous",
   "people.role": "Rôle",
@@ -689,5 +689,13 @@
   "journeys.following": "Visites passées par {page} à l’étape {step}.",
   "journeys.none": "Aucune visite n’a pris un tel chemin sur ces dates.",
   "secret.show": "Afficher",
-  "secret.hide": "Masquer"
+  "secret.hide": "Masquer",
+  "people.invite": "Inviter",
+  "people.invited": "invité",
+  "people.invitedMeta": "{role}, le lien fonctionne jusqu’au {date}",
+  "people.resend": "Renvoyer",
+  "people.emailed": "Une invitation part vers {email}. Vous pouvez aussi lui envoyer ce lien vous-même.",
+  "people.noMail": "Ce serveur n’a pas de service d’e-mail, envoyez donc ce lien à {email} vous-même. Configurez-en un dans Réglages, Rapports par e-mail pour envoyer les invitations par e-mail.",
+  "people.mailFailed": "L’e-mail à {email} n’est pas parti ({error}). Envoyez-lui ce lien vous-même.",
+  "people.linkHint": "Le lien fonctionne une fois, pendant sept jours. Renvoyer crée un nouveau lien et désactive celui-ci."
 }

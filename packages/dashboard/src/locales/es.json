@@ -568,7 +568,7 @@
   "account.save": "Cambiar contraseña",
   "account.saved": "Contraseña cambiada",
   "settings.people": "Personas",
-  "people.intro": "Todas las personas de esta lista pueden entrar en este servidor. Los propietarios pueden cambiarlo todo y los lectores ven las estadísticas de cada sitio sin cambiar nada.",
+  "people.intro": "Todos aquí pueden iniciar sesión en este servidor. Los propietarios pueden cambiarlo todo y los lectores pueden leer las estadísticas de cada sitio sin cambiar nada. Invita a un compañero y él elige su propia contraseña.",
   "people.made": "ya puede entrar con esta contraseña. Envíasela en privado y podrá cambiarla en Cuenta cuando entre.",
   "people.you": "tú",
   "people.role": "Rol",
@@ -689,5 +689,13 @@
   "journeys.following": "Visitas que pasaron por {page} en el paso {step}.",
   "journeys.none": "Ninguna visita siguió un camino así en estas fechas.",
   "secret.show": "Mostrar",
-  "secret.hide": "Ocultar"
+  "secret.hide": "Ocultar",
+  "people.invite": "Invitar",
+  "people.invited": "invitado",
+  "people.invitedMeta": "{role}, el enlace funciona hasta el {date}",
+  "people.resend": "Enviar de nuevo",
+  "people.emailed": "Hay una invitación en camino a {email}. También puedes enviarle este enlace tú mismo.",
+  "people.noMail": "Este servidor no tiene servicio de correo, así que envía este enlace a {email} tú mismo. Configura uno en Ajustes, Informes por correo para enviar invitaciones por correo.",
+  "people.mailFailed": "El correo a {email} no salió ({error}). Envíale este enlace tú mismo.",
+  "people.linkHint": "El enlace funciona una vez, durante siete días. Enviar de nuevo crea un enlace nuevo y anula este."
 }

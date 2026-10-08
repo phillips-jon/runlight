@@ -568,7 +568,7 @@
   "account.save": "Change password",
   "account.saved": "Password changed",
   "settings.people": "People",
-  "people.intro": "Everyone here can sign in to this server. Owners can change everything, and viewers can read every site's stats without changing anything.",
+  "people.intro": "Everyone here can sign in to this server. Owners can change everything, and viewers can read every site's stats without changing anything. Invite a coworker and they choose their own password.",
   "people.made": "can now sign in with this password. Send it to them privately, and they can change it under Account once they are in.",
   "people.you": "you",
   "people.role": "Role",
@@ -689,5 +689,13 @@
   "journeys.following": "Following visits through {page} at step {step}.",
   "journeys.none": "No visits took a path like this in these dates.",
   "secret.show": "Show",
-  "secret.hide": "Hide"
+  "secret.hide": "Hide",
+  "people.invite": "Invite",
+  "people.invited": "invited",
+  "people.invitedMeta": "{role}, the link works until {date}",
+  "people.resend": "Send again",
+  "people.emailed": "An invite is on its way to {email}. You can also send them this link yourself.",
+  "people.noMail": "This server has no mail service, so send {email} this link yourself. Set one up in Settings, Email reports to send invites by email.",
+  "people.mailFailed": "The email to {email} did not go out ({error}). Send them this link yourself.",
+  "people.linkHint": "The link works once, for seven days. Sending again makes a new link and stops this one."
 }

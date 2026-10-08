@@ -568,7 +568,7 @@
   "account.save": "Passwort ändern",
   "account.saved": "Passwort geändert",
   "settings.people": "Personen",
-  "people.intro": "Alle hier können sich bei diesem Server anmelden. Eigentümer können alles ändern, und Betrachter lesen die Zahlen jeder Website, ohne etwas zu ändern.",
+  "people.intro": "Alle hier können sich bei diesem Server anmelden. Eigentümer können alles ändern, Leser können die Statistiken jeder Website lesen, ohne etwas zu ändern. Lade eine Kollegin oder einen Kollegen ein, das Passwort wählen sie selbst.",
   "people.made": "kann sich jetzt mit diesem Passwort anmelden. Schick es privat, und nach der Anmeldung lässt es sich unter Konto ändern.",
   "people.you": "du",
   "people.role": "Rolle",
@@ -689,5 +689,13 @@
   "journeys.following": "Besuche über {page} bei Schritt {step}.",
   "journeys.none": "In diesem Zeitraum nahm kein Besuch einen solchen Weg.",
   "secret.show": "Anzeigen",
-  "secret.hide": "Verbergen"
+  "secret.hide": "Verbergen",
+  "people.invite": "Einladen",
+  "people.invited": "eingeladen",
+  "people.invitedMeta": "{role}, der Link gilt bis {date}",
+  "people.resend": "Erneut senden",
+  "people.emailed": "Eine Einladung ist an {email} unterwegs. Du kannst diesen Link auch selbst schicken.",
+  "people.noMail": "Dieser Server hat keinen E-Mail-Dienst, schick {email} diesen Link also selbst. Richte unter Einstellungen, E-Mail-Berichte einen ein, um Einladungen per E-Mail zu senden.",
+  "people.mailFailed": "Die E-Mail an {email} ging nicht raus ({error}). Schick diesen Link selbst.",
+  "people.linkHint": "Der Link funktioniert einmal, sieben Tage lang. Erneut senden erstellt einen neuen Link und macht diesen ungültig."
 }

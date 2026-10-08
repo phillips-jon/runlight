@@ -568,7 +568,7 @@
   "account.save": "Mudar senha",
   "account.saved": "Senha alterada",
   "settings.people": "Pessoas",
-  "people.intro": "Todos aqui podem entrar neste servidor. Proprietários podem mudar tudo, e leitores veem as estatísticas de cada site sem mudar nada.",
+  "people.intro": "Todos aqui podem entrar neste servidor. Proprietários podem mudar tudo, e leitores podem ler as estatísticas de cada site sem mudar nada. Convide um colega e ele escolhe a própria senha.",
   "people.made": "já pode entrar com esta senha. Envie em particular, e a pessoa pode mudá-la em Conta depois de entrar.",
   "people.you": "você",
   "people.role": "Função",
@@ -689,5 +689,13 @@
   "journeys.following": "Visitas que passaram por {page} no passo {step}.",
   "journeys.none": "Nenhuma visita fez um caminho assim nessas datas.",
   "secret.show": "Mostrar",
-  "secret.hide": "Ocultar"
+  "secret.hide": "Ocultar",
+  "people.invite": "Convidar",
+  "people.invited": "convidado",
+  "people.invitedMeta": "{role}, o link vale até {date}",
+  "people.resend": "Enviar de novo",
+  "people.emailed": "Um convite está a caminho de {email}. Você também pode enviar este link você mesmo.",
+  "people.noMail": "Este servidor não tem serviço de e-mail, então envie este link para {email} você mesmo. Configure um em Configurações, Relatórios por e-mail para enviar convites por e-mail.",
+  "people.mailFailed": "O e-mail para {email} não saiu ({error}). Envie este link você mesmo.",
+  "people.linkHint": "O link funciona uma vez, por sete dias. Enviar de novo cria um link novo e anula este."
 }

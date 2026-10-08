@@ -129,16 +129,43 @@ test("owners add people as owners or viewers; viewers read every site and change
     handle(req(path, { method, headers: { cookie, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
 
   assert.deepEqual(((await (await json(owner, "GET", "/api/account")).json()) as any).account.role, "owner");
+  // An owner invites; the person chooses their own password from the link.
   const added = await json(owner, "POST", "/api/people", { email: "Viewer@Example.com", role: "viewer" });
   assert.equal(added.status, 201);
-  const { person, password } = (await added.json()) as any;
-  assert.equal(person.email, "viewer@example.com");
-  assert.match(password, /^[A-Za-z0-9_-]{16}$/);
-  assert.equal((await json(owner, "POST", "/api/people", { email: "viewer@example.com", role: "viewer" })).status, 409);
+  const sent = (await added.json()) as any;
+  assert.equal(sent.invite.email, "viewer@example.com");
+  assert.equal(sent.emailed, false, "no mail service here, so the link is for the owner to pass on");
+  const link = new URL(sent.link);
+  assert.equal(link.origin + link.pathname, `${origin}/invite`);
+  assert.equal(((await (await json(owner, "GET", "/api/people")).json()) as any).invites.length, 1);
+  assert.equal((await json(owner, "POST", "/api/people", { email: "owner@example.com", role: "viewer" })).status, 409);
   assert.equal((await handle(req("/api/people", { method: "POST", headers: { cookie: owner, "content-type": "text/plain; application/json" }, body: "{}" }))).status, 415);
 
+  const page = await handle(req(link.pathname + link.search));
+  assert.equal(page.status, 200);
+  assert.match(await page.text(), /viewer@example\.com/);
+  assert.equal((await handle(req(`/invite?code=${"x".repeat(32)}`))).status, 410, "a made-up code finds nothing");
+  const code = link.searchParams.get("code")!;
+  assert.equal((await handle(req("/invite", form({ code, password: "a long password", again: "a different one" })))).status, 400);
+  const joined = await handle(req("/invite", form({ code, password: "a long password", again: "a long password" })));
+  assert.equal(joined.status, 303, "joining signs the person in");
+  const viewer = cookieOf(joined);
+  const password = "a long password";
+  assert.equal((await handle(req("/invite", form({ code, password: "another long one", again: "another long one" })))).status, 410, "the link works once");
+  const listed = ((await (await json(owner, "GET", "/api/people")).json()) as any);
+  assert.equal(listed.invites.length, 0);
+  const person = listed.people.find((p: any) => p.email === "viewer@example.com");
+  assert.equal(person.role, "viewer");
+
+  // Sending again replaces the link; cancelling ends it.
+  const second = ((await (await json(owner, "POST", "/api/people", { email: "later@example.com", role: "owner" })).json()) as any);
+  const resent = ((await (await json(owner, "POST", `/api/invites/${second.invite.id}/resend`)).json()) as any);
+  assert.notEqual(resent.link, second.link);
+  assert.equal((await handle(req(new URL(second.link).pathname + new URL(second.link).search))).status, 410, "the old link stopped working");
+  assert.equal((await json(owner, "DELETE", `/api/invites/${resent.invite.id}`)).status, 200);
+  assert.equal((await handle(req(new URL(resent.link).pathname + new URL(resent.link).search))).status, 410);
+
   // The viewer reads and changes nothing.
-  const viewer = await signIn("viewer@example.com", password);
   assert.equal((await json(owner, "POST", "/api/sites", { hostnames: "blog.example.com" })).status, 201);
   assert.equal((await json(viewer, "GET", "/api/sites")).status, 200);
   assert.equal((await json(viewer, "GET", "/api/stats?site=blog.example.com&period=today")).status, 200);
@@ -163,4 +190,32 @@ test("owners add people as owners or viewers; viewers read every site and change
   assert.equal((await json(fresh, "POST", "/api/sites", { hostnames: "now.example.com" })).status, 201, "the promoted owner can change things");
   assert.equal((await json(owner, "DELETE", `/api/people/${person.id}`)).status, 200);
   assert.equal((await json(fresh, "GET", "/api/account")).status, 401, "a removed person is signed out");
+});
+
+test("an invite goes out by email when the server has a mail service", async () => {
+  const { createServer: listen } = await import("node:http");
+  const got: any[] = [];
+  const hook = listen((r, res) => {
+    let text = "";
+    r.on("data", (c) => (text += c));
+    r.on("end", () => {
+      got.push(JSON.parse(text));
+      res.end("ok");
+    });
+  });
+  await new Promise<void>((resolve) => hook.listen(0, "127.0.0.1", resolve));
+  try {
+    const { server, handle } = make();
+    await server.accounts.setPassword("owner@example.com", "a long password", Date.now());
+    const owner = cookieOf(await handle(req("/login", form({ email: "owner@example.com", password: "a long password" }))));
+    await server.runlight.saveMailSettings({ service: "webhook", url: `http://127.0.0.1:${(hook.address() as { port: number }).port}/`, from: "runlight@example.com" });
+    const sent = (await (await handle(req("/api/people", { method: "POST", headers: { cookie: owner, "content-type": "application/json" }, body: JSON.stringify({ email: "new@example.com", role: "viewer" }) }))).json()) as any;
+    assert.equal(sent.emailed, true);
+    assert.equal(got.length, 1);
+    assert.equal(got[0].to, "new@example.com");
+    assert.match(got[0].subject, /owner@example\.com invited you/);
+    assert.ok(got[0].text.includes(sent.link), "the email carries the link");
+  } finally {
+    hook.close();
+  }
 });

@@ -128,6 +128,24 @@ export interface Funnel {
   steps: Array<FunnelStep & { visits?: number }>;
 }
 
+/** Someone invited to the standalone server who has not chosen a password yet. */
+export interface PendingInvite {
+  id: string;
+  email: string;
+  role: "owner" | "viewer";
+  invitedBy: string;
+  createdAt: number;
+  expiresAt: number;
+}
+
+/** An invite just made: its link, and whether it went out by email. */
+export interface InviteSent {
+  invite: PendingInvite;
+  link: string;
+  emailed: boolean;
+  mailError?: string;
+}
+
 export interface Person {
   id: string;
   email: string;
@@ -351,8 +369,10 @@ export const api = {
   deleteFunnel: (site: string, id: string) => del(`funnels/${id}${siteQuery(site)}`),
   account: () => get<{ account: Person }>("account", new URLSearchParams()),
   changePassword: (current: string, next: string) => send<{ ok: true }>("POST", "account/password", { current, next }),
-  people: () => get<{ people: Person[] }>("people", new URLSearchParams()),
-  addPerson: (email: string, role: Person["role"]) => send<{ person: Person; password: string }>("POST", "people", { email, role }),
+  people: () => get<{ people: Person[]; invites?: PendingInvite[] }>("people", new URLSearchParams()),
+  addPerson: (email: string, role: Person["role"]) => send<InviteSent>("POST", "people", { email, role }),
+  resendInvite: (id: string) => send<InviteSent>("POST", `invites/${id}/resend`, {}),
+  cancelInvite: (id: string) => del(`invites/${id}`),
   setRole: (id: string, role: Person["role"]) => send<{ person: Person }>("PATCH", `people/${id}`, { role }),
   removePerson: (id: string) => del(`people/${id}`),
   eventProps: (view: View, event: string, key: string | null) => {
