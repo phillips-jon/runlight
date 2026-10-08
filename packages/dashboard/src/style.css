@@ -4565,3 +4565,61 @@ a.ghost {
     white-space: normal;
   }
 }
+
+/* Settings forms on a phone: a row of controls wraps, the field first on its own line, so nothing runs off the sheet. */
+@media (max-width: 720px) {
+  .value-row.even {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .domain-add {
+    flex-wrap: wrap;
+  }
+
+  .domain-add .value:first-child {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .domain-add .solid {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .share-name {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .share-list .domain-actions {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  .report-add {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .drawer-foot {
+    flex-wrap: wrap;
+  }
+
+  .drawer-foot .solid {
+    margin-left: auto;
+  }
+}
+
+/* On a phone a card's label may take two lines rather than lose its end. */
+@media (max-width: 560px) {
+  .metric-label {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+}
+
+/* On the narrowest phones each picker gets its own row. */
+@media (max-width: 380px) {
+  .actions .picker {
+    flex-basis: 100%;
+  }
+}
