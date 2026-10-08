@@ -71,6 +71,24 @@ export async function toRequest(req: NodeRequest): Promise<Request> {
   return new Request(toUrl(req), init);
 }
 
+/** Waits until the response takes more, or is closed. */
+function drained(res: ServerResponse): Promise<void> {
+  return new Promise((resolve) => {
+    const done = () => {
+      res.off("drain", done);
+      res.off("close", done);
+      resolve();
+    };
+    res.on("drain", done);
+    res.on("close", done);
+  });
+}
+
+/**
+ * Sends a fetch Response, streaming its body as it comes and only as fast as
+ * the client takes it, so an export or a pass-through is never held whole in
+ * memory. A client that goes away stops the reading.
+ */
 export async function writeResponse(res: ServerResponse, response: Response): Promise<void> {
   res.statusCode = response.status;
   response.headers.forEach((value, key) => {
@@ -79,7 +97,28 @@ export async function writeResponse(res: ServerResponse, response: Response): Pr
   });
   const cookies = response.headers.getSetCookie();
   if (cookies.length > 0) res.setHeader("set-cookie", cookies);
-  res.end(response.body ? Buffer.from(await response.arrayBuffer()) : undefined);
+  if (!response.body) return void res.end();
+  const reader = response.body.getReader();
+  const gone = () => void reader.cancel().catch(() => {});
+  res.once("close", gone);
+  try {
+    for (;;) {
+      if (res.destroyed) return;
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!res.write(value)) await drained(res);
+    }
+    res.end();
+  } catch {
+    // A body that fails before its first byte is a plain 500; one that fails partway is a cut
+    // connection, rather than a short answer that looks whole.
+    if (res.headersSent) return void res.destroy();
+    for (const name of res.getHeaderNames()) res.removeHeader(name);
+    res.statusCode = 500;
+    res.end();
+  } finally {
+    res.off("close", gone);
+  }
 }
 
 /**
