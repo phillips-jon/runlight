@@ -4,6 +4,7 @@
 //   npm run dev:dashboard -- --reseed           (all made-up data)
 //   npm run dev:dashboard -- --reseed-links     (only the short links)
 //   RUNLIGHT_DEV_DB=/tmp/empty.db PORT=4802 npm run dev:dashboard -- --empty   (a site before its first visit)
+//   npm run dev:dashboard -- --accounts          (sign-in accounts and People; the first visit makes the owner)
 //
 // The bundle is rebuilt on every page load, so a refresh shows an edit.
 import { existsSync, mkdirSync, rmSync } from "node:fs";
@@ -37,7 +38,9 @@ if (!empty && (await rl.store.db.all("SELECT id FROM rl_links LIMIT 1")).length 
 
 if (!empty && (await rl.store.goals("default")).length === 0) await seedGoals();
 
-const routes = toNodeHandler(rl.routes({ token: null }).handler);
+const accountsOn = process.argv.includes("--accounts");
+const api = rl.routes({ token: null, accounts: accountsOn });
+const routes = toNodeHandler(api.handler);
 const links = toNodeHandler(rl.linkHandler());
 
 createServer(async (req, res) => {
@@ -45,10 +48,19 @@ createServer(async (req, res) => {
   // Share pages get the same live bundle; the API refuses a share id that does not exist.
   const share = /^\/runlight\/share\/([a-f0-9]{32})\/?$/.exec(path)?.[1] ?? "";
   if (path === "/runlight" || path === "/runlight/" || share) {
+    // With accounts on, someone signed out goes to sign in (or to setup) as the real dashboard sends them.
+    if (accountsOn && !share) {
+      const answer = await api.handler(new Request(`http://localhost:${PORT}${req.url}`, { headers: { cookie: req.headers.cookie ?? "" } }));
+      if (answer.status !== 200) {
+        res.writeHead(answer.status, Object.fromEntries(answer.headers));
+        res.end(await answer.text());
+        return;
+      }
+    }
     res.setHeader("content-type", "text/html; charset=utf-8");
     res.end(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Runlight (dev)</title><link rel="icon" href="${RUNLIGHT_ICON}"><link rel="stylesheet" href="/runlight/dev.css"></head>
-<body><div id="app" data-base="/runlight"${share ? ` data-share="${share}"` : ""} data-world="/runlight/world.json" data-locales='${JSON.stringify(Object.fromEntries(Object.keys(locales()).map((c) => [c, `/runlight/locales/${c}.json`])))}'></div><script type="module" src="/runlight/dev.js"></script></body></html>`);
+<body><div id="app" data-base="/runlight"${share ? ` data-share="${share}"` : ""}${accountsOn && !share ? ` data-accounts="" data-sign-in="/runlight/login" data-sign-out="/runlight/logout"` : ""} data-world="/runlight/world.json" data-locales='${JSON.stringify(Object.fromEntries(Object.keys(locales()).map((c) => [c, `/runlight/locales/${c}.json`])))}'></div><script type="module" src="/runlight/dev.js"></script></body></html>`);
     return;
   }
   if (path === "/runlight/dev.js" || path === "/runlight/dev.css") {

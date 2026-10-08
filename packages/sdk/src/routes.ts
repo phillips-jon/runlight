@@ -23,6 +23,8 @@ import { LinkError } from "./links.js";
 import { lastPeriod } from "./reports.js";
 import { buckets, compareRange, isTimezone, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
 import { API_VERSION, VERSION } from "./version.js";
+import { RUNLIGHT_ICON } from "./brand.js";
+import { accountsWeb, type AccountsWeb } from "./accounts/web.js";
 
 export interface RoutesOptions {
   /** Where the routes are mounted. Default "/runlight". */
@@ -62,8 +64,12 @@ export interface RoutesOptions {
    * links here when a session ends. The standalone server sets it.
    */
   signIn?: string;
-  /** @internal The standalone server's accounts: the dashboard offers an Account sheet and, to owners, a People section. */
-  accounts?: boolean;
+  /**
+   * Sign-in accounts for the dashboard, with Settings, People to invite others as admins, members, or viewers.
+   * The first account is created at /runlight/setup with RUNLIGHT_TOKEN, or openly in development without one.
+   * Sessions are signed with RUNLIGHT_SECRET (or the token). The standalone server passes its own.
+   */
+  accounts?: boolean | AccountsWeb;
   /** Credits DB-IP in the dashboard's footer, as its free location data asks. The standalone server sets it. */
   geoCredit?: boolean;
   /**
@@ -333,8 +339,7 @@ function localeUrls(base: string): string {
   return JSON.stringify(Object.fromEntries(Object.keys(LOCALES).map((code) => [code, `${base}/assets/locale.${code}.${LOCALES_HASH}.json`])));
 }
 
-/** The Runlight mark for the dashboard's tab: an R in a rounded lamp housing, one corner lit. */
-export const RUNLIGHT_ICON = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cstyle%3E.h%7Bfill%3A%23000%7D.r%7Bstroke%3A%23fff%7D%40media%20%28prefers-color-scheme%3Adark%29%7B.h%7Bfill%3A%23fff%7D.r%7Bstroke%3A%23000%7D%7D%3C/style%3E%3Crect%20class%3D%22h%22%20x%3D%222.5%22%20y%3D%222.5%22%20width%3D%2227%22%20height%3D%2227%22%20rx%3D%227%22/%3E%3Cpath%20class%3D%22r%22%20d%3D%22M11%2023V9h6.2a4.3%204.3%200%200%201%200%208.6H11m6%200%205%205.4%22%20fill%3D%22none%22%20stroke-width%3D%222.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3Ccircle%20cx%3D%2223.6%22%20cy%3D%228.4%22%20r%3D%222.6%22%20fill%3D%22%2322c55e%22/%3E%3C/svg%3E";
+export { RUNLIGHT_ICON };
 
 const DASHBOARD = (base: string, share = "", signOut = "", geoCredit = false, accounts = false, signIn = "") => `<!doctype html>
 <html lang="en">
@@ -408,6 +413,27 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   runlight.routeBases.add(base || "/");
   let warned = false;
 
+  // Accounts: the standalone server passes its own, and an app turns them on with true. Sessions need a secret
+  // that outlives the process; in development without one, a made-up one does, so a restart signs everyone out.
+  // An app left open on purpose (token: null) is treated like development here.
+  const openSetup = token === null || (!token && isDevelopment());
+  const accountSecret = runlight.secret ?? (openSetup ? randomId(32) : null);
+  const web: AccountsWeb | null =
+    typeof options.accounts === "object"
+      ? options.accounts
+      : options.accounts === true && accountSecret
+        ? accountsWeb({
+            runlight,
+            secret: accountSecret,
+            base,
+            now: () => runlight.now(),
+            // The app's token proves who may make the first account; in development without one, anyone may.
+            firstAccount: token ? { token } : openSetup ? "open" : "locked",
+            ...(options.origin ? { home: async () => new URL(options.origin!).origin } : {}),
+            forgot: "https://runlight.sh/docs/configuration/#accounts",
+          })
+        : null;
+
   // Requests from a manage token, already checked against its one site, act as the owner's.
   const managed = new WeakMap<Request, TokenRow>();
   // Requests from a member: full access apart from the install-wide controls.
@@ -427,8 +453,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   /** Whether this request acts as the owner. "read" is someone signed in who may only read, such as a viewer. */
   async function canRead(request: Request): Promise<boolean | "unconfigured" | "read"> {
     if (managed.has(request)) return true;
-    if (options.authorize) {
-      const answer = await options.authorize(request);
+    if (options.authorize || web) {
+      // A script's bearer token still has full access beside the sign-ins.
+      const given = bearer(request);
+      if (!options.authorize && token && given && constantTimeEqual(given, token)) return true;
+      const answer = options.authorize ? await options.authorize(request) : await web!.access(request);
       // A member changes things like an owner, apart from the few controls adminOnly() names.
       if (answer === "member") members.add(request);
       return answer === "read" ? "read" : answer === true || answer === "member";
@@ -467,10 +496,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   async function reader(request: Request): Promise<true | TokenRow | false | "unconfigured"> {
     const token = await apiToken(request);
     if (token) return token;
-    if (options.authorize) {
-      const answer = await options.authorize(request);
+    if (options.authorize || web) {
+      const access = await canRead(request);
       // A read-only sign-in reads like an API token for every site.
-      return answer === "read" ? { id: "", name: "", site: "", scope: "read", hash: "", hint: "", createdAt: 0, lastUsedAt: null } : answer === true || answer === "member";
+      return access === "read" ? { id: "", name: "", site: "", scope: "read", hash: "", hint: "", createdAt: 0, lastUsedAt: null } : access === true;
     }
     const access = await canRead(request);
     return access === "read" ? false : access;
@@ -1005,8 +1034,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const secret = `${TOKEN_PREFIX}${randomId(20)}`;
       const row: TokenRow = { id: randomId(), name, site, scope, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
       await runlight.store.insertToken(row);
-      const by = (await options.accountOf?.(request)) ?? null;
-      if (by && options.tokenMade && !(await options.tokenMade(row, by))) {
+      const by = (await accountOf?.(request)) ?? null;
+      if (by && tokenMade && !(await tokenMade(row, by))) {
         await runlight.store.deleteToken(row.id);
         return denied("read");
       }
@@ -1322,7 +1351,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         : [];
       if (!messages.length || messages[messages.length - 1]!.role !== "user") return coded("Ask a question", "question_needed", 400);
       const owner = access === true;
-      const turn = await askTurn((await options.accountOf?.(request)) ?? (owner ? "owner" : "viewer"), owner);
+      const turn = await askTurn((await accountOf?.(request)) ?? (owner ? "owner" : "viewer"), owner);
       if (turn instanceof Response) return turn;
       // Each tool reads the HTTP API with the asker's own headers, as the MCP server does.
       const headers = new Headers(request.headers);
@@ -1730,14 +1759,19 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return coded("Not found", "not_found", 404);
   }
 
+  const signIn = options.signIn ?? (web ? `${base}/login` : undefined);
+  const signOut = options.signOut ?? (web ? `${base}/logout` : undefined);
+  const accountOf = options.accountOf ?? web?.accountOf;
+  const tokenMade = options.tokenMade ?? (web ? (row: TokenRow, by: string) => web.tokenMade(row, by) : undefined);
+
   const oauth = {
     runlight,
     base,
     isOwner: async (request: Request) => (await canRead(request)) === true,
-    isReader: async (request: Request) => (options.authorize ? (await options.authorize(request)) === "read" : false),
-    ...(options.signIn ? { signIn: options.signIn } : {}),
-    ...(options.accountOf ? { accountOf: options.accountOf } : {}),
-    ...(options.tokenMade ? { tokenMade: options.tokenMade } : {}),
+    isReader: async (request: Request) => (options.authorize ? (await options.authorize(request)) === "read" : web ? (await web.access(request)) === "read" : false),
+    ...(signIn ? { signIn } : {}),
+    ...(accountOf ? { accountOf } : {}),
+    ...(tokenMade ? { tokenMade } : {}),
   };
 
   const handler: FetchHandler = async (request, context = {}) => {
@@ -1751,6 +1785,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       // Checked before any route, so a connected site's pass-through to its install is held to it too.
       if (adminOnly(path, request.method) && (await canRead(request)) === true && members.has(request)) {
         return coded("Only an owner or admin can change this", "admin_only", 403);
+      }
+      // Sign-in, setup, invites, and the Account and People APIs, and the dashboard sends anyone signed out to sign in.
+      if (web) {
+        const answered = await web.handle(request, path, context);
+        if (answered) return answered;
       }
       if (path === "/s.js" && request.method === "GET") {
         const script = await trackerScript(url.searchParams.get("site"));
@@ -1882,7 +1921,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         }
         // The page itself holds no data; the API it calls checks access and
         // the page explains how to sign in when it is refused.
-        return new Response(DASHBOARD(base, "", options.signOut, options.geoCredit, options.accounts, options.signIn), {
+        return new Response(DASHBOARD(base, "", signOut, options.geoCredit, Boolean(web), signIn), {
           headers: {
             "content-type": "text/html; charset=utf-8",
             "cache-control": "no-store",

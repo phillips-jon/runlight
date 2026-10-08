@@ -119,6 +119,7 @@ The address is dropped after the lookup, so only the place is kept.
 | --- | --- | --- |
 | `basePath` | `"/runlight"` | Where the routes are mounted, with the script at `{basePath}/s.js`. |
 | `token` | `RUNLIGHT_TOKEN` | Protects the dashboard and API. Send it as `Authorization: Bearer <token>`, or open the dashboard once with `?token=` to get a cookie. `null` leaves everything open, for example behind your own auth. |
+| `accounts` | `false` | Sign-in accounts for the dashboard, with invites by role. See [Accounts](#accounts) below. |
 | `authorize` | | Your own check, used in place of a token. Return `true` for full access, `"member"` for someone who can change everything apart from the mail service, the assistant’s settings, and deleting a site, `"read"` for someone who may only read, or `false`, from a function or a promise. |
 | `cronSecret` | `CRON_SECRET` | A second secret the [scheduled check](/docs/cron/) accepts besides the token. |
 | `origin` | | Your app’s public address, such as `https://example.com`. A [link domain](/docs/links/#custom-domains) can never be its host, and links in email reports point to it, whatever Host header a request names. Without it, the request’s own host stands in, and a connected hub cannot add link domains or email reports. |
@@ -128,9 +129,34 @@ The address is dropped after the lookup, so only the place is kept.
 | `geoCredit` | `false` | Credits [DB-IP](https://db-ip.com) in the dashboard’s footer, as its free location data asks. |
 | `observeKey` | `RUNLIGHT_OBSERVE_KEY` | An install-wide key a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site can use to report AI agent fetches to `POST /api/observe` for any site. Each site also has its own key in **Settings**, **Install**, which reports only for that site, and is the better choice. |
 
-The options `accounts`, `accountOf`, and `tokenMade` connect the routes to the standalone server’s own accounts and are internal to it.
+The options `accountOf` and `tokenMade` connect the routes to the standalone server’s own accounts and are internal to it.
 
 With no token, the dashboard and API answer 503 until you set one, unless `NODE_ENV` is `development`. Collecting visits, the script, short links, share links, and unsubscribe links never need the token.
+
+## Accounts
+
+Turn on accounts to let several people sign in to the dashboard, each with their own email, password, and role, the same way the [standalone server](/docs/server/#make-your-account) does.
+
+```ts
+export const { GET, POST, PUT, PATCH, DELETE } = rl.routes({ accounts: true });
+```
+
+The dashboard then asks everyone to sign in at `/runlight/login`. To create the first account, open `/runlight/setup` and enter your `RUNLIGHT_TOKEN` along with your email and password, so only whoever runs the app can. That account is the owner. In development with no token, or with `token: null`, which leaves everything open, the first account needs no token, so make it before anyone else can reach the page.
+
+The owner and admins invite more people in **Settings**, **People**, as an admin, a member, or a viewer, and the invite goes out by email when a [mail service](/docs/reports/) is set up. Everyone can turn on two-factor sign-in under **Account**. The token still works as a bearer token for scripts.
+
+Sessions are signed with `RUNLIGHT_SECRET`, or the token when that is not set, so keep it the same across restarts and deploys. Passwords are hashed with scrypt where the runtime has it, as Node, Bun, and Deno do, and with PBKDF2 on edge runtimes such as Cloudflare Workers.
+
+If someone forgets their password, the owner or an admin can remove them and invite them again. If the owner forgets theirs, give the account a new one from a script that uses your Runlight:
+
+```ts
+import { Accounts } from "@runlight/sdk";
+import { rl } from "./lib/runlight";
+
+const accounts = new Accounts(rl.store, process.env.RUNLIGHT_SECRET ?? process.env.RUNLIGHT_TOKEN!);
+const user = await accounts.setPassword("you@example.com", "a new long password", Date.now());
+await accounts.disableTwoFactor(user.id);
+```
 
 ## Environment variables
 

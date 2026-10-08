@@ -1,5 +1,8 @@
-/** The server's own pages: sign in and first-run setup. Everything else is the SDK's dashboard. */
-import { RUNLIGHT_ICON } from "@runlight/sdk";
+/**
+ * The account pages: sign in, the code step, invites, and first-run setup. Everything else is the dashboard.
+ * Each takes the base path the routes answer under: "" on the standalone server, and "/runlight" in an app.
+ */
+import { RUNLIGHT_ICON } from "../brand.js";
 
 const esc = (value: string) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -88,7 +91,7 @@ export const AUTH_JS = `(() => {
 
 const THEME_BUTTON = `<button type="button" class="theme" aria-label="Switch theme"><svg data-choice="light" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1.5v1.5M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1 1M11.6 11.6l1 1M3.4 12.6l1-1M11.6 4.4l1-1"/></svg><svg data-choice="dark" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/></svg><svg data-choice="system" viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="8.5" rx="1.5"/><path d="M5.5 14h5M8 11.5V14"/></svg></button>`;
 
-function page(title: string, body: string): string {
+function page(base: string, title: string, body: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -97,8 +100,8 @@ function page(title: string, body: string): string {
 <meta name="robots" content="noindex">
 <title>${esc(title)} | Runlight</title>
 <link rel="icon" href="${RUNLIGHT_ICON}">
-<link rel="stylesheet" href="/auth.css">
-<script src="/auth.js"></script>
+<link rel="stylesheet" href="${esc(base)}/auth.css">
+<script src="${esc(base)}/auth.js"></script>
 </head>
 <body>
 <main>
@@ -111,30 +114,32 @@ ${THEME_BUTTON}
 `;
 }
 
-export function loginPage(opts: { error?: string; email?: string; next?: string }): string {
+export function loginPage(base: string, opts: { error?: string; email?: string; next?: string; forgot: string }): string {
   return page(
+    base,
     "Sign in",
     `<h1>Sign in</h1>
 <p>Sign in to see your sites.</p>
 ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
-<form method="post" action="/login">
-<input type="hidden" name="next" value="${esc(opts.next ?? "/")}">
+<form method="post" action="${esc(base)}/login">
+<input type="hidden" name="next" value="${esc(opts.next ?? `${base}/`)}">
 <label>Email<input type="email" name="email" autocomplete="username" required autofocus value="${esc(opts.email ?? "")}"></label>
 <label>Password<input type="password" name="password" autocomplete="current-password" required></label>
 <button type="submit">Sign in</button>
 </form>
-<p class="hint">If you have forgotten your password, <a href="https://runlight.sh/docs/server/#forgotten-passwords" target="_blank" rel="noopener">the docs say how to set a new one</a>.</p>`,
+<p class="hint">If you have forgotten your password, <a href="${esc(opts.forgot)}" target="_blank" rel="noopener">the docs say how to set a new one</a>.</p>`,
   );
 }
 
 /** The second step of signing in, for an account with two-factor on. */
-export function codePage(opts: { pending: string; next: string; error?: string }): string {
+export function codePage(base: string, opts: { pending: string; next: string; error?: string }): string {
   return page(
+    base,
     "Enter your code",
     `<h1>Enter your code</h1>
 <p>Open your authenticator app and enter the six-digit code for Runlight.</p>
 ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
-<form method="post" action="/login/code">
+<form method="post" action="${esc(base)}/login/code">
 <input type="hidden" name="pending" value="${esc(opts.pending)}">
 <input type="hidden" name="next" value="${esc(opts.next)}">
 <label>Code<input type="text" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="12" required autofocus></label>
@@ -152,13 +157,14 @@ export function roleText(role: string): string {
 }
 
 /** Where an invited person chooses a password and joins. */
-export function invitePage(opts: { code: string; email: string; role: string; host: string; error?: string }): string {
+export function invitePage(base: string, opts: { code: string; email: string; role: string; host: string; error?: string }): string {
   return page(
+    base,
     "Join Runlight",
     `<h1>Join Runlight</h1>
 <p>You were invited to ${esc(opts.host)} as ${roleText(opts.role)}. Choose a password to finish.</p>
 ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
-<form method="post" action="/invite">
+<form method="post" action="${esc(base)}/invite">
 <input type="hidden" name="code" value="${esc(opts.code)}">
 <label>Email<input type="email" value="${esc(opts.email)}" disabled></label>
 <label>Password<input type="password" name="password" autocomplete="new-password" minlength="10" required autofocus></label>
@@ -169,22 +175,24 @@ ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
   );
 }
 
-export function inviteGonePage(): string {
+export function inviteGonePage(base: string): string {
   return page(
+    base,
     "This invite no longer works",
     `<h1>This invite no longer works</h1>
 <p>It has expired or was already used. Ask whoever invited you to send a new one.</p>`,
   );
 }
 
-export function setupPage(opts: { code: string; error?: string; email?: string }): string {
+export function setupPage(base: string, opts: { code: string; error?: string; email?: string; askCode?: boolean }): string {
   return page(
+    base,
     "Create your account",
     `<h1>Create your account</h1>
-<p>This account signs in to the dashboard. You can add more people later from the server.</p>
+<p>This account owns the dashboard. You can invite more people later in Settings, People.</p>
 ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
-<form method="post" action="/setup">
-<input type="hidden" name="code" value="${esc(opts.code)}">
+<form method="post" action="${esc(base)}/setup">
+${opts.askCode ? `<label>Your RUNLIGHT_TOKEN<input type="password" name="code" autocomplete="off" required value="${esc(opts.code)}"></label>` : `<input type="hidden" name="code" value="${esc(opts.code)}">`}
 <label>Email<input type="email" name="email" autocomplete="username" required autofocus value="${esc(opts.email ?? "")}"></label>
 <label>Password<input type="password" name="password" autocomplete="new-password" minlength="10" required></label>
 <label>Password again<input type="password" name="again" autocomplete="new-password" minlength="10" required></label>
@@ -194,10 +202,22 @@ ${opts.error ? `<p class="error" role="alert">${esc(opts.error)}</p>` : ""}
   );
 }
 
-export function setupLockedPage(): string {
+/** For a server with no account yet, which prints a setup link with a one-time code in its log. */
+export function setupLockedPage(base: string): string {
   return page(
+    base,
     "Finish setting up",
     `<h1>Finish setting up</h1>
 <p>Runlight has no account yet. Open the setup link printed in the server's log when it started, which carries a one-time code, to create the first account.</p>`,
+  );
+}
+
+/** For an app with accounts on but nothing to prove the first account with. */
+export function setupNeedsTokenPage(base: string): string {
+  return page(
+    base,
+    "Finish setting up",
+    `<h1>Finish setting up</h1>
+<p>Runlight has no account yet. Set RUNLIGHT_TOKEN, or pass token to routes(), and open this page again. Creating the first account asks for it, so only whoever runs the app can.</p>`,
   );
 }

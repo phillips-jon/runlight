@@ -30,3 +30,7 @@ export { DIMENSIONS } from "./query.js";
 export type { Dimension, Filter, Query } from "./query.js";
 export { VERSION, API_VERSION } from "./version.js";
 export { aiAgent } from "./ua.js";
+export { Accounts, AccountError, Throttle, totp, base32, otpauthUri, hashPassword, checkPassword, SESSION_COOKIE, SESSION_MS, MIN_PASSWORD, INVITE_MS } from "./accounts/auth.js";
+export type { User, Role, Invite } from "./accounts/auth.js";
+export { accountsWeb, setupCode } from "./accounts/web.js";
+export type { AccountsWeb, AccountsWebOptions, FirstAccount } from "./accounts/web.js";

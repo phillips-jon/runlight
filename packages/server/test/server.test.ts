@@ -163,17 +163,17 @@ test("only the owner and admins teach the server its names, and a hub adds no li
   const { server, handle } = make();
   const owner = await server.accounts.setPassword("jon@example.com", "a long password", Date.now());
   const viewer = await server.accounts.setPassword("viewer@example.com", "another long one", Date.now(), "viewer");
-  const as = (user: typeof owner) => `runlight_session=${encodeURIComponent(server.accounts.sessionFor(user, Date.now()))}`;
+  const as = async (user: typeof owner) => `runlight_session=${encodeURIComponent(await server.accounts.sessionFor(user, Date.now()))}`;
   const names = async () => JSON.parse((await server.runlight.store.setting("server-hosts")) ?? "[]") as string[];
   // A viewer's made-up forwarded names fill nothing.
-  for (let i = 0; i < 25; i++) await handle(req("/api/sites", { headers: { cookie: as(viewer), "x-forwarded-host": `junk${i}.example.org` } }));
+  for (let i = 0; i < 25; i++) await handle(req("/api/sites", { headers: { cookie: (await as(viewer)), "x-forwarded-host": `junk${i}.example.org` } }));
   assert.deepEqual(await names(), []);
   // An owner's are learned, if they are domain names.
-  await handle(req("/api/sites", { headers: { cookie: as(owner), "x-forwarded-host": "203.0.113.7:8080" } }));
-  await handle(req("/api/sites", { headers: { cookie: as(owner) } }));
+  await handle(req("/api/sites", { headers: { cookie: (await as(owner)), "x-forwarded-host": "203.0.113.7:8080" } }));
+  await handle(req("/api/sites", { headers: { cookie: (await as(owner)) } }));
   assert.deepEqual(await names(), ["stats.example.com"]);
 
-  const json = { cookie: as(owner), "content-type": "application/json" };
+  const json = { cookie: (await as(owner)), "content-type": "application/json" };
   await handle(req("/api/sites", { method: "POST", headers: json, body: JSON.stringify({ name: "Blog", hostnames: "blog.example.com" }) }));
   const hub = ((await (await handle(req("/api/tokens", { method: "POST", headers: json, body: JSON.stringify({ name: "Hub", site: "blog.example.com", scope: "manage" }) }))).json()) as any).secret;
   const add = await handle(req("/api/link-domains?site=blog.example.com", { host: "decoy.example.org", method: "POST", headers: { authorization: `Bearer ${hub}`, "content-type": "application/json" }, body: JSON.stringify({ domain: "analytics.example.com" }) }));
