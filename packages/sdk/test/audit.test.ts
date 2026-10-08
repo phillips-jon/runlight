@@ -235,6 +235,11 @@ test("an export is a ZIP of CSV files for the view, and a share link can export 
   const text = new TextDecoder().decode(bytes);
   for (const name of ["overview.csv", "over-time.csv", "page.csv", "channel.csv"]) assert.ok(text.includes(name), name);
   assert.ok(text.includes("/pricing,1,1"));
+  // A spreadsheet reads the units as they are: paths as written, percents, and seconds.
+  await t.send({ k: "pageview", u: "https://example.com/café", i: "cafe" });
+  const sheet = await (await t.routes.GET(new Request("https://example.com/runlight/api/breakdown?period=today&dimension=page&format=csv", { headers: { authorization: "Bearer secret" } }))).text();
+  assert.match(sheet.split("\n")[0]!, /^value,visitors,pageviews,timeOnPageSeconds,scrollDepth/);
+  assert.match(sheet, /\/café,/);
   const made = await t.routes.POST(new Request("https://example.com/runlight/api/shares", { method: "POST", headers: auth, body: "{}" }));
   const { share } = (await made.json()) as { share: { id: string } };
   const shared = await t.routes.GET(new Request("https://example.com/runlight/api/export?period=today", { headers: { "x-runlight-share": share.id } }));

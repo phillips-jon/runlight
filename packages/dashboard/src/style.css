@@ -3104,10 +3104,17 @@ select.field,
   flex: none;
 }
 
-.reset-twofactor {
+.reset-twofactor,
+.confirm-demote {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+.reset-twofactor .settings-error {
+  flex: 1 1 100%;
+  margin: 0;
 }
 
 .reset-twofactor .secret {
@@ -4606,9 +4613,40 @@ a.ghost {
     overflow-wrap: anywhere;
   }
 
-  .share-list .domain-actions {
+  /* Every list row (people, shares, email reports, custom domains) puts its actions under its name. */
+  .domain-list li {
+    flex-wrap: wrap;
+  }
+
+  .domain-list .domain-main {
+    flex: 1 1 100%;
+  }
+
+  .domain-list .domain-main > * {
+    overflow-wrap: anywhere;
+  }
+
+  .domain-list .share-meta {
+    white-space: normal;
+  }
+
+  .people-you {
+    white-space: nowrap;
+    overflow-wrap: normal;
+  }
+
+  .domain-list .domain-actions {
     flex: 1 1 100%;
     flex-wrap: wrap;
+  }
+
+  .reset-twofactor {
+    flex: 1 1 100%;
+  }
+
+  .reset-twofactor .secret {
+    flex: 1 1 100%;
+    width: auto;
   }
 
   .report-add {
@@ -4637,8 +4675,8 @@ a.ghost {
   }
 }
 
-/* On the narrowest phones each picker gets its own row. */
-@media (max-width: 380px) {
+/* On most phones each picker gets its own row, so a long range or comparison in any language reads in full. */
+@media (max-width: 420px) {
   .actions .picker {
     flex-basis: 100%;
   }

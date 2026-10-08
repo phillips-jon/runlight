@@ -5,7 +5,7 @@ import { People } from "./account.js";
 import { AssistantSettings } from "./assistant.js";
 import { EmailReports } from "./email.js";
 import { Goals } from "./goals.js";
-import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
+import { LANGUAGES, currentLocale, errorText, rich, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { ImportLinks } from "./importer.js";
 import { ImportVisits } from "./visitsimport.js";
@@ -474,7 +474,8 @@ function useDomainCheck(site: string, domain: string) {
     setState(null);
     api
       .checkLinkDomain(site, domain)
-      .then((r) => setState(r))
+      // The reason in the dashboard's own words when the check gives a code.
+      .then((r) => setState({ working: r.working, reason: (r.code && errorText(r.code, r.params)) || r.reason }))
       .catch((e: Error) => setState({ working: false, reason: e.message }));
   };
   useEffect(check, [domain]);

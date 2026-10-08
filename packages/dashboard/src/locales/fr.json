@@ -506,10 +506,10 @@
   "email.unsubscribe": "Se désabonner",
   "email.test.subject": "Runlight peut envoyer des e-mails",
   "email.test.body": "Ce test est passé par {service}. Les rapports de vos sites arriveront de la même façon.",
-  "email.unsub.title": "Arrêter les rapports de {site} ?",
+  "email.unsub.title": "Arrêter les rapports pour {site} ?",
   "email.unsub.body": "{email} ne recevra plus de rapports pour ce site.",
   "email.unsub.doneTitle": "Vous êtes désabonné",
-  "email.unsub.done": "Plus aucun rapport de {site} n’arrivera à {email}.",
+  "email.unsub.done": "Plus aucun rapport pour {site} n’arrivera à {email}.",
   "email.unsub.goneTitle": "Rien à désabonner",
   "email.unsub.gone": "Ce lien a déjà servi, ou le rapport a été supprimé.",
   "settings.api": "API et IA",
@@ -850,5 +850,13 @@
   "error.unknown_dimension": "Runlight ne connaît pas la répartition « {dimension} ».",
   "error.internal": "Une erreur s’est produite sur le serveur. Réessayez.",
   "filter.max": "Jusqu’à {max} filtres s’appliquent à la fois. Retirez-en un pour en ajouter un autre.",
-  "error.sample_soon_hub": "Un hub connecté peut envoyer un exemple toutes les dix minutes. Patientez quelques minutes et réessayez."
+  "error.sample_soon_hub": "Un hub connecté peut envoyer un exemple toutes les dix minutes. Patientez quelques minutes et réessayez.",
+  "people.demoteSelf": "Seul un autre propriétaire pourra vous rendre propriétaire.",
+  "people.demoteConfirm": "Me rendre lecteur",
+  "error.check_not_public": "ce n’est pas un nom de domaine public",
+  "error.check_private": "il pointe vers une adresse qui n’est pas publique",
+  "error.check_timeout": "il a mis trop de temps à répondre",
+  "error.check_https": "il est injoignable en HTTPS",
+  "error.check_not_runlight": "quelque chose a répondu, mais pas Runlight",
+  "error.check_status": "il a répondu {status}"
 }

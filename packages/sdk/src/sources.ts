@@ -70,6 +70,35 @@ export function sourceForAlias(value: string): KnownSource | null {
   return byAlias.get(key) ?? byHost.get(stripWww(key)) ?? null;
 }
 
+/**
+ * A path a person wrote, in the form paths are recorded: the path of a pasted URL, with a leading
+ * slash, percent-encoded as the browser's URL parser encodes it, and with a hash route kept, as
+ * parsePage keeps it. Null when it is not a path or a URL.
+ */
+export function recordedPath(input: string): string | null {
+  try {
+    const url = /^https?:\/\//i.test(input) ? new URL(input) : new URL(input.startsWith("/") ? input : `/${input}`, "https://x.invalid");
+    return parsePage(url).path;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * A recorded path as people write it, for showing and exporting: /caf%C3%A9 as /café. Only text is
+ * decoded; an encoded slash, space, or other mark that would change the path's meaning stays as it is.
+ */
+export function readablePath(path: string): string {
+  return path.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+    try {
+      const text = decodeURIComponent(run);
+      return /[\s/?#%\p{C}]/u.test(text) ? run : text;
+    } catch {
+      return run;
+    }
+  });
+}
+
 export function parsePage(url: URL): Page {
   const q = url.searchParams;
   let path = url.pathname || "/";

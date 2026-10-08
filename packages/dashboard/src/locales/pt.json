@@ -850,5 +850,13 @@
   "error.unknown_dimension": "O Runlight não conhece o detalhamento \"{dimension}\".",
   "error.internal": "Algo deu errado no servidor. Tente de novo.",
   "filter.max": "Até {max} filtros valem ao mesmo tempo. Remova um para adicionar outro.",
-  "error.sample_soon_hub": "Um hub conectado pode enviar um exemplo a cada dez minutos. Espere alguns minutos e tente de novo."
+  "error.sample_soon_hub": "Um hub conectado pode enviar um exemplo a cada dez minutos. Espere alguns minutos e tente de novo.",
+  "people.demoteSelf": "Só outro proprietário poderá torná-lo proprietário de novo.",
+  "people.demoteConfirm": "Tornar-me leitor",
+  "error.check_not_public": "não é um nome de domínio público",
+  "error.check_private": "aponta para um endereço que não é público",
+  "error.check_timeout": "demorou demais para responder",
+  "error.check_https": "não foi possível acessá-lo por HTTPS",
+  "error.check_not_runlight": "algo respondeu, mas não o Runlight",
+  "error.check_status": "respondeu {status}"
 }

@@ -79,7 +79,7 @@ test("link domains stay off the configured address and the names people signed i
   assert.equal(await add("go.example.org"), 201);
   // One saved before that rule is never fetched.
   await rl.store.addLinkDomain("db.internal", "blog", Date.now());
-  assert.deepEqual(await (await call("GET", "/api/link-domains/db.internal/check?site=blog")).json(), { domain: "db.internal", working: false, reason: "is not a public domain name" });
+  assert.deepEqual(await (await call("GET", "/api/link-domains/db.internal/check?site=blog")).json(), { domain: "db.internal", working: false, reason: "is not a public domain name", code: "check_not_public" });
 
   // A hub's reports link to the configured address, never to the Host it names, and its samples share one wait.
   const { createServer } = await import("node:http");

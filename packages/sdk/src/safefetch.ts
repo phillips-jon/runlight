@@ -81,15 +81,33 @@ type Https = typeof import("node:https");
 type Dns = typeof import("node:dns");
 type Stream = typeof import("node:stream");
 
-/** Node's own modules where the runtime has them, found without an import a bundler would follow. */
+/**
+ * Node's own modules where the runtime has them, found without an import a bundler would follow.
+ * Workers reach no private network, and their https module may only be a stand-in, so they use fetch.
+ */
 function builtins(): { https: Https; dns: Dns; stream: Stream } | null {
-  const get = (globalThis as { process?: { getBuiltinModule?: (id: string) => unknown } }).process?.getBuiltinModule;
-  if (typeof get !== "function") return null;
+  const scope = globalThis as { process?: { getBuiltinModule?: (id: string) => unknown }; navigator?: { userAgent?: string } };
+  const get = scope.process?.getBuiltinModule;
+  if (typeof get !== "function" || scope.navigator?.userAgent === "Cloudflare-Workers") return null;
   try {
     const https = get("node:https") as Https | undefined;
     const dns = get("node:dns") as Dns | undefined;
     const stream = get("node:stream") as Stream | undefined;
-    return https && dns && stream ? { https, dns, stream } : null;
+    return typeof https?.request === "function" && typeof dns?.lookup === "function" && typeof stream?.Readable?.toWeb === "function" ? { https, dns, stream } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A resolver for names, where the runtime has one, even without the rest of Node's modules. */
+async function resolver(): Promise<Dns["promises"] | null> {
+  const node = builtins();
+  if (node) return node.dns.promises;
+  try {
+    // A name in a variable, so a bundler for an edge runtime leaves the import alone.
+    const id = "node:dns";
+    const dns = (await import(id)) as Dns;
+    return typeof dns.promises?.lookup === "function" ? dns.promises : null;
   } catch {
     return null;
   }
@@ -97,10 +115,10 @@ function builtins(): { https: Https; dns: Dns; stream: Stream } | null {
 
 /** Whether a name resolves to an address off the public internet. False when it does not resolve, or cannot be looked up here. */
 export async function resolvesPrivately(name: string): Promise<boolean> {
-  const node = builtins();
-  if (!node) return false;
+  const dns = await resolver();
+  if (!dns) return false;
   try {
-    const found = await node.dns.promises.lookup(name, { all: true });
+    const found = await dns.lookup(name, { all: true });
     return found.some((a) => !publicAddress(a.address));
   } catch {
     return false;
@@ -140,18 +158,23 @@ function once(node: NonNullable<ReturnType<typeof builtins>>, url: URL, headers:
  * redirects that stay on it, within `timeoutMs` in all. Throws a
  * PrivateAddressError for an address off it, and the timeout's own error
  * when time runs out. A redirect past the last one comes back as it is.
+ * `fetch` stands in for the runtime's, in tests, and checks names before
+ * each hop the way a runtime without Node's https module does.
  */
-export async function publicFetch(target: string, init: { timeoutMs: number; headers?: Record<string, string>; redirects?: number }): Promise<Response> {
+export async function publicFetch(target: string, init: { timeoutMs: number; headers?: Record<string, string>; redirects?: number; fetch?: typeof fetch }): Promise<Response> {
   const signal = AbortSignal.timeout(init.timeoutMs);
-  const node = builtins();
+  const node = init.fetch ? null : builtins();
   let url = new URL(target);
   for (let hop = 0; ; hop++) {
     if (url.protocol !== "https:") throw new PrivateAddressError(url.href);
-    const host = url.hostname.replace(/^\[|\]$/g, "");
+    const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
     if ((v4(host) || v6(host)) && !publicAddress(host)) throw new PrivateAddressError(host);
+    if (host === "localhost" || host.endsWith(".localhost")) throw new PrivateAddressError(host);
+    // Without a connection of its own to check, the name is resolved first where the runtime can.
+    if (!node && (await resolvesPrivately(host))) throw new PrivateAddressError(host);
     let answer: Response;
     try {
-      answer = node ? await once(node, url, init.headers ?? {}, signal) : await fetch(url, { headers: init.headers ?? {}, redirect: "manual", signal });
+      answer = node ? await once(node, url, init.headers ?? {}, signal) : await (init.fetch ?? fetch)(url, { headers: init.headers ?? {}, redirect: "manual", signal });
     } catch (error) {
       // Whichever way the runtime says it gave up, the caller hears that time ran out.
       if (signal.aborted) throw signal.reason;

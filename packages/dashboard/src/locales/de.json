@@ -570,7 +570,7 @@
   "people.owner": "Eigentümer",
   "people.viewer": "Betrachter",
   "people.roles": "Ein Server behält immer mindestens einen Eigentümer.",
-  "people.emailPlaceholder": "Ihre E-Mail-Adresse",
+  "people.emailPlaceholder": "E-Mail-Adresse der Person",
   "pluginKey.title": "Schlüssel für CMS-Plugins",
   "pluginKey.intro": "Die Plugins für WordPress, Drupal und Craft melden mit diesem Schlüssel KI-Agenten, die die Seiten dieser Website lesen. Er kann nur für diese Website melden und nichts lesen. Ein neuer Schlüssel macht den alten sofort ungültig.",
   "pluginKey.replace": "Schlüssel ersetzen",
@@ -850,5 +850,13 @@
   "error.unknown_dimension": "Runlight kennt die Aufschlüsselung „{dimension}“ nicht.",
   "error.internal": "Auf dem Server ist etwas schiefgegangen. Versuch es noch einmal.",
   "filter.max": "Es gelten höchstens {max} Filter gleichzeitig. Entferne einen, um einen weiteren hinzuzufügen.",
-  "error.sample_soon_hub": "Ein verbundener Hub kann alle zehn Minuten ein Beispiel senden. Warte ein paar Minuten und versuch es noch einmal."
+  "error.sample_soon_hub": "Ein verbundener Hub kann alle zehn Minuten ein Beispiel senden. Warte ein paar Minuten und versuch es noch einmal.",
+  "people.demoteSelf": "Nur ein anderer Eigentümer kann dich wieder zum Eigentümer machen.",
+  "people.demoteConfirm": "Mich zum Betrachter machen",
+  "error.check_not_public": "es ist kein öffentlicher Domainname",
+  "error.check_private": "er zeigt auf eine Adresse, die nicht öffentlich ist",
+  "error.check_timeout": "die Antwort hat zu lange gedauert",
+  "error.check_https": "er ist über HTTPS nicht erreichbar",
+  "error.check_not_runlight": "etwas hat geantwortet, aber nicht Runlight",
+  "error.check_status": "er hat mit {status} geantwortet"
 }

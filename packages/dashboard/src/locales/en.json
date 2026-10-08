@@ -850,5 +850,13 @@
   "error.unknown_dimension": "\"{dimension}\" is not a breakdown Runlight knows.",
   "error.internal": "Something went wrong on the server. Try again.",
   "filter.max": "Up to {max} filters apply at once. Remove one to add another.",
-  "error.sample_soon_hub": "A connected hub can send one sample every ten minutes. Wait a few minutes and try again."
+  "error.sample_soon_hub": "A connected hub can send one sample every ten minutes. Wait a few minutes and try again.",
+  "people.demoteSelf": "Only another owner can make you an owner again.",
+  "people.demoteConfirm": "Make me a viewer",
+  "error.check_not_public": "it is not a public domain name",
+  "error.check_private": "it points at an address that is not public",
+  "error.check_timeout": "it took too long to answer",
+  "error.check_https": "it could not be reached over HTTPS",
+  "error.check_not_runlight": "something answered, but not Runlight",
+  "error.check_status": "it answered {status}"
 }

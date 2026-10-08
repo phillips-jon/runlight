@@ -7,6 +7,7 @@ import {
   type Query,
   type SessionDimension,
 } from "./query.js";
+import { recordedPath } from "./sources.js";
 
 /**
  * The little a store needs from a database driver. SQL uses `?` placeholders;
@@ -32,21 +33,22 @@ export interface Db {
   close?(): Promise<void>;
 }
 
+/** Lets other work run: resolves once the event loop has come round. */
+const pause = (): Promise<void> => new Promise((resolve) => (typeof setImmediate === "function" ? setImmediate(resolve) : setTimeout(resolve, 0)));
+
 /**
  * For a store with one connection shared by every request (SQLite through
  * better-sqlite3 or Bun). Statements and transactions take turns, so a
  * request's insert can never land inside an import's open transaction, and
  * a rollback can only undo the transaction's own writes.
  */
-const breathe = (): Promise<void> => new Promise((resolve) => (typeof setImmediate === "function" ? setImmediate(resolve) : setTimeout(resolve, 0)));
-
 export function oneConnection(inner: Db): Db {
   let tail: Promise<unknown> = Promise.resolve();
   const turn = <T>(fn: () => Promise<T>): Promise<T> => {
     // Each statement waits for the event loop to come round first. A driver that runs statements
     // synchronously holds the whole process while one runs, so this lets requests that arrived
     // meanwhile (a tracker hit during a long export) have their turn between two statements.
-    const result = tail.then(breathe, breathe).then(fn);
+    const result = tail.then(pause, pause).then(fn);
     tail = result.catch(() => {});
     return result;
   };
@@ -295,8 +297,7 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
  */
 const BUCKETS_PER_QUERY = 30;
 const VALUES_PER_QUERY = 50;
-const PARAMS_PER_QUERY = 80;
-/** D1's own limit, less a little. */
+/** The most values one statement binds: D1's 100, less a little. */
 const MAX_PARAMS = 96;
 /** The built days inside a range, as a subquery taking (site, from, to). */
 const BUILT_DAYS = "SELECT day FROM rl_rollup_days WHERE site = ? AND start_at >= ? AND end_at <= ?";
@@ -327,8 +328,12 @@ export const EVENT_TAIL_MS = 2 * 86_400_000;
 
 const PIECE_MS = 86_400_000;
 
-/** Lets other work run between the pieces of a long job. */
-const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+/**
+ * Pageviews that can report engaged time: the tracker's, which carry a pageview id. Imported history has
+ * none, so time on page is the mean over these, counting a view that reported nothing (under a second) as none.
+ */
+const LIVE_VIEWS = "SUM(CASE WHEN e.pageview <> '' THEN 1 ELSE 0 END)";
 
 /** A session that is a visit: a short link click alone opens one that is not. */
 const IS_VISIT = "(s.pageviews > 0 OR s.events > 0)";
@@ -465,18 +470,47 @@ function column(dimension: Filter["dimension"]): string {
   return isSessionDimension(dimension) ? `s.${SESSION_DIMENSIONS[dimension]}` : `e.${EVENT_DIMENSIONS[dimension]}`;
 }
 
+const PATH_DIMENSIONS = new Set(["page", "entry", "exit"]);
+
+/** Text in the form a recorded path holds it, percent-encoded, as part of a path or as a whole one. */
+function asRecorded(value: string, whole: boolean): string {
+  const path = recordedPath(whole || value.startsWith("/") ? value : `/${value}`);
+  if (path === null) return value;
+  return whole || value.startsWith("/") ? path : path.slice(1);
+}
+
+/** A GLOB pattern for text containing `value` in any mix of upper and lower case, letter by letter. */
+function anyCase(value: string): string {
+  let out = "*";
+  for (const ch of value) {
+    const lower = ch.toLowerCase();
+    const upper = ch.toUpperCase();
+    if (lower !== upper && [...lower].length === 1 && [...upper].length === 1) out += `[${lower}${upper}]`;
+    else out += ch === "*" || ch === "?" || ch === "[" ? `[${ch}]` : ch;
+  }
+  return `${out}*`;
+}
+
 /** One filter as a condition on its own column, with "is not" flipped to "is" when `positive` asks. */
 function condition(filter: Filter, dialect: Db["dialect"], positive = false): { sql: string; params: unknown[] } {
   const col = column(filter.dimension);
   const op = positive && filter.op === "not" ? "is" : filter.op;
-  if (op === "is") return { sql: `${col} = ?`, params: [filter.value] };
-  if (op === "not") return { sql: `${col} <> ?`, params: [filter.value] };
+  // Paths are recorded percent-encoded, as the browser's URL parser writes them, so "/café" is matched as
+  // "/caf%C3%A9", just as a goal for it is.
+  const path = PATH_DIMENSIONS.has(filter.dimension);
+  if (op === "is" || op === "not") return { sql: `${col} ${op === "is" ? "=" : "<>"} ?`, params: [path ? asRecorded(filter.value, true) : filter.value] };
+  if (path) {
+    // An encoded letter's case is in its bytes (%C3%9C is Ü, %C3%BC is ü), which no database folds, so a
+    // path is also tried in lower, upper, and title case, encoded each way.
+    const title = filter.value.toLowerCase().replace(/(^|[\s\-/_.])(\p{L})/gu, (_, gap: string, letter: string) => gap + letter.toUpperCase());
+    const forms = [...new Set([filter.value, filter.value.toLowerCase(), filter.value.toUpperCase(), title].map((f) => asRecorded(f, false)))];
+    const one = dialect === "postgres" ? `LOWER(${col}) LIKE ? ESCAPE '\\'` : `${col} LIKE ? ESCAPE '\\'`;
+    return { sql: `(${forms.map(() => one).join(" OR ")})`, params: forms.map((f) => `%${escapeLike(dialect === "postgres" ? f.toLowerCase() : f)}%`) };
+  }
   if (dialect === "postgres") return { sql: `LOWER(${col}) LIKE ? ESCAPE '\\'`, params: [`%${escapeLike(filter.value.toLowerCase())}%`] };
-  // SQLite's LIKE and LOWER ignore case for ASCII letters only, so "über" would never find "Über". The
-  // value is also tried in lower, upper, and title case, which covers how names are written.
-  const title = filter.value.toLowerCase().replace(/(^|[\s\-/])(\p{L})/gu, (_, gap: string, letter: string) => gap + letter.toUpperCase());
-  const forms = [...new Set([filter.value, filter.value.toLowerCase(), filter.value.toUpperCase(), title])];
-  return { sql: `(${forms.map(() => `${col} LIKE ? ESCAPE '\\'`).join(" OR ")})`, params: forms.map((f) => `%${escapeLike(f)}%`) };
+  // SQLite's LIKE and LOWER ignore case for ASCII letters only, so "über" would never find "Über". GLOB with
+  // both cases of every letter finds any mix, Unicode included.
+  return { sql: `${col} GLOB ?`, params: [anyCase(filter.value)] };
 }
 
 /**
@@ -511,14 +545,21 @@ function visitScope(filters: Filter[], site: string, from: number, to: number, d
 }
 
 /**
- * A condition on `e` from the filters on the given row dimensions that keep rows (is, contains). With
+ * Conditions on `e` from the filters on the given row dimensions that keep rows (is, contains). With
  * "page is /pricing", pageviews mean views of /pricing, as people expect, while the visits are whole.
- * A row counts when it matches any of them, so every visit the filters pick has rows that count.
+ * A row counts when it matches any filter on each of its dimensions: two page filters count the views
+ * of either page, and a hostname filter beside them keeps those on that host.
  */
 function rowScope(filters: Filter[], dimensions: string[], dialect: Db["dialect"]): { sql: string; params: unknown[] } {
-  const kept = filters.filter((f) => dimensions.includes(f.dimension) && f.op !== "not").map((f) => condition(f, dialect));
-  if (!kept.length) return { sql: "", params: [] };
-  return { sql: ` AND (${kept.map((c) => c.sql).join(" OR ")})`, params: kept.flatMap((c) => c.params) };
+  let sql = "";
+  const params: unknown[] = [];
+  for (const dimension of dimensions) {
+    const kept = filters.filter((f) => f.dimension === dimension && f.op !== "not").map((f) => condition(f, dialect));
+    if (!kept.length) continue;
+    sql += ` AND (${kept.map((c) => c.sql).join(" OR ")})`;
+    params.push(...kept.flatMap((c) => c.params));
+  }
+  return { sql, params };
 }
 
 /**
@@ -693,6 +734,17 @@ export class SqlStore {
     await this.clearRollups(site, { before: ts });
   }
 
+  /** Deletes a site's events from `from` on whose visit no longer exists, a day at a time. */
+  async dropOrphans(site: string, from: number, until: number): Promise<void> {
+    for (let at = from; at < until; at += PIECE_MS) {
+      await this.db.run(
+        `DELETE FROM rl_events WHERE site = ? AND ts >= ? AND ts < ? AND session <> '' AND NOT EXISTS (SELECT 1 FROM rl_sessions s WHERE s.id = rl_events.session)`,
+        [site, at, at + PIECE_MS],
+      );
+      await pause();
+    }
+  }
+
   // Daily rollups
 
   /**
@@ -720,13 +772,13 @@ export class SqlStore {
          WHERE e.site = ? AND e.kind = '${kind}' AND e.ts >= ? AND e.ts < ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}`;
       const window = [site, start, end + EVENT_TAIL_MS, start, end];
       await db.run(
-        `INSERT INTO rl_rollups (site, day, dim, value, visitors, visits, pageviews)
-         SELECT ?, ?, 'page', e.path, COUNT(DISTINCT e.visitor), COUNT(DISTINCT e.session), COUNT(*) ${ofDay("pageview")} GROUP BY e.path`,
+        `INSERT INTO rl_rollups (site, day, dim, value, visitors, visits, pageviews, views)
+         SELECT ?, ?, 'page', e.path, COUNT(DISTINCT e.visitor), COUNT(DISTINCT e.session), COUNT(*), ${LIVE_VIEWS} ${ofDay("pageview")} GROUP BY e.path`,
         [site, day, ...window],
       );
       // Per pageview first (its engaged time added up, its deepest scroll), as the raw report counts them.
       const time = await db.all(
-        `SELECT value, SUM(total) AS engaged, COUNT(*) AS views, SUM(deepest) AS scroll_sum, COUNT(deepest) AS scroll_n FROM (
+        `SELECT value, SUM(total) AS engaged, SUM(deepest) AS scroll_sum, COUNT(deepest) AS scroll_n FROM (
            SELECT e.path AS value, SUM(e.engaged_ms) AS total, MAX(e.scroll) AS deepest
            ${ofDay("engagement")} GROUP BY e.path, e.pageview) t GROUP BY value`,
         window,
@@ -744,9 +796,8 @@ export class SqlStore {
         [site, day, site, start, end],
       );
       for (const t of time) {
-        await db.run(`UPDATE rl_rollups SET engaged = ?, views = ?, scroll_sum = ?, scroll_n = ? WHERE site = ? AND day = ? AND dim = 'page' AND value = ?`, [
+        await db.run(`UPDATE rl_rollups SET engaged = ?, scroll_sum = ?, scroll_n = ? WHERE site = ? AND day = ? AND dim = 'page' AND value = ?`, [
           num(t.engaged),
-          num(t.views),
           num(t.scroll_sum),
           num(t.scroll_n),
           site,
@@ -777,9 +828,14 @@ export class SqlStore {
     }
     const days = (await this.db.all(`SELECT day FROM rl_rollup_days WHERE ${where}`, params)).map((r) => String(r.day));
     // The days stop counting as built first, so if this stops part way, no day is left marked built
-    // without its rows. Rows of a day not built are never read, and building it replaces them.
+    // without its rows. Rows of a day not built are never read, and building it replaces them. Another
+    // process may build a day between the two deletes, so its mark goes again after its rows: the day
+    // is then simply built once more.
     await this.db.run(`DELETE FROM rl_rollup_days WHERE ${where}`, params);
-    for (const day of days) await this.db.run(`DELETE FROM rl_rollups WHERE site = ? AND day = ?`, [site, day]);
+    for (const day of days) {
+      await this.db.run(`DELETE FROM rl_rollups WHERE site = ? AND day = ?`, [site, day]);
+      await this.db.run(`DELETE FROM rl_rollup_days WHERE site = ? AND day = ?`, [site, day]);
+    }
   }
 
   /**
@@ -846,9 +902,9 @@ export class SqlStore {
       const ofRest = (kind: string) => `FROM rl_events e JOIN rl_sessions s ON s.id = e.session WHERE e.site = ? AND e.kind = '${kind}' AND e.ts >= ? AND e.ts < ? AND ${IS_VISIT} AND ${w.sql}`;
       const at = [query.site, lo, hi, ...w.params];
       if (page) {
-        for (const row of await this.db.all(`SELECT e.path AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(DISTINCT e.session) AS visits, COUNT(*) AS pageviews ${ofRest("pageview")} GROUP BY e.path`, at)) bump(row);
+        for (const row of await this.db.all(`SELECT e.path AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(DISTINCT e.session) AS visits, COUNT(*) AS pageviews, ${LIVE_VIEWS} AS views ${ofRest("pageview")} GROUP BY e.path`, at)) bump(row);
         for (const row of await this.db.all(
-          `SELECT value, SUM(total) AS engaged, COUNT(*) AS views, SUM(deepest) AS scroll_sum, COUNT(deepest) AS scroll_n FROM (
+          `SELECT value, SUM(total) AS engaged, SUM(deepest) AS scroll_sum, COUNT(deepest) AS scroll_n FROM (
              SELECT e.path AS value, SUM(e.engaged_ms) AS total, MAX(e.scroll) AS deepest ${ofRest("engagement")} GROUP BY e.path, e.pageview) t GROUP BY value`,
           at,
         )) bump(row);
@@ -881,8 +937,8 @@ export class SqlStore {
           value,
           visitors: x.visitors,
           pageviews: x.pageviews,
-          // Over every pageview, counting those that sent no engaged time (under a second) as none.
-          timeOnPage: x.pageviews > 0 ? Math.round(x.engaged / x.pageviews) : 0,
+          // Over every pageview that could report its time, counting those that sent none (under a second) as none.
+          timeOnPage: x.views > 0 ? Math.round(x.engaged / x.views) : 0,
           scrollDepth: x.scroll_n > 0 ? Math.round(x.scroll_sum / x.scroll_n) : 0,
         };
       }
@@ -987,11 +1043,12 @@ export class SqlStore {
     );
   }
 
-  /** Counts a row into its session. `reopen` false counts it without moving the session's last activity. */
+  /**
+   * Counts a row into its session. An event with `reopen` false, one that joins a visit already ended,
+   * counts without moving the session's last activity.
+   */
   async touchSession(id: string, ts: number, kind: "pageview" | "event" | "click", path: string, reopen = true): Promise<void> {
-    if (!reopen) {
-      if (kind === "event") await this.db.run(`UPDATE rl_sessions SET events = events + 1 WHERE id = ?`, [id]);
-    } else if (kind === "click") {
+    if (kind === "click") {
       await this.db.run(`UPDATE rl_sessions SET last_at = ? WHERE id = ?`, [ts, id]);
     } else if (kind === "pageview") {
       await this.db.run(
@@ -999,8 +1056,10 @@ export class SqlStore {
            entry_path = CASE WHEN entry_path = '' THEN ? ELSE entry_path END WHERE id = ?`,
         [ts, path, path, id],
       );
-    } else {
+    } else if (reopen) {
       await this.db.run(`UPDATE rl_sessions SET events = events + 1, last_at = ? WHERE id = ?`, [ts, id]);
+    } else {
+      await this.db.run(`UPDATE rl_sessions SET events = events + 1 WHERE id = ?`, [id]);
     }
   }
 
@@ -1172,8 +1231,8 @@ export class SqlStore {
   async journeyPages(query: Query, perVisit: number): Promise<{ rows: Array<{ session: string; path: string }>; sampled: boolean }> {
     const scope = visitScope(query.filters, query.site, query.from, query.to, this.db.dialect);
     // The newest visits the filters pick, JOURNEY_VISITS at most, so a long range stays quick and small in memory.
-    const visits = `SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}
-         ORDER BY s.started_at DESC LIMIT ${JOURNEY_VISITS}`;
+    const newest = (limit: number) => `SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}
+         ORDER BY s.started_at DESC LIMIT ${limit}`;
     const visitParams = [query.site, query.from, query.to, ...scope.params];
     const rows = await this.db.all(
       // The visits are read as an IN list, which every database probes from the events side, so the
@@ -1183,7 +1242,7 @@ export class SqlStore {
          SELECT e.session AS session, e.path AS path, e.ts AS ts, e.id AS id,
            LAG(e.path) OVER (PARTITION BY e.session ORDER BY e.ts, e.id) AS before
          FROM rl_events e
-         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ? AND e.session IN (${visits})),
+         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ? AND e.session IN (${newest(JOURNEY_VISITS)})),
        v AS (
          SELECT session, path, ROW_NUMBER() OVER (PARTITION BY session ORDER BY ts, id) AS n
          FROM raw WHERE before IS NULL OR before <> path)
@@ -1191,7 +1250,8 @@ export class SqlStore {
       [query.site, query.from, query.to + EVENT_TAIL_MS, ...visitParams, perVisit],
     );
     const [count] = await this.db.all(
-      `SELECT COUNT(*) AS n FROM (${visits.replace(`LIMIT ${JOURNEY_VISITS}`, `LIMIT ${JOURNEY_VISITS + 1}`)}) x`,
+      // One past the cap tells whether it was reached.
+      `SELECT COUNT(*) AS n FROM (${newest(JOURNEY_VISITS + 1)}) x`,
       visitParams,
     );
     return { rows: rows.map((r) => ({ session: String(r.session), path: String(r.path) })), sampled: num(count?.n) > JOURNEY_VISITS };
@@ -1439,7 +1499,7 @@ export class SqlStore {
     let count = v.params.length;
     for (const goal of goals) {
       const cost = this.goalScope(goal).params.length * 4 + this.revenueValue(goal).params.length;
-      if (chunks[chunks.length - 1]!.length && count + cost > PARAMS_PER_QUERY) {
+      if (chunks[chunks.length - 1]!.length && count + cost > MAX_PARAMS) {
         chunks.push([]);
         count = v.params.length;
       }
@@ -1799,16 +1859,19 @@ export class SqlStore {
       const col = `e.${EVENT_DIMENSIONS[dimension]}`;
       const w = within(["page", "hostname"]);
       const rows = await this.db.all(
-        `SELECT ${col} AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(*) AS pageviews
+        `SELECT ${col} AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(*) AS pageviews, ${LIVE_VIEWS} AS views
          FROM rl_events e
          WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'pageview'${w.sql}
          GROUP BY ${col} ORDER BY visitors DESC, pageviews DESC, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
         [query.site, query.from, w.to, ...w.params, ...page],
       );
       const out: BreakdownRow[] = rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors), pageviews: num(row.pageviews) }));
+      const live = new Map(rows.map((row) => [String(row.value), num(row.views)]));
       if (dimension === "page" && out.length > 0) {
-        // Each pageview's engaged time added up and its deepest scroll, then the mean over pageviews.
-        const times = await inPieces(out, VALUES_PER_QUERY, (piece) =>
+        // Each pageview's engaged time added up and its deepest scroll, then the mean over pageviews. Filters add
+        // values of their own, so fewer paths go in each statement, keeping it within D1's 100.
+        const size = Math.max(1, Math.min(VALUES_PER_QUERY, MAX_PARAMS - 3 - w.params.length));
+        const times = await inPieces(out, size, (piece) =>
           this.db.all(
             `SELECT value, SUM(total) AS total, COUNT(*) AS views, AVG(deepest) AS scroll FROM (
                SELECT e.path AS value, SUM(e.engaged_ms) AS total, MAX(e.scroll) AS deepest
@@ -1820,7 +1883,8 @@ export class SqlStore {
         const byPath = new Map(times.map((t) => [String(t.value), t]));
         for (const row of out) {
           const time = byPath.get(row.value);
-          row.timeOnPage = time && row.pageviews ? Math.round(num(time.total) / row.pageviews) : 0;
+          const views = live.get(row.value) ?? 0;
+          row.timeOnPage = time && views ? Math.round(num(time.total) / views) : 0;
           row.scrollDepth = time?.scroll === null || time?.scroll === undefined ? 0 : Math.round(num(time.scroll));
         }
       }

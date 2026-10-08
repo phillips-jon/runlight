@@ -87,7 +87,23 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
   const [url, setUrl] = useState(link?.url ?? "");
   const [name, setName] = useState(link?.name ?? "");
   const [slug, setSlug] = useState(link?.slug ?? "");
-  const [domain, setDomain] = useState(link?.domain ?? (domains.length ? domains[0]! : ""));
+  // A new link starts on the first custom domain only once that domain answers, so the defaults never
+  // make a link that does not work yet.
+  const [domain, setDomain] = useState(link?.domain ?? "");
+  const touched = useRef(false);
+  useEffect(() => {
+    if (link || !domains.length) return;
+    void api
+      .checkLinkDomain(site, domains[0]!)
+      .then((r) => {
+        if (r.working && !touched.current) setDomain(domains[0]!);
+      })
+      .catch(() => {});
+  }, []);
+  const chooseDomain = (e: Event) => {
+    touched.current = true;
+    setDomain((e.target as HTMLSelectElement).value);
+  };
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState<Link | null>(null);
@@ -162,7 +178,7 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
           <span class="field-label">{t("links.slug")}</span>
           <div class="slug-row">
             {domains.length ? (
-              <select class="value" aria-label={t("links.domain")} value={domain} onChange={(e) => setDomain((e.target as HTMLSelectElement).value)}>
+              <select class="value" aria-label={t("links.domain")} value={domain} onChange={chooseDomain}>
                 {domains.map((d) => (
                   <option value={d}>{d}/</option>
                 ))}
@@ -170,7 +186,7 @@ export function LinkForm({ site, prefix, domains, link, onClose, onSaved }: {
                 <option value="">{display(prefix)}/</option>
               </select>
             ) : link?.domain ? (
-              <select class="value" aria-label={t("links.domain")} value={domain} onChange={(e) => setDomain((e.target as HTMLSelectElement).value)}>
+              <select class="value" aria-label={t("links.domain")} value={domain} onChange={chooseDomain}>
                 <option value={link.domain}>{t("links.removedDomain", { domain: link.domain })}</option>
                 <option value="">{display(prefix)}/</option>
               </select>

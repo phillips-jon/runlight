@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { api, type JourneyAnswer, type View } from "./api.js";
-import { count } from "./format.js";
+import { count, readablePath } from "./format.js";
 import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { Sheet } from "./links.js";
@@ -66,7 +66,7 @@ export function JourneysSheet({ view, onClose }: { view: View; onClose: () => vo
 
   const columns = answer?.columns ?? [];
   const most = Math.max(1, ...(answer?.links ?? []).map((l) => l.visits));
-  const label = (value: string) => value || t("journeys.other");
+  const label = (value: string) => (value ? readablePath(value) : t("journeys.other"));
   const pick = (step: number, value: string) => setThrough(through && through.step === step && through.value === value ? null : value ? { step, value } : null);
 
   return (
@@ -120,7 +120,7 @@ export function JourneysSheet({ view, onClose }: { view: View; onClose: () => vo
         </div>
         {through ? (
           <p class="journey-following">
-            {t("journeys.following", { page: through.value, step: through.step + 1 })}
+            {t("journeys.following", { page: readablePath(through.value), step: through.step + 1 })}
             <button type="button" class="copy inline" onClick={() => setThrough(null)}>
               <Icon name="x" />
               {t("common.clearAll")}
@@ -157,7 +157,7 @@ export function JourneysSheet({ view, onClose }: { view: View; onClose: () => vo
                       type="button"
                       data-box={boxKey(step, item.value)}
                       class={`journey-page${!item.value ? " other" : ""}${through && through.step === step && through.value === item.value ? " on" : ""}`}
-                      title={item.value ? t("journeys.follow", { page: item.value }) : undefined}
+                      title={item.value ? t("journeys.follow", { page: readablePath(item.value) }) : undefined}
                       disabled={!item.value}
                       onClick={() => pick(step, item.value)}
                     >

@@ -121,3 +121,99 @@ test("journeys applies a filter before its cap on visits, and says when the cap 
   assert.equal(all.visits, JOURNEY_VISITS);
   assert.equal(all.sampled, JOURNEY_VISITS);
 });
+
+for (const kind of STORES) {
+  test(`${kind}: a page goal or funnel step for a hash route counts that route only`, async () => {
+    const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });
+    t.advance(-HOUR);
+    for (let i = 0; i < 5; i++) {
+      const ip = `203.0.113.${i + 1}`;
+      await t.send({ k: "pageview", u: "https://example.com/", i: `h${i}` }, { ip });
+      if (i < 2) {
+        await t.send({ k: "pageview", u: "https://example.com/#/cart", i: `c${i}` }, { ip });
+        await t.send({ k: "pageview", u: "https://example.com/#/thanks", i: `t${i}` }, { ip });
+      }
+    }
+    t.advance(HOUR);
+    const post = (path: string, body: unknown) =>
+      t.routes.POST(new Request(`https://example.com/runlight${path}`, { method: "POST", headers: { authorization: "Bearer secret", "content-type": "application/json" }, body: JSON.stringify(body) }));
+    assert.equal((await post("/api/goals", { name: "Thanks", kind: "page", match: "/#/thanks" })).status, 201);
+    assert.equal((await post("/api/funnels", { name: "Checkout", steps: [{ kind: "page", match: "/#/cart" }, { kind: "page", match: "https://example.com/#/thanks" }] })).status, 201);
+    const goal = (await t.get("/api/goals?period=today")).goals[0];
+    assert.deepEqual([goal.match, goal.conversions, goal.visitors], ["/#/thanks", 2, 2]);
+    const funnel = (await t.get("/api/funnels?period=today")).funnels[0];
+    assert.deepEqual(funnel.steps.map((s: { match: string; visits: number }) => [s.match, s.visits]), [["/#/cart", 2], ["/#/thanks", 2]]);
+  });
+
+  test(`${kind}: page and hostname filters together count pageviews matching both`, async () => {
+    const t = setup(kind, { site: { hostnames: ["example.com", "docs.example.com"], timezone: "UTC" } });
+    t.advance(-HOUR);
+    await t.send({ k: "pageview", u: "https://example.com/pricing", i: "a" });
+    await t.send({ k: "pageview", u: "https://docs.example.com/start", i: "b" });
+    await t.send({ k: "pageview", u: "https://docs.example.com/pricing", i: "c" });
+    t.advance(HOUR);
+    const filters = "filter=page:is:/pricing&filter=hostname:is:docs.example.com";
+    assert.equal((await t.get(`/api/stats?period=today&compare=off&${filters}`)).stats.pageviews, 1);
+    const pages = (await t.get(`/api/breakdown?period=today&dimension=page&${filters}`)).rows;
+    assert.deepEqual(pages.map((r: { value: string; pageviews: number }) => [r.value, r.pageviews]), [["/pricing", 1]]);
+  });
+
+  test(`${kind}: contains ignores case in any mix, in paths too, and filters take paths as the browser writes them`, async () => {
+    const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });
+    t.advance(-HOUR);
+    await t.send({ k: "pageview", u: "https://example.com/Über-uns?utm_campaign=ÉcoleÉté", i: "a" }, { ip: "203.0.113.1" });
+    await t.send({ k: "pageview", u: "https://example.com/a^b", i: "b" }, { ip: "203.0.113.2" });
+    await t.send({ k: "pageview", u: "https://example.com/#/x{y}", i: "c" }, { ip: "203.0.113.3" });
+    t.advance(HOUR);
+    const visits = async (filter: string) => (await t.get(`/api/stats?period=today&compare=off&filter=${encodeURIComponent(filter)}`)).stats.visits;
+    for (const value of ["écoleété", "ÉCOLEÉTÉ", "eÉté"]) assert.equal(await visits(`utm_campaign:contains:${value}`), 1, value);
+    for (const value of ["über", "ÜBER", "Über-Uns"]) assert.equal(await visits(`page:contains:${value}`), 1, value);
+    assert.equal(await visits("page:is:/a^b"), 1);
+    assert.equal(await visits("page:is:/#/x{y}"), 1);
+  });
+
+  test(`${kind}: time on page leaves out imported views, which can report no time`, async () => {
+    const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });
+    await t.rl.init();
+    // Nine pageviews written as the Umami import writes them: no pageview id, never any engaged time.
+    const day = Date.UTC(2026, 9, 5, 10);
+    for (let i = 0; i < 9; i++) {
+      await t.rl.store.db.run(`INSERT INTO rl_sessions (id, site, visitor, started_at, last_at, pageviews, entry_path, exit_path, imported) VALUES (?, 'default', ?, ?, ?, 1, '/pricing', '/pricing', 1)`, [`i${i}`, `v${i}`, day + i, day + i]);
+      await t.rl.store.db.run(`INSERT INTO rl_events (site, ts, kind, visitor, session, pageview, path, hostname) VALUES ('default', ?, 'pageview', ?, ?, '', '/pricing', 'example.com')`, [day + i, `v${i}`, `i${i}`]);
+    }
+    t.advance(-HOUR);
+    await t.send({ k: "pageview", u: "https://example.com/pricing", i: "live" });
+    await t.send({ k: "engagement", u: "https://example.com/pricing", i: "live", e: 60_000 });
+    t.advance(HOUR);
+    const row = async () => (await t.get("/api/breakdown?period=7d&dimension=page")).rows.find((r: { value: string }) => r.value === "/pricing");
+    assert.deepEqual([(await row()).pageviews, (await row()).timeOnPage], [10, 60_000]);
+    t.advance(DAY);
+    while ((await t.rl.buildRollups()) > 0);
+    assert.equal((await row()).timeOnPage, 60_000, "the same once the days are built");
+  });
+
+  test(`${kind}: a day built by another process while it is being cleared is never left marked built without its numbers`, async () => {
+    const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });
+    t.advance(-3 * DAY);
+    for (let i = 0; i < 4; i++) await t.send({ k: "pageview", u: "https://example.com/", i: `p${i}` }, { ip: `203.0.113.${i + 1}` });
+    t.advance(3 * DAY);
+    while ((await t.rl.buildRollups()) > 0);
+    const before = (await t.get("/api/stats?period=7d&compare=off")).stats;
+    // Another process builds the day right after its mark is deleted.
+    const db = t.rl.store.db;
+    const run = db.run.bind(db);
+    let raced = false;
+    db.run = (async (sql: string, params?: unknown[]) => {
+      await run(sql, params);
+      if (!raced && sql.startsWith("DELETE FROM rl_rollup_days WHERE site = ? AND start_at")) {
+        raced = true;
+        db.run = run;
+        while ((await t.rl.buildRollups()) > 0);
+      }
+    }) as typeof db.run;
+    await t.rl.store.clearRollups("default", { from: t.now - 4 * DAY, to: t.now });
+    db.run = run;
+    assert.ok(raced);
+    assert.deepEqual((await t.get("/api/stats?period=7d&compare=off")).stats, before);
+  });
+}

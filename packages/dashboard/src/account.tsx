@@ -37,17 +37,22 @@ export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void 
         setState("idle");
       });
   };
+  // An answer about the last try goes away once any field changes.
+  const edit = (set: (value: string) => void, e: Event) => {
+    set((e.target as HTMLInputElement).value);
+    setError("");
+  };
   return (
     <Sheet title={t("account.title")} sub={me.email} onClose={onClose}>
       <form class="sheet-body link-form" onSubmit={save}>
         <p class="settings-text">{t(me.role === "owner" ? "account.owner" : "account.viewer")}</p>
         <label class="field-row">
           <span class="field-label">{t("account.current")}</span>
-          <Secret class="value" autoComplete="current-password" required value={current} onInput={(e) => setCurrent((e.target as HTMLInputElement).value)} />
+          <Secret class="value" autoComplete="current-password" required value={current} onInput={(e) => edit(setCurrent, e)} />
         </label>
         <label class="field-row">
           <span class="field-label">{t("account.next")}</span>
-          <Secret class="value" autoComplete="new-password" minLength={10} required value={next} onInput={(e) => setNext((e.target as HTMLInputElement).value)} aria-describedby="password-strength" />
+          <Secret class="value" autoComplete="new-password" minLength={10} required value={next} onInput={(e) => edit(setNext, e)} aria-describedby="password-strength" />
           {next ? (
             <span class="strength" id="password-strength" data-score={score} aria-live="polite">
               <span class="strength-bar" aria-hidden="true">
@@ -62,7 +67,7 @@ export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void 
         </label>
         <label class="field-row">
           <span class="field-label">{t("account.again")}</span>
-          <Secret class="value" autoComplete="new-password" required value={again} aria-invalid={mismatch} onInput={(e) => setAgain((e.target as HTMLInputElement).value)} />
+          <Secret class="value" autoComplete="new-password" required value={again} aria-invalid={mismatch} onInput={(e) => edit(setAgain, e)} />
           {mismatch ? <span class="field-hint field-bad">{t("account.mismatch")}</span> : null}
         </label>
         <div class="settings-actions start">
@@ -265,10 +270,15 @@ function TwoFactor({ me }: { me: Person }) {
 function ResetTwoFactor({ onReset, onCancel }: { onReset: (password: string) => Promise<void>; onCancel: () => void }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  // Shown under the form it belongs to, rather than at the foot of the list.
+  const [error, setError] = useState("");
   const submit = (e: Event) => {
     e.preventDefault();
     setBusy(true);
-    void onReset(password).finally(() => setBusy(false));
+    setError("");
+    void onReset(password)
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setBusy(false));
   };
   return (
     <form class="reset-twofactor" onSubmit={submit}>
@@ -280,6 +290,7 @@ function ResetTwoFactor({ onReset, onCancel }: { onReset: (password: string) => 
       <button type="button" class="copy inline" onClick={onCancel}>
         {t("common.cancel")}
       </button>
+      {error ? <span class="settings-error">{error}</span> : null}
     </form>
   );
 }
@@ -299,6 +310,8 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
   const [sending, setSending] = useState(false);
   // Whose two-factor is being reset, while the owner's password is asked for.
   const [resetting, setResetting] = useState<string | null>(null);
+  // Making yourself a viewer takes a second click, since only another owner can undo it.
+  const [demoting, setDemoting] = useState(false);
   const load = () =>
     api
       .people()
@@ -327,11 +340,14 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
       .catch((err: Error) => setError(err.message))
       .finally(() => setSending(false));
   };
-  const change = (id: string, next: Person["role"]) =>
-    api
+  const change = (id: string, next: Person["role"]) => {
+    if (id === me.id && next === "viewer" && !demoting) return setDemoting(true);
+    setDemoting(false);
+    return api
       .setRole(id, next)
       .then(() => (id === me.id && next === "viewer" ? onDemoted() : load()))
       .catch((err: Error) => setError(err.message));
+  };
   return (
     <div class="settings-group">
       <p class="settings-text">{t("people.intro")}</p>
@@ -371,14 +387,11 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
                   <ResetTwoFactor
                     onCancel={() => setResetting(null)}
                     onReset={(password) =>
-                      api
-                        .resetTwoFactor(p.id, password)
-                        .then(() => {
-                          setResetting(null);
-                          setError("");
-                          return load();
-                        })
-                        .catch((err: Error) => setError(err.message))
+                      api.resetTwoFactor(p.id, password).then(() => {
+                        setResetting(null);
+                        setError("");
+                        return load();
+                      })
                     }
                   />
                 ) : (
@@ -389,10 +402,22 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
                         {t("people.resetTwoFactor")}
                       </button>
                     ) : null}
-                    <select class="value people-role" value={p.role} aria-label={t("people.role")} onChange={(e) => void change(p.id, (e.target as HTMLSelectElement).value as Person["role"])}>
-                      <option value="owner">{t("people.owner")}</option>
-                      <option value="viewer">{t("people.viewer")}</option>
-                    </select>
+                    {p.id === me.id && demoting ? (
+                      <span class="confirm-demote">
+                        <span class="settings-text">{t("people.demoteSelf")}</span>
+                        <button type="button" class="copy inline armed" onClick={() => void change(p.id, "viewer")}>
+                          {t("people.demoteConfirm")}
+                        </button>
+                        <button type="button" class="copy inline" onClick={() => setDemoting(false)}>
+                          {t("common.cancel")}
+                        </button>
+                      </span>
+                    ) : (
+                      <select class="value people-role" value={p.role} aria-label={t("people.role")} onChange={(e) => void change(p.id, (e.target as HTMLSelectElement).value as Person["role"])}>
+                        <option value="owner">{t("people.owner")}</option>
+                        <option value="viewer">{t("people.viewer")}</option>
+                      </select>
+                    )}
                     {p.id === me.id ? null : (
                       <DeleteButton
                         name={p.email}

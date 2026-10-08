@@ -25,11 +25,12 @@ A page goal counts visits to a page, and `*` matches anything.
 
 | Page | Counts |
 | --- | --- |
-| `/thanks` | exactly /thanks |
-| `/thanks*` | /thanks, /thanks/pro, /thanks?plan=team |
+| `/thanks` | /thanks, with or without a query such as ?plan=team |
+| `/thanks*` | /thanks, /thanks/pro, and /thanks-team |
 | `/blog/*` | every post under /blog/ |
+| `/#/thanks` | the /thanks route of a site that uses hash routing |
 
-You can paste a full URL, and Runlight keeps only its path.
+You can paste a full URL, and Runlight keeps its path and any hash route. Paths are matched as browsers send them, so `/café` counts visits to /café.
 
 ## Click goals
 

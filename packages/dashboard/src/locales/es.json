@@ -570,7 +570,7 @@
   "people.owner": "Propietario",
   "people.viewer": "Lector",
   "people.roles": "Un servidor siempre conserva al menos un propietario.",
-  "people.emailPlaceholder": "Su correo electrónico",
+  "people.emailPlaceholder": "Correo electrónico de la persona",
   "pluginKey.title": "Clave para plugins de CMS",
   "pluginKey.intro": "Los plugins de WordPress, Drupal y Craft usan esta clave para informar de los agentes de IA que leen las páginas de este sitio. Solo puede informar para este sitio y no puede leer nada. Al reemplazarla, la anterior deja de funcionar al instante.",
   "pluginKey.replace": "Reemplazar clave",
@@ -850,5 +850,13 @@
   "error.unknown_dimension": "Runlight no conoce el desglose \"{dimension}\".",
   "error.internal": "Algo falló en el servidor. Inténtalo de nuevo.",
   "filter.max": "Se aplican hasta {max} filtros a la vez. Quita uno para añadir otro.",
-  "error.sample_soon_hub": "Un hub conectado puede enviar una muestra cada diez minutos. Espera unos minutos y vuelve a intentarlo."
+  "error.sample_soon_hub": "Un hub conectado puede enviar una muestra cada diez minutos. Espera unos minutos y vuelve a intentarlo.",
+  "people.demoteSelf": "Solo otro propietario podrá volver a hacerte propietario.",
+  "people.demoteConfirm": "Hacerme lector",
+  "error.check_not_public": "no es un nombre de dominio público",
+  "error.check_private": "apunta a una dirección que no es pública",
+  "error.check_timeout": "tardó demasiado en responder",
+  "error.check_https": "no se pudo conectar por HTTPS",
+  "error.check_not_runlight": "algo respondió, pero no Runlight",
+  "error.check_status": "respondió {status}"
 }

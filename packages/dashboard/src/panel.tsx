@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, download, geoCredit, viewParams, type Row, type View } from "./api.js";
-import { count, countryName, duration, flag, hourLabel, percent, weekdays } from "./format.js";
+import { count, countryName, duration, flag, hourLabel, percent, readablePath, weekdays } from "./format.js";
 import type { RhythmCell } from "./api.js";
 import { rich, t, tn, type Key } from "./i18n.js";
 import { MapOverlay, WorldMap } from "./map.js";
@@ -48,6 +48,7 @@ export function label(dimension: string, value: string): string {
   if (dimension === "region") return `${flag(value.slice(0, 2))} ${value}`.trim();
   if (dimension === "channel") return t(`channel.${value}` as Key);
   if (dimension === "device") return t(`device.${value}` as Key);
+  if (dimension === "page" || dimension === "entry" || dimension === "exit" || dimension === "ai_page" || dimension === "path") return readablePath(value);
   return value;
 }
 

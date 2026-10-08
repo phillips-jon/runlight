@@ -130,7 +130,7 @@ export function checkConfig(config: MailConfig): void {
       throw new MailError(`${f.label} must be one of ${f.options.join(", ")}`, "mail_option", { field: f.name, options: f.options.join(", ") });
     }
   }
-  if (config.service === "webhook" && !/^https:\/\//.test(config.url ?? "") && !/^http:\/\/(localhost|127\.0\.0\.1)/.test(config.url ?? "")) {
+  if (config.service === "webhook" && !/^https:\/\//.test(config.url ?? "") && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(config.url ?? "")) {
     throw new MailError("The webhook URL must use https", "mail_https", {});
   }
 }

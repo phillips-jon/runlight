@@ -3,6 +3,8 @@
  * links to, or /favicon.ico. Fetched from the site's own configured origin
  * (never from request input), cached in memory for a day.
  */
+import { publicFetch } from "./safefetch.js";
+
 const TIMEOUT_MS = 4000;
 const MAX_BYTES = 256 * 1024;
 const DAY = 86_400_000;
@@ -32,7 +34,8 @@ export function iconLinks(html: string, base: string): string[] {
     } catch {
       continue;
     }
-    if (!url.startsWith("https://") && !url.startsWith("http://")) continue;
+    // Only https, which is all the fetch below takes.
+    if (!url.startsWith("https://")) continue;
     const type = attr(tag, "type").toLowerCase();
     const score = rel.includes("apple-touch-icon") ? 3 : type.includes("svg") || url.endsWith(".svg") ? 2 : type.includes("png") || url.endsWith(".png") ? 1 : 0;
     found.push({ url, score });
@@ -40,45 +43,46 @@ export function iconLinks(html: string, base: string): string[] {
   return found.sort((a, b) => b.score - a.score).map((f) => f.url);
 }
 
+/** A GET of a public https address, with redirects followed only to public addresses too. */
 async function get(url: string): Promise<Response | null> {
   try {
-    return await fetch(url, { signal: AbortSignal.timeout(TIMEOUT_MS), redirect: "follow", headers: { "user-agent": "Runlight (+https://runlight.sh)" } });
+    return await publicFetch(url, { timeoutMs: TIMEOUT_MS, redirects: 3, headers: { "user-agent": "Runlight (+https://runlight.sh)" } });
   } catch {
     return null;
   }
 }
 
-/** A response body, stopping as soon as it passes `max` bytes rather than reading it all. Null past that. */
-async function capped(response: Response, max: number): Promise<Uint8Array | null> {
+/**
+ * Up to `max` bytes of a body, reading no further. With `whole`, null when the body is longer, for an
+ * image that must arrive complete; without, the start of it, enough for a page's head.
+ */
+async function readUpTo(response: Response, max: number, whole: boolean): Promise<Uint8Array | null> {
   if (!response.body) return new Uint8Array();
-  if (Number(response.headers.get("content-length") ?? 0) > max) {
+  if (whole && Number(response.headers.get("content-length") ?? 0) > max) {
     await response.body.cancel().catch(() => {});
     return null;
   }
   const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const out = new Uint8Array(max);
   let size = 0;
   try {
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      size += value.length;
-      if (size > max) {
+      if (size + value.length > max) {
         await reader.cancel().catch(() => {});
-        return null;
+        if (whole) return null;
+        out.set(value.subarray(0, max - size), size);
+        return out;
       }
-      chunks.push(value);
+      out.set(value, size);
+      size += value.length;
     }
   } catch {
-    return null;
+    // A body cut off part way: an image is no use, a page's start still is.
+    if (whole) return null;
   }
-  const all = new Uint8Array(size);
-  let at = 0;
-  for (const c of chunks) {
-    all.set(c, at);
-    at += c.length;
-  }
-  return all;
+  return out.subarray(0, size);
 }
 
 async function image(url: string): Promise<Icon | null> {
@@ -89,30 +93,9 @@ async function image(url: string): Promise<Icon | null> {
     await response.body?.cancel().catch(() => {});
     return null;
   }
-  const bytes = await capped(response, MAX_BYTES);
+  const bytes = await readUpTo(response, MAX_BYTES, true);
   if (!bytes || bytes.byteLength === 0) return null;
   return { body: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer, type };
-}
-
-/** Up to `max` bytes of a body, then stops reading. */
-async function readHead(response: Response, max: number): Promise<Uint8Array> {
-  if (!response.body) return new Uint8Array();
-  const reader = response.body.getReader();
-  const out = new Uint8Array(max);
-  let size = 0;
-  try {
-    while (size < max) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      const take = Math.min(value.length, max - size);
-      out.set(value.subarray(0, take), size);
-      size += take;
-    }
-  } catch {
-    // What arrived is enough to look through.
-  }
-  await reader.cancel().catch(() => {});
-  return out.subarray(0, size);
 }
 
 /** Lookups under way, so many dashboards opening at once share one. */
@@ -134,8 +117,7 @@ async function lookUp(origin: string, now: number): Promise<Icon | null> {
   const page = await get(`${origin}/`);
   if (page?.ok && (page.headers.get("content-type") ?? "").includes("html")) {
     // The head is all that is needed, so a huge page is not read to the end.
-    const bytes = await readHead(page, 200_000);
-    const html = new TextDecoder().decode(bytes);
+    const html = new TextDecoder().decode((await readUpTo(page, 200_000, false)) ?? new Uint8Array());
     for (const url of iconLinks(html, page.url || origin).slice(0, 4)) {
       icon = await image(url);
       if (icon) break;
