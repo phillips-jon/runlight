@@ -147,6 +147,6 @@ npx runlight.sh agents --log /var/log/nginx/access.log --to https://stats.exampl
 
 The key is the site's own, from **Settings**, **Install**, **Key for CMS plugins**, and it can only report fetches for that site. `--site` is the site's address, for logs in nginx or Apache's usual format, which leave the host out. Caddy's JSON logs carry the host, so it is not needed there.
 
-With `--follow` the command keeps running, sends fetches as they happen, and carries on when the log is rotated. A systemd service or a process manager keeps it going. Without `--follow` it reads the log once and stops, and with `--state ./agents.json` the next run starts where the last one finished, which suits cron.
+With `--follow` the command keeps running, sends fetches as they happen, and carries on when the log is rotated, finishing the old file before it moves to the new one. A systemd service or a process manager keeps it going. Add `--state ./agents.json` so a restart picks up where it stopped. Without `--follow` it reads the log once and stops, and with `--state` the next run starts where the last one finished, which suits cron.
 
 Only successful page fetches from known AI agents leave the machine, each with its address, its user agent, and when it was served. Visitors' addresses and everything else in the log stay where they are.

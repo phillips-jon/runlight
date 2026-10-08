@@ -97,3 +97,35 @@ test("a log is read once, carries on where it stopped, and starts over after rot
     server.close();
   }
 });
+
+test("following a log reads what was written just before a rotation, then the new log", async () => {
+  const now = Date.UTC(2026, 9, 7, 18, 0, 0);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["example.com"] }, now: () => now });
+  await rl.init();
+  await rl.store.setSetting("observe-key:default", "rlo_site");
+  const server = createServer(toNodeHandler(rl.routes({ token: "owner" }).handler));
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const to = `http://127.0.0.1:${(server.address() as AddressInfo).port}/runlight`;
+  const dir = mkdtempSync(path.join(tmpdir(), "runlight-follow-"));
+  const log = path.join(dir, "access.log");
+  const stop = new AbortController();
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  try {
+    writeFileSync(log, "");
+    const following = runAgents({ log, to, key: "rlo_site", site: "https://example.com", follow: true, pollMs: 50, stop: stop.signal, out: () => {} });
+    await wait(120);
+    appendFileSync(log, `${line("/before", GPTBOT)}\n`);
+    // Rotated before the reader looks again: the last line is in the renamed file only.
+    appendFileSync(log, `${line("/last-old", CLAUDE)}\n`);
+    renameSync(log, `${log}.1`);
+    writeFileSync(log, `${line("/new", GPTBOT)}\n`);
+    await wait(400);
+    stop.abort();
+    await following;
+    const paths = (await rl.store.db.all<{ path: string }>(`SELECT path FROM rl_events WHERE kind = 'fetch' ORDER BY path`)).map((r) => r.path);
+    assert.deepEqual(paths, ["/before", "/last-old", "/new"]);
+  } finally {
+    stop.abort();
+    server.close();
+  }
+});

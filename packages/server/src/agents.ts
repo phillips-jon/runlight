@@ -11,7 +11,7 @@
  * the last run (remembered in --state) and stops, for cron.
  */
 import { createHash } from "node:crypto";
-import { closeSync, existsSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
 import { aiAgent } from "@runlight/sdk";
 
 export interface Fetch {
@@ -95,9 +95,13 @@ export interface AgentsOptions {
   key: string;
   site?: string;
   follow?: boolean;
-  /** Where one-shot runs remember how far they read. */
+  /** Where runs remember how far they read, so the next one (or a restarted --follow) carries on. */
   state?: string;
   out?: (line: string) => void;
+  /** Ends --follow, which otherwise runs until the process stops. */
+  stop?: AbortSignal;
+  /** How often --follow looks at the log, 2 seconds by default. */
+  pollMs?: number;
 }
 
 /** Sends fetches to /api/observe, 500 at a time, and returns how many Runlight kept. */
@@ -150,10 +154,11 @@ function sameLog(file: string, saved: { ino: number; head?: string; length?: num
  * Reads whole lines from a byte offset, at most a chunk, and returns where the next read starts.
  * The offset counts bytes up to the last newline byte, so a malformed character cannot shift it.
  */
-function readFrom(file: string, offset: number): { lines: string[]; next: number; more: boolean } {
-  const size = statSync(file).size;
+function readFrom(file: string | number, offset: number): { lines: string[]; next: number; more: boolean } {
+  // A path is opened for this read; an open file (in follow mode) stays open, even once it is renamed.
+  const size = typeof file === "number" ? fstatSync(file).size : statSync(file).size;
   if (size <= offset) return { lines: [], next: offset, more: false };
-  const fd = openSync(file, "r");
+  const fd = typeof file === "number" ? file : openSync(file, "r");
   try {
     const buffer = Buffer.alloc(Math.min(size - offset, CHUNK));
     readSync(fd, buffer, 0, buffer.length, offset);
@@ -162,7 +167,7 @@ function readFrom(file: string, offset: number): { lines: string[]; next: number
     if (end < 0) return buffer.length === CHUNK ? { lines: [], next: offset + buffer.length, more: true } : { lines: [], next: offset, more: false };
     return { lines: buffer.subarray(0, end).toString("utf8").split("\n"), next: offset + end + 1, more: offset + buffer.length < size };
   } finally {
-    closeSync(fd);
+    if (typeof file !== "number") closeSync(fd);
   }
 }
 
@@ -214,25 +219,37 @@ export async function runAgents(options: AgentsOptions): Promise<number> {
   let offset = resumed && resumed.offset <= first.size && sameLog(options.log, resumed, first) ? resumed.offset : first.size;
   let known = headOf(options.log);
   out(`Following ${options.log}. AI agent fetches go to ${options.to} as they happen.`);
-  for (;;) {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    if (!existsSync(options.log)) continue;
-    const stat = statSync(options.log);
-    if (stat.ino !== ino || stat.size < offset || !sameLog(options.log, { ino, ...known }, stat)) {
-      ino = stat.ino;
-      offset = 0;
-    }
-    // The start grows until it is HEAD bytes long, so the fingerprint is taken again each time.
-    known = headOf(options.log);
-    const { lines, next } = readFrom(options.log, offset);
+  // The log stays open, so when it is renamed in a rotation, what was written to it before the
+  // switch is still read to the end before the new log starts.
+  let fd = openSync(options.log, "r");
+  while (!options.stop?.aborted) {
+    await new Promise((resolve) => setTimeout(resolve, options.pollMs ?? 2000));
+    const stat = existsSync(options.log) ? statSync(options.log) : null;
+    const renamed = !stat || stat.ino !== ino;
+    // Copied and truncated in place: the same file, shorter or with a new start.
+    if (!renamed && (stat!.size < offset || !sameLog(options.log, { ino, ...known }, stat!))) offset = 0;
+    let read: ReturnType<typeof readFrom>;
     try {
-      const sent = await handle(lines);
+      read = readFrom(fd, offset);
+      const sent = await handle(read.lines);
       // Only past lines that were sent, so a failed send is tried again next time.
-      offset = next;
+      offset = read.next;
       save(ino, offset);
       if (sent) out(`Sent ${sent} AI agent fetches.`);
     } catch (error) {
       out(`Could not send, trying again shortly: ${(error as Error).message}`);
+      continue;
     }
+    if (renamed && stat && !read.more) {
+      // The old log is finished; the new one is read from its start.
+      closeSync(fd);
+      fd = openSync(options.log, "r");
+      ino = stat.ino;
+      offset = 0;
+    }
+    // The start grows until it is HEAD bytes long, so the fingerprint is taken again each time.
+    if (stat) known = headOf(options.log);
   }
+  closeSync(fd);
+  return total;
 }
