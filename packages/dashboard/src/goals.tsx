@@ -500,7 +500,6 @@ export function Goals({ site, view }: { site: Site; view: View }) {
           {t("goals.add")}
         </button>
       </div>
-      <Funnels site={site} view={view} />
     </div>
   );
 }

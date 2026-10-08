@@ -384,6 +384,7 @@
   "welcome.title": "Ajoutez Runlight à {name}",
   "welcome.lead": "En attente de la première visite. Cette page se remplira toute seule.",
   "settings.goals": "Objectifs",
+  "settings.funnels": "Entonnoirs",
   "panel.conversions": "Conversions",
   "goals.revenueAside": "{amount} de revenus",
   "goals.add": "Ajouter un objectif",

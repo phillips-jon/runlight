@@ -61,9 +61,6 @@ export function Funnels({ site, view }: { site: Site; view: View }) {
   }
   return (
     <div class="settings-group">
-      <p class="settings-text">
-        <strong>{t("funnels.title")}</strong>
-      </p>
       <p class="settings-text">{t("funnels.intro")}</p>
       {funnels && funnels.length ? (
         <ul class="domain-list goal-list">

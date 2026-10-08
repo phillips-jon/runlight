@@ -4,6 +4,7 @@ import { accounts, api, base, download, install, type Person, type Site, type Vi
 import { People } from "./account.js";
 import { AssistantSettings } from "./assistant.js";
 import { EmailReports } from "./email.js";
+import { Funnels } from "./funnels.js";
 import { Goals } from "./goals.js";
 import { LANGUAGES, currentLocale, errorText, rich, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
@@ -16,11 +17,12 @@ import { Tokens } from "./tokens.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 import { useDialogFocus } from "./focus.js";
 
-export type Section = "general" | "install" | "goals" | "email" | "sharing" | "api" | "links" | "import" | "people" | "data" | "assistant";
+export type Section = "general" | "install" | "goals" | "funnels" | "email" | "sharing" | "api" | "links" | "import" | "people" | "data" | "assistant";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
   ["goals", "settings.goals"],
+  ["funnels", "settings.funnels"],
   ["email", "settings.email"],
   ["sharing", "settings.sharing"],
   ["api", "settings.api"],
@@ -723,7 +725,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   // install-wide things (people, tokens, imports, sharing) stay with that install.
   const sections: Array<[Section, Key]> = site.remote
     ? site.manage
-      ? SECTIONS.filter(([id]) => ["general", "goals", "email", "sharing", "links", "data", "assistant"].includes(id))
+      ? SECTIONS.filter(([id]) => ["general", "goals", "funnels", "email", "sharing", "links", "data", "assistant"].includes(id))
       : [["general", "settings.general"], ["assistant", "settings.assistant"]]
     : me?.role === "owner"
       ? [...SECTIONS, ["people", "settings.people"]]
@@ -771,6 +773,8 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
               <Install site={site} sites={sites} />
             ) : section === "goals" ? (
               <Goals site={site} view={view} />
+            ) : section === "funnels" ? (
+              <Funnels site={site} view={view} />
             ) : section === "email" ? (
               <EmailReports site={site} />
             ) : section === "sharing" ? (

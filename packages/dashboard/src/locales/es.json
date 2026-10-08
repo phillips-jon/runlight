@@ -384,6 +384,7 @@
   "welcome.title": "Añade Runlight a {name}",
   "welcome.lead": "Esperando la primera visita. Esta página se llenará sola cuando llegue.",
   "settings.goals": "Objetivos",
+  "settings.funnels": "Embudos",
   "panel.conversions": "Conversiones",
   "goals.revenueAside": "{amount} de ingresos",
   "goals.add": "Añadir objetivo",
