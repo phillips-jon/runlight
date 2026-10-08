@@ -123,7 +123,7 @@ test("failed tries by others cannot lock out a browser that signed in before, an
   assert.equal((await code(totp(secret, Math.floor(now / 30_000)))).status, 429, "even the right code waits after five wrong ones");
 });
 
-test("with two-factor on, failed passwords from others cannot lock its owner out of a new browser", async () => {
+test("with two-factor on, failed passwords from others cannot lock its owner out, nor tell which password was right", async () => {
   let now = Date.UTC(2026, 9, 7, 12);
   const server = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), now: () => now });
   const user = await server.accounts.setPassword("jon@example.com", "a long password", now);
@@ -132,13 +132,87 @@ test("with two-factor on, failed passwords from others cannot lock its owner out
   now += 60_000;
   const login = (password: string, ip: string) =>
     server.handler(new Request(`${origin}/login`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-for": ip }, body: new URLSearchParams({ email: "jon@example.com", password }).toString() }));
-  for (let i = 0; i < 60; i++) assert.equal((await login("wrong wrong wrong", `203.0.113.${i}`)).status, 401, "a password alone never signs in, so the account is not blocked");
+  for (let i = 0; i < 50; i++) assert.equal((await login("wrong wrong wrong", `203.0.113.${i}`)).status, 401);
+  // Past the account's limit, a wrong password reaches the code step too, where no code passes.
+  const decoy = await login("wrong wrong wrong", "203.0.113.200");
+  assert.equal(decoy.status, 200);
+  const fake = /name="pending" value="([^"]+)"/.exec(await decoy.text())![1]!;
+  const code = (pending: string) => server.handler(req("/login/code", form({ pending, code: totp(secret, Math.floor(now / 30_000)) })));
+  assert.equal((await code(fake)).status, 401, "even the right code fails after a wrong password");
+  // The owner, from a new browser, gets the real step.
   const step = await login("a long password", "192.0.2.77");
   assert.equal(step.status, 200, "a new browser reaches the code step");
-  assert.match(await step.text(), /name="pending"/);
+  const real = /name="pending" value="([^"]+)"/.exec(await step.text())![1]!;
+  assert.equal(real.split(".").length, fake.split(".").length);
+  now += 30_000;
+  assert.equal((await code(real)).status, 303);
   // Each address still has its own limit.
   for (let i = 0; i < 10; i++) await login("wrong wrong wrong", "198.51.100.9");
   assert.equal((await login("a long password", "198.51.100.9")).status, 429);
+});
+
+test("without two-factor, a held-up account answers every password alike, and a right one emails a sign-in link", async () => {
+  const { createServer: listen } = await import("node:http");
+  const got: any[] = [];
+  const hook = listen((r, res) => {
+    let text = "";
+    r.on("data", (c) => (text += c));
+    r.on("end", () => {
+      got.push(JSON.parse(text));
+      res.end("ok");
+    });
+  });
+  await new Promise<void>((resolve) => hook.listen(0, "127.0.0.1", resolve));
+  try {
+    const now = Date.UTC(2026, 9, 7, 12);
+    const server = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), url: origin, now: () => now });
+    await server.accounts.setPassword("jon@example.com", "a long password", now);
+    const login = (password: string, ip: string) =>
+      server.handler(new Request(`${origin}/login`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-for": ip }, body: new URLSearchParams({ email: "jon@example.com", password }).toString() }));
+    for (let i = 0; i < 50; i++) await login("wrong wrong wrong", `203.0.113.${i}`);
+    // Without a mail service the account waits, as before.
+    assert.equal((await login("a long password", "192.0.2.77")).status, 429);
+    await server.runlight.saveMailSettings({ service: "webhook", url: `http://127.0.0.1:${(hook.address() as { port: number }).port}/`, from: "runlight@example.com" });
+    const wrong = await login("wrong again", "192.0.2.78");
+    const right = await login("a long password", "192.0.2.79");
+    assert.deepEqual([wrong.status, right.status], [429, 429]);
+    assert.equal((await wrong.text()).replace(/wrong again|a long password/g, ""), (await right.text()).replace(/wrong again|a long password/g, ""), "the same page either way");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(got.length, 1, "only the right password sends a link");
+    assert.equal(got[0].to, "jon@example.com");
+    const link = /https:\/\/stats\.example\.com\/login\/link\?\S+/.exec(got[0].text)![0];
+    const opened = await server.handler(new Request(link));
+    assert.equal(opened.status, 303);
+    assert.match(opened.headers.get("set-cookie") ?? "", /runlight_session=/);
+    assert.equal((await server.handler(new Request(link.replace(/ticket=[^&]+/, "ticket=x.1.y")))).status, 410);
+  } finally {
+    hook.close();
+  }
+});
+
+test("six-digit codes are counted before they are checked, and confirming a new set-up has its own few tries", async () => {
+  const now = Date.UTC(2026, 9, 7, 12);
+  const server = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), now: () => now });
+  const user = await server.accounts.setPassword("jon@example.com", "a long password", now);
+  const secret = await server.accounts.startTwoFactor(user.id);
+  await server.accounts.confirmTwoFactor(user.id, totp(secret, Math.floor(now / 30_000)), now);
+  const pending = server.accounts.pendingFor((await server.accounts.byId(user.id))!, now);
+  const burst = await Promise.all(Array.from({ length: 200 }, () => server.handler(req("/login/code", form({ pending, code: "000000" }))).then((r) => r.status)));
+  assert.equal(burst.filter((s) => s === 401).length, 5);
+  assert.equal(burst.filter((s) => s === 429).length, 195);
+
+  // Someone holding a session tries to finish a set-up its owner left half done.
+  const other = await server.accounts.setPassword("amy@example.com", "a long password", now);
+  await server.accounts.startTwoFactor(other.id);
+  const cookie = `runlight_session=${encodeURIComponent(server.accounts.sessionFor(other, now))}`;
+  const confirm = (code: string) => server.handler(req("/api/account/2fa/confirm", { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ code }) }));
+  for (let i = 0; i < 5; i++) assert.equal((await confirm(String(i).padStart(6, "0"))).status, 400);
+  const stopped = await confirm("000009");
+  assert.equal(stopped.status, 429);
+  assert.equal(((await stopped.json()) as any).code, "twofactor_restart");
+  assert.equal((await server.accounts.byId(other.id))!.twoFactor, false);
+  const [row] = await server.runlight.store.db.all(`SELECT totp_pending FROM rl_users WHERE id = ?`, [other.id]);
+  assert.equal(row!.totp_pending, null, "the half-done set-up is gone");
 });
 
 test("a burst of wrong passwords is counted before they are checked, so it cannot pass the limit", async () => {

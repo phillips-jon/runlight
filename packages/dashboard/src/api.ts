@@ -281,7 +281,11 @@ export interface Share {
 }
 
 export class ApiError extends Error {
-  constructor(readonly status: number, message: string) {
+  constructor(
+    readonly status: number,
+    message: string,
+    readonly code = "",
+  ) {
     super(message);
   }
 }
@@ -289,7 +293,7 @@ export class ApiError extends Error {
 /** The error a failed response carries, in the dashboard's language when its code is one the dashboard knows. */
 async function failure(response: Response): Promise<ApiError> {
   const body = (await response.json().catch(() => null)) as { error?: string; code?: string; params?: Record<string, string> } | null;
-  return new ApiError(response.status, (body?.code && errorText(body.code, body.params)) || body?.error || response.statusText);
+  return new ApiError(response.status, (body?.code && errorText(body.code, body.params)) || body?.error || response.statusText, body?.code ?? "");
 }
 
 async function get<T>(path: string, params: URLSearchParams): Promise<T> {

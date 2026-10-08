@@ -780,5 +780,6 @@
   "error.twofactor_off": "Ative primeiro o login em duas etapas.",
   "error.twofactor_self": "Desative seu próprio login em duas etapas em Conta.",
   "error.unknown_invite": "Esse convite não existe mais.",
-  "error.origin_needed": "Defina primeiro o endereço deste Runlight (RUNLIGHT_URL no servidor, ou origin em routes()) para que um hub ligado possa adicionar domínios de links e relatórios por e-mail."
+  "error.origin_needed": "Defina primeiro o endereço deste Runlight (RUNLIGHT_URL no servidor, ou origin em routes()) para que um hub ligado possa adicionar domínios de links e relatórios por e-mail.",
+  "error.twofactor_restart": "Códigos errados demais. Comece de novo a ativar o login em duas etapas."
 }

@@ -253,6 +253,12 @@ export class Accounts {
     return recovery;
   }
 
+  /** Drops a set-up left half done, after too many wrong codes, so it must start again with the password. */
+  async cancelTwoFactorSetup(id: string): Promise<void> {
+    await this.init();
+    await this.store.db.run(`UPDATE rl_users SET totp_pending = NULL WHERE id = ?`, [id]);
+  }
+
   async disableTwoFactor(id: string): Promise<void> {
     await this.init();
     await this.store.db.run(`UPDATE rl_users SET totp_secret = NULL, totp_pending = NULL, totp_recovery = NULL, totp_step = NULL WHERE id = ?`, [id]);
@@ -301,16 +307,46 @@ export class Accounts {
    * which still owes a code. Signed like a session, so it cannot be made up.
    */
   pendingFor(user: User, now: number): string {
-    const body = `${user.id}.${now + 5 * 60_000}`;
-    return `${body}.${this.sign(`pending.${body}`, user.hash)}`;
+    return this.ticket("pending", user, now + 5 * 60_000);
   }
 
-  async fromPending(value: string, now: number): Promise<User | null> {
+  /**
+   * A ticket that looks and acts like pendingFor's, except that no code ever
+   * passes with it. A wrong password gets one once an account with
+   * two-factor has had too many, so the answer never tells a right password.
+   */
+  decoyFor(user: User, now: number): string {
+    return this.ticket("decoy", user, now + 5 * 60_000);
+  }
+
+  /** The account a code-step ticket names, and whether a right code may sign in with it. */
+  async fromPending(value: string, now: number): Promise<{ user: User; real: boolean } | null> {
+    const user = await this.fromTicket("pending", value, now);
+    if (user) return { user, real: true };
+    const decoy = await this.fromTicket("decoy", value, now);
+    return decoy ? { user: decoy, real: false } : null;
+  }
+
+  /** A ticket for a sign-in link sent by email, for fifteen minutes. A new password withdraws it. */
+  linkFor(user: User, now: number): string {
+    return this.ticket("link", user, now + 15 * 60_000);
+  }
+
+  fromLink(value: string, now: number): Promise<User | null> {
+    return this.fromTicket("link", value, now);
+  }
+
+  private ticket(kind: string, user: User, expires: number): string {
+    const body = `${user.id}.${expires}`;
+    return `${body}.${this.sign(`${kind}.${body}`, user.hash)}`;
+  }
+
+  private async fromTicket(kind: string, value: string, now: number): Promise<User | null> {
     const [id, expires, signature] = value.split(".");
     if (!id || !expires || !signature || !(Number(expires) > now)) return null;
     const user = await this.byId(id);
     if (!user) return null;
-    const expected = Buffer.from(this.sign(`pending.${id}.${expires}`, user.hash));
+    const expected = Buffer.from(this.sign(`${kind}.${id}.${expires}`, user.hash));
     const given = Buffer.from(signature);
     return expected.length === given.length && timingSafeEqual(expected, given) ? user : null;
   }

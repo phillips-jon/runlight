@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { api, type InviteSent, type PendingInvite, type Person } from "./api.js";
+import { ApiError, api, type InviteSent, type PendingInvite, type Person } from "./api.js";
 import { day } from "./format.js";
 import { errorText, t, tn, type Key } from "./i18n.js";
 import { Secret } from "./secret.js";
@@ -121,13 +121,23 @@ function TwoFactor({ me }: { me: Person }) {
   };
   const confirmCode = (e: Event) => {
     e.preventDefault();
-    run(api.twoFactorConfirm(code), (r) => {
-      setCodes(r.recovery);
-      setLeft(r.recovery.length);
-      setOn(true);
-      setSetup(null);
-      setCode("");
-    });
+    run(
+      api.twoFactorConfirm(code).catch((err: unknown) => {
+        // After too many wrong codes the set-up is gone, so it starts again from the password.
+        if (err instanceof ApiError && err.code === "twofactor_restart") {
+          setSetup(null);
+          setCode("");
+        }
+        throw err;
+      }),
+      (r) => {
+        setCodes(r.recovery);
+        setLeft(r.recovery.length);
+        setOn(true);
+        setSetup(null);
+        setCode("");
+      },
+    );
   };
   const qr = setup ? qrSvg(setup.uri) : null;
   const saveCodes = () => {

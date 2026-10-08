@@ -95,9 +95,13 @@ export function createServer(options: ServerOptions): RunlightServer {
   // Each try counts before the password is checked, and a right one is taken back.
   const perAddress = new Throttle(10);
   const perAccount = new Throttle(50);
-  // Six-digit codes: five wrong tries an account every fifteen minutes. Password re-checks in Account: ten.
+  // Six-digit codes: five wrong tries an account every fifteen minutes, and five to confirm the first one.
+  // Password re-checks in Account: ten.
   const codeTries = new Throttle(5);
+  const confirmTries = new Throttle(5);
   const rechecks = new Throttle(10);
+  // When each account was last sent a sign-in link, at most one a minute.
+  const linkSent = new Map<string, number>();
   const DEVICE_COOKIE = "runlight_device";
   const setupCode = randomBytes(9).toString("base64url");
   let hasAccount = false;
@@ -250,37 +254,56 @@ export function createServer(options: ServerOptions): RunlightServer {
         if (method === "POST") {
           const form = new URLSearchParams(await request.text());
           const email = form.get("email") ?? "";
+          const password = form.get("password") ?? "";
           const next = safeNext(form.get("next"));
           const account = email.trim().toLowerCase();
           const pair = `${account}\n${rl.clientIp(request, context) || "unknown"}`;
-          // An account under attack is limited, except from a browser that signed in to it before, and
-          // except when it has two-factor on, where a password alone never signs in and codes have their
-          // own limit. So failed tries by someone else cannot lock its owner out of a new browser.
+          const tooMany = () => html(loginPage({ error: "Too many tries. Wait fifteen minutes and try again.", email, next }), 429);
+          if (!perAddress.take(pair, now())) return tooMany();
+          // A browser that signed in to the account before is never held up by others' failures.
           const known = await accounts.byEmail(account);
-          const spared = Boolean(known && (known.twoFactor || accounts.trustsDevice(readCookie(request, DEVICE_COOKIE), known)));
-          if (perAddress.blocked(pair, now()) || (perAccount.blocked(account, now()) && !spared)) {
-            return html(loginPage({ error: "Too many tries. Wait fifteen minutes and try again.", email, next }), 429);
+          const trusted = Boolean(known && accounts.trustsDevice(readCookie(request, DEVICE_COOKIE), known));
+          const over = !trusted && !perAccount.take(account, now());
+          // Past the account's limit, a right password and a wrong one get the same answer, so guessing from many
+          // addresses learns nothing, and the owner still gets in. With two-factor on, both reach the code step,
+          // where a wrong password's ticket never passes. Without it, a right password emails a sign-in link.
+          if (over && !known?.twoFactor) {
+            if (!(await rl.mailSettings())) return tooMany();
+            const user = await accounts.signIn(email, password);
+            if (user) void sendLink(user, next).catch((error) => console.error("Runlight: could not send a sign-in link", error));
+            return html(loginPage({ error: "Too many tries for this account. If the password was right, a link to sign in is on its way to its email address.", email, next }), 429);
           }
-          perAddress.fail(pair, now());
-          perAccount.fail(account, now());
-          const user = await accounts.signIn(email, form.get("password") ?? "");
-          if (!user) return html(loginPage({ error: "That email and password do not match an account.", email, next }), 401);
+          const user = await accounts.signIn(email, password);
+          if (!user) {
+            if (over && known) return html(codePage({ pending: accounts.decoyFor(known, now()), next }));
+            return html(loginPage({ error: "That email and password do not match an account.", email, next }), 401);
+          }
           perAddress.clear(pair);
-          perAccount.forgive(account);
+          if (!over && !trusted) perAccount.forgive(account);
           // With two-factor on, the password only earns the second step.
           if (user.twoFactor) return html(codePage({ pending: accounts.pendingFor(user, now()), next }));
           return signedInTo(request, user, next);
         }
       }
 
+      // The link a locked account's owner is emailed: the code step with two-factor on, else straight in.
+      if (path === "/login/link" && method === "GET") {
+        const next = safeNext(url.searchParams.get("next"));
+        const user = await accounts.fromLink(url.searchParams.get("ticket") ?? "", now());
+        if (!user) return html(loginPage({ error: "That sign-in link has run out. Sign in again.", next }), 410);
+        if (user.twoFactor) return html(codePage({ pending: accounts.pendingFor(user, now()), next }));
+        return signedInTo(request, user, next);
+      }
+
       if (path === "/login/code" && method === "POST") {
         const form = new URLSearchParams(await request.text());
         const next = safeNext(form.get("next"));
-        const user = await accounts.fromPending(form.get("pending") ?? "", now());
-        if (!user) return redirect(`/login?next=${encodeURIComponent(next)}`);
-        if (codeTries.blocked(user.id, now())) return html(codePage({ pending: form.get("pending") ?? "", next, error: "Too many tries. Wait fifteen minutes and try again." }), 429);
-        if (!(await accounts.checkSecondFactor(user.id, form.get("code") ?? "", now()))) {
-          codeTries.fail(user.id, now());
+        const pending = await accounts.fromPending(form.get("pending") ?? "", now());
+        if (!pending) return redirect(`/login?next=${encodeURIComponent(next)}`);
+        const { user, real } = pending;
+        // Counted before the check, so a burst cannot get past five.
+        if (!codeTries.take(user.id, now())) return html(codePage({ pending: form.get("pending") ?? "", next, error: "Too many tries. Wait fifteen minutes and try again." }), 429);
+        if (!real || !(await accounts.checkSecondFactor(user.id, form.get("code") ?? "", now()))) {
           return html(codePage({ pending: form.get("pending") ?? "", next, error: "That code is not right. Check the time on your phone, or use a recovery code." }), 401);
         }
         codeTries.clear(user.id);
@@ -372,6 +395,25 @@ export function createServer(options: ServerOptions): RunlightServer {
     }
   }
 
+  /**
+   * Emails a sign-in link to an account held up by others' failed tries, at
+   * most once a minute. Only to the server's own address: its public one, or
+   * the first name an owner signed in from, never the Host of the request.
+   */
+  async function sendLink(user: User, next: string): Promise<void> {
+    const host = publicUrl?.origin ?? [...(await knownHosts())].map((h) => `https://${h}`)[0];
+    if (!host || now() - (linkSent.get(user.id) ?? 0) < 60_000) return;
+    linkSent.set(user.id, now());
+    const link = `${host}/login/link?${new URLSearchParams({ ticket: accounts.linkFor(user, now()), next })}`;
+    const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+    await rl.sendMail({
+      to: user.email,
+      subject: "Sign in to Runlight",
+      text: `Someone, most likely you, signed in to Runlight at ${new URL(host).host} with your password while your account was held up by too many failed tries.\n\nSign in with this link within fifteen minutes:\n${link}\n\nIf this was not you, change your password, since someone knows it.\n`,
+      html: `<div style="font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;color:#111827;max-width:480px"><p>Someone, most likely you, signed in to Runlight at ${esc(new URL(host).host)} with your password while your account was held up by too many failed tries.</p><p><a href="${esc(link)}" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#111827;color:#ffffff;text-decoration:none;font-weight:600">Sign in</a></p><p style="color:#6b7280;font-size:13px">The link works for fifteen minutes. If this was not you, change your password, since someone knows it.</p></div>`,
+    });
+  }
+
   /** Your own account, and for owners, everyone else's. */
   async function accountsApi(request: Request, path: string): Promise<Response> {
     const user = await signedIn(request);
@@ -401,9 +443,15 @@ export function createServer(options: ServerOptions): RunlightServer {
       const input = await body(request);
       if (!input) return reply({ error: "Send JSON" }, 415);
       const action = path.slice("/api/account/2fa".length);
+      // Confirming asks for no password, so it has its own few tries, after which the set-up starts again.
       if (action === "/confirm") {
+        if (!confirmTries.take(user.id, now())) {
+          await accounts.cancelTwoFactorSetup(user.id);
+          return reply({ error: "Too many wrong codes. Start turning on two-factor sign-in again.", code: "twofactor_restart" }, 429);
+        }
         const codes = await accounts.confirmTwoFactor(user.id, String(input.code ?? "").replace(/\s/g, ""), now());
         if (!codes) return reply({ error: "That code is not right. Check the time on your phone and try the next one.", code: "code_wrong" }, 400);
+        confirmTries.clear(user.id);
         // Turning it on signs out every other browser; this one gets a new session.
         const updated = (await accounts.byId(user.id))!;
         return reply({ recovery: codes }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
@@ -412,6 +460,7 @@ export function createServer(options: ServerOptions): RunlightServer {
       if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right", code: "password_wrong" }, 400);
       rechecks.forgive(user.id);
       if (action === "/start") {
+        confirmTries.clear(user.id);
         const secret = await accounts.startTwoFactor(user.id);
         return reply({ secret, uri: otpauthUri(secret, user.email, new URL(request.url).host) });
       }
