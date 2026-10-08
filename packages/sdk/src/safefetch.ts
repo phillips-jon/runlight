@@ -84,11 +84,13 @@ type Stream = typeof import("node:stream");
 /**
  * Node's own modules where the runtime has them, found without an import a bundler would follow.
  * Workers reach no private network, and their https module may only be a stand-in, so they use fetch.
+ * So does Bun, whose https module connects by address and then checks the certificate against it; there
+ * the name is resolved and checked just before each request instead.
  */
 function builtins(): { https: Https; dns: Dns; stream: Stream } | null {
-  const scope = globalThis as { process?: { getBuiltinModule?: (id: string) => unknown }; navigator?: { userAgent?: string } };
+  const scope = globalThis as { process?: { getBuiltinModule?: (id: string) => unknown }; navigator?: { userAgent?: string }; Bun?: unknown };
   const get = scope.process?.getBuiltinModule;
-  if (typeof get !== "function" || scope.navigator?.userAgent === "Cloudflare-Workers") return null;
+  if (typeof get !== "function" || scope.navigator?.userAgent === "Cloudflare-Workers" || scope.Bun !== undefined) return null;
   try {
     const https = get("node:https") as Https | undefined;
     const dns = get("node:dns") as Dns | undefined;
@@ -103,6 +105,12 @@ function builtins(): { https: Https; dns: Dns; stream: Stream } | null {
 async function resolver(): Promise<Dns["promises"] | null> {
   const node = builtins();
   if (node) return node.dns.promises;
+  try {
+    const dns = (globalThis as { process?: { getBuiltinModule?: (id: string) => unknown } }).process?.getBuiltinModule?.("node:dns") as Dns | undefined;
+    if (typeof dns?.promises?.lookup === "function") return dns.promises;
+  } catch {
+    // Looked for below instead.
+  }
   try {
     // A name in a variable, so a bundler for an edge runtime leaves the import alone.
     const id = "node:dns";
