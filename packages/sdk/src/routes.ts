@@ -1072,6 +1072,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (connected && path === "/api/links") {
       const access = await reader(request);
       if (access === false || access === "unconfigured") return denied(access);
+      // A token limited to one site reads only that site's links, here as everywhere else.
+      if (access !== true && access.site && access.site !== asked) return json({ error: "Unknown site" }, 404);
       return passThrough(connected, path, url);
     }
 

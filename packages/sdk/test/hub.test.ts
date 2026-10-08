@@ -38,6 +38,15 @@ test("a standalone server reads a connected app install through its API, and cha
     assert.equal(stats.stats.pageviews, 1, "the numbers come from the app");
     const pages = (await (await call(GET, "GET", `/api/breakdown?site=${site.id}&period=today&dimension=page`)).json()) as any;
     assert.deepEqual(pages.rows.map((r: any) => r.value), ["/cart"]);
+    assert.equal((await call(GET, "GET", `/api/links?site=${site.id}`)).status, 200, "the owner reads the app's links");
+
+    // A token limited to another site here reads none of the app's numbers or links.
+    await call(POST, "POST", "/api/sites", { name: "Mine", hostnames: ["mine.example"] });
+    const pinned = ((await (await call(POST, "POST", "/api/tokens", { name: "Intern", site: "mine.example" })).json()) as any).secret as string;
+    const asPinned = (path: string) => GET(new Request(`https://stats.example.com/runlight${path}`, { headers: { authorization: `Bearer ${pinned}` } }));
+    assert.equal((await asPinned(`/api/stats?site=${site.id}&period=today`)).status, 404);
+    assert.equal((await asPinned(`/api/links?site=${site.id}`)).status, 404);
+    assert.equal((await asPinned("/api/links?site=mine.example")).status, 200);
 
     // Nothing about the app can be changed from the hub, and hits never land on it here.
     assert.equal((await call(POST, "POST", `/api/goals?site=${site.id}`, { name: "X", kind: "event", match: "X" })).status, 400);
@@ -158,7 +167,7 @@ test("connecting a site again with a manage token upgrades the same connection",
 });
 
 test("a hub only follows an install's own endpoints when connecting", async () => {
-  const hostile = createServer((req, res) => {
+  const hostile = createServer((_req, res) => {
     res.setHeader("content-type", "application/json");
     res.end(JSON.stringify({ authorization_endpoint: "http://127.0.0.1:1/authorize", token_endpoint: "http://169.254.169.254/token", registration_endpoint: "http://169.254.169.254/register", scopes_supported: ["read", "manage"] }));
   });
