@@ -274,6 +274,20 @@ test("a write signed in by cookie must be JSON, so a form on another page cannot
   assert.equal(page.status, 200);
 });
 
+test("a write without a cookie must be JSON too, for routes left open behind Basic auth or an address list", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "Site A", hostnames: ["a.com"] }] });
+  const { GET, POST } = rl.routes({ token: null, cronSecret: "cron", observeKey: "observe" });
+  const key = ((await (await GET(new Request("https://x.com/runlight/api/observe-key?site=a"))).json()) as any).key;
+  // What a form on another page sends: the browser adds the Basic credentials itself.
+  const form = await POST(new Request("https://x.com/runlight/api/observe-key/new?site=a", { method: "POST", headers: { authorization: "Basic YWRtaW46cGFzcw==", "content-type": "text/plain", origin: "https://evil.example" }, body: "x=y" }));
+  assert.equal(form.status, 415);
+  assert.equal(((await (await GET(new Request("https://x.com/runlight/api/observe-key?site=a"))).json()) as any).key, key, "the key stayed");
+  // A bearer token, which a browser never adds on its own, still needs no JSON: a platform cron, a plugin, the tracker.
+  assert.equal((await POST(new Request("https://x.com/runlight/api/check", { method: "POST", headers: { authorization: "Bearer cron" } }))).status, 200);
+  assert.equal((await POST(new Request("https://x.com/runlight/api/observe", { method: "POST", headers: { authorization: "Bearer observe", "content-type": "application/json" }, body: JSON.stringify({ url: "https://a.com/", userAgent: "GPTBot/1.0" }) }))).status, 204);
+  assert.equal((await POST(new Request("https://x.com/runlight/e", { method: "POST", headers: { "content-type": "text/plain", "user-agent": "Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36" }, body: JSON.stringify({ k: "pageview", u: "https://a.com/" }) }))).status, 202);
+});
+
 test("short link clicks are not visits in the heatmap, raw or rolled up, nor the first visit", async () => {
   const now = Date.UTC(2026, 9, 7, 12);
   let clock = now;

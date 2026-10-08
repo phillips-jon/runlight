@@ -67,7 +67,7 @@ test("authorize replaces the token", async () => {
 
 test("the check endpoint takes the cron secret", async () => {
   const { POST } = make().routes({ token: "secret", cronSecret: "cron" });
-  assert.equal((await POST(req("/runlight/api/check", { method: "POST" }))).status, 401);
+  assert.equal((await POST(req("/runlight/api/check", { method: "POST", headers: { "content-type": "application/json" } }))).status, 401);
   assert.equal((await POST(req("/runlight/api/check", { method: "POST", headers: { authorization: "Bearer cron" } }))).status, 200);
   assert.equal((await POST(req("/runlight/api/check", { method: "POST", headers: { authorization: "Bearer secret" } }))).status, 200);
   const { GET } = make().routes({ token: "secret", cronSecret: "cron" });

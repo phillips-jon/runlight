@@ -757,9 +757,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   }
 
   async function api(request: Request, path: string, url: URL): Promise<Response> {
-    // A write signed in by cookie must be JSON, which a form on another page cannot send, even the
-    // writes that carry no body. A token is never sent by the browser on its own, so it needs no check.
-    if (!["GET", "HEAD", "OPTIONS", "DELETE"].includes(request.method) && !bearer(request) && request.headers.has("cookie") && !isJson(request)) {
+    // A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
+    // That holds without a cookie too, since a browser also sends Basic credentials or comes from an
+    // allowed address on its own. A bearer token is never sent by the browser on its own, so it needs no check.
+    if (!["GET", "HEAD", "OPTIONS", "DELETE"].includes(request.method) && !bearer(request) && !isJson(request)) {
       return json({ error: "Send JSON" }, 415);
     }
     if (path === "/api" && request.method === "GET") {
