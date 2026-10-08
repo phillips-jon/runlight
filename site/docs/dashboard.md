@@ -39,6 +39,8 @@ Click a card to put it on the chart; several can share it, each scaled to its ow
 
 Click any row to filter the whole dashboard by it. The **Filter** button can filter by page, entry or exit page, source, channel, referrer, each UTM tag, country, region, city, browser, operating system, device, screen, language, hostname, and event. Each filter uses **is**, **is not**, or **contains**, and filters combine.
 
+A filter picks visits, and the numbers then describe those whole visits, counted in the range each one started in. Filtering by the event Signup shows the people who signed up, with all their pages, time, and bounce rate, and **is not** picks the visits that never had one. A page filter counts that page’s views as pageviews, so “page is /pricing” shows how often /pricing was seen.
+
 ## Dates and comparison
 
 Pick a range from the calendar or a preset (Last 30 days is the default). Compare it to the period before, the same days last year, or any dates you choose; the cards show the change and the chart draws the comparison dashed. **All time** has nothing before it, so it turns comparison off.

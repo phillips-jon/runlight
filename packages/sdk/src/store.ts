@@ -316,9 +316,6 @@ const IS_VISIT = "(s.pageviews > 0 OR s.events > 0)";
  * index. A visit belongs to the range it started in. Page and event filters
  * still need the events table.
  */
-function visitsOnly(filters: Filter[]): boolean {
-  return filters.every((filter) => isSessionDimension(filter.dimension));
-}
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
@@ -448,20 +445,73 @@ function column(dimension: Filter["dimension"]): string {
   return isSessionDimension(dimension) ? `s.${SESSION_DIMENSIONS[dimension]}` : `e.${EVENT_DIMENSIONS[dimension]}`;
 }
 
-/** WHERE fragments for a query's filters, and whether they need the sessions table. */
-function filterSql(filters: Filter[]): { sql: string; params: unknown[]; needsSession: boolean } {
+/** One filter as a condition on its own column, with "is not" flipped to "is" when `positive` asks. */
+function condition(filter: Filter, positive = false): { sql: string; param: unknown } {
+  const col = column(filter.dimension);
+  const op = positive && filter.op === "not" ? "is" : filter.op;
+  if (op === "is") return { sql: `${col} = ?`, param: filter.value };
+  if (op === "not") return { sql: `${col} <> ?`, param: filter.value };
+  return { sql: `LOWER(${col}) LIKE ? ESCAPE '\\'`, param: `%${escapeLike(filter.value.toLowerCase())}%` };
+}
+
+/**
+ * The visits a query's filters pick, as conditions on `s`. A filter on the visit (source, country,
+ * entry page) applies to it directly. A filter on a page, hostname, or event picks the visits that
+ * had a matching row, or for "is not", that never had one. Every number then describes those whole
+ * visits, and a visit belongs to the range it started in, as it does with no filter. Rows count up to
+ * EVENT_TAIL_MS past the range, for a visit still going when it ends.
+ */
+function visitScope(filters: Filter[], site: string, from: number, to: number): { sql: string; params: unknown[] } {
   const parts: string[] = [];
   const params: unknown[] = [];
-  let needsSession = false;
   for (const filter of filters) {
-    if (isSessionDimension(filter.dimension)) needsSession = true;
-    const col = column(filter.dimension);
-    if (filter.op === "is") parts.push(`${col} = ?`);
-    else if (filter.op === "not") parts.push(`${col} <> ?`);
-    else parts.push(`LOWER(${col}) LIKE ? ESCAPE '\\'`);
-    params.push(filter.op === "contains" ? `%${escapeLike(filter.value.toLowerCase())}%` : filter.value);
+    const c = condition(filter, true);
+    if (isSessionDimension(filter.dimension)) {
+      const own = condition(filter);
+      parts.push(own.sql);
+      params.push(own.param);
+    } else {
+      parts.push(`s.id ${filter.op === "not" ? "NOT IN" : "IN"} (SELECT e.session FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS} AND ${c.sql})`);
+      params.push(site, from, to + EVENT_TAIL_MS, c.param);
+    }
   }
-  return { sql: parts.map((p) => ` AND ${p}`).join(""), params, needsSession };
+  return { sql: parts.map((p) => ` AND ${p}`).join(""), params };
+}
+
+/**
+ * Conditions on `e` from the filters on the given row dimensions that keep rows (is, contains). With
+ * "page is /pricing", pageviews mean views of /pricing, as people expect, while the visits are whole.
+ */
+function rowScope(filters: Filter[], dimensions: string[]): { sql: string; params: unknown[] } {
+  const kept = filters.filter((f) => dimensions.includes(f.dimension) && f.op !== "not").map((f) => condition(f));
+  return { sql: kept.map((c) => ` AND ${c.sql}`).join(""), params: kept.map((c) => c.param) };
+}
+
+/**
+ * Pageviews for each visit a filter picks, as a table to LEFT JOIN on `pv.session = s.id`, when a page or
+ * hostname filter narrows what counts as a pageview. Null when every pageview of a visit counts.
+ */
+function pageviewsOf(filters: Filter[], site: string, from: number, to: number): { sql: string; params: unknown[] } | null {
+  const rows = rowScope(filters, ["page", "hostname"]);
+  if (!rows.sql) return null;
+  return {
+    sql: `(SELECT e.session AS session, COUNT(*) AS n FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'pageview'${rows.sql} GROUP BY e.session)`,
+    params: [site, from, to + EVENT_TAIL_MS, ...rows.params],
+  };
+}
+
+/**
+ * For reports that count rows (goals, event properties, funnels, journeys): the rows of the visits a
+ * query's filters pick, as conditions on `e`. Nothing with no filter.
+ */
+function picked(filters: Filter[], site: string, from: number, to: number): { sql: string; params: unknown[]; needsSession: false } {
+  if (!filters.length) return { sql: "", params: [], needsSession: false };
+  const scope = visitScope(filters, site, from, to);
+  return {
+    sql: ` AND e.session IN (SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql})`,
+    params: [site, from, to, ...scope.params],
+    needsSession: false,
+  };
 }
 
 export class SqlStore {
@@ -986,12 +1036,9 @@ export class SqlStore {
    * after the step before it. Filters choose which visits enter the funnel.
    */
   async funnelCounts(query: Query, funnel: FunnelRow): Promise<number[]> {
-    const f = filterSql(query.filters);
-    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
-    // A filter picks visits: those with any matching row, wherever it falls in the visit.
-    const chosen = query.filters.length
-      ? ` AND e.session IN (SELECT DISTINCT e.session FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
-      : "";
+    // A filter picks visits (see visitScope), and the funnel follows them.
+    const f = picked(query.filters, query.site, query.from, query.to);
+    const chosen = f.sql;
     const ctes: string[] = [];
     const params: unknown[] = [];
     funnel.steps.forEach((step, i) => {
@@ -1003,7 +1050,7 @@ export class SqlStore {
           `c0 AS (SELECT e.session AS session, e.ts AS ts, e.id AS id FROM rl_events e
             WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.session <> '' AND ${scope.sql}${chosen})`,
         );
-        params.push(query.site, query.from, query.to, ...scope.params, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : []));
+        params.push(query.site, query.from, query.to, ...scope.params, ...f.params);
       } else {
         ctes.push(
           `c${i} AS (SELECT e.session AS session, e.ts AS ts, e.id AS id FROM rl_events e
@@ -1031,10 +1078,8 @@ export class SqlStore {
    * cannot crowd the rest out. Visits belong to the range they started in.
    */
   async journeyPages(query: Query, perVisit: number): Promise<Array<{ session: string; path: string }>> {
-    const f = filterSql(query.filters);
-    const chosen = query.filters.length
-      ? ` AND e.session IN (SELECT DISTINCT e.session FROM rl_events e ${f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : ""} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
-      : "";
+    const f = picked(query.filters, query.site, query.from, query.to);
+    const chosen = f.sql;
     const rows = await this.db.all(
       // The latest JOURNEY_VISITS visits at most, so a long range stays quick and small in memory.
       // Refreshes (the same page twice in a row) are dropped before counting, so they never use up the steps.
@@ -1050,7 +1095,7 @@ export class SqlStore {
          SELECT session, path, ROW_NUMBER() OVER (PARTITION BY session ORDER BY ts, id) AS n
          FROM raw WHERE before IS NULL OR before <> path)
        SELECT session, path FROM v WHERE n <= ? ORDER BY session, n`,
-      [query.site, query.from, query.to, query.site, query.from, query.to + EVENT_TAIL_MS, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : []), perVisit],
+      [query.site, query.from, query.to, query.site, query.from, query.to + EVENT_TAIL_MS, ...f.params, perVisit],
     );
     return rows.map((r) => ({ session: String(r.session), path: String(r.path) }));
   }
@@ -1246,7 +1291,7 @@ export class SqlStore {
 
   /** The property names sent with an event in a query's range, most used first. */
   async eventPropKeys(query: Query, event: string): Promise<Array<{ key: string; events: number }>> {
-    const f = filterSql(query.filters);
+    const f = picked(query.filters, query.site, query.from, query.to);
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
     const where = `e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'event' AND e.name = ? AND e.props IS NOT NULL${f.sql}`;
     const params = [query.site, query.from, query.to, event, ...f.params];
@@ -1267,7 +1312,7 @@ export class SqlStore {
 
   /** The values one property of an event took, with how often and by how many visitors. */
   async eventPropValues(query: Query, event: string, key: string, limit: number): Promise<Array<{ value: string; events: number; visitors: number }>> {
-    const f = filterSql(query.filters);
+    const f = picked(query.filters, query.site, query.from, query.to);
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
     const value = this.db.dialect === "postgres" ? `(e.props::jsonb ->> ?)` : `CAST(json_extract(e.props, ?) AS TEXT)`;
     const path = this.db.dialect === "postgres" ? key : `$."${key}"`;
@@ -1293,7 +1338,7 @@ export class SqlStore {
    */
   async goalTotalsAll(query: Query, goals: GoalRow[]): Promise<Map<string, GoalTotals>> {
     const out = new Map<string, GoalTotals>();
-    const f = filterSql(query.filters);
+    const f = picked(query.filters, query.site, query.from, query.to);
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
     // As many goals per query as keep it under D1's parameter limit.
     const chunks: GoalRow[][] = [[]];
@@ -1345,7 +1390,7 @@ export class SqlStore {
 
   /** One goal's conversions, converting visitors, and revenue for a query's range and filters. */
   async goalTotals(query: Query, goal: GoalRow): Promise<GoalTotals> {
-    const f = filterSql(query.filters);
+    const f = picked(query.filters, query.site, query.from, query.to);
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
     const scope = this.goalScope(goal);
     const revenue = this.revenueSql(goal);
@@ -1360,7 +1405,7 @@ export class SqlStore {
 
   /** A goal's conversions split by where the visit came from, or by the page it happened on. */
   async goalBreakdown(query: Query, goal: GoalRow, by: "source" | "channel" | "path", limit = 10): Promise<Array<{ value: string } & GoalTotals>> {
-    const f = filterSql(query.filters);
+    const f = picked(query.filters, query.site, query.from, query.to);
     const session = by !== "path" || f.needsSession;
     const col = by === "path" ? "e.path" : `s.${by}`;
     const scope = this.goalScope(goal);
@@ -1384,7 +1429,7 @@ export class SqlStore {
   async goalSeries(query: Omit<Query, "from" | "to">, goal: GoalRow, buckets: Bucket[]): Promise<Array<{ start: number; conversions: number; revenue: number }>> {
     if (buckets.length === 0) return [];
     if (buckets.length > BUCKETS_PER_QUERY) return inPieces(buckets, BUCKETS_PER_QUERY, (piece) => this.goalSeries(query, goal, piece));
-    const f = filterSql(query.filters);
+    const f = picked(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end);
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
     const cast = this.db.dialect === "postgres";
     const values = buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ");
@@ -1491,11 +1536,10 @@ export class SqlStore {
 
   /** Just the visitor count from stats(), in one query, for conversion rates. */
   async visitors(query: Query): Promise<number> {
-    const f = filterSql(query.filters);
-    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    const scope = visitScope(query.filters, query.site, query.from, query.to);
     const [row] = await this.db.all(
-      `SELECT COUNT(DISTINCT e.visitor) AS visitors FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql}`,
-      [query.site, query.from, query.to, ...f.params],
+      `SELECT COUNT(DISTINCT s.visitor) AS visitors FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}`,
+      [query.site, query.from, query.to, ...scope.params],
     );
     return num(row?.visitors);
   }
@@ -1503,155 +1547,90 @@ export class SqlStore {
   async stats(query: Query): Promise<Stats> {
     const rolled = await this.rolledStats(query);
     if (rolled) return rolled;
-    const f = filterSql(query.filters);
-    if (visitsOnly(query.filters)) {
-      const [row] = await this.db.all(
-        `SELECT COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(s.pageviews) AS pageviews,
-           SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
-         FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${f.sql}`,
-        [query.site, query.from, query.to, ...f.params],
-      );
-      const visits = num(row?.visits);
-      const pageviews = num(row?.pageviews);
-      return {
-        visitors: num(row?.visitors),
-        visits,
-        pageviews,
-        viewsPerVisit: visits > 0 ? Math.round((pageviews / visits) * 100) / 100 : 0,
-        bounceRate: visits > 0 ? num(row?.bounced) / visits : 0,
-        visitDuration: visits > 0 ? Math.round(num(row?.duration) / visits) : 0,
-      };
-    }
-    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
-    const scope = `FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql}`;
-    const params = [query.site, query.from, query.to, ...f.params];
-
-    const [totals] = await this.db.all(
-      `SELECT COUNT(DISTINCT e.visitor) AS visitors, COUNT(DISTINCT e.session) AS visits,
-         SUM(CASE WHEN e.kind = 'pageview' THEN 1 ELSE 0 END) AS pageviews ${scope}`,
-      params,
+    // Filtered or not, the numbers describe visits that started in the range (see visitScope).
+    const scope = visitScope(query.filters, query.site, query.from, query.to);
+    const pv = pageviewsOf(query.filters, query.site, query.from, query.to);
+    const [row] = await this.db.all(
+      `SELECT COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(${pv ? "COALESCE(pv.n, 0)" : "s.pageviews"}) AS pageviews,
+         SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
+       FROM rl_sessions s ${pv ? `LEFT JOIN ${pv.sql} pv ON pv.session = s.id` : ""}
+       WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}`,
+      [...(pv?.params ?? []), query.site, query.from, query.to, ...scope.params],
     );
-    const sessions = `FROM rl_sessions s WHERE s.id IN (SELECT DISTINCT e.session ${scope})`;
-    const [bounces] = await this.db.all(
-      `SELECT COUNT(*) AS n, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration ${sessions}`,
-      params,
-    );
-    const n = num(bounces?.n);
-
-    const visits = num(totals?.visits);
-    const pageviews = num(totals?.pageviews);
+    const visits = num(row?.visits);
+    const pageviews = num(row?.pageviews);
     return {
-      visitors: num(totals?.visitors),
+      visitors: num(row?.visitors),
       visits,
       pageviews,
       viewsPerVisit: visits > 0 ? Math.round((pageviews / visits) * 100) / 100 : 0,
-      bounceRate: n > 0 ? num(bounces?.bounced) / n : 0,
-      visitDuration: n > 0 ? Math.round(num(bounces?.duration) / n) : 0,
+      bounceRate: visits > 0 ? num(row?.bounced) / visits : 0,
+      visitDuration: visits > 0 ? Math.round(num(row?.duration) / visits) : 0,
     };
   }
 
   async series(query: Omit<Query, "from" | "to">, buckets: Bucket[]): Promise<SeriesPoint[]> {
     if (buckets.length === 0) return [];
-    if (buckets.length > BUCKETS_PER_QUERY) return inPieces(buckets, BUCKETS_PER_QUERY, (piece) => this.series(query, piece));
-    const f = filterSql(query.filters);
-    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    // Filters add parameters of their own, so fewer buckets go in each statement (D1 allows 100).
+    const per = query.filters.length ? 20 : BUCKETS_PER_QUERY;
+    if (buckets.length > per) return inPieces(buckets, per, (piece) => this.series(query, piece));
     const cast = this.db.dialect === "postgres";
     const values = buckets
       .map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)"))
       .join(", ");
     const params: unknown[] = buckets.flatMap((b, i) => [i, b.start, b.end]);
-    if (visitsOnly(query.filters)) {
-      // Built days that fit inside one bucket come from rollups; the rest from the visits.
-      const plan = await this.rollupPlan(query, buckets[0]!.start, buckets[buckets.length - 1]!.end);
-      const inBucket = (d: { start: number; end: number }) => buckets.findIndex((b) => b.start <= d.start && d.end <= b.end);
-      const used = plan ? plan.days.filter((d) => inBucket(d) >= 0) : [];
-      const sums = new Map<number, Record<string, number>>();
-      const bump = (i: number, row: Record<string, unknown>) => {
-        const into = sums.get(i) ?? { visitors: 0, n: 0, views: 0, bounced: 0, duration: 0 };
-        for (const k of Object.keys(into)) into[k]! += num(row[k]);
-        sums.set(i, into);
-      };
-      let rest: Array<[number, number]> | null = null;
-      if (used.length) {
-        const rolled = await this.db.all(
-          `SELECT day, visitors, visits AS n, pageviews AS views, bounced, duration FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${BUILT_DAYS})`,
-          [query.site, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end],
-        );
-        const at = new Map(used.map((d) => [d.day, inBucket(d)]));
-        for (const row of rolled) if (at.has(String(row.day))) bump(at.get(String(row.day))!, row);
-        rest = [];
-        let from = buckets[0]!.start;
-        for (const d of used) {
-          if (d.start > from) rest.push([from, d.start]);
-          from = Math.max(from, d.end);
-        }
-        if (from < buckets[buckets.length - 1]!.end) rest.push([from, buckets[buckets.length - 1]!.end]);
-      }
-      const w = rest ? SqlStore.within(rest) : { sql: "1 = 1", params: [] };
-      const rows = await this.db.all<Record<string, unknown>>(
-        `WITH b (i, bs, be) AS (VALUES ${values})
-         SELECT b.i AS i, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS n, SUM(s.pageviews) AS views,
-           SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
-         FROM b JOIN rl_sessions s ON s.site = ? AND s.started_at >= b.bs AND s.started_at < b.be
-         WHERE ${IS_VISIT}${f.sql} AND ${w.sql}
-         GROUP BY b.i`,
-        [...params, query.site, ...f.params, ...w.params],
+    // Filtered or not, each bucket counts the visits that started in it (see visitScope).
+    const scope = visitScope(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end);
+    const pv = pageviewsOf(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end);
+    // Built days that fit inside one bucket come from rollups; the rest from the visits.
+    const plan = await this.rollupPlan(query, buckets[0]!.start, buckets[buckets.length - 1]!.end);
+    const inBucket = (d: { start: number; end: number }) => buckets.findIndex((b) => b.start <= d.start && d.end <= b.end);
+    const used = plan ? plan.days.filter((d) => inBucket(d) >= 0) : [];
+    const sums = new Map<number, Record<string, number>>();
+    const bump = (i: number, row: Record<string, unknown>) => {
+      const into = sums.get(i) ?? { visitors: 0, n: 0, views: 0, bounced: 0, duration: 0 };
+      for (const k of Object.keys(into)) into[k]! += num(row[k]);
+      sums.set(i, into);
+    };
+    let rest: Array<[number, number]> | null = null;
+    if (used.length) {
+      const rolled = await this.db.all(
+        `SELECT day, visitors, visits AS n, pageviews AS views, bounced, duration FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${BUILT_DAYS})`,
+        [query.site, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end],
       );
-      for (const row of rows) bump(num(row.i), row);
-      return buckets.map((bucket, i) => {
-        const row = sums.get(i);
-        const n = num(row?.n);
-        return {
-          start: bucket.start,
-          visitors: num(row?.visitors),
-          visits: n,
-          pageviews: num(row?.views),
-          viewsPerVisit: n > 0 ? Math.round((num(row?.views) / n) * 100) / 100 : 0,
-          bounceRate: n > 0 ? num(row?.bounced) / n : 0,
-          visitDuration: n > 0 ? Math.round(num(row?.duration) / n) : 0,
-        };
-      });
+      const at = new Map(used.map((d) => [d.day, inBucket(d)]));
+      for (const row of rolled) if (at.has(String(row.day))) bump(at.get(String(row.day))!, row);
+      rest = [];
+      let from = buckets[0]!.start;
+      for (const d of used) {
+        if (d.start > from) rest.push([from, d.start]);
+        from = Math.max(from, d.end);
+      }
+      if (from < buckets[buckets.length - 1]!.end) rest.push([from, buckets[buckets.length - 1]!.end]);
     }
-    const rows = await this.db.all<{ i: unknown; visitors: unknown; visits: unknown; pageviews: unknown }>(
+    const w = rest ? SqlStore.within(rest) : { sql: "1 = 1", params: [] };
+    const rows = await this.db.all<Record<string, unknown>>(
       `WITH b (i, bs, be) AS (VALUES ${values})
-       SELECT b.i AS i, COUNT(DISTINCT e.visitor) AS visitors, COUNT(DISTINCT e.session) AS visits,
-         SUM(CASE WHEN e.kind = 'pageview' THEN 1 ELSE 0 END) AS pageviews
-       FROM b JOIN rl_events e ON e.site = ? AND e.ts >= b.bs AND e.ts < b.be ${join}
-       WHERE ${VISIT_KINDS}${f.sql}
-       GROUP BY b.i`,
-      [...params, query.site, ...f.params],
-    );
-    // Bounce, duration, and views per visit belong to visits, counted in the
-    // bucket each visit started in.
-    const first = buckets[0]!.start;
-    const last = buckets[buckets.length - 1]!.end;
-    const matching = query.filters.length
-      ? ` AND s.id IN (SELECT DISTINCT e.session FROM rl_events e JOIN rl_sessions s ON s.id = e.session
-           WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
-      : "";
-    const visitRows = await this.db.all<{ i: unknown; n: unknown; bounced: unknown; duration: unknown; views: unknown }>(
-      `WITH b (i, bs, be) AS (VALUES ${values})
-       SELECT b.i AS i, COUNT(*) AS n, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced,
-         SUM(${DURATION}) AS duration, SUM(s.pageviews) AS views
+       SELECT b.i AS i, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS n, SUM(${pv ? "COALESCE(pv.n, 0)" : "s.pageviews"}) AS views,
+         SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
        FROM b JOIN rl_sessions s ON s.site = ? AND s.started_at >= b.bs AND s.started_at < b.be
-       WHERE 1 = 1${matching}
+       ${pv ? `LEFT JOIN ${pv.sql} pv ON pv.session = s.id` : ""}
+       WHERE ${IS_VISIT}${scope.sql} AND ${w.sql}
        GROUP BY b.i`,
-      [...params, query.site, ...(query.filters.length ? [query.site, first, last, ...f.params] : [])],
+      [...params, query.site, ...(pv?.params ?? []), ...scope.params, ...w.params],
     );
-    const found = new Map(rows.map((row) => [num(row.i), row]));
-    const visitFound = new Map(visitRows.map((row) => [num(row.i), row]));
+    for (const row of rows) bump(num(row.i), row);
     return buckets.map((bucket, i) => {
-      const row = found.get(i);
-      const v = visitFound.get(i);
-      const n = num(v?.n);
+      const row = sums.get(i);
+      const n = num(row?.n);
       return {
         start: bucket.start,
         visitors: num(row?.visitors),
-        visits: num(row?.visits),
-        pageviews: num(row?.pageviews),
-        viewsPerVisit: n > 0 ? Math.round((num(v?.views) / n) * 100) / 100 : 0,
-        bounceRate: n > 0 ? num(v?.bounced) / n : 0,
-        visitDuration: n > 0 ? Math.round(num(v?.duration) / n) : 0,
+        visits: n,
+        pageviews: num(row?.views),
+        viewsPerVisit: n > 0 ? Math.round((num(row?.views) / n) * 100) / 100 : 0,
+        bounceRate: n > 0 ? num(row?.bounced) / n : 0,
+        visitDuration: n > 0 ? Math.round(num(row?.duration) / n) : 0,
       };
     });
   }
@@ -1669,22 +1648,22 @@ export class SqlStore {
       return rows.map((row) => ({ value: String(row.value), visitors: 0, fetches: num(row.fetches) }));
     }
 
-    const f = filterSql(query.filters);
-    const params = [query.site, query.from, query.to, ...f.params];
-    const sessionJoin = "JOIN rl_sessions s ON s.id = e.session";
-
     const rolled = await this.rolledBreakdown(query, dimension, limit, offset);
     if (rolled) return rolled;
 
-    if (visitsOnly(query.filters) && isSessionDimension(dimension) && !isEventDimension(dimension)) {
+    // Filtered or not, the visits are those that started in the range (see visitScope).
+    const scope = visitScope(query.filters, query.site, query.from, query.to);
+    if (isSessionDimension(dimension) && !isEventDimension(dimension)) {
+      const pv = pageviewsOf(query.filters, query.site, query.from, query.to);
       const col = `s.${SESSION_DIMENSIONS[dimension]}`;
       const entryExit = dimension === "entry" || dimension === "exit";
       const rows = await this.db.all(
-        `SELECT ${col} AS value, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(s.pageviews) AS pageviews,
+        `SELECT ${col} AS value, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(${pv ? "COALESCE(pv.n, 0)" : "s.pageviews"}) AS pageviews,
            SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
-         FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${f.sql} AND ${col} <> ''
+         FROM rl_sessions s ${pv ? `LEFT JOIN ${pv.sql} pv ON pv.session = s.id` : ""}
+         WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql} AND ${col} <> ''
          GROUP BY ${col} ORDER BY ${entryExit ? "visits DESC" : "visitors DESC, visits DESC"}, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
-        [...params, ...page],
+        [...(pv?.params ?? []), query.site, query.from, query.to, ...scope.params, ...page],
       );
       return rows.map((row) => {
         const visits = num(row.visits);
@@ -1702,35 +1681,27 @@ export class SqlStore {
       });
     }
 
-    if (dimension === "entry" || dimension === "exit") {
-      const col = `s.${SESSION_DIMENSIONS[dimension]}`;
-      const rows = await this.db.all(
-        `SELECT ${col} AS value, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits,
-           SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
-         FROM rl_sessions s WHERE s.id IN (
-           SELECT DISTINCT e.session FROM rl_events e ${sessionJoin}
-           WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})
-         AND ${col} <> ''
-         GROUP BY ${col} ORDER BY visits DESC, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
-        [...params, ...page],
-      );
-      return rows.map((row) => ({
-        value: String(row.value),
-        visitors: num(row.visitors),
-        visits: num(row.visits),
-        bounceRate: num(row.visits) > 0 ? num(row.bounced) / num(row.visits) : 0,
-      }));
-    }
+    // Rows from the picked visits: with no filter, every row in the range; with one, the rows of the
+    // visits it picks, narrowed by any filter on the same kind of row ("page is /pricing" on pages).
+    const within = (dimensions: string[]) => {
+      if (!query.filters.length) return { sql: "", params: [] as unknown[], to: query.to };
+      const rows = rowScope(query.filters, dimensions);
+      return {
+        sql: ` AND e.session IN (SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql})${rows.sql}`,
+        params: [query.site, query.from, query.to, ...scope.params, ...rows.params],
+        to: query.to + EVENT_TAIL_MS,
+      };
+    };
 
     if (dimension === "page" || dimension === "hostname") {
       const col = `e.${EVENT_DIMENSIONS[dimension]}`;
-      const join = f.needsSession ? sessionJoin : "";
+      const w = within(["page", "hostname"]);
       const rows = await this.db.all(
         `SELECT ${col} AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(*) AS pageviews
-         FROM rl_events e ${join}
-         WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'pageview'${f.sql}
+         FROM rl_events e
+         WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'pageview'${w.sql}
          GROUP BY ${col} ORDER BY visitors DESC, pageviews DESC, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
-        [...params, ...page],
+        [query.site, query.from, w.to, ...w.params, ...page],
       );
       const out: BreakdownRow[] = rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors), pageviews: num(row.pageviews) }));
       if (dimension === "page" && out.length > 0) {
@@ -1739,9 +1710,9 @@ export class SqlStore {
           this.db.all(
             `SELECT value, SUM(total) AS total, COUNT(*) AS views, AVG(deepest) AS scroll FROM (
                SELECT e.path AS value, SUM(e.engaged_ms) AS total, MAX(e.scroll) AS deepest
-               FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'engagement'${f.sql}
+               FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'engagement'${w.sql}
                AND e.path IN (${piece.map(() => "?").join(", ")}) GROUP BY e.path, e.pageview) t GROUP BY value`,
-            [...params, ...piece.map((row) => row.value)],
+            [query.site, query.from, w.to, ...w.params, ...piece.map((row) => row.value)],
           ),
         );
         const byPath = new Map(times.map((t) => [String(t.value), t]));
@@ -1755,55 +1726,18 @@ export class SqlStore {
     }
 
     if (dimension === "event") {
-      const join = f.needsSession ? sessionJoin : "";
+      const w = within(["event"]);
       const rows = await this.db.all(
         `SELECT e.name AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(*) AS events
-         FROM rl_events e ${join}
-         WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'event'${f.sql}
+         FROM rl_events e
+         WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'event'${w.sql}
          GROUP BY e.name ORDER BY visitors DESC, events DESC, e.name${this.textOrder} LIMIT ? OFFSET ?`,
-        [...params, ...page],
+        [query.site, query.from, w.to, ...w.params, ...page],
       );
       return rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors), events: num(row.events) }));
     }
 
-    if (!isSessionDimension(dimension) || isEventDimension(dimension)) return [];
-    const col = `s.${SESSION_DIMENSIONS[dimension]}`;
-    const rows = await this.db.all(
-      `SELECT ${col} AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(DISTINCT e.session) AS visits,
-         SUM(CASE WHEN e.kind = 'pageview' THEN 1 ELSE 0 END) AS pageviews
-       FROM rl_events e ${sessionJoin}
-       WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql} AND ${col} <> ''
-       GROUP BY ${col} ORDER BY visitors DESC, visits DESC, ${col}${this.textOrder} LIMIT ? OFFSET ?`,
-      [...params, ...page],
-    );
-    const out: BreakdownRow[] = rows.map((row) => ({
-      value: String(row.value),
-      visitors: num(row.visitors),
-      visits: num(row.visits),
-      pageviews: num(row.pageviews),
-    }));
-    if (out.length === 0) return out;
-    // A visit has one value of each visit dimension, so its bounce and
-    // duration belong to exactly one row.
-    const extras = await inPieces(out, VALUES_PER_QUERY, (piece) =>
-      this.db.all(
-        `SELECT ${col} AS value, COUNT(*) AS n, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
-         FROM rl_sessions s WHERE s.id IN (
-           SELECT DISTINCT e.session FROM rl_events e ${sessionJoin}
-           WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})
-         AND ${col} IN (${piece.map(() => "?").join(", ")})
-         GROUP BY ${col}`,
-        [...params, ...piece.map((row) => row.value)],
-      ),
-    );
-    const byValue = new Map(extras.map((x) => [String(x.value), x]));
-    for (const row of out) {
-      const x = byValue.get(row.value);
-      const n = num(x?.n);
-      row.bounceRate = n > 0 ? num(x?.bounced) / n : 0;
-      row.visitDuration = n > 0 ? Math.round(num(x?.duration) / n) : 0;
-    }
-    return out;
+    return [];
   }
 
   /**
@@ -1838,18 +1772,14 @@ export class SqlStore {
       for (const row of raw) bump(Math.floor(num(row.quarter)), row);
       return [...sums.values()];
     }
-    const f = filterSql(query.filters);
-    const matching = query.filters.length
-      ? ` AND s.id IN (SELECT DISTINCT e.session FROM rl_events e JOIN rl_sessions s ON s.id = e.session
-           WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})`
-      : "";
+    const matching = visitScope(query.filters, query.site, query.from, query.to);
     const rows = await this.db.all(
       `SELECT s.started_at / 900000 AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
          SUM(s.pageviews) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
        FROM rl_sessions s
-       WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${matching}
+       WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${matching.sql}
        GROUP BY 1`,
-      [query.site, query.from, query.to, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : [])],
+      [query.site, query.from, query.to, ...matching.params],
     );
     return rows.map((row) => ({
       quarter: Math.floor(num(row.quarter)),
