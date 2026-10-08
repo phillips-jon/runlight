@@ -325,7 +325,7 @@ export const JOURNEY_VISITS = 20_000;
 /** How long after a visit starts its events are looked for: far past any real visit. */
 export const EVENT_TAIL_MS = 2 * 86_400_000;
 
-const WEEK_MS = 7 * 86_400_000;
+const PIECE_MS = 86_400_000;
 
 /** Lets other work run between the pieces of a long job. */
 const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -644,15 +644,15 @@ export class SqlStore {
 
   /**
    * Deletes a site and everything recorded for it. Used by the standalone server's "Delete site". Its
-   * events and visits go a week at a time first, so a big site does not hold the database (on SQLite,
+   * events and visits go a day at a time first, so a big site does not hold the database (on SQLite,
    * the whole server) for minutes, and what is left goes in one transaction.
    */
   async deleteSite(id: string): Promise<void> {
     for (const [table, col] of [["rl_events", "ts"], ["rl_sessions", "started_at"]] as const) {
       const [range] = await this.db.all(`SELECT MIN(${col}) AS a, MAX(${col}) AS b FROM ${table} WHERE site = ?`, [id]);
       if (range?.a === null || range?.a === undefined) continue;
-      for (let from = num(range.a); from <= num(range.b); from += WEEK_MS) {
-        await this.db.run(`DELETE FROM ${table} WHERE site = ? AND ${col} < ?`, [id, from + WEEK_MS]);
+      for (let from = num(range.a); from <= num(range.b); from += PIECE_MS) {
+        await this.db.run(`DELETE FROM ${table} WHERE site = ? AND ${col} < ?`, [id, from + PIECE_MS]);
         await pause();
       }
     }
@@ -665,13 +665,13 @@ export class SqlStore {
 
   /** Deletes a site's visits and events from before a time, for its retention setting. */
   async dropBefore(site: string, ts: number): Promise<void> {
-    // A week at a time from the oldest, each its own short transaction, with a pause between, so a long
+    // A day at a time from the oldest, each its own short transaction, with a pause between, so a long
     // history goes without holding the database (on SQLite, the whole server) for minutes.
     const [oldest] = await this.db.all(`SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ?`, [site]);
     const [oldestEvent] = await this.db.all(`SELECT MIN(ts) AS t FROM rl_events WHERE site = ?`, [site]);
     const first = Math.min(...[oldest?.t, oldestEvent?.t].filter((v) => v !== null && v !== undefined).map((v) => num(v)), ts);
-    for (let from = first; from < ts; from += WEEK_MS) {
-      const to = Math.min(from + WEEK_MS, ts);
+    for (let from = first; from < ts; from += PIECE_MS) {
+      const to = Math.min(from + PIECE_MS, ts);
       await this.transaction(async (store) => {
         // A visit's events go with it, even ones after the cutoff, so nothing is left without its visit.
         // They come after it starts and within EVENT_TAIL_MS, so the time bounds let the (site, ts) index find them.
