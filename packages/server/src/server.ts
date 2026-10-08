@@ -10,7 +10,7 @@ import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, set
 
 export interface ServerOptions {
   store: SqlStore;
-  /** Signs sessions and encrypts stored mail keys. Keep it stable across restarts. */
+  /** Signs sessions and encrypts saved keys, such as the mail service's and two-factor secrets. Keep it stable across restarts. */
   secret: string;
   /** Also accepted as a bearer token on the API, for scripts. */
   token?: string;

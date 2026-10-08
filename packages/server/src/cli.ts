@@ -6,7 +6,7 @@
  *   HOST              which address to listen on (0.0.0.0)
  *   DATA_DIR          where the SQLite file and the secret live (./runlight-data)
  *   DATABASE_URL      a postgres:// URL, to use Postgres instead of SQLite
- *   RUNLIGHT_SECRET   signs sessions and encrypts mail keys (made and kept in DATA_DIR if unset)
+ *   RUNLIGHT_SECRET   signs sessions and encrypts saved keys (made and kept in DATA_DIR if unset)
  *   RUNLIGHT_TOKEN    also accepted as a bearer token on the API
  *   RUNLIGHT_URL      the dashboard's public address, which can never become a link domain
  *   TRUST_PROXY       "false" when no proxy sits in front, so forwarded addresses are ignored
@@ -35,7 +35,7 @@ Usage:
 Settings are environment variables. PORT (3000) and HOST (0.0.0.0) set where it
 listens. DATA_DIR (./runlight-data) holds the SQLite file and the secret, and
 DATABASE_URL switches to Postgres. RUNLIGHT_SECRET signs sessions and encrypts
-mail keys, RUNLIGHT_TOKEN also works as a bearer token on the API, and
+saved keys, RUNLIGHT_TOKEN also works as a bearer token on the API, and
 TRUST_PROXY=false ignores forwarded addresses when nothing sits in front.
 RUNLIGHT_URL is the dashboard's public address, such as
 https://stats.example.com, which short links can never take over.
@@ -169,7 +169,7 @@ async function main(): Promise<void> {
     }
   });
 
-  // Salts, email reports, and this month's location data: now, then every five minutes.
+  // The scheduled check (salts, email reports, retention, and rollups) and this month's location data: now, then every five minutes.
   const tick = () => {
     server.check().catch((error) => console.error("Runlight: the scheduled check failed", error));
     geo?.refresh().catch((error) => console.error("Runlight: could not refresh location data", error));

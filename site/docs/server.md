@@ -136,7 +136,7 @@ The server runs Runlight's [scheduled check](/docs/cron/) itself every five minu
 
 ## Backups and upgrades
 
-Back up the data folder. It holds the SQLite file and the `secret` file, and without the secret the saved mail keys cannot be read and everyone has to sign in again. To upgrade, pull the new image or run `npx runlight.sh@latest`, and the database updates itself on start.
+Back up the data folder. It holds the SQLite file and the `secret` file, and without the secret the saved keys cannot be read and everyone has to sign in again. Those are the mail service's, the AI Assistant's, the tokens for connected installs, and everyone's two-factor secrets, so two-factor sign-in has to be set up again too. To upgrade, pull the new image or run `npx runlight.sh@latest`, and the database updates itself on start.
 
 ## Running more than one copy
 
