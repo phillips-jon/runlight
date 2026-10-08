@@ -743,7 +743,7 @@
   "error.email_invalid": "Escribe un correo electrónico.",
   "error.report_exists": "{email} ya recibe este informe.",
   "error.report_limit": "Un sitio puede enviar a 50 direcciones como máximo.",
-  "error.sample_soon": "Se acaba de enviar una muestra. Espera unos minutos y vuelve a intentarlo.",
+  "error.sample_soon": "Se acaba de enviar una muestra. Espera un minuto y vuelve a intentarlo.",
   "error.people_owner": "Solo un propietario puede gestionar a las personas.",
   "error.role_needed": "Elige propietario o lector.",
   "error.account_exists": "{email} ya tiene una cuenta.",
@@ -849,5 +849,6 @@
   "error.property_bad": "Runlight no puede leer ese nombre de propiedad.",
   "error.unknown_dimension": "Runlight no conoce el desglose \"{dimension}\".",
   "error.internal": "Algo falló en el servidor. Inténtalo de nuevo.",
-  "filter.max": "Se aplican hasta {max} filtros a la vez. Quita uno para añadir otro."
+  "filter.max": "Se aplican hasta {max} filtros a la vez. Quita uno para añadir otro.",
+  "error.sample_soon_hub": "Un hub conectado puede enviar una muestra cada diez minutos. Espera unos minutos y vuelve a intentarlo."
 }

@@ -817,7 +817,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         const key = managed.has(request) ? `site:${site.id}` : report.id;
         const wait = managed.has(request) ? 600_000 : 60_000;
         const last = sampleSent.get(key) ?? 0;
-        if (runlight.now() - last < wait) return coded("A sample went out a moment ago. Wait a few minutes and try again.", "sample_soon", 429);
+        if (runlight.now() - last < wait) {
+          return managed.has(request)
+            ? coded("A connected hub can send one sample every ten minutes. Wait a few minutes and try again.", "sample_soon_hub", 429)
+            : coded("A sample went out a moment ago. Wait a minute and try again.", "sample_soon", 429);
+        }
         sampleSent.set(key, runlight.now());
         await runlight.deliverReport(report, site);
         return json({ ok: true });

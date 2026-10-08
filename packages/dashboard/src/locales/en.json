@@ -743,7 +743,7 @@
   "error.email_invalid": "Enter an email address.",
   "error.report_exists": "{email} already gets this report.",
   "error.report_limit": "A site can send to at most 50 addresses.",
-  "error.sample_soon": "A sample went out a moment ago. Wait a few minutes and try again.",
+  "error.sample_soon": "A sample went out a moment ago. Wait a minute and try again.",
   "error.people_owner": "Only an owner can manage people.",
   "error.role_needed": "Pick owner or viewer.",
   "error.account_exists": "{email} already has an account.",
@@ -849,5 +849,6 @@
   "error.property_bad": "That is not a property name Runlight can read.",
   "error.unknown_dimension": "\"{dimension}\" is not a breakdown Runlight knows.",
   "error.internal": "Something went wrong on the server. Try again.",
-  "filter.max": "Up to {max} filters apply at once. Remove one to add another."
+  "filter.max": "Up to {max} filters apply at once. Remove one to add another.",
+  "error.sample_soon_hub": "A connected hub can send one sample every ten minutes. Wait a few minutes and try again."
 }
