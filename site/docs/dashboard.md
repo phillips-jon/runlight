@@ -75,7 +75,7 @@ The robot button beside **Filter** opens an assistant you can ask about your sta
 
 An owner sets it up once in **Settings**, **AI Assistant**. Choose Anthropic, OpenAI, Google Gemini, OpenRouter, Ollama, LM Studio, or any service with an OpenAI-compatible API, then a model and a key. Ollama and LM Studio run a model on your own machine with no key, as long as the server running Runlight can reach it. The key is kept on the server, encrypted with `RUNLIGHT_SECRET` (or the token when there is no secret), and never sent back to a browser.
 
-Each question goes to the service you chose, along with the numbers the assistant reads to answer it. Runlight keeps nothing about individual visitors, so nothing personal is sent. Owners and viewers can ask it; API tokens and share links cannot. The conversation lives in the browser tab and is gone when the tab closes.
+Each question goes to the service you chose, along with the numbers the assistant reads to answer it. Runlight keeps nothing about individual visitors, so nothing personal is sent. Owners and viewers can ask it; API tokens and share links cannot. Each question spends your AI credit, so each person can ask thirty an hour, and each viewer 50 a day, a number an owner can change under **AI Assistant** or set to 0 to keep the assistant for owners. The conversation lives in the browser tab and is gone when the tab closes.
 
 ## Keeping data
 

@@ -256,6 +256,8 @@ export function AssistantSettings({ owner }: { owner: boolean }) {
   const [typing, setTyping] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modelError, setModelError] = useState("");
+  const [daily, setDaily] = useState("");
+  const [dailyState, setDailyState] = useState<{ saved?: boolean; error?: string }>({});
   const loadModels = () => {
     setModelError("");
     setLoading(true);
@@ -276,6 +278,7 @@ export function AssistantSettings({ owner }: { owner: boolean }) {
       .then((s) => {
         setState(s);
         setForm({ provider: s.provider || "anthropic", model: s.model ?? "", baseUrl: s.baseUrl ?? "", key: "" });
+        setDaily(String(s.viewerDaily ?? ""));
       })
       .catch((e: Error) => setError(e.message));
   useEffect(() => {
@@ -385,6 +388,33 @@ export function AssistantSettings({ owner }: { owner: boolean }) {
           {error ? <span class="settings-error">{error}</span> : null}
         </div>
       </form>
+      {state.configured ? (
+        <form
+          class="settings-group"
+          onSubmit={(e) => {
+            e.preventDefault();
+            setDailyState({});
+            api
+              .saveAssistantLimit(Number(daily))
+              .then(() => setDailyState({ saved: true }))
+              .catch((err: Error) => setDailyState({ error: err.message }));
+          }}
+        >
+          <label class="field-row">
+            <span class="field-label">{t("assistant.viewerDaily")}</span>
+            <input class="value" type="number" min={0} max={1000} step={1} required value={daily} onInput={(e) => setDaily((e.target as HTMLInputElement).value)} />
+            <span class="field-hint">{t("assistant.viewerDailyHint")}</span>
+          </label>
+          <div class="settings-actions">
+            <button type="submit" class="solid">
+              <Icon name="save" />
+              {t("settings.save")}
+            </button>
+            {dailyState.saved ? <span class="settings-ok">{t("settings.saved")}</span> : null}
+            {dailyState.error ? <span class="settings-error">{dailyState.error}</span> : null}
+          </div>
+        </form>
+      ) : null}
       {state.configured ? (
         <div class="settings-group">
           <div class="field-row">

@@ -307,6 +307,11 @@ const PICK_HOSTS_PLACEHOLDER = '"__RUNLIGHT_PICK_HOSTS__"';
 const ORIGIN = /^https?:\/\/[^/?#\s]+$/;
 /** How long a picker ticket works: long enough to find the element, not to be kept. */
 const PICK_TICKET_MS = 30 * 60_000;
+/** Questions one person may put to the assistant in an hour, and at once. */
+const ASK_PER_HOUR = 30;
+const ASK_AT_ONCE = 2;
+/** Questions each viewer may ask a day, until an owner sets another number. */
+const VIEWER_DAILY = 50;
 const SHARE_ID = /^[a-f0-9]{32}$/;
 
 const DASHBOARD_CSP =
@@ -326,6 +331,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const managed = new WeakMap<Request, TokenRow>();
   // When each report's last sample went out.
   const sampleSent = new Map<string, number>();
+  // Each person's questions to the assistant in the last hour, and how many are being answered now.
+  const asked = new Map<string, { at: number[]; open: number }>();
 
   /** Whether this request acts as the owner. "read" is someone signed in who may only read, such as a viewer. */
   async function canRead(request: Request): Promise<boolean | "unconfigured" | "read"> {
@@ -860,6 +867,40 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return json({ error: "Method not allowed" }, 405);
   }
 
+  /** How many questions each viewer may ask the assistant a day, as an owner set it. */
+  async function viewerDaily(): Promise<number> {
+    const saved = await runlight.store.setting("assistant-viewer-daily");
+    return saved === null ? VIEWER_DAILY : Number(saved);
+  }
+
+  /**
+   * Counts a question to the assistant, which spends the owner's AI credit, or refuses it: past thirty an
+   * hour or two at once for anyone, and past the owner's daily number for a viewer. Returns how to finish.
+   */
+  async function askTurn(who: string, owner: boolean): Promise<Response | (() => void)> {
+    const now = runlight.now();
+    const mine = asked.get(who) ?? { at: [], open: 0 };
+    mine.at = mine.at.filter((at) => now - at < 3_600_000);
+    if (mine.at.length >= ASK_PER_HOUR || mine.open >= ASK_AT_ONCE) return coded("You have asked a lot in a short time. Wait a little and ask again.", "assistant_soon", 429);
+    if (!owner) {
+      const limit = await viewerDaily();
+      const day = `assistant-asked:${new Date(now).toISOString().slice(0, 10)}`;
+      const counts = JSON.parse((await runlight.store.setting(day)) ?? "{}") as Record<string, number>;
+      if ((counts[who] ?? 0) >= limit) return coded(`Viewers can ask ${limit} questions a day. Ask again tomorrow.`, "assistant_daily", 429, { limit: String(limit) });
+      counts[who] = (counts[who] ?? 0) + 1;
+      await runlight.store.setSetting(day, JSON.stringify(counts));
+      for (const { key } of await runlight.store.settingsStartingWith("assistant-asked:")) if (key !== day) await runlight.store.setSetting(key, null);
+    }
+    mine.at.push(now);
+    mine.open++;
+    asked.set(who, mine);
+    // People who stopped asking are dropped, so the map holds only the last hour's.
+    if (asked.size > 1000) for (const [key, value] of asked) if (!value.open && !value.at.some((at) => now - at < 3_600_000)) asked.delete(key);
+    return () => {
+      mine.open--;
+    };
+  }
+
   async function tokensApi(request: Request, path: string): Promise<Response> {
     await runlight.init();
     const view = (t: TokenRow) => ({ id: t.id, name: t.name, site: t.site, scope: t.scope, hint: t.hint, createdAt: t.createdAt, lastUsedAt: t.lastUsedAt });
@@ -1109,6 +1150,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         if (!owner) return json({ configured: Boolean(settings) });
         return json({
           configured: Boolean(settings),
+          viewerDaily: await viewerDaily(),
           provider: settings?.provider ?? "",
           model: settings?.model ?? "",
           baseUrl: settings?.baseUrl ?? "",
@@ -1135,6 +1177,18 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         }
       }
       return json({ error: "Method not allowed" }, 405);
+    }
+    // How many questions each viewer may ask a day; 0 keeps the assistant for owners.
+    if (path === "/api/assistant/limits" && request.method === "PUT") {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      await runlight.init();
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const daily = Number(body.viewerDaily);
+      if (!Number.isInteger(daily) || daily < 0 || daily > 1000) return coded("Use a whole number from 0 to 1,000", "assistant_limit", 400);
+      await runlight.store.setSetting("assistant-viewer-daily", String(daily));
+      return json({ viewerDaily: daily });
     }
     // The models a service offers, for the setup form's dropdown. The key can be the one already saved.
     if (path === "/api/assistant/models" && request.method === "POST") {
@@ -1172,6 +1226,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         ? (body.messages as Array<Record<string, unknown> | null>).filter((m): m is Record<string, unknown> => Boolean(m) && (m!.role === "user" || m!.role === "assistant") && typeof m!.content === "string").map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
         : [];
       if (!messages.length || messages[messages.length - 1]!.role !== "user") return json({ error: "Ask a question" }, 400);
+      const owner = access === true;
+      const turn = await askTurn((await options.accountOf?.(request)) ?? (owner ? "owner" : "viewer"), owner);
+      if (turn instanceof Response) return turn;
       // Each tool reads the HTTP API with the asker's own headers, as the MCP server does.
       const headers = new Headers(request.headers);
       for (const name of ["content-type", "content-length", SHARE_HEADER]) headers.delete(name);
@@ -1199,6 +1256,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       } catch (error) {
         if (error instanceof AssistantError) return json({ error: error.message }, 502);
         throw error;
+      } finally {
+        turn();
       }
     }
 

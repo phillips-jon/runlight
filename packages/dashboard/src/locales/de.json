@@ -783,5 +783,10 @@
   "error.origin_needed": "Lege zuerst die eigene Adresse dieses Runlight fest (RUNLIGHT_URL auf dem Server oder origin in routes()), damit ein verbundener Hub Link-Domains und E-Mail-Berichte hinzufügen kann.",
   "error.twofactor_restart": "Zu viele falsche Codes. Beginne erneut mit dem Einschalten der Zwei-Faktor-Anmeldung.",
   "error.pick_origin": "Sende den Ursprung des Dashboards, etwa https://stats.example.com",
-  "error.pick_hub": "Die Adresse dieses Hubs ist nicht die, von der aus er sich verbunden hat. Verbinde die Website von hier aus erneut."
+  "error.pick_hub": "Die Adresse dieses Hubs ist nicht die, von der aus er sich verbunden hat. Verbinde die Website von hier aus erneut.",
+  "assistant.viewerDaily": "Fragen pro Tag für Betrachter",
+  "assistant.viewerDailyHint": "Jede Frage verbraucht dein KI-Guthaben, deshalb hat jeder Betrachter so viele pro Tag. Setze 0, damit nur Eigentümer den Assistenten nutzen.",
+  "error.assistant_soon": "Du hast in kurzer Zeit viel gefragt. Warte kurz und frag dann noch einmal.",
+  "error.assistant_daily": "Betrachter können {limit} Fragen pro Tag stellen. Frag morgen wieder.",
+  "error.assistant_limit": "Verwende eine ganze Zahl von 0 bis 1.000."
 }

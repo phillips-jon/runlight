@@ -783,5 +783,10 @@
   "error.origin_needed": "Indiquez d’abord l’adresse de ce Runlight (RUNLIGHT_URL sur le serveur, ou origin dans routes()) pour qu’un hub connecté puisse ajouter des domaines de liens et des rapports par e-mail.",
   "error.twofactor_restart": "Trop de codes erronés. Recommencez l’activation de la connexion à deux facteurs.",
   "error.pick_origin": "Envoyez l’origine du tableau de bord, par exemple https://stats.example.com",
-  "error.pick_hub": "L’adresse de ce hub n’est pas celle depuis laquelle il s’est connecté. Connectez à nouveau le site depuis ici."
+  "error.pick_hub": "L’adresse de ce hub n’est pas celle depuis laquelle il s’est connecté. Connectez à nouveau le site depuis ici.",
+  "assistant.viewerDaily": "Questions par jour pour un lecteur",
+  "assistant.viewerDailyHint": "Chaque question consomme votre crédit d’IA, alors chaque lecteur en a ce nombre par jour. Mettez 0 pour réserver l’assistant aux propriétaires.",
+  "error.assistant_soon": "Vous avez posé beaucoup de questions en peu de temps. Patientez un peu, puis réessayez.",
+  "error.assistant_daily": "Les lecteurs peuvent poser {limit} questions par jour. Réessayez demain.",
+  "error.assistant_limit": "Utilisez un nombre entier de 0 à 1 000."
 }

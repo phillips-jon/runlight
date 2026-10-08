@@ -84,7 +84,8 @@ Every report takes the same query parameters.
 | `DELETE /api/tokens/:id` | Deletes a token, which stops it working at once. |
 | `GET`, `PUT`, `DELETE /api/assistant` | Read, set, or remove the dashboard assistant's `{ "provider", "model", "baseUrl", "key" }`. The key is never returned. Owners only, though anyone at the dashboard can ask whether it is set up. |
 | `POST /api/assistant/models` | The models a provider offers, from `{ "provider", "baseUrl", "key" }`, for the settings form. Leave `key` out to use the saved one, which works only for the same provider and address. Owners only. |
-| `POST /api/assistant/chat` | Ask the assistant, sending `{ "site", "messages", "view", "language" }`, where messages are `{ "role", "content" }` pairs ending with a question. It answers `{ "reply", "tools" }`. People at the dashboard only, never API tokens or share links. |
+| `POST /api/assistant/chat` | Ask the assistant, sending `{ "site", "messages", "view", "language" }`, where messages are `{ "role", "content" }` pairs ending with a question. It answers `{ "reply", "tools" }`. People at the dashboard only, never API tokens or share links. Each person can ask thirty questions an hour and two at once, and each viewer the owner's daily number, with 429 past either. |
+| `PUT /api/assistant/limits` | Set how many questions each viewer can ask a day, from `{ "viewerDaily" }`, a whole number from 0 to 1,000. It starts at 50, and `GET /api/assistant` shows it to owners. Owners only. |
 | `POST /mcp` | The MCP server for AI assistants, described in [Ask your AI](/docs/mcp/). |
 
 ## Errors

@@ -783,5 +783,10 @@
   "error.origin_needed": "Set this Runlight's own address first (RUNLIGHT_URL on the server, or origin in routes()), so a connected hub can add link domains and email reports.",
   "error.twofactor_restart": "Too many wrong codes. Start turning on two-factor sign-in again.",
   "error.pick_origin": "Send the dashboard's origin, such as https://stats.example.com",
-  "error.pick_hub": "This hub's address is not the one it connected from. Connect the site again from here."
+  "error.pick_hub": "This hub's address is not the one it connected from. Connect the site again from here.",
+  "assistant.viewerDaily": "Questions a viewer can ask a day",
+  "assistant.viewerDailyHint": "Each question spends your AI credit, so viewers get this many a day each. Set 0 to keep the assistant for owners.",
+  "error.assistant_soon": "You have asked a lot in a short time. Wait a little and ask again.",
+  "error.assistant_daily": "Viewers can ask {limit} questions a day. Ask again tomorrow.",
+  "error.assistant_limit": "Use a whole number from 0 to 1,000."
 }

@@ -114,3 +114,26 @@ test("thanks gets a short reply without the model or the tools", async () => {
   }
   assert.match(acknowledgement("merci", "fr")!, /plaisir/);
 });
+
+test("the assistant has a per-person limit, and viewers a daily number an owner sets", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "A", hostnames: ["a.example.com"] }] });
+  // Each question would spend credit; the model here is never reached, since the limits answer first or the call fails fast.
+  await rl.init();
+  await rl.saveAssistantSettings({ provider: "custom", model: "m", baseUrl: "http://127.0.0.1:9/v1", key: "k" });
+  const { handler } = rl.routes({ authorize: (r) => (r.headers.get("x-who") === "owner" ? true : r.headers.get("x-who") ? "read" : false), accountOf: async (r) => r.headers.get("x-who") });
+  const ask = (who: string) =>
+    handler(new Request("https://x.com/runlight/api/assistant/chat", { method: "POST", headers: { "x-who": who, "content-type": "application/json" }, body: JSON.stringify({ site: "a", messages: [{ role: "user", content: "hi" }] }) }));
+  const limit = (who: string, viewerDaily: unknown) =>
+    handler(new Request("https://x.com/runlight/api/assistant/limits", { method: "PUT", headers: { "x-who": who, "content-type": "application/json" }, body: JSON.stringify({ viewerDaily }) }));
+  assert.equal((await limit("viewer-1", 5)).status, 403, "only an owner sets it");
+  assert.equal((await limit("owner", 1.5)).status, 400);
+  assert.equal((await limit("owner", 2)).status, 200);
+  for (let i = 0; i < 2; i++) assert.notEqual((await ask("viewer-1")).status, 429);
+  const over = await ask("viewer-1");
+  assert.equal(over.status, 429);
+  assert.deepEqual(((await over.json()) as any).params, { limit: "2" });
+  assert.notEqual((await ask("viewer-2")).status, 429, "each viewer has their own");
+  // Anyone, owners too, at most thirty an hour.
+  for (let i = 0; i < 30; i++) assert.notEqual((await ask("owner")).status, 429);
+  assert.equal(((await (await ask("owner")).json()) as any).code, "assistant_soon");
+});

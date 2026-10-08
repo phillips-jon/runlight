@@ -783,5 +783,10 @@
   "error.origin_needed": "Indica primero la dirección de este Runlight (RUNLIGHT_URL en el servidor, u origin en routes()) para que un hub conectado pueda añadir dominios de enlaces e informes por correo.",
   "error.twofactor_restart": "Demasiados códigos incorrectos. Vuelve a empezar a activar el inicio de sesión en dos pasos.",
   "error.pick_origin": "Envía el origen del panel, como https://stats.example.com",
-  "error.pick_hub": "La dirección de este hub no es desde la que se conectó. Vuelve a conectar el sitio desde aquí."
+  "error.pick_hub": "La dirección de este hub no es desde la que se conectó. Vuelve a conectar el sitio desde aquí.",
+  "assistant.viewerDaily": "Preguntas al día por lector",
+  "assistant.viewerDailyHint": "Cada pregunta gasta tu crédito de IA, así que cada lector tiene este número al día. Pon 0 para dejar el asistente solo a los propietarios.",
+  "error.assistant_soon": "Has preguntado mucho en poco tiempo. Espera un poco y vuelve a preguntar.",
+  "error.assistant_daily": "Los lectores pueden hacer {limit} preguntas al día. Vuelve a preguntar mañana.",
+  "error.assistant_limit": "Usa un número entero de 0 a 1.000."
 }

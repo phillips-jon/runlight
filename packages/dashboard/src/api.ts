@@ -248,6 +248,8 @@ export interface AssistantState {
   keySaved?: boolean;
   encrypted?: boolean;
   providers?: AssistantProvider[];
+  /** Questions each viewer may ask a day. */
+  viewerDaily?: number;
 }
 
 /** The paths visits take, a column per step. "" is any other page. */
@@ -414,6 +416,7 @@ export const api = {
   assistant: () => get<AssistantState>("assistant", new URLSearchParams()),
   saveAssistant: (input: { provider: string; model: string; baseUrl: string; key: string }) => send<{ ok: true }>("PUT", "assistant", input),
   removeAssistant: () => del("assistant"),
+  saveAssistantLimit: (viewerDaily: number) => send<{ viewerDaily: number }>("PUT", "assistant/limits", { viewerDaily }),
   assistantModels: (input: { provider: string; baseUrl: string; key: string }) => send<{ models: Array<{ id: string; name: string }> }>("POST", "assistant/models", input),
   ask: (site: string, messages: Array<{ role: "user" | "assistant"; content: string }>, view: string, language: string) =>
     send<{ reply: string; tools: string[] }>("POST", "assistant/chat", { site, messages, view, language }),
