@@ -87,6 +87,9 @@ export interface Remote {
 
 export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
 
+/** The choices for how long a site keeps its visits. */
+export const RETENTION_MONTHS = [6, 12, 24, 36, 60];
+
 /** Thirty minutes without a request ends a session. */
 export const SESSION_IDLE_MS = 30 * 60 * 1000;
 
@@ -428,6 +431,31 @@ export class Runlight {
     await this.store.setSiteOverrides(id, next);
     this.overrides.set(id, next);
     return this.site(id)!;
+  }
+
+  /** How many months of visits a site keeps, or null to keep everything (the default). */
+  async retention(site: string): Promise<number | null> {
+    const value = Number(await this.store.setting(`retention:${site}`));
+    return RETENTION_MONTHS.includes(value) ? value : null;
+  }
+
+  async setRetention(site: string, months: number | null): Promise<void> {
+    if (!this.site(site) || this.remotes.has(site)) throw new RangeError("Unknown site");
+    if (months !== null && !RETENTION_MONTHS.includes(months)) throw new RangeError(`Keep visits for ${RETENTION_MONTHS.join(", ")} months, or forever`);
+    await this.store.setSetting(`retention:${site}`, months === null ? null : String(months));
+    await this.applyRetention(site);
+  }
+
+  /** Deletes visits older than each site's retention allows. Cheap when there is nothing to delete. */
+  private async applyRetention(only?: string): Promise<void> {
+    for (const site of this.sites) {
+      if ((only && site.id !== only) || this.remotes.has(site.id)) continue;
+      const months = await this.retention(site.id);
+      if (months === null) continue;
+      const cutoff = new Date(this.now());
+      cutoff.setUTCMonth(cutoff.getUTCMonth() - months);
+      await this.store.dropBefore(site.id, cutoff.getTime());
+    }
   }
 
   site(id: string | null | undefined): SiteRow | null {
@@ -813,6 +841,7 @@ export class Runlight {
     this.salts.clear();
     for (const timezone of new Set(this.sites.map((s) => s.timezone))) await this.currentSalts(this.now(), timezone);
     await this.dropOldSalts(this.now());
+    await this.applyRetention();
     return { ok: true, reports: await this.sendReports() };
   }
 }

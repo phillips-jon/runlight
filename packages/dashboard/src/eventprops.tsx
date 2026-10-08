@@ -39,12 +39,11 @@ export function EventProps({ view, event, onClose }: { view: View; event: string
         {answer && answer.keys.length === 0 ? <p class="empty">{t("props.none")}</p> : null}
         {answer && answer.key ? (
           <>
+            <div class="table">
             <div class="cols">
               <span>{answer.key}</span>
-              <span>
-                <span class="extra">{t("column.visitors")}</span>
-                {t("column.events")}
-              </span>
+              <span class="extra">{t("column.visitors")}</span>
+              <span class="num-head">{t("column.events")}</span>
             </div>
             <ol class="rows">
               {rows.map((r) => (
@@ -58,6 +57,7 @@ export function EventProps({ view, event, onClose }: { view: View; event: string
                 </li>
               ))}
             </ol>
+            </div>
           </>
         ) : null}
         {!answer && !error ? <p class="empty">{t("common.loading")}</p> : null}

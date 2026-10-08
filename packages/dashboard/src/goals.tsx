@@ -118,12 +118,11 @@ export function ConversionsPanel({ view, readOnly, onAdd }: { view: View; readOn
       ) : null}
       {rows && rows.length ? (
         <>
+          <div class="table">
           <div class="cols">
             <span>{t("goals.goal")}</span>
-            <span>
-              <span class="extra">{t("goals.rate")}</span>
-              {t("goals.conversions")}
-            </span>
+            <span class="extra">{t("goals.rate")}</span>
+            <span class="num-head">{t("goals.conversions")}</span>
           </div>
           <ol class="rows">
             {sorted.map((r) => (
@@ -138,6 +137,7 @@ export function ConversionsPanel({ view, readOnly, onAdd }: { view: View; readOn
               </li>
             ))}
           </ol>
+          </div>
         </>
       ) : null}
       {open ? <GoalDetail view={view} id={open} onClose={() => setOpen(null)} /> : null}

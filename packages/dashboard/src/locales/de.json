@@ -613,5 +613,17 @@
   "sites.all": "Alle Websites",
   "sites.remoteNote": "Diese Website wird von ihrem eigenen Runlight unter {url} gezählt. Ihre Zahlen erscheinen hier, und Einstellungen und Ziele werden dort geändert.",
   "sites.disconnect": "Diese Website trennen",
-  "sites.disconnectHint": "Beim Trennen verschwindet die Website von diesem Server. Ihr eigenes Runlight und alles, was es gezählt hat, bleiben unverändert."
+  "sites.disconnectHint": "Beim Trennen verschwindet die Website von diesem Server. Ihr eigenes Runlight und alles, was es gezählt hat, bleiben unverändert.",
+  "settings.data": "Daten",
+  "data.retention": "Besuche behalten für",
+  "data.retentionHint": "Ältere Besuche und Ereignisse werden beim Speichern endgültig gelöscht, danach jeden Tag. Ziele, Links und Einstellungen bleiben.",
+  "data.forever": "Immer",
+  "data.months": "{n} Monate",
+  "data.years": "{n} Jahre",
+  "data.deletesBefore": "Besuche vor dem {date} werden beim Speichern gelöscht.",
+  "data.export": "Alles exportieren",
+  "data.exportHint": "Alle Berichte dieser Website seit dem ersten Besuch, als CSV-Dateien in einer ZIP-Datei.",
+  "data.download": "ZIP herunterladen",
+  "sites.remoteTitle": "Von einem anderen Runlight gezählt",
+  "sites.openRemote": "Sein Dashboard öffnen"
 }

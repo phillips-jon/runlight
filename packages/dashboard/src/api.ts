@@ -7,6 +7,8 @@ export interface Site {
   lastSeen?: number | null;
   /** The address of the Runlight install this site is counted by, when it is connected rather than counted here. */
   remote?: string;
+  /** How many months of visits the site keeps; null keeps everything. */
+  retentionMonths?: number | null;
 }
 
 export interface Stats {
@@ -356,7 +358,7 @@ export const api = {
   checkLinkDomain: (site: string, domain: string) =>
     get<{ domain: string; working: boolean; reason: string }>(`link-domains/${encodeURIComponent(domain)}/check`, new URLSearchParams(site ? { site } : {})),
   removeLinkDomain: (site: string, domain: string) => del(`link-domains/${encodeURIComponent(domain)}${siteQuery(site)}`),
-  updateSite: (id: string, patch: { name?: string; timezone?: string; hostnames?: string }) => send<{ site: Site }>("PATCH", `sites/${encodeURIComponent(id)}`, patch),
+  updateSite: (id: string, patch: { name?: string; timezone?: string; hostnames?: string; retentionMonths?: number | null }) => send<{ site: Site }>("PATCH", `sites/${encodeURIComponent(id)}`, patch),
   sites: () =>
     get<{ sites: Site[]; managed?: boolean }>("sites", new URLSearchParams()).then((r) => {
       install.managed = Boolean(r.managed);

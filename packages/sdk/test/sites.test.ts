@@ -87,3 +87,42 @@ test("a second server process on the same database sees new sites and connected 
   assert.deepEqual(two.sites.map((s) => s.id).sort(), ["app.example.com", "new.example.com"]);
   assert.equal(two.remote("app.example.com")?.url, "https://app.example.com/runlight");
 });
+
+for (const kind of STORES) {
+  test(`${kind}: a site's retention setting deletes visits older than it allows`, async () => {
+    const store = freshStore(kind);
+    let now = Date.UTC(2026, 9, 6, 12, 0, 0);
+    const rl = runlight({ store, site: { hostnames: ["example.com"] }, now: () => now });
+    const { GET, POST, PATCH } = rl.routes({ token: "t" });
+    const auth = { authorization: "Bearer t", "content-type": "application/json" };
+    const hit = (ip: string) =>
+      POST(new Request("https://example.com/runlight/e", {
+        method: "POST",
+        headers: { "user-agent": "Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36", "x-forwarded-for": ip },
+        body: JSON.stringify({ k: "pageview", u: "https://example.com/" }),
+      }));
+    const visits = async () => ((await (await GET(new Request("https://example.com/runlight/api/stats?period=all", { headers: auth }))).json()) as any).stats.visits;
+    const listed = async () => ((await (await GET(new Request("https://example.com/runlight/api/sites", { headers: auth }))).json()) as any).sites[0].retentionMonths;
+
+    now = Date.UTC(2025, 9, 1);
+    await hit("203.0.113.1");
+    now = Date.UTC(2026, 6, 1);
+    await hit("203.0.113.2");
+    now = Date.UTC(2026, 9, 6, 12);
+    await hit("203.0.113.3");
+    assert.equal(await visits(), 3);
+    assert.equal(await listed(), null, "everything is kept by default");
+
+    const patch = (body: unknown) => PATCH(new Request("https://example.com/runlight/api/sites/default", { method: "PATCH", headers: auth, body: JSON.stringify(body) }));
+    assert.equal((await patch({ retentionMonths: 7 })).status, 400);
+    assert.equal((await patch({ retentionMonths: 6 })).status, 200);
+    assert.equal(await listed(), 6);
+    assert.equal(await visits(), 2, "the visit from a year ago is gone at once");
+
+    now = Date.UTC(2027, 1, 1);
+    await rl.check();
+    assert.equal(await visits(), 1, "the scheduled check keeps trimming");
+    assert.equal((await patch({ retentionMonths: null })).status, 200);
+    assert.equal(await listed(), null);
+  });
+}

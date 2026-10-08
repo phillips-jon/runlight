@@ -613,5 +613,17 @@
   "sites.all": "All sites",
   "sites.remoteNote": "This site is counted by its own Runlight at {url}. Its numbers show here, and its settings and goals are changed there.",
   "sites.disconnect": "Disconnect this site",
-  "sites.disconnectHint": "Disconnecting removes the site from this server. Its own Runlight and everything it has counted stay as they are."
+  "sites.disconnectHint": "Disconnecting removes the site from this server. Its own Runlight and everything it has counted stay as they are.",
+  "settings.data": "Data",
+  "data.retention": "Keep visits for",
+  "data.retentionHint": "Older visits and events are deleted for good when you save, then every day after. Goals, links, and settings stay.",
+  "data.forever": "Forever",
+  "data.months": "{n} months",
+  "data.years": "{n} years",
+  "data.deletesBefore": "Visits before {date} will be deleted when you save.",
+  "data.export": "Export everything",
+  "data.exportHint": "Every report for this site since its first visit, as CSV files in one ZIP.",
+  "data.download": "Download ZIP",
+  "sites.remoteTitle": "Counted by another Runlight",
+  "sites.openRemote": "Open its dashboard"
 }

@@ -63,6 +63,10 @@ In **Settings**, **Import**, **Visits**, sign in to your Umami with an API key (
 
 The import stops where Runlight's own visits begin, so no day is counted twice. If you stop it or close the page, running it again carries on from the last day it finished. Umami records no engaged time, so an imported visit's length runs from its first pageview to its last. Your key or password is only used while the import runs and is never saved.
 
+## Keeping data
+
+Each site keeps every visit unless you choose otherwise. In **Settings**, **Data**, **Keep visits for** takes anything from 6 months to 5 years. Saving a shorter time deletes older visits and events for good, and the dashboard says from which date before you save. After that the scheduled check deletes whatever passes the limit each day. Goals, links, and settings stay. The same section has **Export everything**, a ZIP of every report since the site’s first visit, worth downloading before you shorten the time.
+
 ## Settings
 
-The gear beside the site name opens Settings, which holds the site’s name, timezone, and language; install steps; goals; email reports; sharing; custom domains for short links; and importing links. The theme switch is in the footer, and Shift+Cmd+D (Shift+Ctrl+D) toggles the theme too.
+The gear beside the site name opens Settings, which holds the site’s name, timezone, and language; install steps; goals; email reports; sharing; custom domains for short links; importing links and visits; and the site’s data. The theme switch is in the footer, and Shift+Cmd+D (Shift+Ctrl+D) toggles the theme too.

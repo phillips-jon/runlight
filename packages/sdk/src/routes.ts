@@ -903,6 +903,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const body = await readJson(request);
       if (body instanceof Response) return body;
       try {
+        if (body.retentionMonths !== undefined) {
+          await runlight.setRetention(decodeURIComponent(siteMatch[1]!), body.retentionMonths === null ? null : Number(body.retentionMonths));
+        }
         const site = await runlight.updateSite(decodeURIComponent(siteMatch[1]!), {
           ...(body.name !== undefined ? { name: String(body.name) } : {}),
           ...(body.timezone !== undefined ? { timezone: String(body.timezone) } : {}),
@@ -947,6 +950,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           // Hostnames say where the site lives; a share shows only its name.
           ...(shared ? { hostnames: [] } : {}),
           lastSeen: runlight.remote(site.id) ? await runlight.remoteLastSeen(site.id) : await runlight.store.lastSeen(site.id),
+          ...(shared || runlight.remote(site.id) ? {} : { retentionMonths: await runlight.retention(site.id) }),
         })),
       );
       // A share never learns how the install is run.

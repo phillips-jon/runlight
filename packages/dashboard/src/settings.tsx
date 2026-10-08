@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { api, base, install, type Person, type Site, type View } from "./api.js";
+import { api, base, download, install, type Person, type Site, type View } from "./api.js";
 import { People } from "./account.js";
 import { EmailReports } from "./email.js";
 import { Goals } from "./goals.js";
@@ -14,7 +14,7 @@ import { Sharing } from "./sharing.js";
 import { Tokens } from "./tokens.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
-export type Section = "general" | "install" | "goals" | "email" | "sharing" | "api" | "links" | "import" | "people";
+export type Section = "general" | "install" | "goals" | "email" | "sharing" | "api" | "links" | "import" | "people" | "data";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
@@ -24,6 +24,7 @@ const SECTIONS: Array<[Section, Key]> = [
   ["api", "settings.api"],
   ["links", "settings.links"],
   ["import", "settings.import"],
+  ["data", "settings.data"],
 ];
 
 function timezones(): string[] {
@@ -116,11 +117,25 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
 
   return (
     <>
+      {site.remote ? (
+        <div class="prompt-row">
+          <span class="callout-icon" aria-hidden="true">
+            <Icon name="external" />
+          </span>
+          <span class="callout-text settings-text">
+            <strong>{t("sites.remoteTitle")}</strong>
+            {t("sites.remoteNote", { url: site.remote })}
+          </span>
+          <a class="box-button" href={site.remote} target="_blank" rel="noopener">
+            <Icon name="external" />
+            {t("sites.openRemote")}
+          </a>
+        </div>
+      ) : null}
       <form class="settings-group" onSubmit={save}>
         <Field label={t("settings.siteName")}>
           <input class="value" type="text" maxLength={80} value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
         </Field>
-        {site.remote ? <p class="settings-text">{t("sites.remoteNote", { url: site.remote })}</p> : null}
         {install.managed && !site.remote ? (
           <Field label={t("sites.domains")} hint={t("sites.domainsHint")}>
             <input class="value" type="text" value={hostnames} onInput={(e) => setHostnames((e.target as HTMLInputElement).value)} />
@@ -190,6 +205,79 @@ function General({ site, onSaved, onLanguage, onDeleted }: { site: Site; onSaved
           </div>
         </div>
       ) : null}
+    </>
+  );
+}
+
+const RETENTION = [6, 12, 24, 36, 60];
+
+/** How long the site keeps its visits, and a download of everything it has. */
+function Data({ site, onSaved }: { site: Site; onSaved: (site: Site) => void }) {
+  const kept = site.retentionMonths ?? null;
+  const [months, setMonths] = useState<number | null>(kept);
+  const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
+  const [error, setError] = useState("");
+  const label = (n: number) => (n % 12 === 0 ? t("data.years", { n: n / 12 }) : t("data.months", { n }));
+  // Saving a shorter time deletes at once, so say from when before it happens.
+  const cutoff = months === null || (kept !== null && months >= kept) ? null : (() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - months);
+    return d.toLocaleDateString(currentLocale(), { day: "numeric", month: "long", year: "numeric" });
+  })();
+
+  const save = (e: Event) => {
+    e.preventDefault();
+    setState("saving");
+    setError("");
+    api
+      .updateSite(site.id, { retentionMonths: months })
+      .then((r) => {
+        onSaved({ ...r.site, retentionMonths: months });
+        setState("saved");
+      })
+      .catch((err: Error) => {
+        setError(err.message);
+        setState("idle");
+      });
+  };
+
+  return (
+    <>
+      <form class="settings-group" onSubmit={save}>
+        <Field label={t("data.retention")} hint={t("data.retentionHint")}>
+          <select class="value" value={months === null ? "" : String(months)} onChange={(e) => {
+            const v = (e.target as HTMLSelectElement).value;
+            setMonths(v ? Number(v) : null);
+            setState("idle");
+          }}>
+            <option value="">{t("data.forever")}</option>
+            {RETENTION.map((n) => (
+              <option value={String(n)}>{label(n)}</option>
+            ))}
+          </select>
+        </Field>
+        {cutoff ? <p class="settings-warning">{t("data.deletesBefore", { date: cutoff })}</p> : null}
+        <div class="settings-actions">
+          {error ? <span class="settings-error">{error}</span> : null}
+          {state === "saved" && months === kept ? <span class="settings-ok">{t("settings.saved")}</span> : null}
+          <button type="submit" class="solid" disabled={months === kept || state === "saving"}>
+            <Icon name="save" />
+            {t(state === "saving" ? "settings.saving" : "settings.save")}
+          </button>
+        </div>
+      </form>
+      <div class="settings-group">
+        <div class="field-row">
+          <span class="field-label">{t("data.export")}</span>
+          <span class="field-hint">{t("data.exportHint")}</span>
+          <div>
+            <button type="button" class="box-button" onClick={() => void download("export", new URLSearchParams({ site: site.id, period: "all" })).catch((err: Error) => setError(err.message))}>
+              <Icon name="download" />
+              {t("data.download")}
+            </button>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
@@ -517,6 +605,8 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
               <Tokens sites={sites} />
             ) : section === "links" ? (
               <LinkDomains site={site} />
+            ) : section === "data" ? (
+              <Data site={site} onSaved={onSaved} />
             ) : (
               <Import site={site} />
             )}

@@ -115,10 +115,8 @@ function Columns({ tab }: { tab: Tab }) {
   return (
     <div class="cols">
       <span>{t(tab.label)}</span>
-      <span>
-        {tab.extra ? <span class="extra">{t(tab.extra.label)}</span> : null}
-        {t(`column.${tab.column ?? "visitors"}`)}
-      </span>
+      {tab.extra ? <span class="extra">{t(tab.extra.label)}</span> : null}
+      <span class="num-head">{t(`column.${tab.column ?? "visitors"}`)}</span>
     </div>
   );
 }
@@ -381,11 +379,13 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
       ) : (
         <>
           {mix.length > 0 ? <Mix parts={mix} /> : null}
-          <Columns tab={tab} />
-          {error ? <p class="empty">{error}</p> : null}
-          {!error && rows && all.length === 0 ? <p class="empty">{t("panel.empty")}</p> : null}
-          {!rows && !error ? <p class="empty">{t("common.loading")}</p> : null}
-          <Rows rows={all.slice(0, SHORT)} tab={tab} onFilter={onFilter} onDetail={tab.dimension === "event" ? setDetail : undefined} />
+          <div class="table">
+            <Columns tab={tab} />
+            {error ? <p class="empty">{error}</p> : null}
+            {!error && rows && all.length === 0 ? <p class="empty">{t("panel.empty")}</p> : null}
+            {!rows && !error ? <p class="empty">{t("common.loading")}</p> : null}
+            <Rows rows={all.slice(0, SHORT)} tab={tab} onFilter={onFilter} onDetail={tab.dimension === "event" ? setDetail : undefined} />
+          </div>
           {all.length > SHORT ? (
             <button type="button" class="more" onClick={() => setShowAll(true)}>
               <Icon name="expand" />

@@ -2340,6 +2340,15 @@ h1 .home:hover {
   color: var(--down);
 }
 
+.settings-warning {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--down) 40%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--down) 8%, transparent);
+  font-size: 13px;
+  color: var(--ink);
+}
+
 .settings-ok {
   font: 12px var(--mono);
   color: var(--up);
@@ -3809,4 +3818,65 @@ button.sign-out {
   justify-content: center;
   width: 28px;
   padding: 0;
+}
+
+a.box-button {
+  flex: none;
+  text-decoration: none;
+}
+
+/* A box's header and rows share one grid, so each column is as wide as its widest label or value and every number lines up. */
+.table {
+  display: grid;
+  grid-template-columns: [name] minmax(0, 1fr) [extra] auto [detail] auto [num] auto;
+}
+
+.table > .cols,
+.table > .rows,
+.table > .rows > li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  column-gap: 0;
+}
+
+.table > .cols {
+  padding: 0 0 6px;
+}
+
+.table > .cols > span:first-child {
+  grid-column: name;
+  padding-left: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table > .empty {
+  grid-column: 1 / -1;
+}
+
+.table .extra {
+  grid-column: extra;
+  margin: 0;
+  padding-left: 16px;
+  text-align: right;
+}
+
+.table .row-detail {
+  grid-column: detail;
+  margin-left: 8px;
+}
+
+.table .num,
+.table .num-head {
+  grid-column: num;
+  padding-left: 16px;
+  padding-right: 10px;
+  text-align: right;
+}
+
+.table > .rows > li > .name {
+  grid-column: name;
 }

@@ -524,9 +524,10 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
           </button>
         </div>
       </header>
+      <div class="table">
       <div class="cols">
         <span>{t("panel.links")}</span>
-        <span>{t("links.clicks")}</span>
+        <span class="num-head">{t("links.clicks")}</span>
       </div>
       {links && top.length === 0 ? <p class="empty">{t("links.empty")}</p> : null}
       {!links ? <p class="empty">{t("common.loading")}</p> : null}
@@ -542,6 +543,7 @@ export function LinksPanel({ view, site }: { view: View; site: string }) {
           </li>
         ))}
       </ol>
+      </div>
       {links && links.length > top.length ? (
         <button type="button" class="more" onClick={() => setOpen("manage")}>
           <Icon name="expand" />

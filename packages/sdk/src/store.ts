@@ -491,6 +491,14 @@ export class SqlStore {
     });
   }
 
+  /** Deletes a site's visits and events from before a time, for its retention setting. */
+  async dropBefore(site: string, ts: number): Promise<void> {
+    await this.transaction(async (store) => {
+      await store.db.run(`DELETE FROM rl_events WHERE site = ? AND ts < ?`, [site, ts]);
+      await store.db.run(`DELETE FROM rl_sessions WHERE site = ? AND started_at < ?`, [site, ts]);
+    });
+  }
+
   async setSiteOverrides(id: string, overrides: SiteOverrides): Promise<void> {
     await this.db.run(`UPDATE rl_sites SET overrides = ? WHERE id = ?`, [JSON.stringify(overrides), id]);
   }
