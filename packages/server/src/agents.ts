@@ -12,7 +12,7 @@
  * next run, or a restarted --follow, carries on from there.
  */
 import { createHash } from "node:crypto";
-import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, fstatSync, linkSync, openSync, readFileSync, readSync, renameSync, statSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import { aiAgent } from "@runlight/sdk";
 
 export interface Fetch {
@@ -195,7 +195,93 @@ function readFrom(file: string | number, offset: number): { lines: string[]; end
   }
 }
 
+/** Whether a process with this id is running on this machine. */
+function running(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // EPERM: it runs, as someone else.
+    return (error as NodeJS.ErrnoException).code === "EPERM";
+  }
+}
+
+/**
+ * Takes the lock beside a state file, so two runs never read from the same place and send the
+ * same lines twice. The lock holds the run's process id; a lock left by a process that is no longer
+ * running is taken over. Returns the release.
+ */
+function lock(state: string): () => void {
+  const path = `${state}.lock`;
+  const mine = String(process.pid);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const fd = openSync(path, "wx");
+      writeSync(fd, mine);
+      closeSync(fd);
+      const release = () => {
+        try {
+          if (readFileSync(path, "utf8") === mine) unlinkSync(path);
+        } catch {}
+      };
+      process.once("exit", release);
+      return () => {
+        process.off("exit", release);
+        release();
+      };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+    }
+    let held = "";
+    try {
+      held = readFileSync(path, "utf8").trim();
+    } catch {
+      continue;
+    }
+    const pid = Number(held);
+    // A lock being written has no id in it yet, so it counts as held.
+    if (!held || (Number.isInteger(pid) && pid > 0 && running(pid))) break;
+    // Stale. Moving it aside is atomic, so of two runs taking it over only one moves this lock; one
+    // that finds a newer lock moved aside puts it back.
+    const aside = `${path}.${mine}`;
+    try {
+      renameSync(path, aside);
+    } catch {
+      continue;
+    }
+    if (readFileSync(aside, "utf8").trim() !== held) {
+      try {
+        linkSync(aside, path);
+      } catch {}
+      unlinkSync(aside);
+      break;
+    }
+    unlinkSync(aside);
+  }
+  let holder = "";
+  try {
+    holder = readFileSync(path, "utf8").trim();
+  } catch {}
+  throw new Error(`Another run is using ${state}${holder ? ` (process ${holder})` : ""}. Wait for it to finish, or delete ${path} if none is running.`);
+}
+
+/** Writes the state whole or not at all, so a crash part way never leaves it empty. */
+function writeState(state: string, saved: Saved): void {
+  const temp = `${state}.${process.pid}.tmp`;
+  writeFileSync(temp, JSON.stringify(saved));
+  renameSync(temp, state);
+}
+
 export async function runAgents(options: AgentsOptions): Promise<number> {
+  const release = options.state ? lock(options.state) : () => {};
+  try {
+    return await readLog(options);
+  } finally {
+    release();
+  }
+}
+
+async function readLog(options: AgentsOptions): Promise<number> {
   const out = options.out ?? ((line: string) => console.log(line));
   if (!existsSync(options.log)) throw new Error(`No log at ${options.log}`);
   let total = 0;
@@ -228,7 +314,7 @@ export async function runAgents(options: AgentsOptions): Promise<number> {
   };
   /** The place to save: the file being read, by its inode and its own start, and how far into it. */
   const save = (ino: number, offset: number, head: { head: string; length: number }) => {
-    if (options.state) writeFileSync(options.state, JSON.stringify({ ino, offset, ...head }));
+    if (options.state) writeState(options.state, { ino, offset, ...head });
   };
   /** Where the last run stopped, or null with a word about it when the state file cannot be read. */
   const readState = (): Saved | null => {

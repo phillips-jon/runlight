@@ -761,6 +761,7 @@
   "error.token_refused": "{host} a refusé le jeton. Connectez-le de nouveau depuis les réglages du site.",
   "error.mail_failed": "L’e-mail n’a pas pu être envoyé ({detail}).",
   "error.mail_unreachable": "Impossible de joindre {host}.",
+  "error.mail_slow": "{host} a mis trop de temps à répondre, l’e-mail n’a donc pas été envoyé.",
   "error.mail_refused": "{host} a refusé l’e-mail ({detail}).",
   "error.mail_service": "Choisissez un service d’e-mail.",
   "error.mail_field": "Le champ {field} est requis.",

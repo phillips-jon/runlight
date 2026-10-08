@@ -79,7 +79,8 @@ Usage:
   --key <key>     The site's key from Settings, Install, Key for CMS plugins (or RUNLIGHT_OBSERVE_KEY)
   --site <url>    The site's address, such as https://example.com, when the log has no host in it
   --follow        Keep running and send fetches as they happen
-  --state <file>  Remember where it stopped, so the next run, or a restarted --follow, starts there
+  --state <file>  Remember where it stopped, so the next run, or a restarted --follow, starts there.
+                  Only one run at a time can use it.
 
 Docs: https://runlight.sh/docs/server/#ai-agents-from-a-log
 `;
@@ -152,10 +153,11 @@ async function main(): Promise<void> {
   const host = env("HOST") ?? "0.0.0.0";
   const http = createHttpServer(async (req, res) => {
     try {
-      const response = await server.handler(await toRequest(req), { ip: req.socket.remoteAddress ?? "" });
+      const response = await server.handler(await toRequest(req, res), { ip: req.socket.remoteAddress ?? "" });
       await writeResponse(res, response);
     } catch (error) {
-      if (error instanceof BodyTooLarge) return void (res.headersSent || res.writeHead(413, { "content-type": "application/json" }).end(JSON.stringify({ error: "That request is too large" })));
+      // An upload cut off part way leaves the connection unfit for another request, so it closes.
+      if (error instanceof BodyTooLarge) return void (res.headersSent || res.writeHead(413, { "content-type": "application/json", connection: "close" }).end(JSON.stringify({ error: "That request is too large" })));
       console.error("Runlight:", error);
       if (!res.headersSent) res.writeHead(500).end();
     }

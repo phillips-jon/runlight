@@ -761,6 +761,7 @@
   "error.token_refused": "{host} recusou o token. Conecte-o de novo nas configurações do site.",
   "error.mail_failed": "Não foi possível enviar o e-mail ({detail}).",
   "error.mail_unreachable": "Não foi possível acessar {host}.",
+  "error.mail_slow": "{host} demorou demais para responder, então o e-mail não foi enviado.",
   "error.mail_refused": "{host} recusou o e-mail ({detail}).",
   "error.mail_service": "Escolha um serviço de e-mail.",
   "error.mail_field": "O campo {field} é obrigatório.",

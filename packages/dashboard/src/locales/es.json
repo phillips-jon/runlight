@@ -761,6 +761,7 @@
   "error.token_refused": "{host} rechazó el token. Vuelve a conectarlo desde los ajustes del sitio.",
   "error.mail_failed": "No se pudo enviar el correo ({detail}).",
   "error.mail_unreachable": "No se pudo contactar con {host}.",
+  "error.mail_slow": "{host} tardó demasiado en responder, así que el correo no se envió.",
   "error.mail_refused": "{host} rechazó el correo ({detail}).",
   "error.mail_service": "Elige un servicio de correo.",
   "error.mail_field": "Falta el campo {field}.",

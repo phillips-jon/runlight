@@ -213,6 +213,7 @@ These are the codes and the params each one fills. An error a connected install 
 | `mail_refused` | `detail`, `host` | {host} turned the email down ({detail}). |
 | `mail_region` |  | That is not an AWS region, like us-east-1. |
 | `mail_service` |  | Pick a mail service. |
+| `mail_slow` | `host` | {host} took too long to answer, so the email was not sent. |
 | `mail_unreachable` | `host` | Could not reach {host}. |
 | `mail_unset` |  | Set up a mail service first. |
 | `method_not_allowed` |  | That cannot be done here. |
