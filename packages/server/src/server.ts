@@ -4,7 +4,7 @@
  * answered on any domain pointed at it.
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { LINK_DOMAIN_CHECK, runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
+import { DOMAIN_NAME, LINK_DOMAIN_CHECK, hostName, runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
 import { AccountError, Accounts, SESSION_COOKIE, SESSION_MS, Throttle, otpauthUri, type Invite, type Role, type User } from "./auth.js";
 import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
 
@@ -42,8 +42,6 @@ export interface RunlightServer {
 
 const HTML = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "x-frame-options": "DENY", "referrer-policy": "same-origin" };
 
-/** Codes for the account errors the dashboard shows, so it can say them in its own language. */
-
 function readCookie(request: Request, name: string): string {
   for (const part of (request.headers.get("cookie") ?? "").split(";")) {
     const [key, ...rest] = part.trim().split("=");
@@ -77,15 +75,11 @@ function safeNext(value: string | null): string {
 /** The server's own pages, which answer as the server on every name it is reached at, a link domain too. */
 const SERVER_PATHS = new Set(["/login", "/logout", "/setup", "/invite", "/healthz", "/auth.css", "/auth.js", "/api", "/mcp", "/s.js", "/pick.js", "/e"]);
 
-/** The most names remembered as the server's own. */
+/**
+ * The most names remembered as the server's own. The first ones stay and later ones are not learned, so
+ * a server reached at more names than this needs RUNLIGHT_URL to keep the rest from becoming link domains.
+ */
 const MAX_OWN_HOSTS = 20;
-
-/** A Host header's name, lowercase, with no port, no final dot, and no www. */
-function hostName(value: string): string {
-  const first = value.split(",")[0]!.trim().toLowerCase();
-  const name = first.startsWith("[") ? first.slice(0, first.indexOf("]") + 1) : first.replace(/:\d*$/, "");
-  return name.replace(/\.+$/, "").replace(/^www\./, "");
-}
 
 function isSecure(request: Request): boolean {
   return new URL(request.url).protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
@@ -113,8 +107,9 @@ export function createServer(options: ServerOptions): RunlightServer {
   /** The name a request came in on, read as link domains read it. */
   const hostOf = (request: Request) => hostName(((options.trustProxy ?? true) ? request.headers.get("x-forwarded-host") : null) ?? request.headers.get("host") ?? new URL(request.url).host);
 
-  // The names people signed in from, kept in the database, so a link domain can never be one of them even when
-  // whoever adds it picks another Host header. Names that are already link domains are left out.
+  // The names owners signed in from, kept in the database, so a link domain can never be one of them even when
+  // whoever adds it picks another Host header. Only owners teach them, since anyone else could fill the list
+  // with made-up names, and only real domain names. Names that are already link domains are left out.
   let ownHosts: Set<string> | null = null;
   const savedHosts = async () => {
     await rl.init();
@@ -128,7 +123,7 @@ export function createServer(options: ServerOptions): RunlightServer {
   const learnHost = async (request: Request) => {
     const host = hostOf(request);
     const known = await knownHosts();
-    if (!host || known.has(host) || known.size >= MAX_OWN_HOSTS) return;
+    if (!DOMAIN_NAME.test(host) || known.has(host) || known.size >= MAX_OWN_HOSTS) return;
     if ((await options.store.linkDomains()).some((d) => d.domain === host)) return;
     // Another copy of the server may have saved names since this one read them.
     for (const saved of await savedHosts()) known.add(saved);
@@ -206,7 +201,7 @@ export function createServer(options: ServerOptions): RunlightServer {
       const auth = request.headers.get("authorization") ?? "";
       if (options.token && auth.toLowerCase().startsWith("bearer ") && equal(auth.slice(7).trim(), options.token)) return true;
       const user = await signedIn(request);
-      if (user) await learnHost(request);
+      if (user?.role === "owner") await learnHost(request);
       // A viewer reads every site and changes nothing.
       return user ? (user.role === "viewer" ? "read" : true) : false;
     },

@@ -91,7 +91,7 @@ stats.example.com {
 }
 ```
 
-Set `RUNLIGHT_URL` to the server's public address, such as `https://stats.example.com`. Short links can then never take over that name, and invite and report emails link to it whatever Host header a request names.
+Set `RUNLIGHT_URL` to the server's public address, such as `https://stats.example.com`. Short links can then never take over that name, and invite and report emails link to it whatever Host header a request names. A [connected hub](/docs/api/) adds link domains and email reports only once it is set.
 
 Runlight reads each visitor's address from the last `X-Forwarded-For` entry, the one your proxy adds. Set `TRUST_PROXY` to `x-real-ip` or `cf-connecting-ip` when that header holds the address instead, such as behind Cloudflare and another proxy. Set `TRUST_PROXY=false` when nothing sits in front of the server, so a visitor cannot send a false address.
 
@@ -105,7 +105,7 @@ stats.example.com, go.example.com {
 }
 ```
 
-Every link also answers at `/go/your-slug` on the server's own domain. The server's own pages, such as `/login` and everything under `/api`, answer as the server on a link domain too, so a link with one of those slugs works only at `/go/`. A link domain can never be the server's public address or a name someone has signed in from, and if one was added that way before, signing in at `/login` still opens the dashboard so you can remove it.
+Every link also answers at `/go/your-slug` on the server's own domain. The server's own pages, such as `/login` and everything under `/api`, answer as the server on a link domain too, so a link with one of those slugs works only at `/go/`. A link domain can never be the server's public address or a name an owner has signed in from, and if one was added that way before, signing in at `/login` still opens the dashboard so you can remove it. The server remembers the first 20 names owners sign in from, so set `RUNLIGHT_URL` if it answers on more.
 
 ## Locations
 
