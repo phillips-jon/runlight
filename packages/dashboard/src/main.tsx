@@ -571,7 +571,8 @@ function App() {
         )}
         {/* The last row: Conversions narrow, Links wide, so the zigzag carries on. */}
         {/* Wide then narrow, so the zigzag of the rows above carries on. */}
-        {site && !readOnly && !elsewhere ? <LinksPanel view={view} site={site.id} /> : null}
+        {/* A viewer reads the links without changing them; a share never shows them. */}
+        {site && !share && !elsewhere ? <LinksPanel view={view} site={site.id} readOnly={readOnly} /> : null}
         {site ? <ConversionsPanel view={view} readOnly={readOnly || elsewhere} onAdd={() => setSettingsOpen("goals")} /> : null}
       </div>
 

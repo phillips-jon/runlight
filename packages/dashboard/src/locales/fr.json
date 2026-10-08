@@ -747,5 +747,6 @@
   "people.demoted": "Vous êtes désormais lecteur, donc les réglages sont fermés et rien ici ne peut être modifié. Un autre propriétaire peut vous rendre propriétaire.",
   "links.importNoUrl": "Rien n'a été importé, car le fichier n'a pas de colonne url remplie d'adresses. Utilisez les colonnes name et url, plus slug et domain si vous les avez.",
   "app.sessionEnded": "Vous avez été déconnecté, ce qui arrive quand une session expire ou qu'un mot de passe change. {link} et vous reviendrez à cette vue.",
-  "app.signInAgain": "Reconnectez-vous"
+  "app.signInAgain": "Reconnectez-vous",
+  "links.noneYet": "Personne n'a encore créé de lien court pour ce site."
 }

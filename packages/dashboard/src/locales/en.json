@@ -747,5 +747,6 @@
   "people.demoted": "You are a viewer now, so settings are closed and nothing here can be changed. Another owner can make you an owner again.",
   "links.importNoUrl": "Nothing was imported because the file has no url column with addresses in it. Use the columns name and url, plus slug and domain when you have them.",
   "app.sessionEnded": "You were signed out, which happens when a session runs out or a password changes. {link} and you come back to this view.",
-  "app.signInAgain": "Sign in again"
+  "app.signInAgain": "Sign in again",
+  "links.noneYet": "Nobody has made a short link for this site yet."
 }

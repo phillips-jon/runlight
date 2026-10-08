@@ -747,5 +747,6 @@
   "people.demoted": "Agora você é leitor, então as configurações foram fechadas e nada aqui pode ser alterado. Outro proprietário pode torná-lo proprietário de novo.",
   "links.importNoUrl": "Nada foi importado porque o arquivo não tem uma coluna url com endereços. Use as colunas name e url, além de slug e domain quando as tiver.",
   "app.sessionEnded": "Sua sessão foi encerrada, o que acontece quando uma sessão expira ou uma senha muda. {link} e você volta para esta visão.",
-  "app.signInAgain": "Entre de novo"
+  "app.signInAgain": "Entre de novo",
+  "links.noneYet": "Ninguém criou um link curto para este site ainda."
 }

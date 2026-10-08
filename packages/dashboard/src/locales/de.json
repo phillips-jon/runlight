@@ -747,5 +747,6 @@
   "people.demoted": "Du bist jetzt Betrachter, deshalb sind die Einstellungen geschlossen und hier lässt sich nichts mehr ändern. Ein anderer Eigentümer kann dich wieder zum Eigentümer machen.",
   "links.importNoUrl": "Nichts wurde importiert, weil die Datei keine Spalte url mit Adressen hat. Nutze die Spalten name und url, dazu slug und domain, wenn du sie hast.",
   "app.sessionEnded": "Du wurdest abgemeldet, was passiert, wenn eine Sitzung abläuft oder sich ein Passwort ändert. {link}, dann kommst du zu dieser Ansicht zurück.",
-  "app.signInAgain": "Melde dich wieder an"
+  "app.signInAgain": "Melde dich wieder an",
+  "links.noneYet": "Für diese Website hat noch niemand einen Kurzlink erstellt."
 }
