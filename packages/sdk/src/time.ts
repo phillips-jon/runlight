@@ -97,7 +97,10 @@ export function addMonths(date: string, months: number): string {
 }
 
 export function isDate(value: string): boolean {
-  return /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  // A month or day that does not exist (2026-13-01) makes no date at all, rather than a wrong one.
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
 function daysBetween(from: string, to: string): number {

@@ -9,6 +9,7 @@ import { DIMENSIONS, isDimension, isSessionDimension, MAX_FILTERS, parseFilter, 
 import { EMAIL, LINK_DOMAIN_CHECK, RETENTION_MONTHS, envValue as env, type RequestContext, type Runlight } from "./runlight.js";
 import { mcpResponse } from "./mcp.js";
 import { PrivateAddressError, publicFetch } from "./net.js";
+import { readablePath } from "./sources.js";
 import { oauthResponse, resourceMetadataUrl } from "./oauth.js";
 import { csv, zip } from "./zip.js";
 import { GoalError, clickRules, goalFrom } from "./goals.js";
@@ -192,11 +193,32 @@ async function passThrough(remote: { url: string; token: string; site: string },
   return new Response(answer.body, { status: answer.status, headers: back });
 }
 
-/** Rows of objects as CSV, with a column for every key the first row has. */
-function rowsCsv(rows: ReadonlyArray<object>): string {
-  const header = rows.length ? Object.keys(rows[0]!) : ["value"];
-  return csv(header, rows.map((r) => header.map((k) => (r as Record<string, unknown>)[k])));
+/** Rows of objects as CSV, with a column for every key the first row has, in the units a spreadsheet reads. */
+function rowsCsv(rows: ReadonlyArray<object>, sheet: { timezone: string; interval?: string; dimension?: string }): string {
+  const readable = rows.map((r) => sheetRow(r as Record<string, unknown>, sheet));
+  const header = readable.length ? Object.keys(readable[0]!) : ["value"];
+  return csv(header, readable.map((r) => header.map((k) => r[k])));
 }
+
+/**
+ * One row for a spreadsheet: a bucket's start as the site's local date (and hour), rates as percents,
+ * durations in seconds, and paths as people write them.
+ */
+function sheetRow(row: Record<string, unknown>, sheet: { timezone: string; interval?: string; dimension?: string }): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(row)) {
+    if (key === "start" && typeof value === "number") {
+      const hour = sheet.interval === "hour" ? ` ${String(localWeekdayHour(value, sheet.timezone)[1]).padStart(2, "0")}:00` : "";
+      out.date = `${localDate(value, sheet.timezone)}${hour}`;
+    } else if (key === "bounceRate" && typeof value === "number") out.bounceRatePercent = Math.round(value * 1000) / 10;
+    else if ((key === "visitDuration" || key === "timeOnPage") && typeof value === "number") out[`${key}Seconds`] = Math.round(value / 1000);
+    else if (key === "value" && typeof value === "string" && PATH_DIMENSIONS.has(sheet.dimension ?? "")) out.value = readablePath(value);
+    else out[key] = value;
+  }
+  return out;
+}
+
+const PATH_DIMENSIONS = new Set(["page", "entry", "exit", "ai_page"]);
 
 /** A file to save, never shown in the browser or kept in a shared cache. */
 function download(name: string, body: string | Uint8Array, type: string): Response {
@@ -1498,7 +1520,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const limit = Math.min(1000, Math.max(1, Number(url.searchParams.get("limit")) || 10));
       const page = Math.max(1, Number(url.searchParams.get("page")) || 1);
       const rows = await runlight.store.breakdown(query, dimension, limit, (page - 1) * limit);
-      if (url.searchParams.get("format") === "csv") return download(`${site.id}-${dimension}-${range.fromDate}-${range.toDate}.csv`, rowsCsv(rows), "text/csv; charset=utf-8");
+      if (url.searchParams.get("format") === "csv") return download(`${site.id}-${dimension}-${range.fromDate}-${range.toDate}.csv`, rowsCsv(rows, { timezone: site.timezone, dimension }), "text/csv; charset=utf-8");
       return json({ site: site.id, range: rangeOut, dimension, rows });
     }
 
@@ -1507,16 +1529,17 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const files: Array<{ name: string; text: string }> = [];
       const stats = await runlight.store.stats(query);
       const previous = compared ? await runlight.store.stats({ ...query, from: compared.from, to: compared.to }) : null;
-      const metrics = Object.keys(stats) as Array<keyof typeof stats>;
+      const now = sheetRow(stats as unknown as Record<string, unknown>, { timezone: site.timezone });
+      const before = previous ? sheetRow(previous as unknown as Record<string, unknown>, { timezone: site.timezone }) : null;
       files.push({
         name: "overview.csv",
-        text: csv(["metric", "value", ...(previous ? ["previous"] : [])], metrics.map((m) => [m, stats[m], ...(previous ? [previous[m]] : [])])),
+        text: csv(["metric", "value", ...(before ? ["previous"] : [])], Object.keys(now).map((m) => [m, now[m], ...(before ? [before[m]] : [])])),
       });
       const points = await runlight.store.series(query, buckets(range, site.timezone));
-      files.push({ name: "over-time.csv", text: rowsCsv(points as unknown as Array<Record<string, unknown>>) });
+      files.push({ name: "over-time.csv", text: rowsCsv(points as unknown as Array<Record<string, unknown>>, { timezone: site.timezone, interval: range.interval }) });
       for (const dimension of DIMENSIONS) {
         const rows = await runlight.store.breakdown(query, dimension, 1000, 0);
-        if (rows.length) files.push({ name: `${dimension}.csv`, text: rowsCsv(rows as unknown as Array<Record<string, unknown>>) });
+        if (rows.length) files.push({ name: `${dimension}.csv`, text: rowsCsv(rows as unknown as Array<Record<string, unknown>>, { timezone: site.timezone, dimension }) });
       }
       const goals = await runlight.store.goals(site.id);
       if (goals.length) {

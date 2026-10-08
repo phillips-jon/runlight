@@ -570,7 +570,7 @@
   "people.owner": "Eigentümer",
   "people.viewer": "Betrachter",
   "people.roles": "Ein Server behält immer mindestens einen Eigentümer.",
-  "people.emailPlaceholder": "Ihre E-Mail-Adresse",
+  "people.emailPlaceholder": "E-Mail-Adresse der Person",
   "pluginKey.title": "Schlüssel für CMS-Plugins",
   "pluginKey.intro": "Die Plugins für WordPress, Drupal und Craft melden mit diesem Schlüssel KI-Agenten, die die Seiten dieser Website lesen. Er kann nur für diese Website melden und nichts lesen. Ein neuer Schlüssel macht den alten sofort ungültig.",
   "pluginKey.replace": "Schlüssel ersetzen",
@@ -779,5 +779,7 @@
   "error.code_wrong": "Dieser Code stimmt nicht. Prüf die Uhrzeit auf deinem Handy und versuch den nächsten.",
   "error.twofactor_off": "Schalte zuerst die Zwei-Faktor-Anmeldung ein.",
   "error.twofactor_self": "Deine eigene Zwei-Faktor-Anmeldung schaltest du unter Konto aus.",
-  "error.unknown_invite": "Diese Einladung gibt es nicht mehr."
+  "error.unknown_invite": "Diese Einladung gibt es nicht mehr.",
+  "people.demoteSelf": "Nur ein anderer Eigentümer kann dich wieder zum Eigentümer machen.",
+  "people.demoteConfirm": "Mich zum Betrachter machen"
 }

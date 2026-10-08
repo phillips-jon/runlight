@@ -84,6 +84,21 @@ export function recordedPath(input: string): string | null {
   }
 }
 
+/**
+ * A recorded path as people write it, for showing and exporting: /caf%C3%A9 as /café. Only text is
+ * decoded; an encoded slash, space, or other mark that would change the path's meaning stays as it is.
+ */
+export function readablePath(path: string): string {
+  return path.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+    try {
+      const text = decodeURIComponent(run);
+      return /[\s/?#%\p{C}]/u.test(text) ? run : text;
+    } catch {
+      return run;
+    }
+  });
+}
+
 export function parsePage(url: URL): Page {
   const q = url.searchParams;
   let path = url.pathname || "/";

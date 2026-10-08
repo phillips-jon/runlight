@@ -570,7 +570,7 @@
   "people.owner": "Propietario",
   "people.viewer": "Lector",
   "people.roles": "Un servidor siempre conserva al menos un propietario.",
-  "people.emailPlaceholder": "Su correo electrónico",
+  "people.emailPlaceholder": "Correo electrónico de la persona",
   "pluginKey.title": "Clave para plugins de CMS",
   "pluginKey.intro": "Los plugins de WordPress, Drupal y Craft usan esta clave para informar de los agentes de IA que leen las páginas de este sitio. Solo puede informar para este sitio y no puede leer nada. Al reemplazarla, la anterior deja de funcionar al instante.",
   "pluginKey.replace": "Reemplazar clave",
@@ -779,5 +779,7 @@
   "error.code_wrong": "Ese código no es correcto. Revisa la hora de tu teléfono y prueba con el siguiente.",
   "error.twofactor_off": "Activa primero el inicio de sesión en dos pasos.",
   "error.twofactor_self": "Desactiva tu propio inicio de sesión en dos pasos en Cuenta.",
-  "error.unknown_invite": "Esa invitación ya no existe."
+  "error.unknown_invite": "Esa invitación ya no existe.",
+  "people.demoteSelf": "Solo otro propietario podrá volver a hacerte propietario.",
+  "people.demoteConfirm": "Hacerme lector"
 }

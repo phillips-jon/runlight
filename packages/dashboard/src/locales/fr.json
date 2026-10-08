@@ -506,10 +506,10 @@
   "email.unsubscribe": "Se désabonner",
   "email.test.subject": "Runlight peut envoyer des e-mails",
   "email.test.body": "Ce test est passé par {service}. Les rapports de vos sites arriveront de la même façon.",
-  "email.unsub.title": "Arrêter les rapports de {site} ?",
+  "email.unsub.title": "Arrêter les rapports pour {site} ?",
   "email.unsub.body": "{email} ne recevra plus de rapports pour ce site.",
   "email.unsub.doneTitle": "Vous êtes désabonné",
-  "email.unsub.done": "Plus aucun rapport de {site} n'arrivera à {email}.",
+  "email.unsub.done": "Plus aucun rapport pour {site} n'arrivera à {email}.",
   "email.unsub.goneTitle": "Rien à désabonner",
   "email.unsub.gone": "Ce lien a déjà servi, ou le rapport a été supprimé.",
   "settings.api": "API et IA",
@@ -779,5 +779,7 @@
   "error.code_wrong": "Ce code n'est pas correct. Vérifiez l'heure de votre téléphone et essayez le suivant.",
   "error.twofactor_off": "Activez d'abord la connexion à deux facteurs.",
   "error.twofactor_self": "Désactivez votre propre connexion à deux facteurs dans Compte.",
-  "error.unknown_invite": "Cette invitation n'existe plus."
+  "error.unknown_invite": "Cette invitation n'existe plus.",
+  "people.demoteSelf": "Seul un autre propriétaire pourra vous rendre propriétaire.",
+  "people.demoteConfirm": "Me rendre lecteur"
 }

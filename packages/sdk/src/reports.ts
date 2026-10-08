@@ -238,6 +238,8 @@ ${lists.map(table).join("")}
 <p class="rl-foot" style="max-width:600px;font-size:12px;line-height:1.5;color:#6b7280;margin:16px auto 0">${esc(footer)} <a href="${esc(links.unsubscribe)}" style="color:#6b7280">${esc(t("email.unsubscribe"))}</a></p>
 </td></tr></table></body></html>`;
 
+  // French sets a space before a colon, as its subject line does.
+  const colon = code === "fr" ? "\u00a0:" : ":";
   const text = [
     `Runlight · ${at}`,
     "",
@@ -247,13 +249,13 @@ ${lists.map(table).join("")}
     "",
     ...metrics.map((m) => {
       const d = delta(m.key, m.lowerIsBetter).text;
-      return `${t(`metric.${m.key}`)}: ${m.format(now[m.key])}${d ? ` (${d})` : ""}`;
+      return `${t(`metric.${m.key}`)}${colon} ${m.format(now[m.key])}${d ? ` (${d})` : ""}`;
     }),
-    ...lists.flatMap((l) => ["", l.title, ...(l.rows.length ? l.rows.map(([a, b]) => `  ${a}: ${b}`) : [`  ${t("panel.empty")}`])]),
+    ...lists.flatMap((l) => ["", l.title, ...(l.rows.length ? l.rows.map(([a, b]) => `  ${a}${colon} ${b}`) : [`  ${t("panel.empty")}`])]),
     "",
-    `${t("email.open")}: ${links.dashboard}`,
+    `${t("email.open")}${colon} ${links.dashboard}`,
     "",
-    `${footer} ${t("email.unsubscribe")}: ${links.unsubscribe}`,
+    `${footer} ${t("email.unsubscribe")}${colon} ${links.unsubscribe}`,
   ].join("\n");
 
   return { subject, html, text };

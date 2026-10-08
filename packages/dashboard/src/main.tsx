@@ -22,6 +22,13 @@ import "./style.css";
 /** A fresh dashboard compares with nothing; the cards show changes once a comparison is picked. */
 const DEFAULT_COMPARE: CompareMode = "off";
 
+/** A real calendar date as YYYY-MM-DD, or "" for anything else, so a mistyped link falls back to the default range. */
+function dateParam(value: string | null): string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : "";
+}
+
 function readView(): View {
   const q = new URLSearchParams(location.search);
   const filters: Filter[] = [];
@@ -30,13 +37,14 @@ function readView(): View {
     if (dimension && (op === "is" || op === "not" || op === "contains")) filters.push({ dimension, op, value: rest.join(":") });
   }
   const compare = (["previous", "year", "custom", "off"].includes(q.get("compare") ?? "") ? q.get("compare") : DEFAULT_COMPARE) as CompareMode;
-  const compareFrom = q.get("compare_from") ?? "";
-  const compareTo = q.get("compare_to") ?? "";
+  const compareFrom = dateParam(q.get("compare_from"));
+  const compareTo = dateParam(q.get("compare_to"));
+  const from = dateParam(q.get("from"));
+  const to = dateParam(q.get("to"));
   return {
     site: q.get("site") ?? "",
-    period: q.get("period") ?? DEFAULT_PERIOD,
-    from: q.get("from") ?? "",
-    to: q.get("to") ?? "",
+    period: q.get("period") === "custom" && !(from && to) ? DEFAULT_PERIOD : (q.get("period") ?? DEFAULT_PERIOD),
+    ...(from && to ? { from, to } : { from: "", to: "" }),
     filters,
     compare: q.get("period") === "all" ? "off" : compare === "custom" && !(compareFrom && compareTo) ? DEFAULT_COMPARE : compare,
     compareFrom,
@@ -228,7 +236,10 @@ function App() {
 
   // The last numbers stay up while new ones load; past 300 ms they fade, so a slow database shows it is working.
   const [slow, setSlow] = useState(false);
+  // On the standalone server the sites come first, so a server with none yet asks for nothing that would fail.
+  const noSites = install.managed && !sites?.length;
   useEffect(() => {
+    if (noSites) return;
     let live = true;
     const timer = setTimeout(() => live && setSlow(true), 300);
     Promise.all([api.stats(view), api.series(view)])
@@ -248,7 +259,7 @@ function App() {
       live = false;
       clearTimeout(timer);
     };
-  }, [view]);
+  }, [view, noSites]);
 
   const update = useCallback((patch: Partial<View>) => setView((v) => ({ ...v, ...patch })), []);
   const addFilter = useCallback(
@@ -331,6 +342,7 @@ function App() {
   };
   // A standalone server with no sites yet asks for the first one.
   if (sites && sites.length === 0 && install.managed) return <FirstSite onAdded={added} />;
+  if (noSites) return <main aria-busy="true" />;
 
   const shownMetrics = METRICS.filter((m) => charted.includes(m.key));
 

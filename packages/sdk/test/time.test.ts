@@ -71,3 +71,13 @@ test("a day whose midnight is skipped by the clocks begins when they land", () =
     assert.notEqual(localDate(at - 1, zone), date);
   }
 });
+
+test("a date with a month or day that does not exist is not a date, rather than an error", async () => {
+  const { isDate } = await import("../src/time.js");
+  for (const bad of ["2026-13-01", "2026-00-05", "2026-02-30", "2026-04-31", "2026-1-01"]) assert.equal(isDate(bad), false, bad);
+  assert.equal(isDate("2028-02-29"), true);
+  const { setup } = await import("./helpers.js");
+  const t = setup("sqlite");
+  const answer = await t.routes.GET(new Request("https://example.com/runlight/api/stats?from=2026-13-01&to=2026-13-05", { headers: { authorization: "Bearer secret" } }));
+  assert.equal(answer.status, 400);
+});

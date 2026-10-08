@@ -296,7 +296,9 @@ function build() {
     `# Runlight\n\n> Runlight is open source web analytics that you install into your own app as a package with one route and a script tag. Every doc below is plain Markdown.\n\n## Docs\n\n${docs.map((d) => `- [${d.meta.title}](${SITE}${d.path}index.md): ${d.meta.description ?? ""}`).join("\n")}\n\n## Setup prompt\n\n- [prompt.txt](${SITE}/prompt.txt): instructions a coding agent can follow to add Runlight to an app\n`,
   );
   // Each doc as Markdown too, for agents.
-  for (const doc of docs) writeFileSync(path.join(DIST, doc.path, "index.md"), `# ${doc.meta.title}\n\n${doc.meta.description ? `${doc.meta.description}\n\n` : ""}${doc.body}`);
+  // Its links are made absolute, so Markdown pasted into a coding agent still leads somewhere.
+  const absolute = (markdown) => markdown.replace(/\]\((\/[^)\s]*)\)/g, (_, href) => `](${SITE}${href})`);
+  for (const doc of docs) writeFileSync(path.join(DIST, doc.path, "index.md"), `# ${doc.meta.title}\n\n${doc.meta.description ? `${doc.meta.description}\n\n` : ""}${absolute(doc.body)}`);
 
   writeFileSync(path.join(DIST, "robots.txt"), `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
   writeFileSync(

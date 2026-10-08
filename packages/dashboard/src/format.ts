@@ -17,6 +17,21 @@ function cached<T extends Intl.NumberFormat | Intl.DateTimeFormat | Intl.Display
 const numbers = (key: string, options: Intl.NumberFormatOptions) => cached(key, () => new Intl.NumberFormat(currentLocale(), options));
 const dates = (key: string, options: Intl.DateTimeFormatOptions) => cached(key, () => new Intl.DateTimeFormat(currentLocale(), options));
 
+/**
+ * A path as people write it: recorded paths are percent-encoded, as browsers send them, so /café is
+ * kept as /caf%C3%A9. Only letters and the like are decoded; an encoded slash or space stays as it is.
+ */
+export function readablePath(path: string): string {
+  return path.replace(/(?:%[0-9A-Fa-f]{2})+/g, (run) => {
+    try {
+      const text = decodeURIComponent(run);
+      return /[\s/?#%\p{C}]/u.test(text) ? run : text;
+    } catch {
+      return run;
+    }
+  });
+}
+
 export function count(n: number): string {
   return n < 10_000 ? exact(n) : numbers("compact", { notation: "compact", maximumFractionDigits: 1 }).format(n);
 }

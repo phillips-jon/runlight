@@ -57,7 +57,7 @@ Settings, Sharing makes a read-only link to one site’s dashboard for a client 
 
 ## Exporting
 
-**Export** in the footer downloads everything the dashboard shows for the current dates and filters as a ZIP of CSV files. It holds the six numbers, the numbers for each day, every breakdown up to 1,000 rows, and your goals. Every full list also has **Download CSV** for that one table. A share link can export its own site, and the same files come from the API at `/api/export` and from `/api/breakdown` with `format=csv`.
+**Export** in the footer downloads everything the dashboard shows for the current dates and filters as a ZIP of CSV files. It holds the six numbers, the numbers for each day, every breakdown up to 1,000 rows, and your goals. Dates are the site’s own, rates are percents, and times are in seconds, so a spreadsheet reads them as they are. Every full list also has **Download CSV** for that one table. A share link can export its own site, and the same files come from the API at `/api/export` and from `/api/breakdown` with `format=csv`.
 
 ## Bringing history over from Umami
 

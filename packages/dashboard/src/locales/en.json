@@ -779,5 +779,7 @@
   "error.code_wrong": "That code is not right. Check the time on your phone and try the next one.",
   "error.twofactor_off": "Turn on two-factor sign-in first.",
   "error.twofactor_self": "Turn off your own two-factor sign-in under Account.",
-  "error.unknown_invite": "That invite no longer exists."
+  "error.unknown_invite": "That invite no longer exists.",
+  "people.demoteSelf": "Only another owner can make you an owner again.",
+  "people.demoteConfirm": "Make me a viewer"
 }
