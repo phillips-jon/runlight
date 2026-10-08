@@ -11,6 +11,9 @@
   // this script, which a page that opens the site some other way cannot get. The bar shows that host too.
   var target = "__RUNLIGHT_PICK_TARGET__";
   if (!/^https?:\/\//.test(target)) return;
+  // The ticket also names the site it was made for, so a ticket for one site does nothing on another's pages.
+  var hosts = JSON.parse("__RUNLIGHT_PICK_HOSTS__");
+  if (hosts.length && hosts.indexOf(location.hostname.toLowerCase().replace(/^www\./, "")) < 0) return;
 
   var words = {
     en: ["Click what you want to count", "Use this", "Pick again", "Cancel", "Matches {n} on this page", "Sent to Runlight. You can close this tab."],

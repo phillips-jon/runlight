@@ -121,6 +121,9 @@ test("a hub connects an app through its consent page and changes that site's set
     assert.equal((await call("POST", `/api/goals?site=${id}`, { name: "Signup", kind: "event", match: "Signup" })).status, 201);
     assert.equal((await call("POST", `/api/links?site=${id}`, { url: "https://example.org/", slug: "hi" })).status, 201);
     assert.equal((await call("POST", `/api/reports?site=${id}`, { email: "me@example.com" })).status, 201);
+    // Picker tickets name the hub it connected from, and no other.
+    assert.equal((await call("POST", `/api/pick?site=${id}`, { origin: "http://localhost:4900" })).status, 200);
+    assert.equal((await call("POST", `/api/pick?site=${id}`, { origin: "https://evil.example" })).status, 403);
     assert.equal((await call("PATCH", `/api/sites/${id}`, { retentionMonths: 24 })).status, 200);
     const moved = await call("PATCH", `/api/sites/${id}`, { timezone: "Asia/Tokyo" });
     assert.equal(moved.body.site.timezone, "Asia/Tokyo", "the hub's row follows");

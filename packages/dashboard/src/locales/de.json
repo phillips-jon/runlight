@@ -781,5 +781,7 @@
   "error.twofactor_self": "Deine eigene Zwei-Faktor-Anmeldung schaltest du unter Konto aus.",
   "error.unknown_invite": "Diese Einladung gibt es nicht mehr.",
   "error.origin_needed": "Lege zuerst die eigene Adresse dieses Runlight fest (RUNLIGHT_URL auf dem Server oder origin in routes()), damit ein verbundener Hub Link-Domains und E-Mail-Berichte hinzufügen kann.",
-  "error.twofactor_restart": "Zu viele falsche Codes. Beginne erneut mit dem Einschalten der Zwei-Faktor-Anmeldung."
+  "error.twofactor_restart": "Zu viele falsche Codes. Beginne erneut mit dem Einschalten der Zwei-Faktor-Anmeldung.",
+  "error.pick_origin": "Sende den Ursprung des Dashboards, etwa https://stats.example.com",
+  "error.pick_hub": "Die Adresse dieses Hubs ist nicht die, von der aus er sich verbunden hat. Verbinde die Website von hier aus erneut."
 }

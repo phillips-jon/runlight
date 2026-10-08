@@ -84,8 +84,20 @@ test("the element picker sends its choice only to the dashboard its ticket names
   now += 31 * 60_000;
   assert.equal(await target(ticket), "", "a ticket runs out after half an hour");
 
-  // A hub's manage token gets one for its own site, naming the hub.
-  const manage = ((await (await POST(req("/runlight/api/tokens", { method: "POST", headers: { authorization: "Bearer secret", "content-type": "application/json" }, body: JSON.stringify({ name: "Hub", scope: "manage", site: "blog" }) }))).json()) as any).secret as string;
+  // The script also learns the site the ticket is for, and does nothing on any other site's pages.
+  const fresh = (await (await ask({ origin: "https://stats.example.com" })).json()) as { ticket: string };
+  const script = await (await GET(req(`/runlight/pick.js?runlight_ticket=${encodeURIComponent(fresh.ticket)}`))).text();
+  assert.ok(script.includes(JSON.stringify(JSON.stringify(["blog.example.com"]))));
+  assert.ok(!script.includes("__RUNLIGHT_PICK_HOSTS__"));
+
+  // A hub's manage token gets one only for the hub it connected from, recorded when it did.
+  const made = (await (await POST(req("/runlight/api/tokens", { method: "POST", headers: { authorization: "Bearer secret", "content-type": "application/json" }, body: JSON.stringify({ name: "Hub", scope: "manage", site: "blog" }) }))).json()) as any;
+  const manage = made.secret as string;
+  const refused = await ask({ origin: "https://hub.example.net" }, manage);
+  assert.equal(refused.status, 403);
+  assert.equal(((await refused.json()) as any).code, "pick_hub");
+  await rl.store.setSetting(`token-origin:${made.token.id}`, "https://hub.example.net");
+  assert.equal((await ask({ origin: "https://evil.example" }, manage)).status, 403, "never another origin");
   const hub = (await (await ask({ origin: "https://hub.example.net" }, manage)).json()) as { ticket: string };
   assert.equal(await target(hub.ticket), "https://hub.example.net");
 });

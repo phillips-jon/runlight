@@ -781,5 +781,7 @@
   "error.twofactor_self": "Turn off your own two-factor sign-in under Account.",
   "error.unknown_invite": "That invite no longer exists.",
   "error.origin_needed": "Set this Runlight's own address first (RUNLIGHT_URL on the server, or origin in routes()), so a connected hub can add link domains and email reports.",
-  "error.twofactor_restart": "Too many wrong codes. Start turning on two-factor sign-in again."
+  "error.twofactor_restart": "Too many wrong codes. Start turning on two-factor sign-in again.",
+  "error.pick_origin": "Send the dashboard's origin, such as https://stats.example.com",
+  "error.pick_hub": "This hub's address is not the one it connected from. Connect the site again from here."
 }

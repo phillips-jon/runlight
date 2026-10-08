@@ -277,6 +277,8 @@ ${sendsTo}
       await runlight.store.deleteToken(row.id);
       return oauthError("invalid_grant", "Whoever allowed this app can no longer connect it");
     }
+    // A hub's own address, from where it asked to be sent back, so the picker only ever sends choices there.
+    if (scope === "manage") await runlight.store.setSetting(`token-origin:${row.id}`, new URL(grant.redirect).origin);
     // site is not part of OAuth, but a hub needs to know which site it was given.
     return json({ access_token: secret, token_type: "Bearer", scope, ...(grant.site ? { site: grant.site } : {}) });
   }

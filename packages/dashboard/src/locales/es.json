@@ -781,5 +781,7 @@
   "error.twofactor_self": "Desactiva tu propio inicio de sesión en dos pasos en Cuenta.",
   "error.unknown_invite": "Esa invitación ya no existe.",
   "error.origin_needed": "Indica primero la dirección de este Runlight (RUNLIGHT_URL en el servidor, u origin en routes()) para que un hub conectado pueda añadir dominios de enlaces e informes por correo.",
-  "error.twofactor_restart": "Demasiados códigos incorrectos. Vuelve a empezar a activar el inicio de sesión en dos pasos."
+  "error.twofactor_restart": "Demasiados códigos incorrectos. Vuelve a empezar a activar el inicio de sesión en dos pasos.",
+  "error.pick_origin": "Envía el origen del panel, como https://stats.example.com",
+  "error.pick_hub": "La dirección de este hub no es desde la que se conectó. Vuelve a conectar el sitio desde aquí."
 }
