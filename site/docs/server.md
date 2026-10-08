@@ -39,7 +39,11 @@ Owners invite people in **Settings**, **People**, as an owner or a viewer. An ow
 
 ### Two-factor sign-in
 
-Anyone can turn on two-factor sign-in under **Account** at the bottom of the dashboard. Confirm your password, scan the QR code with an authenticator app such as 1Password, Google Authenticator, or Authy, and enter the code it shows. Signing in then asks for a fresh code after the password. You also get ten recovery codes, shown once, and each signs you in once if your phone is gone. An owner can reset someone else's two-factor in **Settings**, **People**.
+Anyone can turn on two-factor sign-in under **Account** at the bottom of the dashboard. Confirm your password, scan the QR code with an authenticator app such as 1Password, Google Authenticator, or Authy, and enter the code it shows. Signing in then asks for a fresh code after the password. You also get ten recovery codes, shown once, and each signs you in once if your phone is gone. An owner can reset someone else's two-factor in **Settings**, **People**. Turning two-factor on or off signs you out of every other browser, and the one you are using stays signed in.
+
+### Sign-in limits
+
+One address gets ten wrong passwords for an account every fifteen minutes, and the account gets fifty from anywhere. A browser that has signed in to the account before still gets in when the account is at its limit, so someone guessing cannot lock you out. The code step allows five wrong codes every fifteen minutes.
 
 ### Forgotten passwords
 

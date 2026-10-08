@@ -194,9 +194,11 @@ function App() {
   const [me, setMe] = useState<Person | null>(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [allOpen, setAllOpen] = useState(false);
-  useEffect(() => {
+  // Who is signed in, read again whenever Account or Settings closes, so a role or two-factor change shows at once.
+  const refreshMe = () => {
     if (accounts) api.account().then((r) => setMe(r.account)).catch(() => {});
-  }, []);
+  };
+  useEffect(refreshMe, []);
   /** A shared dashboard and a viewer see the numbers and change nothing. */
   const readOnly = Boolean(share) || me?.role === "viewer";
 
@@ -420,6 +422,7 @@ function App() {
             setSettingsOpen(null);
             // Goals may have changed; the board reads them again.
             setView((v) => ({ ...v }));
+            refreshMe();
           }}
           onSaved={(saved) => {
             setSites((all) => (all ?? []).map((x) => (x.id === saved.id ? { ...x, ...saved } : x)));
@@ -447,7 +450,15 @@ function App() {
           }}
         />
       ) : null}
-      {accountOpen && me ? <AccountSheet me={me} onClose={() => setAccountOpen(false)} /> : null}
+      {accountOpen && me ? (
+        <AccountSheet
+          me={me}
+          onClose={() => {
+            setAccountOpen(false);
+            refreshMe();
+          }}
+        />
+      ) : null}
       {addingSite ? (
         <Sheet title={t("sites.addTitle")} onClose={() => setAddingSite(false)}>
           <AddSiteForm onAdded={added} onCancel={() => setAddingSite(false)} />

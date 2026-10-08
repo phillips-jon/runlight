@@ -232,6 +232,20 @@ export class Accounts {
    * A code works once: one already used, or older, is refused, and a recovery code is crossed off.
    */
   async checkSecondFactor(id: string, code: string, now: number): Promise<boolean> {
+    // One check at a time per account, so two sign-ins at once cannot both use the same code.
+    const before = this.checking.get(id) ?? Promise.resolve();
+    const turn = before.then(() => this.checkSecondFactorNow(id, code, now));
+    this.checking.set(id, turn.catch(() => {}));
+    try {
+      return await turn;
+    } finally {
+      if (this.checking.get(id) === turn) this.checking.delete(id);
+    }
+  }
+
+  private readonly checking = new Map<string, Promise<unknown>>();
+
+  private async checkSecondFactorNow(id: string, code: string, now: number): Promise<boolean> {
     await this.init();
     const [row] = await this.store.db.all(`SELECT totp_secret, totp_recovery, totp_step FROM rl_users WHERE id = ?`, [id]);
     if (!row?.totp_secret) return false;
@@ -407,7 +421,7 @@ export class Accounts {
   sessionFor(user: User, now: number): string {
     const expires = now + SESSION_MS;
     const body = `${user.id}.${expires}`;
-    return `${body}.${this.sign(body, user.hash)}`;
+    return `${body}.${this.sign(body, this.sessionKey(user))}`;
   }
 
   /** The signed-in user for a cookie value, or null. */
@@ -416,9 +430,31 @@ export class Accounts {
     if (!id || !expires || !signature || !(Number(expires) > now)) return null;
     const user = await this.byId(id);
     if (!user) return null;
-    const expected = Buffer.from(this.sign(`${id}.${expires}`, user.hash));
+    const expected = Buffer.from(this.sign(`${id}.${expires}`, this.sessionKey(user)));
     const given = Buffer.from(signature);
     return expected.length === given.length && timingSafeEqual(expected, given) ? user : null;
+  }
+
+  /** What a session is signed with: the password hash, and whether two-factor is on, so changing either ends other sessions. */
+  private sessionKey(user: User): string {
+    return `${user.hash}${user.twoFactor ? ".2fa" : ""}`;
+  }
+
+  /**
+   * A long-lived mark for a browser that signed in to an account. With it, failed tries by others
+   * against that account cannot lock this browser out; the per-address limit still applies.
+   * A new password withdraws it.
+   */
+  deviceFor(user: User): string {
+    return `${user.id}.${this.sign(`device.${user.id}`, user.hash)}`;
+  }
+
+  trustsDevice(value: string, user: User): boolean {
+    const [id, signature] = value.split(".");
+    if (id !== user.id || !signature) return false;
+    const expected = Buffer.from(this.sign(`device.${user.id}`, user.hash));
+    const given = Buffer.from(signature);
+    return expected.length === given.length && timingSafeEqual(expected, given);
   }
 
   private sign(body: string, hash: string): string {
@@ -456,9 +492,14 @@ export class Throttle {
       this.failures.delete(key);
       this.failures.set(key, { count: 1, until: now + this.windowMs });
     } else entry.count++;
-    // Expired entries go first, then the oldest, so the map has a hard ceiling.
+    // Expired entries go first, then the oldest that are not blocked, and blocked ones last, so the map
+    // has a hard ceiling and a flood of made-up names cannot wipe out a real block.
     if (this.failures.size > MAX_THROTTLED) {
       for (const [k, v] of this.failures) if (v.until <= now) this.failures.delete(k);
+      for (const [k, v] of this.failures) {
+        if (this.failures.size <= MAX_THROTTLED) break;
+        if (v.count < this.limit) this.failures.delete(k);
+      }
       for (const k of this.failures.keys()) {
         if (this.failures.size <= MAX_THROTTLED) break;
         this.failures.delete(k);

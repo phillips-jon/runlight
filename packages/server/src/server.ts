@@ -79,6 +79,10 @@ export function createServer(options: ServerOptions): RunlightServer {
   // forwarding headers a client can write, so they never stand alone.
   const perAddress = new Throttle(10);
   const perAccount = new Throttle(50);
+  // Six-digit codes: five wrong tries an account every fifteen minutes. Password re-checks in Account: ten.
+  const codeTries = new Throttle(5);
+  const rechecks = new Throttle(10);
+  const DEVICE_COOKIE = "runlight_device";
   const setupCode = randomBytes(9).toString("base64url");
   let hasAccount = false;
 
@@ -118,6 +122,14 @@ export function createServer(options: ServerOptions): RunlightServer {
     `${SESSION_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${isSecure(request) ? "; Secure" : ""}`;
 
   const accountExists = async () => (hasAccount ||= (await accounts.count()) > 0);
+
+  /** The redirect after signing in: a session, and the mark that this browser has signed in to the account. */
+  const signedInTo = (request: Request, user: User, next: string) => {
+    const headers = new Headers({ location: next, "cache-control": "no-store" });
+    headers.append("set-cookie", sessionCookie(request, accounts.sessionFor(user, now()), SESSION_MS / 1000));
+    headers.append("set-cookie", `${DEVICE_COOKIE}=${encodeURIComponent(accounts.deviceFor(user))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${365 * 86_400}${isSecure(request) ? "; Secure" : ""}`);
+    return new Response(null, { status: 303, headers });
+  };
 
   const html = (body: string, status = 200, extra: Record<string, string> = {}) => new Response(body, { status, headers: { ...HTML, ...extra } });
   const redirect = (location: string, extra: Record<string, string> = {}) => new Response(null, { status: 303, headers: { location, "cache-control": "no-store", ...extra } });
@@ -166,7 +178,11 @@ export function createServer(options: ServerOptions): RunlightServer {
           const next = safeNext(form.get("next"));
           const account = email.trim().toLowerCase();
           const pair = `${account}\n${rl.clientIp(request, context) || "unknown"}`;
-          if (perAddress.blocked(pair, now()) || perAccount.blocked(account, now())) {
+          // An account under attack is limited, except from a browser that signed in to it before,
+          // so failed tries by someone else cannot lock its owner out.
+          const known = await accounts.byEmail(account);
+          const trusted = Boolean(known && accounts.trustsDevice(readCookie(request, DEVICE_COOKIE), known));
+          if (perAddress.blocked(pair, now()) || (perAccount.blocked(account, now()) && !trusted)) {
             return html(loginPage({ error: "Too many tries. Wait fifteen minutes and try again.", email, next }), 429);
           }
           const user = await accounts.signIn(email, form.get("password") ?? "");
@@ -178,7 +194,7 @@ export function createServer(options: ServerOptions): RunlightServer {
           perAddress.clear(pair);
           // With two-factor on, the password only earns the second step.
           if (user.twoFactor) return html(codePage({ pending: accounts.pendingFor(user, now()), next }));
-          return redirect(next, { "set-cookie": sessionCookie(request, accounts.sessionFor(user, now()), SESSION_MS / 1000) });
+          return signedInTo(request, user, next);
         }
       }
 
@@ -187,14 +203,13 @@ export function createServer(options: ServerOptions): RunlightServer {
         const next = safeNext(form.get("next"));
         const user = await accounts.fromPending(form.get("pending") ?? "", now());
         if (!user) return redirect(`/login?next=${encodeURIComponent(next)}`);
-        const key = `code\n${user.id}`;
-        if (perAccount.blocked(key, now())) return html(codePage({ pending: form.get("pending") ?? "", next, error: "Too many tries. Wait fifteen minutes and try again." }), 429);
+        if (codeTries.blocked(user.id, now())) return html(codePage({ pending: form.get("pending") ?? "", next, error: "Too many tries. Wait fifteen minutes and try again." }), 429);
         if (!(await accounts.checkSecondFactor(user.id, form.get("code") ?? "", now()))) {
-          perAccount.fail(key, now());
+          codeTries.fail(user.id, now());
           return html(codePage({ pending: form.get("pending") ?? "", next, error: "That code is not right. Check the time on your phone, or use a recovery code." }), 401);
         }
-        perAccount.clear(key);
-        return redirect(next, { "set-cookie": sessionCookie(request, accounts.sessionFor(user, now()), SESSION_MS / 1000) });
+        codeTries.clear(user.id);
+        return signedInTo(request, user, next);
       }
 
       if (path === "/logout") return redirect("/login", { "set-cookie": sessionCookie(request, "", 0) });
@@ -284,7 +299,11 @@ export function createServer(options: ServerOptions): RunlightServer {
     if (path === "/api/account/password" && request.method === "POST") {
       const input = await body(request);
       if (!input) return reply({ error: "Send JSON" }, 415);
-      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) return reply({ error: "Your current password is not right" }, 400);
+      if (rechecks.blocked(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
+      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) {
+        rechecks.fail(user.id, now());
+        return reply({ error: "Your current password is not right" }, 400);
+      }
       try {
         const updated = await accounts.setPassword(user.email, String(input.next ?? ""), now());
         // The new password ends every other sign-in; this browser gets a fresh one.
@@ -302,9 +321,16 @@ export function createServer(options: ServerOptions): RunlightServer {
       const action = path.slice("/api/account/2fa".length);
       if (action === "/confirm") {
         const codes = await accounts.confirmTwoFactor(user.id, String(input.code ?? "").replace(/\s/g, ""), now());
-        return codes ? reply({ recovery: codes }) : reply({ error: "That code is not right. Check the time on your phone and try the next one." }, 400);
+        if (!codes) return reply({ error: "That code is not right. Check the time on your phone and try the next one." }, 400);
+        // Turning it on signs out every other browser; this one gets a new session.
+        const updated = (await accounts.byId(user.id))!;
+        return reply({ recovery: codes }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
       }
-      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right" }, 400);
+      if (rechecks.blocked(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) {
+        rechecks.fail(user.id, now());
+        return reply({ error: "Your password is not right" }, 400);
+      }
       if (action === "/start") {
         const secret = await accounts.startTwoFactor(user.id);
         return reply({ secret, uri: otpauthUri(secret, user.email, new URL(request.url).host) });
@@ -315,7 +341,9 @@ export function createServer(options: ServerOptions): RunlightServer {
       }
       if (action === "/disable") {
         await accounts.disableTwoFactor(user.id);
-        return reply({ ok: true });
+        // Sessions follow two-factor's state, so this browser gets a new one and stays signed in.
+        const updated = (await accounts.byId(user.id))!;
+        return reply({ ok: true }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
       }
       return reply({ error: "Not found" }, 404);
     }
