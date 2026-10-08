@@ -12,7 +12,19 @@ export interface Message {
   headers?: Record<string, string>;
 }
 
-export class MailError extends Error {}
+/**
+ * A mail problem to show the person setting it up. `code` and `params` let the dashboard say it in
+ * its own language; a service's own words, which only it can give, travel in `params.detail`.
+ */
+export class MailError extends Error {
+  constructor(
+    message: string,
+    readonly code = "mail_failed",
+    readonly params: Record<string, string> = { detail: message },
+  ) {
+    super(message);
+  }
+}
 
 /** A service's settings: `service` plus its fields. Every value is a string, as typed in the dashboard. */
 export type MailConfig = { service: string } & Record<string, string>;
@@ -90,11 +102,13 @@ async function post(url: string, init: { headers: Record<string, string>; body: 
   try {
     response = await fetch(url, { method: "POST", headers: init.headers, body: init.body, signal: AbortSignal.timeout(20_000) });
   } catch (error) {
-    throw new MailError(`Could not reach ${new URL(url).host}: ${(error as Error).message}`);
+    const host = new URL(url).host;
+    throw new MailError(`Could not reach ${host}: ${(error as Error).message}`, "mail_unreachable", { host, detail: (error as Error).message });
   }
   if (response.ok) return;
   const message = explains ? serviceMessage(await response.text().catch(() => "")) : "";
-  throw new MailError(`${new URL(url).host} answered ${response.status}${message ? `: ${message}` : ""}`);
+  const host = new URL(url).host;
+  throw new MailError(`${host} answered ${response.status}${message ? `: ${message}` : ""}`, "mail_refused", { host, detail: `${response.status}${message ? ` ${message}` : ""}` });
 }
 
 const json = (headers: Record<string, string> = {}) => ({ "content-type": "application/json", ...headers });
@@ -109,13 +123,15 @@ async function hmacHex(secret: string, body: string): Promise<string> {
 /** Checks a config has what its service needs, before anything is saved or sent. */
 export function checkConfig(config: MailConfig): void {
   const service = SERVICES.find((s) => s.id === config.service);
-  if (!service) throw new MailError("Pick a mail service");
+  if (!service) throw new MailError("Pick a mail service", "mail_service", {});
   for (const f of service.fields) {
-    if (!f.optional && !config[f.name]?.trim()) throw new MailError(`Enter the ${f.label.toLowerCase()}`);
-    if (f.options && config[f.name] && !f.options.includes(config[f.name]!)) throw new MailError(`${f.label} must be one of ${f.options.join(", ")}`);
+    if (!f.optional && !config[f.name]?.trim()) throw new MailError(`Enter the ${f.label.toLowerCase()}`, "mail_field", { field: f.name });
+    if (f.options && config[f.name] && !f.options.includes(config[f.name]!)) {
+      throw new MailError(`${f.label} must be one of ${f.options.join(", ")}`, "mail_option", { field: f.name, options: f.options.join(", ") });
+    }
   }
   if (config.service === "webhook" && !/^https:\/\//.test(config.url ?? "") && !/^http:\/\/(localhost|127\.0\.0\.1)/.test(config.url ?? "")) {
-    throw new MailError("The webhook URL must use https");
+    throw new MailError("The webhook URL must use https", "mail_https", {});
   }
 }
 
@@ -197,5 +213,5 @@ export async function send(config: MailConfig, m: Message): Promise<void> {
       return post(config.url!, { headers: json(signature), body }, false);
     }
   }
-  throw new MailError(`Unknown mail service "${config.service}"`);
+  throw new MailError(`Unknown mail service "${config.service}"`, "mail_service", {});
 }

@@ -54,7 +54,7 @@ export async function signV4(input: {
 
 export async function sesSend(config: MailConfig, m: Message, from: string): Promise<void> {
   const region = config.region!.trim();
-  if (!/^[a-z]{2}(-[a-z]+)+-\d$/.test(region)) throw new MailError("That is not an AWS region, like us-east-1");
+  if (!/^[a-z]{2}(-[a-z]+)+-\d$/.test(region)) throw new MailError("That is not an AWS region, like us-east-1", "mail_region", {});
   const url = new URL(`https://email.${region}.amazonaws.com/v2/email/outbound-emails`);
   const body = JSON.stringify({
     FromEmailAddress: from,
@@ -83,10 +83,10 @@ export async function sesSend(config: MailConfig, m: Message, from: string): Pro
   try {
     response = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(20_000) });
   } catch (error) {
-    throw new MailError(`Could not reach Amazon SES: ${(error as Error).message}`);
+    throw new MailError(`Could not reach Amazon SES: ${(error as Error).message}`, "mail_unreachable", { host: "Amazon SES", detail: (error as Error).message });
   }
   if (!response.ok) {
     const message = serviceMessage(await response.text().catch(() => ""));
-    throw new MailError(`Amazon SES answered ${response.status}${message ? `: ${message}` : ""}`);
+    throw new MailError(`Amazon SES answered ${response.status}${message ? `: ${message}` : ""}`, "mail_refused", { host: "Amazon SES", detail: `${response.status}${message ? ` ${message}` : ""}` });
   }
 }

@@ -761,7 +761,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       }
       return json({ error: "Method not allowed" }, 405);
     } catch (error) {
-      if (error instanceof MailError) return json({ error: error.message }, 400);
+      if (error instanceof MailError) return coded(error.message, error.code, 400, error.params);
       throw error;
     }
   }

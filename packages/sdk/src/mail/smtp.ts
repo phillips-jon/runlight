@@ -100,7 +100,7 @@ export async function smtpSend(config: MailConfig, m: Message, from: string): Pr
   let socket: Socket = await new Promise<Socket>((resolve, reject) => {
     const s: Socket = security === "tls" ? tls.connect({ host, port, servername: host }, () => resolve(s)) : net.connect({ host, port }, () => resolve(s));
     s.setTimeout(timeout, () => s.destroy(new Error("timed out")));
-    s.once("error", (e) => reject(new MailError(`SMTP: could not connect to ${host}:${port}: ${e.message}`)));
+    s.once("error", (e) => reject(new MailError(`SMTP: could not connect to ${host}:${port}: ${e.message}`, "mail_unreachable", { host: `${host}:${port}`, detail: e.message })));
   });
   let reader = replies(socket);
   const write = (line: string) => socket.write(`${line}\r\n`);
@@ -116,7 +116,7 @@ export async function smtpSend(config: MailConfig, m: Message, from: string): Pr
     write(`EHLO ${name}`);
     let ehlo = await expect([250], "EHLO");
     if (security === "starttls") {
-      if (!/STARTTLS/i.test(ehlo.text)) throw new MailError("SMTP: the server does not offer STARTTLS; pick tls or none");
+      if (!/STARTTLS/i.test(ehlo.text)) throw new MailError("SMTP: the server does not offer STARTTLS; pick tls or none", "smtp_starttls", {});
       write("STARTTLS");
       await expect([220], "STARTTLS");
       reader.detach();

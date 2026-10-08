@@ -5,7 +5,7 @@
  */
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { LINK_DOMAIN_CHECK, runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
-import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle, otpauthUri, type Invite, type Role, type User } from "./auth.js";
+import { AccountError, Accounts, SESSION_COOKIE, SESSION_MS, Throttle, otpauthUri, type Invite, type Role, type User } from "./auth.js";
 import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
 
 export interface ServerOptions {
@@ -43,7 +43,6 @@ export interface RunlightServer {
 const HTML = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src data:; form-action 'self'; base-uri 'none'; frame-ancestors 'none'", "x-frame-options": "DENY", "referrer-policy": "same-origin" };
 
 /** Codes for the account errors the dashboard shows, so it can say them in its own language. */
-const PEOPLE_CODES: Record<string, string> = { "Keep at least one owner": "last_owner", "Enter an email address": "email_invalid" };
 
 function readCookie(request: Request, name: string): string {
   for (const part of (request.headers.get("cookie") ?? "").split(";")) {
@@ -382,7 +381,11 @@ export function createServer(options: ServerOptions): RunlightServer {
    * Emails an invite through the mail service when there is one. The link
    * always comes back too, for the owner to pass on another way.
    */
-  async function sendInvite(request: Request, invite: Invite, code: string): Promise<{ link: string; emailed: boolean; mailError?: string }> {
+  async function sendInvite(
+    request: Request,
+    invite: Invite,
+    code: string,
+  ): Promise<{ link: string; emailed: boolean; mailError?: string; mailCode?: string; mailParams?: Record<string, string> }> {
     const home = publicUrl ?? new URL(request.url);
     const link = `${home.origin}/invite?code=${code}`;
     const host = home.host;
@@ -398,7 +401,9 @@ export function createServer(options: ServerOptions): RunlightServer {
       });
       return { link, emailed: true };
     } catch (error) {
-      return { link, emailed: false, mailError: (error as Error).message };
+      // The mail service's code and its details too, so the dashboard can say what went wrong in its own language.
+      const failed = error as Error & { code?: string; params?: Record<string, string> };
+      return { link, emailed: false, mailError: failed.message, ...(typeof failed.code === "string" ? { mailCode: failed.code, mailParams: failed.params ?? {} } : {}) };
     }
   }
 
@@ -413,15 +418,15 @@ export function createServer(options: ServerOptions): RunlightServer {
     if (path === "/api/account/password" && request.method === "POST") {
       const input = await body(request);
       if (!input) return reply({ error: "Send JSON" }, 415);
-      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
-      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) return reply({ error: "Your current password is not right" }, 400);
+      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again.", code: "too_many_tries" }, 429);
+      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) return reply({ error: "Your current password is not right", code: "password_current_wrong" }, 400);
       rechecks.forgive(user.id);
       try {
         const updated = await accounts.setPassword(user.email, String(input.next ?? ""), now());
         // The new password ends every other sign-in; this browser gets a fresh one.
         return reply({ ok: true }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
       } catch (error) {
-        if (error instanceof RangeError) return reply({ error: error.message }, 400);
+        if (error instanceof AccountError) return reply({ error: error.message, code: error.code, params: error.params }, 400);
         throw error;
       }
     }
@@ -433,20 +438,20 @@ export function createServer(options: ServerOptions): RunlightServer {
       const action = path.slice("/api/account/2fa".length);
       if (action === "/confirm") {
         const codes = await accounts.confirmTwoFactor(user.id, String(input.code ?? "").replace(/\s/g, ""), now());
-        if (!codes) return reply({ error: "That code is not right. Check the time on your phone and try the next one." }, 400);
+        if (!codes) return reply({ error: "That code is not right. Check the time on your phone and try the next one.", code: "code_wrong" }, 400);
         // Turning it on signs out every other browser; this one gets a new session.
         const updated = (await accounts.byId(user.id))!;
         return reply({ recovery: codes }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
       }
-      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
-      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right" }, 400);
+      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again.", code: "too_many_tries" }, 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right", code: "password_wrong" }, 400);
       rechecks.forgive(user.id);
       if (action === "/start") {
         const secret = await accounts.startTwoFactor(user.id);
         return reply({ secret, uri: otpauthUri(secret, user.email, new URL(request.url).host) });
       }
       if (action === "/recovery") {
-        if (!user.twoFactor) return reply({ error: "Turn on two-factor sign-in first" }, 400);
+        if (!user.twoFactor) return reply({ error: "Turn on two-factor sign-in first", code: "twofactor_off" }, 400);
         return reply({ recovery: await accounts.newRecoveryCodes(user.id) });
       }
       if (action === "/disable") {
@@ -462,13 +467,13 @@ export function createServer(options: ServerOptions): RunlightServer {
     // It asks for the owner's password like every other two-factor change, and their own goes through Account.
     const reset = /^\/api\/people\/([a-f0-9]{24})\/2fa$/.exec(path);
     if (reset && request.method === "DELETE") {
-      if (reset[1] === user.id) return reply({ error: "Turn off your own two-factor sign-in under Account" }, 400);
+      if (reset[1] === user.id) return reply({ error: "Turn off your own two-factor sign-in under Account", code: "twofactor_self" }, 400);
       const input = await body(request);
       if (!input) return reply({ error: "Send JSON" }, 415);
-      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
-      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right" }, 400);
+      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again.", code: "too_many_tries" }, 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right", code: "password_wrong" }, 400);
       rechecks.forgive(user.id);
-      if (!(await accounts.byId(reset[1]!))) return reply({ error: "Unknown account" }, 404);
+      if (!(await accounts.byId(reset[1]!))) return reply({ error: "Unknown account", code: "unknown_account" }, 404);
       await accounts.disableTwoFactor(reset[1]!);
       return reply({ ok: true });
     }
@@ -487,17 +492,17 @@ export function createServer(options: ServerOptions): RunlightServer {
         const { invite, code } = await accounts.invite(email, role, user.email, now());
         return reply({ invite: inviteView(invite), ...(await sendInvite(request, invite, code)) }, 201);
       } catch (error) {
-        if (error instanceof RangeError) return reply({ error: error.message, code: PEOPLE_CODES[error.message] }, 400);
+        if (error instanceof AccountError) return reply({ error: error.message, code: error.code, params: error.params }, 400);
         throw error;
       }
     }
     const inviteMatch = /^\/api\/invites\/([a-f0-9]{24})(\/resend)?$/.exec(path);
     if (inviteMatch && request.method === "DELETE" && !inviteMatch[2]) {
-      return (await accounts.cancelInvite(inviteMatch[1]!)) ? reply({ ok: true }) : reply({ error: "Unknown invite" }, 404);
+      return (await accounts.cancelInvite(inviteMatch[1]!)) ? reply({ ok: true }) : reply({ error: "Unknown invite", code: "unknown_invite" }, 404);
     }
     if (inviteMatch && request.method === "POST" && inviteMatch[2]) {
       const old = (await accounts.invites(now())).find((i) => i.id === inviteMatch[1]);
-      if (!old) return reply({ error: "Unknown invite" }, 404);
+      if (!old) return reply({ error: "Unknown invite", code: "unknown_invite" }, 404);
       // A new link replaces the old one, which stops working.
       const { invite, code } = await accounts.invite(old.email, old.role, user.email, now());
       return reply({ invite: inviteView(invite), ...(await sendInvite(request, invite, code)) });
@@ -522,7 +527,7 @@ export function createServer(options: ServerOptions): RunlightServer {
         if (!role) return reply({ error: "Pick owner or viewer", code: "role_needed" }, 400);
         return reply({ person: person(await accounts.setRole(match[1]!, role)) });
       } catch (error) {
-        if (error instanceof RangeError) return reply({ error: error.message, code: PEOPLE_CODES[error.message] }, error.message === "Unknown account" ? 404 : 400);
+        if (error instanceof AccountError) return reply({ error: error.message, code: error.code, params: error.params }, error.code === "unknown_account" ? 404 : 400);
         throw error;
       }
     }

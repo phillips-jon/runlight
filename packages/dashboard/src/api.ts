@@ -150,6 +150,9 @@ export interface InviteSent {
   link: string;
   emailed: boolean;
   mailError?: string;
+  /** The mail problem as a code the dashboard can word itself, with its details. */
+  mailCode?: string;
+  mailParams?: Record<string, string>;
 }
 
 export interface Person {

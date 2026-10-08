@@ -219,7 +219,10 @@ test("owners add people as owners or viewers; viewers read every site and change
   assert.match(board, /data-sign-in="\/login"/, "so the dashboard can link to sign-in when a session ends");
 
   // Everyone changes their own password, and stays signed in while doing it.
-  assert.equal((await json(viewer, "POST", "/api/account/password", { current: "wrong", next: "a brand new password" })).status, 400);
+  const wrong = await json(viewer, "POST", "/api/account/password", { current: "wrong", next: "a brand new password" });
+  assert.deepEqual([wrong.status, (await wrong.json()).code], [400, "password_current_wrong"]);
+  const short = await (await json(viewer, "POST", "/api/account/password", { current: password, next: "short" })).json();
+  assert.deepEqual([short.code, short.params], ["password_short", { min: "10" }]);
   const changed = await json(viewer, "POST", "/api/account/password", { current: password, next: "a brand new password" });
   assert.equal(changed.status, 200);
   const fresh = cookieOf(changed);

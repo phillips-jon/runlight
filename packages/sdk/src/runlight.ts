@@ -199,11 +199,11 @@ export class Runlight {
    * keeps the saved value, so the browser never needs to see it.
    */
   async saveMailSettings(input: Record<string, unknown> | null): Promise<void> {
-    if (this.mailInCode) throw new MailError("The mail service is set in code");
+    if (this.mailInCode) throw new MailError("The mail service is set in code", "mail_in_code", {});
     if (input === null) return this.store.setSetting("mail", null);
     const before = await this.mailSettings();
     const service = SERVICES.find((x) => x.id === input.service);
-    if (!service) throw new MailError("Pick a mail service");
+    if (!service) throw new MailError("Pick a mail service", "mail_service", {});
     const settings: Record<string, string> = { service: service.id };
     for (const f of service.fields) if (!f.secret) settings[f.name] = String(input[f.name] ?? "").trim();
     // A blank secret keeps the saved one only while the connection is the same,
@@ -215,7 +215,7 @@ export class Runlight {
       settings[f.name] = !given && sameConnection ? String(before?.[f.name] ?? "") : given;
     }
     const from = String(input.from ?? "").trim();
-    if (!EMAIL.test(from)) throw new MailError("Enter the address reports come from, like reports@example.com");
+    if (!EMAIL.test(from)) throw new MailError("Enter the address reports come from, like reports@example.com", "mail_from", {});
     const fromName = String(input.fromName ?? "").trim().slice(0, 80);
     const config = { ...settings, from, ...(fromName ? { fromName } : {}) } as MailSettings;
     checkConfig(config);
@@ -225,7 +225,7 @@ export class Runlight {
   /** Sends one email through the mail service. */
   async sendMail(message: Omit<Message, "from" | "fromName">): Promise<void> {
     const settings = await this.mailSettings();
-    if (!settings) throw new MailError("Set up a mail service first");
+    if (!settings) throw new MailError("Set up a mail service first", "mail_unset", {});
     await send(settings, { ...message, from: settings.from, fromName: settings.fromName });
   }
 

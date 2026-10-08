@@ -88,8 +88,12 @@ export function tn(key: string, n: number, vars: Record<string, string | number>
 /** A server error in this language, from the code it sent; null when the dashboard has no words for that code. */
 export function errorText(code: string, vars: Record<string, string> = {}): string | null {
   const key = `error.${code}`;
-  const text = (messages as unknown as Record<string, string>)[key] ?? (en as unknown as Record<string, string>)[key];
-  return text === undefined ? null : fill(text, vars);
+  const all = { ...(en as unknown as Record<string, string>), ...(messages as unknown as Record<string, string>) };
+  const text = all[key];
+  if (text === undefined) return null;
+  // A mail setting's field comes as its name, shown with the label the settings form gives it.
+  const field = vars.field && all[`mail.field.${vars.field}`];
+  return fill(text, field ? { ...vars, field } : vars);
 }
 
 /** A message whose placeholders are elements, for sentences with bold or coloured parts. */

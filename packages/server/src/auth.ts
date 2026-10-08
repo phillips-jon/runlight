@@ -10,6 +10,20 @@ import type { SqlStore } from "@runlight/sdk";
 const scrypt = promisify(scryptCb) as (password: string, salt: Buffer, keylen: number, options: { N: number; r: number; p: number; maxmem: number }) => Promise<Buffer>;
 const SCRYPT = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 
+/**
+ * A problem with an account change, to show the person making it. A RangeError, as before, with a
+ * `code` and `params` the dashboard words in its own language.
+ */
+export class AccountError extends RangeError {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly params: Record<string, string> = {},
+  ) {
+    super(message);
+  }
+}
+
 export const SESSION_COOKIE = "runlight_session";
 /** Thirty days, renewed on every sign-in. */
 export const SESSION_MS = 30 * 86_400_000;
@@ -331,8 +345,8 @@ export class Accounts {
     return this.turn(async () => {
       const users = await this.list();
       const user = users.find((u) => u.id === id);
-      if (!user) throw new RangeError("Unknown account");
-      if (user.role === "owner" && role === "viewer" && users.filter((u) => u.role === "owner").length === 1) throw new RangeError("Keep at least one owner");
+      if (!user) throw new AccountError("Unknown account", "unknown_account");
+      if (user.role === "owner" && role === "viewer" && users.filter((u) => u.role === "owner").length === 1) throw new AccountError("Keep at least one owner", "last_owner");
       await this.store.db.run(`UPDATE rl_users SET role = ? WHERE id = ?`, [role, id]);
       return { ...user, role };
     });
@@ -345,8 +359,8 @@ export class Accounts {
     return this.turn(async () => {
       const users = await this.list();
       const user = users.find((u) => u.id === id);
-      if (!user) throw new RangeError("Unknown account");
-      if (user.role === "owner" && users.filter((u) => u.role === "owner").length === 1) throw new RangeError("Keep at least one owner");
+      if (!user) throw new AccountError("Unknown account", "unknown_account");
+      if (user.role === "owner" && users.filter((u) => u.role === "owner").length === 1) throw new AccountError("Keep at least one owner", "last_owner");
       await this.store.db.run(`DELETE FROM rl_users WHERE id = ?`, [id]);
     });
   }
@@ -355,8 +369,8 @@ export class Accounts {
   async setPassword(email: string, password: string, now: number, role: Role = "owner"): Promise<User> {
     await this.init();
     const address = email.trim().toLowerCase();
-    if (!EMAIL.test(address)) throw new RangeError("Enter an email address");
-    if (password.length < MIN_PASSWORD) throw new RangeError(`Use a password of at least ${MIN_PASSWORD} characters`);
+    if (!EMAIL.test(address)) throw new AccountError("Enter an email address", "email_invalid");
+    if (password.length < MIN_PASSWORD) throw new AccountError(`Use a password of at least ${MIN_PASSWORD} characters`, "password_short", { min: String(MIN_PASSWORD) });
     const hash = await hashPassword(password);
     const existing = await this.byEmail(address);
     if (existing) {
@@ -390,8 +404,8 @@ export class Accounts {
 
   private async inviteNow(email: string, role: Role, invitedBy: string, now: number): Promise<{ invite: Invite; code: string }> {
     const address = email.trim().toLowerCase();
-    if (!EMAIL.test(address)) throw new RangeError("Enter an email address");
-    if (await this.byEmail(address)) throw new RangeError(`${address} already has an account`);
+    if (!EMAIL.test(address)) throw new AccountError("Enter an email address", "email_invalid");
+    if (await this.byEmail(address)) throw new AccountError(`${address} already has an account`, "account_exists", { email: address });
     const code = randomBytes(24).toString("base64url");
     const invite: Invite = { id: randomBytes(12).toString("hex"), email: address, role, invitedBy, createdAt: now, expiresAt: now + INVITE_MS };
     await this.store.db.run(`DELETE FROM rl_invites WHERE email = ?`, [address]);
@@ -425,8 +439,8 @@ export class Accounts {
   /** Turns an invite into an account with the password its person chose. The link then stops working. */
   async acceptInvite(code: string, password: string, now: number): Promise<User> {
     const invite = await this.inviteByCode(code, now);
-    if (!invite) throw new RangeError("This invite has expired or was already used. Ask for a new one.");
-    if (await this.byEmail(invite.email)) throw new RangeError(`${invite.email} already has an account`);
+    if (!invite) throw new AccountError("This invite has expired or was already used. Ask for a new one.", "invite_gone");
+    if (await this.byEmail(invite.email)) throw new AccountError(`${invite.email} already has an account`, "account_exists", { email: invite.email });
     const user = await this.setPassword(invite.email, password, now, invite.role);
     await this.store.db.run(`DELETE FROM rl_invites WHERE id = ?`, [invite.id]);
     return user;

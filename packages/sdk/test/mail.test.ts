@@ -155,7 +155,11 @@ test("reports go out once per period, retry after a failure, and keep keys from 
   const call = (method: string, path: string, body?: unknown) =>
     (method === "GET" ? GET : method === "PUT" ? PUT : POST)(new Request(`https://stats.example.com/runlight${path}`, { method, headers: auth, body: body === undefined ? undefined : JSON.stringify(body) }));
 
-  assert.equal((await call("PUT", "/api/mail", { service: "resend", apiKey: "re_live_key", from: "not an address" })).status, 400);
+  const badFrom = await call("PUT", "/api/mail", { service: "resend", apiKey: "re_live_key", from: "not an address" });
+  assert.equal(badFrom.status, 400);
+  assert.equal((await badFrom.json()).code, "mail_from", "a code the dashboard says in its own language");
+  const noKey = await (await call("PUT", "/api/mail", { service: "resend", apiKey: "", from: "reports@example.com" })).json();
+  assert.deepEqual([noKey.code, noKey.params], ["mail_field", { field: "apiKey" }]);
   assert.equal((await call("PUT", "/api/mail", { service: "resend", apiKey: "re_live_key", from: "reports@example.com", fromName: "Runlight" })).status, 200);
   const shown = await (await call("GET", "/api/mail")).text();
   assert.ok(!shown.includes("re_live_key"), "the key never goes back to the browser");

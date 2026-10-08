@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { api, type InviteSent, type PendingInvite, type Person } from "./api.js";
 import { day } from "./format.js";
-import { t, tn, type Key } from "./i18n.js";
+import { errorText, t, tn, type Key } from "./i18n.js";
 import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { DeleteButton, Sheet } from "./links.js";
@@ -331,7 +331,7 @@ export function People({ me, onDemoted }: { me: Person; onDemoted: () => void })
             {sent.emailed
               ? t("people.emailed", { email: sent.invite.email })
               : sent.mailError
-                ? t("people.mailFailed", { email: sent.invite.email, error: sent.mailError })
+                ? t("people.mailFailed", { email: sent.invite.email, error: ((sent.mailCode && errorText(sent.mailCode, sent.mailParams)) || sent.mailError).replace(/\.$/, "") })
                 : t("people.noMail", { email: sent.invite.email })}
           </p>
           <div class="invite-link">
