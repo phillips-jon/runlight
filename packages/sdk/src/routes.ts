@@ -18,6 +18,7 @@ import { fetchIcon } from "./icon.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
+import { lastPeriod } from "./reports.js";
 import { buckets, compareRange, isTimezone, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
 import { API_VERSION, VERSION } from "./version.js";
 
@@ -625,6 +626,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           // from a hub uses this install's own address, where its unsubscribe link answers.
           const given = managed.has(request) ? "" : String(body.origin ?? "");
           const origin = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${url.origin}${base}`;
+          // A period already due counts as sent, so a report added mid-week first goes out on the next Monday, as the form says.
+          const due = lastPeriod(frequency, runlight.now(), site.timezone);
           const report: ReportRow = {
             id: randomId(),
             site: site.id,
@@ -633,7 +636,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             lang: languages().includes(String(body.lang)) ? String(body.lang) : "en",
             token: randomId(16),
             origin,
-            lastPeriod: "",
+            lastPeriod: runlight.now() >= due.dueAt ? due.key : "",
             lastSentAt: null,
             createdAt: runlight.now(),
           };
