@@ -119,15 +119,16 @@ export async function buildReport(
   const when = monthly ? t("email.when.month", { month: monthName(period.fromDate) }) : t("email.when.week");
   const against = monthly ? monthName(period.previousFrom) : t("email.before.week");
   const who = tn("headline.who", now.visitors, { n: number.format(now.visitors) });
+  const verb = tn("headline.visited", now.visitors);
   const change = prev.visitors ? (now.visitors - prev.visitors) / prev.visitors : null;
   const headline =
     prev.visitors === 0 && now.visitors > 0
-      ? t("headline.fromNone", { who, verb: t("headline.visited"), when, against })
+      ? t("headline.fromNone", { who, verb, when, against })
       : change === null
-        ? t("headline.plain", { who, verb: t("headline.visited"), when })
+        ? t("headline.plain", { who, verb, when })
         : t(Math.abs(change) < 0.005 ? "headline.same" : change > 0 ? "headline.up" : "headline.down", {
             who,
-            verb: t("headline.visited"),
+            verb,
             when,
             against,
             change: t(change > 0 ? "headline.more" : "headline.fewer", { pct: Math.abs(Math.round(change * 100)) }),

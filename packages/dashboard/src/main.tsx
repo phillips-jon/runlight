@@ -142,7 +142,11 @@ function Live({ site, ready }: { site: string; ready: boolean }) {
 
 function Headline({ view, stats, previous, compare }: { view: View; stats: Stats; previous?: Stats; compare?: { from: string; to: string } }) {
   const period = isPeriod(view.period) ? view.period : DEFAULT_PERIOD;
-  const when = view.from ? t("when.range", { range: rangeText(view.from, view.to) }) : t(`when.${period}` as Key);
+  const when = !view.from
+    ? t(`when.${period}` as Key)
+    : view.from === view.to
+      ? t("when.day", { day: rangeText(view.from, view.to) })
+      : t("when.range", { range: rangeText(view.from, view.to) });
   const against =
     view.compare === "off" || !compare
       ? ""
@@ -156,7 +160,7 @@ function Headline({ view, stats, previous, compare }: { view: View; stats: Stats
   const c = change(stats.visitors, previous?.visitors);
   const parts = {
     who: <strong>{tn("headline.who", stats.visitors, { n: exact(stats.visitors) })}</strong>,
-    verb: t(view.filters.length ? "headline.matched" : "headline.visited"),
+    verb: tn(view.filters.length ? "headline.matched" : "headline.visited", stats.visitors),
     when,
     against,
     change:

@@ -182,6 +182,7 @@ test("reports go out once per period, retry after a failure, and keep keys from 
   assert.equal(body.to[0], "jon@example.com");
   assert.match(body.subject, /^Example : 0 personne la semaine dernière$/);
   assert.match(body.html, /du 5 oct\. au 11 oct\. 2026/);
+  assert.match(body.html, /0 personne a visité le site la semaine dernière\./, "French counts zero as one");
   const unsubscribe = /<(https:\/\/stats\.example\.com\/runlight\/unsubscribe\/[a-f0-9]{32})>/.exec(body.headers["List-Unsubscribe"])![1]!;
   assert.equal(body.headers["List-Unsubscribe-Post"], "List-Unsubscribe=One-Click");
   assert.deepEqual(await rl.sendReports(), { sent: 0, failed: 0 }, "the same period never goes twice");
