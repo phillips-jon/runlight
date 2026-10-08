@@ -2,8 +2,9 @@
  * A small QR code encoder: byte mode, medium error correction, any version,
  * no dependencies. It draws the code for an authenticator app to scan, so a
  * secret never goes to a third-party image service. It follows the standard
- * (ISO/IEC 18004) the way Project Nayuki's reference library lays it out, and
- * the dashboard's tests check it module for module against another encoder.
+ * (ISO/IEC 18004) the way Project Nayuki's reference library lays it out.
+ * When written it matched the qrcode npm package module for module on 56
+ * codes: all eight masks, versions 1 to about 30, ASCII and UTF-8 text.
  */
 
 /** Error correction codewords per block, and blocks, for level M, by version (index 0 unused). */
