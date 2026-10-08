@@ -202,6 +202,8 @@ const RETENTION = [6, 12, 24, 36, 60];
 /** How long the site keeps its visits, and a download of everything it has. */
 function Data({ site, onSaved }: { site: Site; onSaved: (site: Site) => void }) {
   const kept = site.retentionMonths ?? null;
+  // A connected install that could not be reached sends no retention, rather than a wrong one.
+  const unknown = Boolean(site.remote) && site.retentionMonths === undefined;
   const [months, setMonths] = useState<number | null>(kept);
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
@@ -233,7 +235,7 @@ function Data({ site, onSaved }: { site: Site; onSaved: (site: Site) => void }) 
     <>
       <form class="settings-group" onSubmit={save}>
         <Field label={t("data.retention")} hint={t("data.retentionHint")}>
-          <select class="value" value={months === null ? "" : String(months)} onChange={(e) => {
+          <select class="value" disabled={unknown} value={months === null ? "" : String(months)} onChange={(e) => {
             const v = (e.target as HTMLSelectElement).value;
             setMonths(v ? Number(v) : null);
             setState("idle");
@@ -244,6 +246,7 @@ function Data({ site, onSaved }: { site: Site; onSaved: (site: Site) => void }) 
             ))}
           </select>
         </Field>
+        {unknown ? <p class="settings-warning">{t("data.unreachable", { url: site.remote! })}</p> : null}
         {cutoff ? <p class="settings-warning">{t("data.deletesBefore", { date: cutoff })}</p> : null}
         <div class="settings-actions">
           {error ? <span class="settings-error">{error}</span> : null}
@@ -278,7 +281,7 @@ function RemoteCallout({ site }: { site: Site }) {
     setError("");
     setBusy(true);
     api
-      .connect(site.remote!)
+      .connect(site.remote!, site.remoteSite)
       .then((r) => location.assign(r.authorize))
       .catch((err: Error) => {
         setError(err.message);
@@ -296,10 +299,17 @@ function RemoteCallout({ site }: { site: Site }) {
           {t(site.manage ? "sites.remoteManaged" : "sites.remoteNote", { url: site.remote! })}
         </span>
         {site.manage ? (
-          <a class="box-button" href={site.remote} target="_blank" rel="noopener">
-            <Icon name="external" />
-            {t("sites.openRemote")}
-          </a>
+          <>
+            <a class="box-button" href={site.remote} target="_blank" rel="noopener">
+              <Icon name="external" />
+              {t("sites.openRemote")}
+            </a>
+            {/* The way back when the install has deleted this server's token. */}
+            <button type="button" class="box-button" disabled={busy} title={t("sites.reconnectHint")} onClick={allow}>
+              <Icon name="key" />
+              {t("sites.reconnect")}
+            </button>
+          </>
         ) : (
           <button type="button" class="box-button solid" disabled={busy} onClick={allow}>
             <Icon name="key" />

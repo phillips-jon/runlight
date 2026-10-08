@@ -7,6 +7,24 @@ after(cleanup);
 for (const kind of STORES) describe(kind, () => suite(kind));
 
 function suite(kind: StoreKind) {
+  test("steps in the same millisecond both count, and one row never counts as two steps", async () => {
+    const t = setup(kind);
+    const auth = { authorization: "Bearer secret", "content-type": "application/json" };
+    const write = (method: string, path: string, body?: unknown) =>
+      t.routes.handler(new Request(`https://example.com/runlight${path}`, { method, headers: auth, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
+    // A pageview and a Signup event recorded in the same millisecond.
+    await t.send({ k: "pageview", u: "https://example.com/pricing" }, { ip: "203.0.113.9" });
+    await t.send({ k: "event", u: "https://example.com/pricing", n: "Signup" }, { ip: "203.0.113.9" });
+    const made = await write("POST", "/api/funnels", { name: "Same moment", steps: [{ kind: "page", match: "/pricing" }, { kind: "event", match: "Signup" }] });
+    const { funnel } = (await made.json()) as { funnel: { id: string } };
+    const twice = await write("POST", "/api/funnels", { name: "Twice", steps: [{ kind: "page", match: "/pricing" }, { kind: "page", match: "/pricing" }] });
+    const { funnel: again } = (await twice.json()) as { funnel: { id: string } };
+    t.advance(60_000);
+    const counts = async (id: string) => ((await t.get(`/api/funnels?period=today`)).funnels as Array<{ id: string; steps: Array<{ visits: number }> }>).find((x) => x.id === id)!.steps.map((x) => x.visits);
+    assert.deepEqual(await counts(funnel.id), [1, 1]);
+    assert.deepEqual(await counts(again.id), [1, 0], "one pageview is not two steps");
+  });
+
   test("a funnel counts visits that took each step in order, within one visit", async () => {
     const t = setup(kind);
     const auth = { authorization: "Bearer secret", "content-type": "application/json" };

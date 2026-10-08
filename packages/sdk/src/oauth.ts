@@ -157,7 +157,8 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
       if (ctx.isReader && (await ctx.isReader(request))) {
         return page("Ask an owner to connect this", `<p>You are signed in as a viewer, and only an owner of this Runlight can connect ${esc(client.name)}.</p>`, 403);
       }
-      const here = `${url.pathname}?${new URLSearchParams([...form.entries()].filter(([k]) => k !== "decision" && k !== "site")).toString()}`;
+      // The site stays, since on the way in it only says which one to offer first.
+      const here = `${url.pathname}?${new URLSearchParams([...form.entries()].filter(([k]) => k !== "decision")).toString()}`;
       if (ctx.signIn) return new Response(null, { status: 303, headers: { location: `${ctx.signIn}?next=${encodeURIComponent(here)}`, "cache-control": "no-store" } });
       return page("Sign in first", `<p>Open your Runlight dashboard at <a href="${esc(base || "/")}">${esc(url.host + (base || "/"))}</a> and sign in, then connect ${esc(client.name)} again.</p>`, 401);
     }
@@ -171,7 +172,8 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
       if (manage) {
         // Changing settings is for one site at a time, so there is no "every site" here.
         const sites = runlight.sites.filter((s) => !runlight.remote(s.id));
-        const choices = sites.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+        const wanted = form.get("site") ?? "";
+        const choices = sites.map((s) => `<option value="${esc(s.id)}"${s.id === wanted ? " selected" : ""}>${esc(s.name)}</option>`).join("");
         return page(
           `Connect ${esc(client.name)}`,
           `<p><strong>${esc(client.name)}</strong> wants to show this site’s stats and change its settings, so you can manage it from there.</p>

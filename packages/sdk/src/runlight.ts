@@ -134,7 +134,7 @@ export class Runlight {
   readonly managedSites: boolean;
   /** Sites counted by another Runlight install, read through its API with a read-only token. */
   private readonly remotes = new Map<string, Remote>();
-  private readonly remoteSeen = new Map<string, { at: number; lastSeen: number | null; retentionMonths: number | null }>();
+  private readonly remoteSeen = new Map<string, { at: number; lastSeen: number | null; retentionMonths: number | null | undefined }>();
   private overrides = new Map<string, SiteOverrides>();
   private readonly geo: GeoLookup | undefined;
   private readonly trustProxy: boolean | "x-forwarded-for" | "x-real-ip" | "cf-connecting-ip";
@@ -169,7 +169,8 @@ export class Runlight {
     this.geo = options.geo;
     this.trustProxy = options.trustProxy ?? true;
     const perMinute = options.rateLimit ?? 120;
-    this.limit = perMinute === false ? null : new RateLimit(perMinute, () => this.now());
+    // false, 0, or anything that is not a positive number means no limit, never a limit of nothing.
+    this.limit = perMinute === false || !(Number(perMinute) > 0) ? null : new RateLimit(Number(perMinute), () => this.now());
     this.now = options.now ?? Date.now;
     this.links = new Links(this);
     this.linkPath = `/${(options.linkPath ?? "/go").replace(/^\/+|\/+$/g, "")}`;
@@ -325,12 +326,13 @@ export class Runlight {
   }
 
   /** What a connected install says about its site: its last visit and how long it keeps visits. Asked at most once a minute. */
-  async remoteInfo(id: string): Promise<{ lastSeen: number | null; retentionMonths: number | null } | null> {
+  /** What a connected install says about its site, kept for a minute. Retention is undefined while it cannot be reached. */
+  async remoteInfo(id: string): Promise<{ lastSeen: number | null; retentionMonths: number | null | undefined } | null> {
     const remote = this.remotes.get(id);
     if (!remote) return null;
     const cached = this.remoteSeen.get(id);
     if (cached && this.now() - cached.at < 60_000) return cached;
-    let info = { lastSeen: cached?.lastSeen ?? null, retentionMonths: cached?.retentionMonths ?? null };
+    let info: { lastSeen: number | null; retentionMonths: number | null | undefined } = { lastSeen: cached?.lastSeen ?? null, retentionMonths: cached?.retentionMonths };
     try {
       const answer = await fetch(`${remote.url}/api/sites`, { headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(8000) });
       const body = (await answer.json().catch(() => null)) as { sites?: Array<{ id: string; lastSeen: number | null; retentionMonths?: number | null }> } | null;
@@ -351,6 +353,11 @@ export class Runlight {
    * server shows it too. Takes the install's address, as its dashboard is
    * (https://example.com/runlight), and an API token made there.
    */
+  /** Asks a connected install to delete the token this server holds for it. A failure leaves it listed there. */
+  private async revokeRemoteToken(remote: Remote): Promise<void> {
+    await fetch(`${remote.url}/api/token`, { method: "DELETE", headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(5_000) }).catch(() => null);
+  }
+
   private async addRemoteSite(input: { url?: unknown; token?: unknown; site?: unknown; name?: unknown }): Promise<SiteRow> {
     const url = String(input.url ?? "").trim().replace(/\/+$/, "");
     if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) throw new RangeError("Enter the install's address, like https://example.com/runlight");
@@ -379,6 +386,7 @@ export class Runlight {
     for (const [existing, known] of this.remotes) {
       if (known.url === url && known.site === there.id) {
         const updated: Remote = { ...known, token, scope, hostnames: there.hostnames };
+        if (known.token !== token) await this.revokeRemoteToken(known);
         await this.store.setSetting(`remote:${existing}`, await seal(JSON.stringify(updated), this.secret));
         this.remotes.set(existing, updated);
         this.remoteSeen.delete(existing);
@@ -429,8 +437,13 @@ export class Runlight {
     await this.store.setSetting(`rollup-zone:${id}`, null);
     // A site made again with the same id starts its Umami import from the beginning.
     for (const { key } of await this.store.settingsStartingWith(`import:umami-visits:${id}:`)) await this.store.setSetting(key, null);
-    // A connected install keeps its own data; only the connection goes.
-    if (this.remotes.delete(id)) await this.store.setSetting(`remote:${id}`, null);
+    // A connected install keeps its own data; only the connection goes, and its token there with it.
+    const remote = this.remotes.get(id);
+    if (remote) {
+      await this.revokeRemoteToken(remote);
+      this.remotes.delete(id);
+      await this.store.setSetting(`remote:${id}`, null);
+    }
     this.configured = this.configured.filter((site) => site.id !== id);
     this.overrides.delete(id);
   }

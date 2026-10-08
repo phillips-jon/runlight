@@ -6,7 +6,7 @@ import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WOR
 import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { sha256 } from "./hash.js";
 import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
-import { LINK_DOMAIN_CHECK, type RequestContext, type Runlight } from "./runlight.js";
+import { LINK_DOMAIN_CHECK, RETENTION_MONTHS, type RequestContext, type Runlight } from "./runlight.js";
 import type { ShareRow, SiteRow, TokenRow } from "./store.js";
 import { mcpResponse } from "./mcp.js";
 import { oauthResponse, resourceMetadataUrl } from "./oauth.js";
@@ -23,7 +23,7 @@ import { ImportError, importStep } from "./importers/index.js";
 import { importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
 import { isSessionDimension } from "./query.js";
-import { buckets, compareRange, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
+import { buckets, compareRange, isTimezone, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
 import { API_VERSION, VERSION } from "./version.js";
 
 export interface RoutesOptions {
@@ -458,7 +458,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (path === "/api/links/import" && request.method === "POST") {
         const body = await readJson(request);
         if (body instanceof Response) return body;
-        const rows = Array.isArray(body.rows) ? (body.rows as Array<Record<string, unknown>>).slice(0, 5000) : null;
+        // Rows that are not objects (null, a number) are dropped rather than failing the import.
+        const rows = Array.isArray(body.rows) ? (body.rows as unknown[]).filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === "object" && !Array.isArray(row)).slice(0, 5000) : null;
         if (!rows) return json({ error: "Send rows as a list" }, 400);
         return json(await runlight.links.import(site.id, rows));
       }
@@ -782,6 +783,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (!token) return denied(false);
       return json({ scope: token.scope, site: token.site });
     }
+    // A token can delete itself, which a hub does when it disconnects a site or gets a new token.
+    if (path === "/api/token" && request.method === "DELETE") {
+      const token = await apiToken(request);
+      if (!token) return denied(false);
+      await runlight.store.deleteToken(token.id);
+      return json({ ok: true });
+    }
 
     // Connecting another Runlight through its consent page, so nobody copies a token.
     if (path === "/api/sites/connect" && request.method === "POST") {
@@ -792,7 +800,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const body = await readJson(request);
       if (body instanceof Response) return body;
       try {
-        return json({ authorize: await startConnect(runlight, body.url, `${url.origin}${base}/api/sites/connect/done`) });
+        return json({ authorize: await startConnect(runlight, body.url, `${url.origin}${base}/api/sites/connect/done`, typeof body.site === "string" ? body.site : "") });
       } catch (error) {
         if (error instanceof RangeError) return json({ error: error.message }, 400);
         throw error;
@@ -1033,7 +1041,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const site = runlight.site(String(body.site ?? "") || null);
       if (!site) return json({ error: "Unknown site" }, 404);
       const messages = Array.isArray(body.messages)
-        ? (body.messages as Array<Record<string, unknown>>).filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string").map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
+        ? (body.messages as Array<Record<string, unknown> | null>).filter((m): m is Record<string, unknown> => Boolean(m) && (m!.role === "user" || m!.role === "assistant") && typeof m!.content === "string").map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
         : [];
       if (!messages.length || messages[messages.length - 1]!.role !== "user") return json({ error: "Ask a question" }, 400);
       // Each tool reads the HTTP API with the asker's own headers, as the MCP server does.
@@ -1146,6 +1154,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       // A form posted from another site cannot carry this content type without CORS.
       const body = await readJson(request);
       if (body instanceof Response) return body;
+      await runlight.init();
+      // Every field is checked before any changes, since a shorter retention deletes visits at once.
+      if (body.name !== undefined && !(String(body.name).trim() && String(body.name).trim().length <= 80)) return json({ error: "A site name is 1 to 80 characters" }, 400);
+      if (body.timezone !== undefined && !isTimezone(String(body.timezone))) return json({ error: `Unknown timezone "${body.timezone}"` }, 400);
+      if (body.retentionMonths !== undefined && body.retentionMonths !== null && !RETENTION_MONTHS.includes(Number(body.retentionMonths))) {
+        return json({ error: `Keep visits for ${RETENTION_MONTHS.join(", ")} months, or forever` }, 400);
+      }
       try {
         const id = decodeURIComponent(siteMatch[1]!);
         const remote = runlight.remote(id);
@@ -1168,7 +1183,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           ...(body.timezone !== undefined ? { timezone: String(body.timezone) } : {}),
           ...(body.hostnames !== undefined && runlight.managedSites ? { hostnames: body.hostnames } : {}),
         });
-        return json({ site });
+        // A connected site answers as the list shows it, so the dashboard keeps its install and domains.
+        return json({ site: remote ? { ...site, remote: remote.url, remoteSite: remote.site, manage: remote.scope === "manage", hostnames: remote.hostnames } : site });
       } catch (error) {
         if (error instanceof RangeError) return json({ error: error.message }, error.message === "Unknown site" ? 404 : 400);
         throw error;
@@ -1204,11 +1220,14 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           ...site,
           // A connected install's address, so the dashboard can say where the site is counted.
           // Its domains as the install reported them, for the goal picker; tracker hits never match them here.
-          ...(runlight.remote(site.id) && !shared ? { remote: runlight.remote(site.id)!.url, manage: runlight.remote(site.id)!.scope === "manage", hostnames: runlight.remote(site.id)!.hostnames } : {}),
+          ...(runlight.remote(site.id) && !shared
+            ? { remote: runlight.remote(site.id)!.url, remoteSite: runlight.remote(site.id)!.site, manage: runlight.remote(site.id)!.scope === "manage", hostnames: runlight.remote(site.id)!.hostnames }
+            : {}),
           // Hostnames say where the site lives; a share shows only its name.
           ...(shared ? { hostnames: [] } : {}),
           lastSeen: runlight.remote(site.id) ? await runlight.remoteLastSeen(site.id) : await runlight.store.lastSeen(site.id),
-          ...(shared ? {} : { retentionMonths: runlight.remote(site.id) ? ((await runlight.remoteInfo(site.id))?.retentionMonths ?? null) : await runlight.retention(site.id) }),
+          // Left out for a connected install that cannot be reached, so nobody reads "forever" by mistake.
+          ...(shared ? {} : { retentionMonths: runlight.remote(site.id) ? (await runlight.remoteInfo(site.id))?.retentionMonths : await runlight.retention(site.id) }),
         })),
       );
       // A share never learns how the install is run.

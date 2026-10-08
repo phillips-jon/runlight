@@ -77,7 +77,7 @@ This store uses Bun’s built-in SQLite, for apps on Bun, where `better-sqlite3`
 | `geo` | | Your own location lookup, for hosts that send no location headers. |
 | `trustProxy` | `true` | Read the visitor’s address from proxy headers. |
 | `linkPath` | `"/go"` | Where short links on your app’s own domain live. |
-| `rateLimit` | `120` | Tracker requests allowed from one address each minute, or `false` for no limit. |
+| `rateLimit` | `120` | Tracker requests allowed from one address each minute, or `false` or `0` for no limit. |
 | `mail` | | The mail service for [email reports](/docs/reports/), set in code. |
 | `secret` | `RUNLIGHT_SECRET`, then `RUNLIGHT_TOKEN` | Encrypts mail service keys stored in the database. |
 

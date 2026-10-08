@@ -7,6 +7,8 @@ export interface Site {
   lastSeen?: number | null;
   /** The address of the Runlight install this site is counted by, when it is connected rather than counted here. */
   remote?: string;
+  /** The site's id on that install. */
+  remoteSite?: string;
   /** True when the connected install lets this server change the site's settings. */
   manage?: boolean;
   /** How many months of visits the site keeps; null keeps everything. */
@@ -402,7 +404,7 @@ export const api = {
   deleteGoal: (site: string, id: string) => del(`goals/${id}${siteQuery(site)}`),
   // A connected site's reports go out through its own install's mail service.
   mail: (site?: string) => get<MailState>("mail", new URLSearchParams(site ? { site } : {})),
-  connect: (url: string) => send<{ authorize: string }>("POST", "sites/connect", { url }),
+  connect: (url: string, site?: string) => send<{ authorize: string }>("POST", "sites/connect", { url, ...(site ? { site } : {}) }),
   assistant: () => get<AssistantState>("assistant", new URLSearchParams()),
   saveAssistant: (input: { provider: string; model: string; baseUrl: string; key: string }) => send<{ ok: true }>("PUT", "assistant", input),
   removeAssistant: () => del("assistant"),

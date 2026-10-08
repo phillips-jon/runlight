@@ -20,8 +20,18 @@ export interface Step {
   body?: unknown;
   /** Values to keep from the answer, by dotted path, for later steps' {{name}}. */
   capture?: Record<string, string>;
-  expect?: { status: number; body?: unknown };
+  expect?: Answer;
 }
+
+/** What a step must answer: the status, the headers that matter to a client, and the JSON body. */
+export interface Answer {
+  status: number;
+  headers?: Record<string, string>;
+  body?: unknown;
+}
+
+/** Headers every implementation must send the same: the media type, and CORS for the tracker. */
+const HEADERS = ["content-type", "access-control-allow-origin", "access-control-allow-methods"];
 
 export interface Scenario {
   name: string;
@@ -140,13 +150,13 @@ export function normalize(value: unknown, key = ""): unknown {
 const dig = (value: unknown, path: string): unknown => path.split(".").reduce<unknown>((v, k) => (v && typeof v === "object" ? (v as Record<string, unknown>)[k] : undefined), value);
 
 /** Runs a scenario's steps against this implementation and returns each answer, normalized. */
-export async function play(scenario: Scenario): Promise<Array<{ status: number; body?: unknown }>> {
+export async function play(scenario: Scenario): Promise<Answer[]> {
   let now = scenario.start;
   const rl = runlight({ store: sqlite({ path: ":memory:" }), site: scenario.site, now: () => now });
   const { handler } = rl.routes({ token: scenario.token });
   const kept: Record<string, string> = {};
   const fill = (text: string) => text.replace(/\{\{(\w+)\}\}/g, (_, name: string) => kept[name] ?? "");
-  const answers: Array<{ status: number; body?: unknown }> = [];
+  const answers: Answer[] = [];
   for (const step of scenario.steps) {
     now += step.advance ?? 0;
     const headers = Object.fromEntries(Object.entries(step.headers ?? {}).map(([k, v]) => [k, fill(v)]));
@@ -160,7 +170,12 @@ export async function play(scenario: Scenario): Promise<Array<{ status: number; 
       parsed = undefined;
     }
     for (const [name, at] of Object.entries(step.capture ?? {})) kept[name] = String(dig(parsed, at) ?? "");
-    answers.push({ status: answer.status, ...(parsed === undefined ? {} : { body: normalize(parsed) }) });
+    const sent: Record<string, string> = {};
+    for (const name of HEADERS) {
+      const value = answer.headers.get(name);
+      if (value) sent[name] = name === "content-type" ? value.split(";")[0]!.trim() : value;
+    }
+    answers.push({ status: answer.status, ...(Object.keys(sent).length ? { headers: sent } : {}), ...(parsed === undefined ? {} : { body: normalize(parsed) }) });
   }
   return answers;
 }

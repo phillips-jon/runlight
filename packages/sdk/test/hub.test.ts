@@ -147,7 +147,29 @@ test("connecting a site again with a manage token upgrades the same connection",
     assert.equal(second, first);
     assert.equal(hub.remote(first)?.scope, "manage");
     assert.equal(hub.sites.length, 1);
+    // The old token was deleted there, and disconnecting deletes the new one too.
+    const listed = async () => ((await (await appRoutes.GET(new Request("https://x/runlight/api/tokens", { headers: { authorization: "Bearer app-owner" } }))).json()) as any).tokens as Array<{ scope: string }>;
+    assert.deepEqual((await listed()).map((t) => t.scope), ["manage"]);
+    assert.equal((await hub.routes({ token: "hub-owner" }).handler(new Request(`http://localhost/runlight/api/sites/${first}`, { method: "DELETE", headers: { authorization: "Bearer hub-owner" } }))).status, 200);
+    assert.deepEqual(await listed(), []);
   } finally {
     server.close();
+  }
+});
+
+test("a hub only follows an install's own endpoints when connecting", async () => {
+  const hostile = createServer((req, res) => {
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ authorization_endpoint: "http://127.0.0.1:1/authorize", token_endpoint: "http://169.254.169.254/token", registration_endpoint: "http://169.254.169.254/register", scopes_supported: ["read", "manage"] }));
+  });
+  await new Promise<void>((resolve) => hostile.listen(0, "127.0.0.1", resolve));
+  try {
+    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+    const { POST } = hub.routes({ token: "hub-owner" });
+    const answer = await POST(new Request("http://localhost/runlight/api/sites/connect", { method: "POST", headers: { authorization: "Bearer hub-owner", "content-type": "application/json" }, body: JSON.stringify({ url: `http://127.0.0.1:${(hostile.address() as AddressInfo).port}` }) }));
+    assert.equal(answer.status, 400);
+    assert.match(((await answer.json()) as any).error, /named endpoints on another address/);
+  } finally {
+    hostile.close();
   }
 });

@@ -10,6 +10,7 @@
  * carries on after the log is rotated. Without it, it reads what is new since
  * the last run (remembered in --state) and stops, for cron.
  */
+import { createHash } from "node:crypto";
 import { closeSync, existsSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
 import { aiAgent } from "@runlight/sdk";
 
@@ -120,6 +121,31 @@ async function send(options: AgentsOptions, fetches: Fetch[]): Promise<number> {
 /** The most of a log read at once, so a log of any size fits in memory a piece at a time. */
 const CHUNK = 32 * 1024 * 1024;
 
+/** How many bytes at the start of a log identify it. */
+const HEAD = 256;
+
+/**
+ * A fingerprint of the log's first bytes. A log rotated by copying and truncating keeps its inode,
+ * so a different start is how a new log shows itself.
+ */
+function headOf(file: string, length = HEAD): { head: string; length: number } {
+  const fd = openSync(file, "r");
+  try {
+    const buffer = Buffer.alloc(Math.min(length, statSync(file).size));
+    readSync(fd, buffer, 0, buffer.length, 0);
+    return { head: createHash("sha256").update(buffer).digest("hex"), length: buffer.length };
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Whether the log at this inode still starts the way it did, so a saved place in it still holds. */
+function sameLog(file: string, saved: { ino: number; head?: string; length?: number }, stat: { ino: number; size: number }): boolean {
+  if (saved.ino !== stat.ino) return false;
+  if (!saved.head || saved.length === undefined) return true;
+  return stat.size >= saved.length && headOf(file, saved.length).head === saved.head;
+}
+
 /**
  * Reads whole lines from a byte offset, at most a chunk, and returns where the next read starts.
  * The offset counts bytes up to the last newline byte, so a malformed character cannot shift it.
@@ -157,15 +183,15 @@ export async function runAgents(options: AgentsOptions): Promise<number> {
     return kept;
   };
   const save = (ino: number, offset: number) => {
-    if (options.state) writeFileSync(options.state, JSON.stringify({ ino, offset }));
+    if (options.state) writeFileSync(options.state, JSON.stringify({ ino, offset, ...headOf(options.log) }));
   };
 
   if (!options.follow) {
-    // Where the last run stopped, unless the log was rotated since (a new file, or a shorter one).
-    type Saved = { ino: number; offset: number };
+    // Where the last run stopped, unless the log was rotated since (a new file, a shorter one, or a new start).
+    type Saved = { ino: number; offset: number; head?: string; length?: number };
     const saved: Saved | null = options.state && existsSync(options.state) ? (JSON.parse(readFileSync(options.state, "utf8")) as Saved) : null;
     const stat = statSync(options.log);
-    let offset = saved && saved.ino === stat.ino && saved.offset <= stat.size ? saved.offset : 0;
+    let offset = saved && saved.offset <= stat.size && sameLog(options.log, saved, stat) ? saved.offset : 0;
     let count = 0;
     // A chunk at a time, saving the place after each, so a failure part way resends nothing already sent.
     for (;;) {
@@ -181,19 +207,23 @@ export async function runAgents(options: AgentsOptions): Promise<number> {
   }
 
   // Follow: start where --state says, else at the end like tail -F, and start over when the log is replaced.
-  type Saved = { ino: number; offset: number };
+  type Saved = { ino: number; offset: number; head?: string; length?: number };
   const resumed: Saved | null = options.state && existsSync(options.state) ? (JSON.parse(readFileSync(options.state, "utf8")) as Saved) : null;
-  let ino = statSync(options.log).ino;
-  let offset = resumed && resumed.ino === ino && resumed.offset <= statSync(options.log).size ? resumed.offset : statSync(options.log).size;
+  const first = statSync(options.log);
+  let ino = first.ino;
+  let offset = resumed && resumed.offset <= first.size && sameLog(options.log, resumed, first) ? resumed.offset : first.size;
+  let known = headOf(options.log);
   out(`Following ${options.log}. AI agent fetches go to ${options.to} as they happen.`);
   for (;;) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
     if (!existsSync(options.log)) continue;
     const stat = statSync(options.log);
-    if (stat.ino !== ino || stat.size < offset) {
+    if (stat.ino !== ino || stat.size < offset || !sameLog(options.log, { ino, ...known }, stat)) {
       ino = stat.ino;
       offset = 0;
     }
+    // The start grows until it is HEAD bytes long, so the fingerprint is taken again each time.
+    known = headOf(options.log);
     const { lines, next } = readFrom(options.log, offset);
     try {
       const sent = await handle(lines);

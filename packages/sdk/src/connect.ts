@@ -35,13 +35,22 @@ async function clearExpired(runlight: Runlight): Promise<void> {
 }
 
 /** Starts connecting: returns the address of the install's consent page. */
-export async function startConnect(runlight: Runlight, input: unknown, back: string): Promise<string> {
+export async function startConnect(runlight: Runlight, input: unknown, back: string, site = ""): Promise<string> {
   const url = installUrl(input);
   type Meta = { authorization_endpoint?: string; token_endpoint?: string; registration_endpoint?: string; scopes_supported?: string[] };
   const answer = await fetch(`${url}/.well-known/oauth-authorization-server`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
   if (!answer) throw new RangeError(`Could not reach ${url}`);
   const meta = answer.ok ? ((await answer.json().catch(() => null)) as Meta | null) : null;
   if (!meta?.authorization_endpoint || !meta.token_endpoint || !meta.registration_endpoint) throw new RangeError(`${url} did not answer like a Runlight install`);
+  // Its endpoints must be its own, so an address cannot steer this server into requests elsewhere.
+  const own = (endpoint: string) => {
+    try {
+      return new URL(endpoint).origin === new URL(url).origin;
+    } catch {
+      return false;
+    }
+  };
+  if (![meta.authorization_endpoint, meta.token_endpoint, meta.registration_endpoint].every(own)) throw new RangeError(`${url} named endpoints on another address`);
   if (!meta.scopes_supported?.includes("manage")) throw new RangeError(`${url} runs an older Runlight. Update it, or connect it with an API token from its Settings.`);
 
   const registered = await fetch(meta.registration_endpoint, {
@@ -72,6 +81,8 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
     code_challenge_method: "S256",
     scope: "manage",
     state,
+    // Which of its sites to offer first, when connecting again for a site already here.
+    ...(site ? { site } : {}),
   }).toString();
   return to.toString();
 }

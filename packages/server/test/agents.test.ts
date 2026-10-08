@@ -87,6 +87,12 @@ test("a log is read once, carries on where it stopped, and starts over after rot
     assert.ok(paths.includes("/g") && paths.includes("/i"));
     assert.ok(!paths.includes("/f") && !paths.includes("/h") && !paths.includes("/old"));
     assert.equal(await run(), 0, "the offset after a bad byte lands on the next line, so nothing is sent twice");
+
+    // Rotated by copying and truncating: the same file, a new start, already longer than the old place.
+    writeFileSync(log, `${line("/one", GPTBOT)}\n`);
+    assert.equal(await run(), 1);
+    writeFileSync(log, `${line("/two", CLAUDE)}\n${line("/three", GPTBOT)}\n`);
+    assert.equal(await run(), 2, "both lines of the new log, none skipped");
   } finally {
     server.close();
   }

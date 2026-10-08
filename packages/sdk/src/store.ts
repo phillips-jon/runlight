@@ -996,19 +996,27 @@ export class SqlStore {
     const params: unknown[] = [];
     funnel.steps.forEach((step, i) => {
       const scope = this.goalScope({ kind: step.kind, match: step.match, name: step.match } as GoalRow);
+      // Each step is the first matching row after the step before, ordered by time and then by row, so two
+      // steps in the same millisecond both count and one row never counts as two steps.
       if (i === 0) {
         ctes.push(
-          `s0 AS (SELECT e.session AS session, MIN(e.ts) AS t FROM rl_events e
-            WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.session <> '' AND ${scope.sql}${chosen} GROUP BY e.session)`,
+          `c0 AS (SELECT e.session AS session, e.ts AS ts, e.id AS id FROM rl_events e
+            WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.session <> '' AND ${scope.sql}${chosen})`,
         );
         params.push(query.site, query.from, query.to, ...scope.params, ...(query.filters.length ? [query.site, query.from, query.to, ...f.params] : []));
       } else {
         ctes.push(
-          `s${i} AS (SELECT e.session AS session, MIN(e.ts) AS t FROM rl_events e JOIN s${i - 1} p ON p.session = e.session AND e.ts > p.t
-            WHERE e.site = ? AND e.ts < ? AND ${scope.sql} GROUP BY e.session)`,
+          `c${i} AS (SELECT e.session AS session, e.ts AS ts, e.id AS id FROM rl_events e
+            JOIN s${i - 1} p ON p.session = e.session AND (e.ts > p.t OR (e.ts = p.t AND e.id > p.id))
+            WHERE e.site = ? AND e.ts < ? AND ${scope.sql})`,
         );
         params.push(query.site, query.to, ...scope.params);
       }
+      ctes.push(
+        `s${i} AS (SELECT c.session AS session, c.ts AS t, MIN(c.id) AS id FROM c${i} c
+          JOIN (SELECT session, MIN(ts) AS t FROM c${i} GROUP BY session) m ON m.session = c.session AND m.t = c.ts
+          GROUP BY c.session, c.ts)`,
+      );
     });
     const [row] = await this.db.all(
       `WITH ${ctes.join(", ")} SELECT ${funnel.steps.map((_, i) => `(SELECT COUNT(*) FROM s${i}) AS n${i}`).join(", ")}`,

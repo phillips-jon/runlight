@@ -1,5 +1,5 @@
 {
-  "description": "HTTP requests to a fresh Runlight on a fixed clock, and the answers every implementation must give. Paths are relative to the routes' base (/runlight). Before each step the clock moves by advance milliseconds. capture keeps a value from an answer for later {{name}} in paths and headers. Ids, tokens, secrets, and hints in answers are written as <key>.",
+  "description": "HTTP requests to a fresh Runlight on a fixed clock, and the answers every implementation must give. Paths are relative to the routes' base (/runlight). Before each step the clock moves by advance milliseconds. capture keeps a value from an answer for later {{name}} in paths and headers. Ids, tokens, secrets, and hints in answers are written as <key>. An answer's headers are the ones it must carry: its media type, and CORS headers where it sends them.",
   "scenarios": [
     {
       "name": "a day of visits and the reports they make",
@@ -32,7 +32,10 @@
             "l": "en-GB"
           },
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -51,7 +54,10 @@
           },
           "advance": 20000,
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -68,7 +74,10 @@
             "i": "pv2"
           },
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -89,7 +98,10 @@
           },
           "advance": 5000,
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -110,7 +122,10 @@
           },
           "advance": 60000,
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -128,7 +143,10 @@
           },
           "advance": 3600000,
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -144,7 +162,10 @@
             "i": "pv5"
           },
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -160,7 +181,10 @@
             "i": "pv6"
           },
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -177,7 +201,10 @@
           },
           "advance": 1860000,
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -203,6 +230,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -230,6 +260,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -467,6 +500,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -510,6 +546,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -550,6 +589,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -590,6 +632,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -617,6 +662,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -663,6 +711,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -717,6 +768,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -763,6 +817,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -793,6 +850,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -823,6 +883,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -861,6 +924,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -891,6 +957,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -929,6 +998,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -967,6 +1039,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -1005,6 +1080,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -1043,6 +1121,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -1073,6 +1154,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -1100,6 +1184,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -1127,6 +1214,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -1163,6 +1253,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -1190,6 +1283,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -2417,6 +2513,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "visitors": 1,
               "pages": [
@@ -2482,6 +2581,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -2534,7 +2636,10 @@
             "i": "a1"
           },
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -2551,7 +2656,10 @@
           },
           "advance": 30000,
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -2568,7 +2676,10 @@
           },
           "advance": 30000,
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -2589,7 +2700,10 @@
           },
           "advance": 1000,
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -2605,7 +2719,10 @@
             "i": "b1"
           },
           "expect": {
-            "status": 202
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
           }
         },
         {
@@ -2628,6 +2745,9 @@
           },
           "expect": {
             "status": 201,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "goal": {
                 "id": "<id>",
@@ -2659,6 +2779,9 @@
           },
           "expect": {
             "status": 201,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "goal": {
                 "id": "<id>",
@@ -2690,6 +2813,9 @@
           },
           "expect": {
             "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Give the goal a name"
             }
@@ -2703,6 +2829,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -2775,6 +2904,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -2977,6 +3109,9 @@
           },
           "expect": {
             "status": 201,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "funnel": {
                 "id": "<id>",
@@ -3009,6 +3144,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -3062,6 +3200,9 @@
           },
           "expect": {
             "status": 201,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "link": {
                 "id": "<id>",
@@ -3089,6 +3230,9 @@
           },
           "expect": {
             "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "/sale is already taken"
             }
@@ -3106,6 +3250,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "link": {
                 "id": "<id>",
@@ -3128,6 +3275,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "prefix": "https://example.com/go",
               "domains": [],
@@ -3156,6 +3306,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "ok": true
             }
@@ -3169,6 +3322,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -3228,6 +3384,9 @@
           "path": "/api/stats?period=today",
           "expect": {
             "status": 401,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Unauthorized"
             }
@@ -3241,6 +3400,9 @@
           },
           "expect": {
             "status": 401,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Unauthorized"
             }
@@ -3261,6 +3423,9 @@
           },
           "expect": {
             "status": 201,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "token": {
                 "id": "<id>",
@@ -3283,6 +3448,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "site": "default",
               "range": {
@@ -3316,6 +3484,9 @@
           },
           "expect": {
             "status": 401,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Unauthorized"
             }
@@ -3329,6 +3500,9 @@
           },
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "scope": "read",
               "site": ""
@@ -3344,6 +3518,9 @@
           "body": "not json",
           "expect": {
             "status": 415,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Send JSON"
             }
@@ -3357,6 +3534,9 @@
           },
           "expect": {
             "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Bad date range. Use period, or from and to as YYYY-MM-DD."
             }
@@ -3370,6 +3550,9 @@
           },
           "expect": {
             "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Bad filter \"nope\". Use dimension:is|not|contains:value."
             }
@@ -3383,6 +3566,9 @@
           },
           "expect": {
             "status": 404,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Unknown site"
             }
@@ -3396,6 +3582,9 @@
           },
           "expect": {
             "status": 400,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Unknown dimension \"nope\""
             }
@@ -3406,6 +3595,9 @@
           "path": "/e",
           "expect": {
             "status": 405,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "error": "Method not allowed"
             }
@@ -3415,7 +3607,11 @@
           "method": "OPTIONS",
           "path": "/e",
           "expect": {
-            "status": 204
+            "status": 204,
+            "headers": {
+              "access-control-allow-origin": "*",
+              "access-control-allow-methods": "POST"
+            }
           }
         },
         {
@@ -3423,6 +3619,9 @@
           "path": "/api",
           "expect": {
             "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
             "body": {
               "name": "runlight",
               "version": "<version>",
