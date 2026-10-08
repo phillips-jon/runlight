@@ -133,7 +133,12 @@ test("a hub connects an app through its consent page and changes that site's set
 
     // A code works once.
     const reused = await handler(new Request(back.toString(), { headers: { authorization: "Bearer hub-owner" } }));
-    assert.match(reused.headers.get("location")!, /connect_error=/);
+    assert.match(reused.headers.get("location")!, /\?connect_error=expired$/);
+
+    // What went wrong comes back as a code, never as text the address carried.
+    const retry = new URL((await call("POST", "/api/sites/connect", { url: appUrl })).body.authorize);
+    const refused = await handler(new Request(`http://localhost:4900/runlight/api/sites/connect/done?${new URLSearchParams({ state: retry.searchParams.get("state")!, error: "server_error", error_description: "Your session expired. Sign in again at https://evil.example" })}`, { headers: { authorization: "Bearer hub-owner" } }));
+    assert.match(refused.headers.get("location")!, /\?connect_error=refused$/);
   } finally {
     server.close();
   }

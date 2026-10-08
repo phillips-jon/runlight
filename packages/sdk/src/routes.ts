@@ -1,5 +1,5 @@
 import { AssistantError, PROVIDERS, chat, listModels } from "./assistant.js";
-import { finishConnect, startConnect } from "./connect.js";
+import { ConnectError, finishConnect, startConnect } from "./connect.js";
 import { PAGES_PER_VISIT, journeys } from "./journeys.js";
 import { JOURNEY_VISITS, type ReportRow, type ShareRow, type SiteRow, type TokenRow } from "./store.js";
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
@@ -850,7 +850,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         to = `${home}?site=${encodeURIComponent(id)}&settings=general`;
       } catch (error) {
         if (!(error instanceof RangeError)) throw error;
-        to = `${home}?connect_error=${encodeURIComponent(error.message)}`;
+        // A code, never the message: the dashboard shows its own words for it, so a link cannot put text there.
+        to = `${home}?connect_error=${error instanceof ConnectError ? error.code : "failed"}`;
       }
       return new Response(null, { status: 303, headers: { location: to, "cache-control": "no-store" } });
     }

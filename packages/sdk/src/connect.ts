@@ -87,6 +87,20 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
   return to.toString();
 }
 
+/**
+ * Why connecting failed on the way back from the consent page, as a code the
+ * dashboard turns into its own words. The page it lands on is this server's
+ * own, so it never shows text that came in the address.
+ */
+export class ConnectError extends RangeError {
+  constructor(
+    message: string,
+    readonly code: "expired" | "denied" | "refused" | "token",
+  ) {
+    super(message);
+  }
+}
+
 /** Finishes connecting when the owner comes back from the consent page. Returns the site's id here. */
 export async function finishConnect(runlight: Runlight, params: URLSearchParams): Promise<string> {
   const state = params.get("state") ?? "";
@@ -95,8 +109,9 @@ export async function finishConnect(runlight: Runlight, params: URLSearchParams)
   // Each attempt works once.
   if (stored) await runlight.store.setSetting(key, null);
   const pending = stored ? (JSON.parse(stored) as Pending) : null;
-  if (!pending || pending.expires < runlight.now()) throw new RangeError("That connection took too long or was already used. Start again.");
-  if (params.get("error")) throw new RangeError(params.get("error") === "access_denied" ? "The connection was not allowed." : String(params.get("error_description") ?? params.get("error")));
+  if (!pending || pending.expires < runlight.now()) throw new ConnectError("That connection took too long or was already used. Start again.", "expired");
+  if (params.get("error") === "access_denied") throw new ConnectError("The connection was not allowed.", "denied");
+  if (params.get("error")) throw new ConnectError(String(params.get("error_description") ?? params.get("error")), "refused");
 
   const answer = await fetch(pending.token, {
     method: "POST",
@@ -105,7 +120,7 @@ export async function finishConnect(runlight: Runlight, params: URLSearchParams)
     signal: AbortSignal.timeout(10_000),
   }).catch(() => null);
   const granted = answer?.ok ? ((await answer.json().catch(() => null)) as { access_token?: string; site?: string } | null) : null;
-  if (!granted?.access_token) throw new RangeError(`${new URL(pending.url).host} did not give this server a token. Start again.`);
+  if (!granted?.access_token) throw new ConnectError(`${new URL(pending.url).host} did not give this server a token. Start again.`, "token");
   const site = await runlight.addSite({ remote: { url: pending.url, token: granted.access_token, site: granted.site } });
   return site.id;
 }
