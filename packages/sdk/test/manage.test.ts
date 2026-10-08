@@ -122,6 +122,7 @@ test("the hub never passes on an install's answer as a page, nor follows its red
     if (req.url?.startsWith("/runlight/api/sites")) return res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ sites: [{ id: "x", name: "X", timezone: "UTC", hostnames: ["x.example.com"] }] }));
     if (req.url?.startsWith("/runlight/api/stats")) return res.writeHead(200, { "content-type": "text/html" }).end("<script>alert(1)</script>");
     if (req.url?.startsWith("/runlight/api/series")) return res.writeHead(302, { location: "http://169.254.169.254/" }).end();
+    if (req.url?.startsWith("/runlight/api/rhythm")) return res.writeHead(400, { "content-type": "application/json" }).end(JSON.stringify({ error: `Your session ended. Sign in again at https://evil.example/login ${"x".repeat(1000)}`, code: "link_taken", params: { slug: "a", n: 5 } }));
     res.writeHead(404).end("{}");
   });
   await new Promise<void>((resolve) => evil.listen(0, "127.0.0.1", resolve));
@@ -136,6 +137,12 @@ test("the hub never passes on an install's answer as a page, nor follows its red
     assert.equal(page.headers.get("x-content-type-options"), "nosniff");
     assert.match(page.headers.get("content-security-policy")!, /default-src 'none'/);
     assert.equal((await call(`/api/series?site=${id}&period=today`)).status, 502, "a redirect is reported, not followed");
+    // An install's error says where it came from, short, with only its code and string params.
+    const said = (await (await call(`/api/rhythm?site=${id}&period=today`)).json()) as any;
+    assert.match(said.error, /^127\.0\.0\.1:\d+: Your session ended/);
+    assert.ok(said.error.length < 340);
+    assert.equal(said.code, "link_taken");
+    assert.deepEqual(said.params, { slug: "a" });
   } finally {
     evil.close();
   }

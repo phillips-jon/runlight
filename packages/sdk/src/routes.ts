@@ -199,6 +199,28 @@ async function passThrough(remote: { url: string; token: string; site: string },
   if (answer.status >= 300 && answer.status < 400) return coded(`${new URL(remote.url).host} answered with a redirect`, "redirected", 502, { host: new URL(remote.url).host });
   // The install's own errors say what went wrong there; a refused token is this server's problem to report.
   if (answer.status === 401) return coded(`${new URL(remote.url).host} refused the token. Connect it again from the site's settings.`, "token_refused", 502, { host: new URL(remote.url).host });
+  // An install's own error is shown here, so it says where it came from, keeps only short text, and
+  // carries its code and params for the dashboard to put in its own words.
+  if (answer.status >= 400 && !download) {
+    const host = new URL(remote.url).host;
+    const text = await answer.text().catch(() => "");
+    const body = (() => {
+      try {
+        return text.length <= 65_536 ? (JSON.parse(text) as { error?: unknown; code?: unknown; params?: unknown }) : null;
+      } catch {
+        return null;
+      }
+    })();
+    const params = body?.params && typeof body.params === "object" ? Object.entries(body.params as Record<string, unknown>).filter(([, v]) => typeof v === "string").slice(0, 10).map(([k, v]) => [k.slice(0, 40), (v as string).slice(0, 200)]) : [];
+    return json(
+      {
+        error: `${host}: ${typeof body?.error === "string" ? body.error.slice(0, 300) : `answered ${answer.status}`}`,
+        ...(typeof body?.code === "string" && /^[a-z_]{1,40}$/.test(body.code) ? { code: body.code, params: Object.fromEntries(params) } : {}),
+      },
+      answer.status,
+      back,
+    );
+  }
   return new Response(answer.body, { status: answer.status, headers: back });
 }
 
