@@ -200,6 +200,26 @@ export interface Report {
   createdAt: number;
 }
 
+export interface AssistantProvider {
+  id: string;
+  name: string;
+  protocol: "anthropic" | "openai";
+  baseUrl: string;
+  model: string;
+  key: "yes" | "no" | "optional";
+}
+
+/** The assistant's setup: everyone learns whether it is ready; owners also see the provider and model, never the key. */
+export interface AssistantState {
+  configured: boolean;
+  provider?: string;
+  model?: string;
+  baseUrl?: string;
+  keySaved?: boolean;
+  encrypted?: boolean;
+  providers?: AssistantProvider[];
+}
+
 export interface ApiToken {
   id: string;
   name: string;
@@ -345,6 +365,11 @@ export const api = {
   // A connected site's reports go out through its own install's mail service.
   mail: (site?: string) => get<MailState>("mail", new URLSearchParams(site ? { site } : {})),
   connect: (url: string) => send<{ authorize: string }>("POST", "sites/connect", { url }),
+  assistant: () => get<AssistantState>("assistant", new URLSearchParams()),
+  saveAssistant: (input: { provider: string; model: string; baseUrl: string; key: string }) => send<{ ok: true }>("PUT", "assistant", input),
+  removeAssistant: () => del("assistant"),
+  ask: (site: string, messages: Array<{ role: "user" | "assistant"; content: string }>, view: string, language: string) =>
+    send<{ reply: string; tools: string[] }>("POST", "assistant/chat", { site, messages, view, language }),
   saveMail: (input: Record<string, string>) => send<{ ok: true }>("PUT", "mail", input),
   removeMail: () => del("mail"),
   testMail: (to: string, lang: string) => send<{ ok: true }>("POST", "mail/test", { to, lang }),

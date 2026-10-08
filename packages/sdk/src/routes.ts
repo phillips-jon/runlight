@@ -1,3 +1,4 @@
+import { AssistantError, PROVIDERS, chat } from "./assistant.js";
 import { finishConnect, startConnect } from "./connect.js";
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
@@ -917,6 +918,91 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         return json({ funnel }, id ? 200 : 201);
       } catch (error) {
         if (error instanceof FunnelError) return json({ error: error.message }, 400);
+        throw error;
+      }
+    }
+
+    // The assistant: an owner sets it up; anyone signed in to the dashboard can ask it.
+    if (path === "/api/assistant") {
+      const owner = (await canRead(request)) === true;
+      if (request.method === "GET") {
+        const access = await reader(request);
+        if (access === false || access === "unconfigured") return denied(access);
+        // Only people at the dashboard, never an API token or a share, so nobody spends the owner's AI credit from outside.
+        if (access !== true && access.id) return json({ error: "Only the dashboard can use the assistant" }, 403);
+        await runlight.init();
+        const settings = await runlight.assistantSettings();
+        if (!owner) return json({ configured: Boolean(settings) });
+        return json({
+          configured: Boolean(settings),
+          provider: settings?.provider ?? "",
+          model: settings?.model ?? "",
+          baseUrl: settings?.baseUrl ?? "",
+          keySaved: Boolean(settings?.key),
+          encrypted: runlight.secret !== null,
+          providers: PROVIDERS,
+        });
+      }
+      if (!owner) return denied(false);
+      await runlight.init();
+      if (request.method === "DELETE") {
+        await runlight.saveAssistantSettings(null);
+        return json({ ok: true });
+      }
+      if (request.method === "PUT") {
+        const body = await readJson(request);
+        if (body instanceof Response) return body;
+        try {
+          await runlight.saveAssistantSettings(body);
+          return json({ ok: true });
+        } catch (error) {
+          if (error instanceof RangeError) return json({ error: error.message }, 400);
+          throw error;
+        }
+      }
+      return json({ error: "Method not allowed" }, 405);
+    }
+    if (path === "/api/assistant/chat" && request.method === "POST") {
+      const access = await reader(request);
+      if (access === false || access === "unconfigured") return denied(access);
+      if (access !== true && access.id) return json({ error: "Only the dashboard can use the assistant" }, 403);
+      if (request.headers.get(SHARE_HEADER) !== null) return json({ error: "Not available on a shared dashboard" }, 403);
+      await runlight.init();
+      const settings = await runlight.assistantSettings();
+      if (!settings) return json({ error: "The assistant is not set up yet. An owner can set it up in Settings, Assistant." }, 400);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const site = runlight.site(String(body.site ?? "") || null);
+      if (!site) return json({ error: "Unknown site" }, 404);
+      const messages = Array.isArray(body.messages)
+        ? (body.messages as Array<Record<string, unknown>>).filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string").map((m) => ({ role: m.role as "user" | "assistant", content: String(m.content) }))
+        : [];
+      if (!messages.length || messages[messages.length - 1]!.role !== "user") return json({ error: "Ask a question" }, 400);
+      // Each tool reads the HTTP API with the asker's own headers, as the MCP server does.
+      const headers = new Headers(request.headers);
+      for (const name of ["content-type", "content-length", SHARE_HEADER]) headers.delete(name);
+      const readApi = (apiPath: string, params: [string, string][]) => {
+        const target = new URL(`${base}${apiPath}`, url.origin);
+        for (const [key, value] of params) target.searchParams.append(key, value);
+        // A tool that names no site reads the one on screen, not the install's first.
+        if (apiPath !== "/api/sites" && !target.searchParams.has("site")) target.searchParams.set("site", site.id);
+        return api(new Request(target, { headers }), apiPath, target);
+      };
+      try {
+        const answer = await chat(
+          settings,
+          messages,
+          {
+            site: { id: site.id, name: site.name, timezone: site.timezone },
+            today: localDate(runlight.now(), site.timezone),
+            view: String(body.view ?? "the last 30 days").slice(0, 200),
+            language: /^[a-z]{2}$/.test(String(body.language)) ? String(body.language) : "en",
+          },
+          readApi,
+        );
+        return json(answer);
+      } catch (error) {
+        if (error instanceof AssistantError) return json({ error: error.message }, 502);
         throw error;
       }
     }

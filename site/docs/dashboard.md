@@ -63,6 +63,14 @@ In **Settings**, **Import**, **Visits**, sign in to your Umami with an API key (
 
 The import stops where Runlight's own visits begin, so no day is counted twice. If you stop it or close the page, running it again carries on from the last day it finished. Umami records no engaged time, so an imported visit's length runs from its first pageview to its last. Your key or password is only used while the import runs and is never saved.
 
+## The assistant
+
+The robot button beside **Filter** opens an assistant you can ask about your stats in plain words, such as where visitors came from last month or which pages keep people reading. It reads the numbers with the same read-only tools as the [MCP server](/docs/mcp/), for the site and dates on screen unless you ask about others, and it can never change anything.
+
+An owner sets it up once in **Settings**, **Assistant**. Choose Anthropic, OpenAI, Google Gemini, OpenRouter, Ollama, LM Studio, or any service with an OpenAI-compatible API, then a model and a key. Ollama and LM Studio run a model on your own machine with no key, as long as the server running Runlight can reach it. The key is kept on the server, encrypted with `RUNLIGHT_SECRET`, and never sent back to a browser.
+
+Each question goes to the service you chose, along with the numbers the assistant reads to answer it. Runlight keeps nothing about individual visitors, so nothing personal is sent. Owners and viewers can ask it; API tokens and share links cannot. The conversation lives in the browser tab and is gone when the tab closes.
+
 ## Keeping data
 
 Each site keeps every visit unless you choose otherwise. In **Settings**, **Data**, **Keep visits for** takes anything from 6 months to 5 years. Saving a shorter time deletes older visits and events for good, and the dashboard says from which date before you save. After that the scheduled check deletes whatever passes the limit each day. Goals, links, and settings stay. The same section has **Export everything**, a ZIP of every report since the site’s first visit, worth downloading before you shorten the time.

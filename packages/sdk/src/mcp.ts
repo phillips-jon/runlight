@@ -10,7 +10,7 @@ import { VERSION } from "./version.js";
 /** Newest first; a client asking for one we do not know is answered with the newest. */
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
-const INSTRUCTIONS = `Runlight is privacy friendly web analytics. These tools read one install's numbers: visitors, visits, pageviews, bounce rate, visit duration, where visitors came from, what they read, goals and revenue, AI assistants that sent visitors or fetched pages, and short links.
+export const INSTRUCTIONS = `Runlight is privacy friendly web analytics. These tools read one install's numbers: visitors, visits, pageviews, bounce rate, visit duration, where visitors came from, what they read, goals and revenue, AI assistants that sent visitors or fetched pages, and short links.
 
 Start with list_sites when you do not know the site id; every other tool defaults to the first site. Dates are in the site's own timezone, which each answer includes. Periods: today, yesterday, 7d, 30d, 90d, month (this month so far), last_month, year (this year so far), 12mo, all; or from and to as YYYY-MM-DD. Answers compare with the period before unless compare is off.
 
@@ -186,7 +186,8 @@ interface RpcRequest {
 
 const rpcError = (id: unknown, code: number, message: string) => ({ jsonrpc: "2.0", id: id ?? null, error: { code, message } });
 
-async function callTool(params: Json, readApi: ApiRead): Promise<Json> {
+/** Runs one tool by name, as the MCP server does; the dashboard's assistant calls it too. */
+export async function callTool(params: Json, readApi: ApiRead): Promise<Json> {
   const tool = TOOLS.find((t) => t.name === params.name);
   if (!tool) throw Object.assign(new Error(`Unknown tool "${String(params.name)}"`), { code: -32602 });
   const args = (params.arguments && typeof params.arguments === "object" ? params.arguments : {}) as Json;

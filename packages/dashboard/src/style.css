@@ -4010,3 +4010,224 @@ a.ghost {
 .settings-warning.with-action .ghost {
   flex: none;
 }
+
+/* The assistant: a robot button beside Filter, and a chat drawer. */
+.assistant-button {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+}
+
+.assistant-button .icon {
+  width: 17px;
+  height: 17px;
+}
+
+.drawer.assistant {
+  width: min(480px, 100vw);
+}
+
+.assistant-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.assistant-about {
+  margin: 0;
+  padding: 0 24px 12px;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+
+.assistant-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 18px;
+}
+
+.assistant-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin: auto 0;
+  padding: 24px 8px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.assistant-empty p {
+  margin: 0;
+  max-width: 34ch;
+}
+
+.assistant-mark {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--sunk);
+  color: var(--ink);
+}
+
+.assistant-mark .icon {
+  width: 22px;
+  height: 22px;
+}
+
+.assistant-suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.assistant-suggestions .ghost {
+  height: auto;
+  min-height: 40px;
+  padding: 9px 14px;
+  text-align: left;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.message {
+  max-width: 92%;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.message p {
+  margin: 0;
+}
+
+.message.user {
+  align-self: flex-end;
+  padding: 9px 13px;
+  border-radius: 12px 12px 4px 12px;
+  background: var(--ink);
+  color: var(--card);
+  white-space: pre-wrap;
+}
+
+.message.assistant {
+  align-self: flex-start;
+  color: var(--ink);
+}
+
+.message.error {
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--down) 40%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--down) 8%, transparent);
+}
+
+.message-meta {
+  display: block;
+  margin-top: 6px;
+  font: 11px var(--mono);
+  color: var(--faint);
+}
+
+.reply > * + * {
+  margin-top: 10px;
+}
+
+.reply ul,
+.reply ol {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.reply li + li {
+  margin-top: 4px;
+}
+
+.reply code {
+  font: 12.5px var(--mono);
+}
+
+.reply-table {
+  overflow-x: auto;
+}
+
+.reply-table table {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.reply-table th,
+.reply-table td {
+  padding: 5px 12px 5px 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.reply-table th {
+  font-weight: 600;
+}
+
+.thinking .dots {
+  display: inline-flex;
+  gap: 5px;
+  padding: 10px 0;
+}
+
+.thinking .dots span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+  animation: blink 1.2s infinite ease-in-out;
+}
+
+.thinking .dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.thinking .dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.assistant-ask {
+  align-items: flex-end;
+}
+
+.assistant-ask textarea.value {
+  flex: 1;
+  height: auto;
+  min-height: 44px;
+  max-height: 160px;
+  padding: 11px 12px;
+  resize: none;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.assistant-ask .solid {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+}

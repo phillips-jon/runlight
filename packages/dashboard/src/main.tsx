@@ -10,6 +10,7 @@ import { MAX_CHARTED, METRICS, metric, metricHint, metricLabel, type MetricKey }
 import { LinksPanel, Sheet } from "./links.js";
 import { AddSiteForm, AllSites, FirstSite, SiteMenu } from "./sites.js";
 import { AccountSheet } from "./account.js";
+import { AssistantDrawer } from "./assistant.js";
 import { Panel, Rhythm, bounce, label, timeOnPage, type Tab } from "./panel.js";
 import { ComparePicker, DEFAULT_PERIOD, PERIODS, Picker, rangeText, type CompareMode } from "./picker.js";
 import { RealtimeModal } from "./realtime.js";
@@ -186,6 +187,7 @@ function App() {
   // Coming back from connecting another Runlight: its settings open, or what went wrong shows.
   const [failure, setFailure] = useState(() => new URLSearchParams(location.search).get("connect_error") ?? "");
   const [filtering, setFiltering] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState<Section | null>(() => (new URLSearchParams(location.search).get("settings") === "general" ? "general" : null));
   const [addingSite, setAddingSite] = useState(false);
   /** Who is signed in, on the standalone server. */
@@ -355,6 +357,11 @@ function App() {
                 {t("view.reset")}
               </button>
             )}
+            {site && !share ? (
+              <button type="button" class="filter-button assistant-button" aria-label={t("assistant.open")} title={t("assistant.open")} onClick={() => setAsking(true)}>
+                <Icon name="robot" />
+              </button>
+            ) : null}
             <button type="button" class={view.filters.length ? "filter-button on" : "filter-button"} onClick={() => setFiltering(true)}>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M2.5 3.5h11M4.5 8h7M6.5 12.5h3" />
@@ -447,6 +454,18 @@ function App() {
         </Sheet>
       ) : null}
       {filtering ? <FilterDrawer view={view} onApply={(filters) => update({ filters })} onClose={() => setFiltering(false)} /> : null}
+      {asking && site ? (
+        <AssistantDrawer
+          site={site}
+          view={view}
+          owner={!me || me.role === "owner"}
+          onSetup={() => {
+            setAsking(false);
+            setSettingsOpen("assistant");
+          }}
+          onClose={() => setAsking(false)}
+        />
+      ) : null}
 
       {waiting && site && sites ? (
         <section class="welcome">

@@ -2,6 +2,7 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, base, download, install, type Person, type Site, type View } from "./api.js";
 import { People } from "./account.js";
+import { AssistantSettings } from "./assistant.js";
 import { EmailReports } from "./email.js";
 import { Goals } from "./goals.js";
 import { LANGUAGES, currentLocale, rich, t, type Key } from "./i18n.js";
@@ -14,7 +15,7 @@ import { Sharing } from "./sharing.js";
 import { Tokens } from "./tokens.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 
-export type Section = "general" | "install" | "goals" | "email" | "sharing" | "api" | "links" | "import" | "people" | "data";
+export type Section = "general" | "install" | "goals" | "email" | "sharing" | "api" | "links" | "import" | "people" | "data" | "assistant";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
@@ -25,6 +26,7 @@ const SECTIONS: Array<[Section, Key]> = [
   ["links", "settings.links"],
   ["import", "settings.import"],
   ["data", "settings.data"],
+  ["assistant", "settings.assistant"],
 ];
 
 function timezones(): string[] {
@@ -647,6 +649,8 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
               <LinkDomains site={site} />
             ) : section === "data" ? (
               <Data site={site} onSaved={onSaved} />
+            ) : section === "assistant" ? (
+              <AssistantSettings owner={!me || me.role === "owner"} />
             ) : (
               <Import site={site} />
             )}

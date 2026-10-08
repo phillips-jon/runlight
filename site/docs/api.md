@@ -70,6 +70,8 @@ Every report takes the same query parameters.
 | `POST /api/tokens` | Makes a token from `{ "name", "site", "scope" }` and returns it once as `secret`. Leave `site` empty for every site. `scope` is `read` (the default) or `manage`, which needs a `site`. |
 | `GET /api/token` | Says what the token sent with it may do, as `{ "scope", "site" }`. A hub asks this before it offers to change anything. |
 | `DELETE /api/tokens/:id` | Deletes a token, which stops it working at once. |
+| `GET`, `PUT`, `DELETE /api/assistant` | Read, set, or remove the dashboard assistant's `{ "provider", "model", "baseUrl", "key" }`. The key is never returned. Owners only, though anyone at the dashboard can ask whether it is set up. |
+| `POST /api/assistant/chat` | Ask the assistant, sending `{ "site", "messages", "view", "language" }`, where messages are `{ "role", "content" }` pairs ending with a question. It answers `{ "reply", "tools" }`. People at the dashboard only, never API tokens or share links. |
 | `POST /mcp` | The MCP server for AI assistants, described in [Ask your AI](/docs/mcp/). |
 
 ## Errors

@@ -5,6 +5,7 @@ import { MailError, SERVICES, checkConfig, send, type MailConfig, type Message }
 import { buildReport, lastPeriod } from "./reports.js";
 import { parsePayload, MAX_BODY, type Payload } from "./payload.js";
 import { Links } from "./links.js";
+import { PROVIDERS, type AssistantSettings } from "./assistant.js";
 import { RateLimit } from "./limit.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww, type Page } from "./sources.js";
@@ -517,6 +518,31 @@ export class Runlight {
       built += made;
     }
     return built;
+  }
+
+  /** The dashboard assistant's provider, model, and key, kept sealed like the mail keys. Null until an owner sets it up. */
+  async assistantSettings(): Promise<AssistantSettings | null> {
+    const stored = await this.store.setting("assistant");
+    const opened = stored ? await unseal(stored, this.secret) : null;
+    return opened ? (JSON.parse(opened) as AssistantSettings) : null;
+  }
+
+  /** Saves the assistant's settings; an empty key keeps the one saved for the same provider. Null removes them. */
+  async saveAssistantSettings(input: Record<string, unknown> | null): Promise<void> {
+    if (!input) return this.store.setSetting("assistant", null);
+    const provider = PROVIDERS.find((p) => p.id === input.provider);
+    if (!provider) throw new RangeError("Choose a provider");
+    const baseUrl = String(input.baseUrl ?? "").trim().replace(/\/+$/, "");
+    if (baseUrl && !/^https?:\/\/[^\s/]+/.test(baseUrl)) throw new RangeError("Enter the service's address, starting with https://");
+    if (!baseUrl && !provider.baseUrl) throw new RangeError("Enter the service's address");
+    const model = String(input.model ?? "").trim().slice(0, 200);
+    if (!model && !provider.model) throw new RangeError("Enter the model to use");
+    const before = await this.assistantSettings();
+    let key = String(input.key ?? "").trim();
+    if (!key && before?.provider === provider.id) key = before.key;
+    if (!key && provider.key === "yes") throw new RangeError(`Enter your ${provider.name} key`);
+    const settings: AssistantSettings = { provider: provider.id, model, baseUrl, key };
+    await this.store.setSetting("assistant", await seal(JSON.stringify(settings), this.secret));
   }
 
   /** The oldest moment a site keeps visits from, or null when it keeps everything. */
