@@ -713,8 +713,9 @@ main {
   display: flex;
   flex-direction: column;
   align-items: stretch;
+  justify-content: center;
   gap: 4px;
-  padding: 14px 14px 12px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
@@ -775,6 +776,11 @@ main {
   align-items: flex-end;
   gap: 8px;
   min-height: 18px;
+}
+
+/* With no earlier period to compare against, the change row goes, so the label and value sit centred. */
+.metric-foot:not(:has(.delta:not(:empty))) {
+  display: none;
 }
 
 .delta {
