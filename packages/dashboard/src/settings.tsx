@@ -277,6 +277,17 @@ function Data({ site, onSaved }: { site: Site; onSaved: (site: Site) => void }) 
   );
 }
 
+/** Read once as the page loads, before the dashboard rewrites its address: back from connecting a site. */
+const JUST_CONNECTED = new URLSearchParams(location.search).get("connected") === "1";
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+
 /** Where a connected site is counted, and either that its settings change from here or a way to allow it. */
 function RemoteCallout({ site }: { site: Site }) {
   const [error, setError] = useState("");
@@ -294,6 +305,12 @@ function RemoteCallout({ site }: { site: Site }) {
   };
   return (
     <>
+      {JUST_CONNECTED ? (
+        <p class="settings-ok-text" role="status">
+          <Icon name="check" />
+          {t("sites.connected", { host: hostOf(site.remote!) })}
+        </p>
+      ) : null}
       <div class="prompt-row">
         <span class="callout-icon" aria-hidden="true">
           <Icon name="external" />
@@ -302,18 +319,17 @@ function RemoteCallout({ site }: { site: Site }) {
           <strong>{t("sites.remoteTitle")}</strong>
           {t(site.manage ? "sites.remoteManaged" : "sites.remoteNote", { url: site.remote! })}
         </span>
-        {site.manage ? (
-          <>
-            <a class="box-button" href={site.remote} target="_blank" rel="noopener">
-              <Icon name="external" />
-              {t("sites.openRemote")}
-            </a>
-            {/* The way back when the install has deleted this server's token. */}
-            <button type="button" class="box-button" disabled={busy} title={t("sites.reconnectHint")} onClick={allow}>
-              <Icon name="key" />
-              {t("sites.reconnect")}
-            </button>
-          </>
+        {site.connection === "refused" ? (
+          // The way back when the install has deleted this server's token, offered only then.
+          <button type="button" class="box-button solid" disabled={busy} title={t("sites.reconnectHint")} onClick={allow}>
+            <Icon name="key" />
+            {t("sites.reconnect")}
+          </button>
+        ) : site.manage ? (
+          <a class="box-button" href={site.remote} target="_blank" rel="noopener">
+            <Icon name="external" />
+            {t("sites.openRemote")}
+          </a>
         ) : (
           <button type="button" class="box-button solid" disabled={busy} onClick={allow}>
             <Icon name="key" />
@@ -321,6 +337,7 @@ function RemoteCallout({ site }: { site: Site }) {
           </button>
         )}
       </div>
+      {site.connection === "refused" && !JUST_CONNECTED ? <p class="settings-error">{t("sites.refused", { host: hostOf(site.remote!) })}</p> : null}
       {error ? <p class="settings-error">{error}</p> : null}
     </>
   );

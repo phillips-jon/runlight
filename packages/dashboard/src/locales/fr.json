@@ -923,5 +923,7 @@
   "empty.campaigns.title": "Vos campagnes apparaîtront ici",
   "empty.campaigns.hint": "Les visites venues de liens avec des balises UTM sont classées par campagne, source et support.",
   "empty.links.title": "Vos liens courts apparaîtront ici",
-  "empty.links.hint": "Créez un lien court à partager, et chaque clic sera compté."
+  "empty.links.hint": "Créez un lien court à partager, et chaque clic sera compté.",
+  "sites.refused": "{host} n’accepte plus la connexion de ce serveur, donc ses chiffres ne peuvent pas être lus. Reconnectez-le pour corriger cela.",
+  "sites.connected": "Connecté à {host}."
 }

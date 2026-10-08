@@ -110,12 +110,15 @@ test("a hub connects an app through its consent page and changes that site's set
     // 3. Back at the hub, the code becomes a manage token for the blog only.
     const done = await handler(new Request(back.toString(), { headers: { authorization: "Bearer hub-owner" } }));
     assert.equal(done.status, 303);
-    const id = new URL(done.headers.get("location")!, "http://localhost:4900").searchParams.get("site")!;
+    const landing = new URL(done.headers.get("location")!, "http://localhost:4900").searchParams;
+    assert.equal(landing.get("connected"), "1", "the dashboard says the connection worked");
+    const id = landing.get("site")!;
     assert.equal(hub.remote(id)?.site, "blog");
     assert.equal(hub.remote(id)?.scope, "manage");
     const listed = (await call("GET", "/api/sites")).body.sites[0];
     assert.equal(listed.manage, true);
     assert.equal(listed.name, "Blog");
+    assert.equal(listed.connection, "ok", "a working connection needs no Connect again");
 
     // 4. Settings changed at the hub land in the app, on the blog.
     assert.equal((await call("POST", `/api/goals?site=${id}`, { name: "Signup", kind: "event", match: "Signup" })).status, 201);
@@ -142,6 +145,8 @@ test("a hub connects an app through its consent page and changes that site's set
     assert.equal(tokens.tokens[0].scope, "manage");
     await asAppOwner(`${appUrl}/api/tokens/${tokens.tokens[0].id}`, { method: "DELETE" });
     assert.equal((await call("POST", `/api/goals?site=${id}`, { name: "Later", kind: "event", match: "x" })).status, 502);
+    hub.forgetRemoteInfo(id);
+    assert.equal((await call("GET", "/api/sites")).body.sites[0].connection, "refused", "so the dashboard offers to connect it again");
 
     // A code works once.
     const reused = await handler(new Request(back.toString(), { headers: { authorization: "Bearer hub-owner" } }));

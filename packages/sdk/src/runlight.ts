@@ -91,6 +91,13 @@ export interface Remote {
   scope?: "read" | "manage";
 }
 
+/** What a connected install last said about its site, and whether it answered this server at all. */
+export interface RemoteInfo {
+  lastSeen: number | null;
+  retentionMonths: number | null | undefined;
+  connection: "ok" | "refused" | "unreachable";
+}
+
 /** A path on every link domain that answers when the domain reaches this Runlight. */
 export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
 
@@ -155,7 +162,7 @@ export class Runlight {
   readonly managedSites: boolean;
   /** Sites counted by another Runlight install, read through its API with the token it gave, read or manage. */
   private readonly remotes = new Map<string, Remote>();
-  private readonly remoteSeen = new Map<string, { at: number; lastSeen: number | null; retentionMonths: number | null | undefined }>();
+  private readonly remoteSeen = new Map<string, { at: number } & RemoteInfo>();
   private overrides = new Map<string, SiteOverrides>();
   private readonly geo: GeoLookup | undefined;
   private readonly trustProxy: boolean | "x-forwarded-for" | "x-real-ip" | "cf-connecting-ip";
@@ -368,19 +375,21 @@ export class Runlight {
 
   /**
    * What a connected install says about its site: its last visit and how long it keeps visits, asked
-   * at most once a minute. Retention is undefined while the install cannot be reached.
+   * at most once a minute. Retention is undefined while the install cannot be reached, and `connection`
+   * says whether it answered, refused this server's token, or could not be reached.
    */
-  async remoteInfo(id: string): Promise<{ lastSeen: number | null; retentionMonths: number | null | undefined } | null> {
+  async remoteInfo(id: string): Promise<RemoteInfo | null> {
     const remote = this.remotes.get(id);
     if (!remote) return null;
     const cached = this.remoteSeen.get(id);
     if (cached && this.now() - cached.at < 60_000) return cached;
-    let info: { lastSeen: number | null; retentionMonths: number | null | undefined } = { lastSeen: cached?.lastSeen ?? null, retentionMonths: cached?.retentionMonths };
+    let info: RemoteInfo = { lastSeen: cached?.lastSeen ?? null, retentionMonths: undefined, connection: "unreachable" };
     try {
       const answer = await fetch(`${remote.url}/api/sites`, { headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(8000) });
+      if (answer.status === 401 || answer.status === 403) info = { ...info, connection: "refused" };
       const body = (await readJsonCapped(answer, REMOTE_MAX_BYTES).catch(() => null)) as { sites?: Array<{ id: string; lastSeen: number | null; retentionMonths?: number | null }> } | null;
       const there = body?.sites?.find((s) => s.id === remote.site);
-      if (there) info = { lastSeen: there.lastSeen ?? null, retentionMonths: there.retentionMonths ?? null };
+      if (there) info = { lastSeen: there.lastSeen ?? null, retentionMonths: there.retentionMonths ?? null, connection: "ok" };
     } catch {}
     this.remoteSeen.set(id, { at: this.now(), ...info });
     return info;

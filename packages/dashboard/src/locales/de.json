@@ -923,5 +923,7 @@
   "empty.campaigns.title": "Deine Kampagnen erscheinen hier",
   "empty.campaigns.hint": "Besuche über Links mit UTM-Tags werden nach Kampagne, Quelle und Medium gruppiert.",
   "empty.links.title": "Deine Kurzlinks erscheinen hier",
-  "empty.links.hint": "Erstelle einen Kurzlink zum Teilen, und jeder Klick darauf wird gezählt."
+  "empty.links.hint": "Erstelle einen Kurzlink zum Teilen, und jeder Klick darauf wird gezählt.",
+  "sites.refused": "{host} akzeptiert die Verbindung dieses Servers nicht mehr, daher lassen sich die Zahlen nicht lesen. Verbinde es erneut, um das zu beheben.",
+  "sites.connected": "Mit {host} verbunden."
 }

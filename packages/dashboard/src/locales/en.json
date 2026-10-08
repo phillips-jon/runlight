@@ -923,5 +923,7 @@
   "empty.campaigns.title": "Your campaigns will show up here",
   "empty.campaigns.hint": "Visits from links with UTM tags are grouped by campaign, source, and medium.",
   "empty.links.title": "Your short links will show up here",
-  "empty.links.hint": "Make a short link to share, and every click on it is counted."
+  "empty.links.hint": "Make a short link to share, and every click on it is counted.",
+  "sites.refused": "{host} no longer accepts this server’s connection, so its numbers cannot be read. Connect it again to fix that.",
+  "sites.connected": "Connected to {host}."
 }

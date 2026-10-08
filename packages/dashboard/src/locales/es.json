@@ -923,5 +923,7 @@
   "empty.campaigns.title": "Tus campañas aparecerán aquí",
   "empty.campaigns.hint": "Las visitas desde enlaces con etiquetas UTM se agrupan por campaña, fuente y medio.",
   "empty.links.title": "Tus enlaces cortos aparecerán aquí",
-  "empty.links.hint": "Crea un enlace corto para compartir, y cada clic se contará."
+  "empty.links.hint": "Crea un enlace corto para compartir, y cada clic se contará.",
+  "sites.refused": "{host} ya no acepta la conexión de este servidor, así que no se pueden leer sus cifras. Vuelve a conectarlo para arreglarlo.",
+  "sites.connected": "Conectado a {host}."
 }

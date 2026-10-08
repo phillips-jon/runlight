@@ -1051,7 +1051,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       let to: string;
       try {
         const id = await finishConnect(runlight, url.searchParams);
-        to = `${home}?site=${encodeURIComponent(id)}&settings=general`;
+        // The site's settings open with a word that the connection worked, which a reconnection otherwise lacks.
+        to = `${home}?site=${encodeURIComponent(id)}&settings=general&connected=1`;
       } catch (error) {
         if (!(error instanceof RangeError)) throw error;
         // A code, never the message: the dashboard shows its own words for it, so a link cannot put text there.
@@ -1521,6 +1522,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           lastSeen: runlight.remote(site.id) ? await runlight.remoteLastSeen(site.id) : await runlight.store.lastSeen(site.id),
           // Left out for a connected install that cannot be reached, so nobody reads "forever" by mistake.
           ...(shared ? {} : { retentionMonths: runlight.remote(site.id) ? (await runlight.remoteInfo(site.id))?.retentionMonths : await runlight.retention(site.id) }),
+          // Whether a connected install still takes this server's token, so the dashboard offers to connect it
+          // again only when it no longer does.
+          ...(runlight.remote(site.id) && !shared ? { connection: (await runlight.remoteInfo(site.id))?.connection } : {}),
         })),
       );
       // A share never learns how the install is run.

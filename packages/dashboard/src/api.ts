@@ -13,6 +13,8 @@ export interface Site {
   remoteSite?: string;
   /** True when the connected install lets this server change the site's settings. */
   manage?: boolean;
+  /** For a connected site: whether its install answered, refused this server's token, or could not be reached. */
+  connection?: "ok" | "refused" | "unreachable";
   /** How many months of visits the site keeps; null keeps everything. */
   retentionMonths?: number | null;
 }
