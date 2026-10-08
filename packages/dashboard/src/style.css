@@ -1664,6 +1664,18 @@ body.locked {
   color: var(--ink);
 }
 
+/* Beside a 40px field, the remove button is as tall as the field. */
+.clause-line > .remove,
+.funnel-steps .remove {
+  width: 40px;
+  height: 40px;
+}
+
+/* A sheet's header actions match its close button. */
+.drawer-head .copy.inline {
+  height: 32px;
+}
+
 .remove svg {
   width: 14px;
   height: 14px;
@@ -2737,9 +2749,10 @@ h1 .home:hover {
   position: static;
 }
 
+/* Row actions, and the small dropdowns and fields beside them, are all 30px tall. */
 .copy.inline {
   position: static;
-  height: 26px;
+  height: 30px;
 }
 
 .copy.danger:hover,
