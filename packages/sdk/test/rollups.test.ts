@@ -190,15 +190,20 @@ test("a timezone changed in the dashboard reaches another process at its next ch
   const { runlight } = await import("../src/index.js");
   const { sqlite } = await import("../src/stores/sqlite.js");
   const file = path.join(mkdtempSync(path.join(tmpdir(), "runlight-zones-")), "shared.db");
-  const now = Date.UTC(2026, 9, 6, 12);
+  let now = Date.UTC(2026, 9, 6, 12);
   const a = runlight({ store: sqlite({ path: file }), site: { hostnames: ["example.com"], timezone: "UTC" }, now: () => now });
   const b = runlight({ store: sqlite({ path: file }), site: { hostnames: ["example.com"], timezone: "UTC" }, now: () => now });
   await a.init();
   await b.init();
   await a.updateSite("default", { timezone: "Europe/Paris" });
   assert.equal(b.site("default")!.timezone, "UTC");
+  // A visit after the change, and days enough for its day to be built.
+  await b.store.db.run(`INSERT INTO rl_sessions (id, site, visitor, started_at, last_at, pageviews) VALUES ('s1', 'default', 'v1', ?, ?, 1)`, [now + DAY, now + DAY]);
+  now += 3 * DAY;
+  assert.equal(await b.buildRollups(), 0, "holding the old timezone, it builds nothing");
   await b.check();
   assert.equal(b.site("default")!.timezone, "Europe/Paris");
+  assert.deepEqual([...(await b.store.rollupDays("default"))].sort(), ["2026-10-07", "2026-10-08"], "then it builds the days after the change");
 });
 
 for (const kind of STORES) {

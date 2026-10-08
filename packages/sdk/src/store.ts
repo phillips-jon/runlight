@@ -86,8 +86,9 @@ export interface SiteOverrides {
 /**
  * Something worth counting. An event goal counts a named event; a page goal
  * counts pageviews of a path or pattern (`/thanks*`); a click goal is a rule
- * the tracker applies itself, sending an event named after the goal. Goals are
- * worked out when stats are read, so a new goal counts past visits too.
+ * the tracker applies itself, sending an event named after the goal. Event and
+ * page goals are worked out when stats are read, so a new one counts past visits
+ * too; a click goal counts from when the tracker starts sending its event.
  */
 export interface GoalRow {
   id: string;
