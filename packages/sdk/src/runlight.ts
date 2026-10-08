@@ -6,6 +6,7 @@ import { buildReport, lastPeriod } from "./reports.js";
 import { parsePayload, MAX_BODY, type Payload } from "./payload.js";
 import { Links } from "./links.js";
 import { PROVIDERS, type AssistantSettings } from "./assistant.js";
+import { readJsonCapped } from "./body.js";
 import { RateLimit } from "./limit.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww, type Page } from "./sources.js";
@@ -97,6 +98,8 @@ export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
 const ROLLUP_VERSION = 3;
 /** Days of rollups built per site in one scheduled check, and how long after a day ends it is built. */
 const ROLLUP_BATCH = 10;
+/** The most a connected install's list of sites may weigh; a real one is a few kilobytes. */
+const REMOTE_MAX_BYTES = 2 * 1024 * 1024;
 /** On a database that caps statements per request (Cloudflare D1), fewer days a check, about 30 statements. */
 const METERED_ROLLUP_BATCH = 4;
 const ROLLUP_DELAY_MS = 2 * 3_600_000;
@@ -375,7 +378,7 @@ export class Runlight {
     let info: { lastSeen: number | null; retentionMonths: number | null | undefined } = { lastSeen: cached?.lastSeen ?? null, retentionMonths: cached?.retentionMonths };
     try {
       const answer = await fetch(`${remote.url}/api/sites`, { headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(8000) });
-      const body = (await answer.json().catch(() => null)) as { sites?: Array<{ id: string; lastSeen: number | null; retentionMonths?: number | null }> } | null;
+      const body = (await readJsonCapped(answer, REMOTE_MAX_BYTES).catch(() => null)) as { sites?: Array<{ id: string; lastSeen: number | null; retentionMonths?: number | null }> } | null;
       const there = body?.sites?.find((s) => s.id === remote.site);
       if (there) info = { lastSeen: there.lastSeen ?? null, retentionMonths: there.retentionMonths ?? null };
     } catch {}
@@ -410,14 +413,14 @@ export class Runlight {
       throw new SettingsError(`Could not reach ${url}`, "unreachable", { host: new URL(url).host });
     }
     if (answer.status === 401 || answer.status === 403) throw new SettingsError("That install refused the token", "install_refused");
-    const body = (await answer.json().catch(() => null)) as { sites?: Array<{ id: string; name: string; timezone: string; hostnames: string[] }> } | null;
+    const body = (await readJsonCapped(answer, REMOTE_MAX_BYTES).catch(() => null)) as { sites?: Array<{ id: string; name: string; timezone: string; hostnames: string[] }> } | null;
     if (!answer.ok || !body?.sites?.length) throw new SettingsError(`${url} did not answer like a Runlight install`, "connect_not_runlight", { url });
     // What the token may do there; an install from before manage tokens has no /api/token and reads only.
     let scope: "read" | "manage" = "read";
     let tokenSite = "";
     try {
       const about = await fetch(`${url}/api/token`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
-      const info = about.ok ? ((await about.json().catch(() => null)) as { scope?: string; site?: string } | null) : null;
+      const info = about.ok ? ((await readJsonCapped(about, REMOTE_MAX_BYTES).catch(() => null)) as { scope?: string; site?: string } | null) : null;
       if (info?.scope === "manage") scope = "manage";
       tokenSite = String(info?.site ?? "");
     } catch {}
