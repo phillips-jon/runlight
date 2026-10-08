@@ -3275,35 +3275,76 @@ select.field,
   text-decoration: none;
 }
 
-.dns-records {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+/* One DNS record: its type, name, and value side by side, each labelled, the last two with a copy icon. */
+.dns-record {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px 28px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--sunk);
 }
 
-.dns-records th {
-  padding: 0 8px 6px 0;
-  font: 11px var(--mono);
+.dns-field {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dns-field.grow {
+  flex: 1;
+}
+
+.dns-label {
+  font: 10.5px var(--mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--faint);
-  text-align: left;
 }
 
-.dns-records td {
-  padding: 6px 8px 6px 0;
-  border-top: 1px solid var(--line);
-  vertical-align: middle;
+.dns-value {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
 }
 
-.dns-records td code {
-  margin-right: 6px;
-  font: 12.5px var(--mono);
+.dns-record code {
+  font: 13px var(--mono);
+  color: var(--ink);
   overflow-wrap: anywhere;
 }
 
-.dns-records td .copy {
+/* A copy button that is only its icon, quiet beside the value it copies. */
+.copy-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: none;
+  color: var(--faint);
   vertical-align: middle;
+  cursor: pointer;
+}
+
+.copy-icon:hover,
+.copy-icon:focus-visible {
+  background: var(--bar);
+  color: var(--ink);
+}
+
+.copy-icon.done {
+  color: var(--up);
+}
+
+.copy-icon .icon {
+  width: 13px;
+  height: 13px;
 }
 
 .domain-actions {

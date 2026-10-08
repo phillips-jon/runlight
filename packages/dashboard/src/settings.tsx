@@ -48,8 +48,31 @@ function ago(ms: number): string {
   return f.format(Math.round(seconds / 86_400), "day");
 }
 
-export function Copy({ text, label, class: extra }: { text: string; label?: string; class?: string }) {
+export function Copy({ text, label, class: extra, iconOnly }: { text: string; label?: string; class?: string; iconOnly?: boolean }) {
   const [done, setDone] = useState(false);
+  // Icon only, beside a value: the word comes as its name and its tooltip instead.
+  if (iconOnly) {
+    const word = done ? t("install.copied") : t("install.copy");
+    return (
+      <button
+        type="button"
+        class={done ? "copy-icon done" : "copy-icon"}
+        title={word}
+        aria-label={word}
+        onClick={() => {
+          navigator.clipboard
+            ?.writeText(text)
+            .then(() => {
+              setDone(true);
+              setTimeout(() => setDone(false), 1600);
+            })
+            .catch(() => {});
+        }}
+      >
+        <Icon name={done ? "check" : "copy"} />
+      </button>
+    );
+  }
   return (
     <button
       type="button"
@@ -525,32 +548,28 @@ function DomainSetup({ domain, target, onCheck }: { domain: string; target: { ho
       : [{ type: "ALIAS", value: target.host }];
   return (
     <div class="domain-setup">
-      <table class="dns-records">
-        <thead>
-          <tr>
-            <th>{t("links.recordType")}</th>
-            <th>{t("links.recordName")}</th>
-            <th>{t("links.recordValue")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {records.map((r) => (
-            <tr>
-              <td>
-                <code>{r.type}</code>
-              </td>
-              <td>
-                <code>{name}</code>
-                <Copy class="inline" text={name} />
-              </td>
-              <td>
-                <code>{r.value}</code>
-                <Copy class="inline" text={r.value} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {records.map((r) => (
+        <div class="dns-record">
+          <span class="dns-field">
+            <span class="dns-label">{t("links.recordType")}</span>
+            <code>{r.type}</code>
+          </span>
+          <span class="dns-field">
+            <span class="dns-label">{t("links.recordName")}</span>
+            <span class="dns-value">
+              <code>{name}</code>
+              <Copy iconOnly text={name} />
+            </span>
+          </span>
+          <span class="dns-field grow">
+            <span class="dns-label">{t("links.recordValue")}</span>
+            <span class="dns-value">
+              <code>{r.value}</code>
+              <Copy iconOnly text={r.value} />
+            </span>
+          </span>
+        </div>
+      ))}
       <ol class="setup-steps">
         <li>{t(records[0]!.type === "ALIAS" ? "links.doDnsAlias" : "links.doDns")}</li>
         <li>{t("links.doHttps", { domain })}</li>
