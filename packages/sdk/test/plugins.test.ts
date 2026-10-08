@@ -44,8 +44,38 @@ test("a CMS plugin keeps a saved observe key only while its Runlight address sta
   }
   assert.deepEqual(JSON.parse(answer), ["rlo_saved", "", "rlo_new"]);
 
-  // Drupal's form runs only inside Drupal, so its rule is read from the source.
-  const drupal = readFileSync(new URL("../../../plugins/drupal/src/Form/SettingsForm.php", import.meta.url), "utf8");
-  assert.match(drupal, /\$kept = \$address === \(string\) \$config->get\('address'\) \? \(string\) \$config->get\('observe_key'\) : '';/);
-  assert.match(drupal, /->set\('observe_key', \$key === '' \? \$kept : \$key\)/);
+  // Drupal's form runs too, with stand-ins for the form base class, its state, and the saved config.
+  const drupal = new URL("../../../plugins/drupal/src/Form/SettingsForm.php", import.meta.url).pathname;
+  const submit = `
+    namespace Drupal\\Core\\Form {
+      interface FormStateInterface { public function getValue($key); }
+      class Config {
+        public array $values = ["address" => "https://stats.example.com/runlight", "observe_key" => "rlo_saved"];
+        public function get($key) { return $this->values[$key] ?? null; }
+        public function set($key, $value) { $this->values[$key] = $value; return $this; }
+        public function save() { return $this; }
+      }
+      abstract class ConfigFormBase {
+        public static ?Config $saved = null;
+        protected function config($name) { return self::$saved; }
+        public function submitForm(array &$form, FormStateInterface $form_state): void {}
+      }
+    }
+    namespace {
+      require ${JSON.stringify(drupal)};
+      class State implements Drupal\\Core\\Form\\FormStateInterface {
+        public function __construct(private array $values) {}
+        public function getValue($key) { return $this->values[$key] ?? ""; }
+      }
+      $keys = [];
+      foreach ([["https://stats.example.com/runlight/", ""], ["https://evil.example/runlight", ""], ["https://other.example/runlight", "rlo_new"]] as [$address, $key]) {
+        Drupal\\Core\\Form\\ConfigFormBase::$saved = new Drupal\\Core\\Form\\Config();
+        $form = [];
+        (new Drupal\\runlight\\Form\\SettingsForm())->submitForm($form, new State(["address" => $address, "observe_key" => $key]));
+        $keys[] = Drupal\\Core\\Form\\ConfigFormBase::$saved->values["observe_key"];
+      }
+      echo json_encode($keys);
+    }
+  `;
+  assert.deepEqual(JSON.parse(execFileSync("php", ["-r", submit], { encoding: "utf8" })), ["rlo_saved", "", "rlo_new"]);
 });

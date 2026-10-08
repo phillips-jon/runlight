@@ -82,15 +82,37 @@ test("link domains stay off the configured address and the names people signed i
   assert.deepEqual(await (await call("GET", "/api/link-domains/db.internal/check?site=blog")).json(), { domain: "db.internal", working: false, reason: "is not a public domain name" });
 
   // A hub's reports link to the configured address, never to the Host it names, and its samples share one wait.
-  const manage = ((await (await call("POST", "/api/tokens", "owner", { name: "Hub", scope: "manage", site: "blog" })).json()) as any).secret as string;
-  const first = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "a@example.com" })).json()) as any).report;
-  const second = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "b@example.com" })).json()) as any).report;
-  assert.deepEqual((await rl.store.reports("blog")).map((r) => r.origin), ["https://stats.example.com/runlight", "https://stats.example.com/runlight"]);
-  assert.notEqual((await call("POST", `/api/reports/${first.id}/send?site=blog`, manage)).status, 429);
-  assert.equal((await call("POST", `/api/reports/${second.id}/send?site=blog`, manage)).status, 429, "another report waits too");
-  await call("DELETE", `/api/reports/${second.id}?site=blog`, manage);
-  const again = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "b@example.com" })).json()) as any).report;
-  assert.equal((await call("POST", `/api/reports/${again.id}/send?site=blog`, manage)).status, 429, "and so does one added again");
+  const { createServer } = await import("node:http");
+  const sent: any[] = [];
+  const mail = createServer((req, res) => {
+    let text = "";
+    req.on("data", (c) => (text += c));
+    req.on("end", () => {
+      sent.push(JSON.parse(text));
+      res.end("ok");
+    });
+  });
+  await new Promise<void>((resolve) => mail.listen(0, "127.0.0.1", resolve));
+  try {
+    await rl.saveMailSettings({ service: "webhook", url: `http://127.0.0.1:${(mail.address() as { port: number }).port}/`, from: "reports@example.com" });
+    const manage = ((await (await call("POST", "/api/tokens", "owner", { name: "Hub", scope: "manage", site: "blog" })).json()) as any).secret as string;
+    const first = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "a@example.com" })).json()) as any).report;
+    const second = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "b@example.com" })).json()) as any).report;
+    assert.deepEqual((await rl.store.reports("blog")).map((r) => r.origin), ["https://stats.example.com/runlight", "https://stats.example.com/runlight"]);
+    assert.equal((await call("POST", `/api/reports/${first.id}/send?site=blog`, manage)).status, 200, "the first sample goes out");
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].to, "a@example.com");
+    assert.ok(sent[0].text.includes("https://stats.example.com/runlight"), "its links point at the configured address");
+    const waits = await call("POST", `/api/reports/${second.id}/send?site=blog`, manage);
+    assert.equal(waits.status, 429, "another report waits too");
+    assert.equal(((await waits.json()) as any).code, "sample_soon_hub");
+    await call("DELETE", `/api/reports/${second.id}?site=blog`, manage);
+    const again = ((await (await call("POST", "/api/reports?site=blog", manage, { email: "b@example.com" })).json()) as any).report;
+    assert.equal((await call("POST", `/api/reports/${again.id}/send?site=blog`, manage)).status, 429, "and so does one added again");
+    assert.equal(sent.length, 1);
+  } finally {
+    mail.close();
+  }
 });
 
 test("without its own address, an app gives a hub no link domains or reports, and a link domain leaves the dashboard alone", async () => {
