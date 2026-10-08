@@ -122,3 +122,12 @@ test("the same code used twice at once signs in only once", async () => {
   const results = await Promise.all([server.accounts.checkSecondFactor(user.id, code, now), server.accounts.checkSecondFactor(user.id, code, now)]);
   assert.deepEqual(results.sort(), [false, true]);
 });
+
+test("an account write must be JSON, so a form on another page cannot make one", async () => {
+  const now = Date.UTC(2026, 9, 7, 12);
+  const server = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), now: () => now });
+  await server.accounts.setPassword("jon@example.com", "a long password", now);
+  const cookie = cookieOf(await server.handler(req("/login", form({ email: "jon@example.com", password: "a long password" }))));
+  const forged = await server.handler(req("/api/account/2fa/start", { method: "POST", headers: { cookie, "content-type": "text/plain" }, body: '{"password":"a long password"}' }));
+  assert.equal(forged.status, 415);
+});

@@ -295,6 +295,9 @@ export function createServer(options: ServerOptions): RunlightServer {
   async function accountsApi(request: Request, path: string): Promise<Response> {
     const user = await signedIn(request);
     if (!user) return reply({ error: "Sign in first" }, 401);
+    // Writes must be JSON, which a form on another page cannot send, even those with no body.
+    const type = (request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase();
+    if (request.method === "POST" && type !== "application/json") return reply({ error: "Send JSON" }, 415);
     if (path === "/api/account" && request.method === "GET") return reply({ account: person(user) });
     if (path === "/api/account/password" && request.method === "POST") {
       const input = await body(request);

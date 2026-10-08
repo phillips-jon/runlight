@@ -287,7 +287,8 @@ function GoalForm({ site, goal, view, onDone }: { site: Site; goal: Goal | null;
   const pick = () => {
     if (!host) return;
     setPicking(true);
-    pickWindow.current = window.open(`https://${host}/?runlight=pick&runlight_lang=${currentLocale().slice(0, 2)}`, "runlight-pick");
+    const from = encodeURIComponent(location.origin);
+    pickWindow.current = window.open(`https://${host}/?runlight=pick&runlight_lang=${currentLocale().slice(0, 2)}&runlight_from=${from}`, "runlight-pick");
   };
 
   const save = (e: Event) => {

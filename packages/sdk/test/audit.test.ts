@@ -264,3 +264,12 @@ test("an export is a ZIP of CSV files for the view, and a share link can export 
     assert.equal(stats.stats.pageviews, 1, "the visit was written after the rollback, not inside it");
   });
 }
+
+test("a write signed in by cookie must be JSON, so a form on another page cannot make one", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "Site A", hostnames: ["a.com"] }] });
+  const { POST } = rl.routes({ authorize: (request) => request.headers.get("cookie") === "session=ok" });
+  const form = await POST(new Request("https://x.com/runlight/api/observe-key/new?site=a", { method: "POST", headers: { cookie: "session=ok", "content-type": "application/x-www-form-urlencoded" }, body: "" }));
+  assert.equal(form.status, 415);
+  const page = await POST(new Request("https://x.com/runlight/api/observe-key/new?site=a", { method: "POST", headers: { cookie: "session=ok", "content-type": "application/json" }, body: "{}" }));
+  assert.equal(page.status, 200);
+});

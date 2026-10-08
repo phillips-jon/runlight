@@ -6,6 +6,15 @@
   var d = document;
   var opener = w.opener;
   if (!opener) return;
+  // The choice goes only to the dashboard's own origin, which it names when it opens this page, and the
+  // bar shows that host, so a page that opened the site some other way is seen for what it is.
+  var script = d.currentScript;
+  var from = "";
+  try {
+    from = decodeURIComponent((/[?&]runlight_from=([^&#]+)/.exec(location.search) || [])[1] || "");
+  } catch (e) {}
+  var target = /^https?:\/\/[^\/?#]+$/.test(from) ? from : script && script.src ? new URL(script.src).origin : "";
+  if (!target) return;
 
   var words = {
     en: ["Click what you want to count", "Use this", "Pick again", "Cancel", "Matches {n} on this page", "Sent to Runlight. You can close this tab."],
@@ -93,7 +102,9 @@
   };
   var idle = function () {
     chosen = null;
-    msg.textContent = t[0];
+    msg.innerHTML = "<span></span> · <code></code>";
+    msg.querySelector("span").textContent = t[0];
+    msg.querySelector("code").textContent = target.replace(/^https?:\/\//, "");
     acts.textContent = "";
     button(t[3], "", function () {
       w.close();
@@ -112,7 +123,7 @@
     acts.textContent = "";
     button(t[2], "", idle);
     button(t[1], "go", function () {
-      opener.postMessage({ runlight: "pick", selector: chosen.selector, href: chosen.href, text: chosen.text }, "*");
+      opener.postMessage({ runlight: "pick", selector: chosen.selector, href: chosen.href, text: chosen.text }, target);
       msg.textContent = t[5];
       acts.textContent = "";
       setTimeout(function () {
