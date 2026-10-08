@@ -240,3 +240,27 @@ test("an export is a ZIP of CSV files for the view, and a share link can export 
   const shared = await t.routes.GET(new Request("https://example.com/runlight/api/export?period=today", { headers: { "x-runlight-share": share.id } }));
   assert.equal(shared.status, 200);
 });
+
+// SQLite has one connection, so a transaction holds it and other writes wait their turn.
+{
+  test("sqlite: a tracker hit that lands during an import that rolls back is still kept", async () => {
+    const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["example.com"] } });
+    await rl.init();
+    const { POST, GET } = rl.routes({ token: "t" });
+    let hit: Promise<Response> | null = null;
+    await assert.rejects(
+      rl.store.transaction(async (store) => {
+        await store.db.run(`INSERT INTO rl_links (id, site, domain, slug, name, url, created_at, updated_at) VALUES ('x', 'default', '', 'gone', '', 'https://a.com', 0, 0)`);
+        // A visitor arrives while the import is half written.
+        hit = POST(new Request("https://example.com/runlight/e", { method: "POST", headers: { "user-agent": "Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36", "x-forwarded-for": "203.0.113.5" }, body: JSON.stringify({ k: "pageview", u: "https://example.com/" }) }));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        throw new Error("the import failed");
+      }),
+      /the import failed/,
+    );
+    await hit;
+    assert.equal(await rl.store.linkBySlug("gone"), null, "the import rolled back");
+    const stats = (await (await GET(new Request("https://example.com/runlight/api/stats?period=today", { headers: { authorization: "Bearer t" } }))).json()) as any;
+    assert.equal(stats.stats.pageviews, 1, "the visit was written after the rollback, not inside it");
+  });
+}

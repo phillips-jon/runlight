@@ -631,5 +631,12 @@
   "sites.allowChanges": "Autoriser les modifications",
   "mail.fromRemote": "Envoyé par {host} depuis {from}",
   "mail.noneRemote": "{host} n’a pas encore de service d’e-mail, il ne peut donc pas envoyer ces rapports. Configurez-en un dans son propre tableau de bord, sous Réglages, Rapports par e-mail.",
-  "tokens.manages": "Peut modifier les réglages"
+  "tokens.manages": "Peut modifier les réglages",
+  "account.again": "Nouveau mot de passe, encore une fois",
+  "account.mismatch": "Les deux nouveaux mots de passe ne sont pas identiques.",
+  "account.strength0": "Trop court",
+  "account.strength1": "Faible",
+  "account.strength2": "Moyen",
+  "account.strength3": "Bon",
+  "account.strength4": "Fort"
 }

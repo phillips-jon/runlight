@@ -126,3 +126,12 @@ for (const kind of STORES) {
     assert.equal(await listed(), null);
   });
 }
+
+test("deleting a site forgets its retention setting", async () => {
+  const rl = runlight({ store: freshStore("sqlite"), managedSites: true });
+  await rl.init();
+  const site = await rl.addSite({ hostnames: "gone.example.com" });
+  await rl.setRetention(site.id, 12);
+  await rl.deleteSite(site.id);
+  assert.equal(await rl.store.setting(`retention:${site.id}`), null);
+});

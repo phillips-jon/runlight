@@ -5,9 +5,10 @@ import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
 
-const address = (share: Share) => `${location.origin}${share.path}`;
+// A connected site's shares are served by its own install, so their links start there.
+const address = (share: Share, home: string) => `${home}${share.path}`;
 
-function ShareRow({ site, share, onChanged }: { site: string; share: Share; onChanged: () => void }) {
+function ShareRow({ site, share, home, onChanged }: { site: string; share: Share; home: string; onChanged: () => void }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(share.name);
   const [copied, setCopied] = useState(false);
@@ -42,7 +43,7 @@ function ShareRow({ site, share, onChanged }: { site: string; share: Share; onCh
           class="copy inline"
           onClick={() =>
             navigator.clipboard
-              ?.writeText(address(share))
+              ?.writeText(address(share, home))
               .then(() => {
                 setCopied(true);
                 setTimeout(() => setCopied(false), 1600);
@@ -53,7 +54,7 @@ function ShareRow({ site, share, onChanged }: { site: string; share: Share; onCh
           <Icon name={copied ? "check" : "copy"} />
           {copied ? t("install.copied") : t("install.copy")}
         </button>
-        <a class="copy inline" href={share.path} target="_blank" rel="noopener noreferrer">
+        <a class="copy inline" href={address(share, home)} target="_blank" rel="noopener noreferrer">
           <Icon name="external" />
           {t("share.open")}
         </a>
@@ -99,7 +100,7 @@ export function Sharing({ site }: { site: Site }) {
       {shares && shares.length ? (
         <ul class="domain-list share-list">
           {shares.map((s) => (
-            <ShareRow key={s.id} site={site.id} share={s} onChanged={() => void load()} />
+            <ShareRow key={s.id} site={site.id} share={s} home={site.remote ? new URL(site.remote).origin : location.origin} onChanged={() => void load()} />
           ))}
         </ul>
       ) : shares ? (

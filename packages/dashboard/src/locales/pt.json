@@ -631,5 +631,12 @@
   "sites.allowChanges": "Permitir mudanças",
   "mail.fromRemote": "Enviado por {host} a partir de {from}",
   "mail.noneRemote": "{host} ainda não tem serviço de e-mail, então não pode enviar estes relatórios. Configure um no próprio painel dele, em Configurações, Relatórios por e-mail.",
-  "tokens.manages": "Pode mudar configurações"
+  "tokens.manages": "Pode mudar configurações",
+  "account.again": "Repita a nova senha",
+  "account.mismatch": "As duas senhas novas não são iguais.",
+  "account.strength0": "Curta demais",
+  "account.strength1": "Fraca",
+  "account.strength2": "Razoável",
+  "account.strength3": "Boa",
+  "account.strength4": "Forte"
 }

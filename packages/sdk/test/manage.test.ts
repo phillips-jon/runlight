@@ -45,7 +45,9 @@ test("a manage token changes its own site's settings and nothing else", async ()
   assert.equal((await call("POST", "/api/tokens", manage, { name: "More", site: "blog" })).status, 401);
   assert.equal((await call("PUT", "/api/mail", manage, { service: "webhook" })).status, 401);
   assert.equal((await call("GET", "/api/mail?site=blog", manage)).status, 200, "it can see which mail service sends reports");
-  assert.equal((await call("POST", "/api/shares?site=blog", manage, { name: "x" })).status, 401);
+  const share = await call("POST", "/api/shares?site=blog", manage, { name: "For the team" });
+  assert.equal(share.status, 201, "share links for its site are its to make");
+  assert.equal((await call("POST", "/api/shares?site=shop", manage, { name: "x" })).status, 404);
   assert.equal((await call("DELETE", "/api/sites/blog", manage)).status, 401);
   assert.equal((await call("POST", "/api/links/import?site=blog", manage, { rows: [] })).status, 401);
 });

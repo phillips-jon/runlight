@@ -631,5 +631,12 @@
   "sites.allowChanges": "Änderungen erlauben",
   "mail.fromRemote": "Gesendet von {host} über {from}",
   "mail.noneRemote": "{host} hat noch keinen E-Mail-Dienst und kann diese Berichte daher nicht senden. Richte dort im eigenen Dashboard unter Einstellungen, E-Mail-Berichte einen ein.",
-  "tokens.manages": "Darf Einstellungen ändern"
+  "tokens.manages": "Darf Einstellungen ändern",
+  "account.again": "Neues Passwort wiederholen",
+  "account.mismatch": "Die beiden neuen Passwörter sind nicht gleich.",
+  "account.strength0": "Zu kurz",
+  "account.strength1": "Schwach",
+  "account.strength2": "Mittel",
+  "account.strength3": "Gut",
+  "account.strength4": "Stark"
 }

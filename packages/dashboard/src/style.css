@@ -3898,3 +3898,52 @@ a.box-button {
 .text-button:hover {
   color: var(--ink);
 }
+
+/* Password strength: four short segments and a word, coloured by how strong it is. */
+.strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.strength-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  width: 140px;
+}
+
+.strength-bar span {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.strength[data-score="0"] .strength-label,
+.strength[data-score="1"] .strength-label {
+  color: var(--down);
+}
+
+.strength[data-score="1"] .strength-bar .on {
+  background: var(--down);
+}
+
+.strength[data-score="2"] .strength-bar .on {
+  background: #d97706;
+}
+
+.strength[data-score="3"] .strength-bar .on,
+.strength[data-score="4"] .strength-bar .on {
+  background: var(--up);
+}
+
+.strength[data-score="4"] .strength-label {
+  color: var(--up);
+}
+
+.field-bad {
+  color: var(--down);
+}

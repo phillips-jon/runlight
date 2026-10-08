@@ -1,9 +1,10 @@
 import { useEffect, useState } from "preact/hooks";
 import { api, type Person } from "./api.js";
 import { day } from "./format.js";
-import { t } from "./i18n.js";
+import { t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { DeleteButton, Sheet } from "./links.js";
+import { strength } from "./strength.js";
 import { Code } from "./settings.js";
 
 const dateOf = (ms: number) => day(new Date(ms).toISOString().slice(0, 10));
@@ -12,6 +13,9 @@ const dateOf = (ms: number) => day(new Date(ms).toISOString().slice(0, 10));
 export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
+  const [again, setAgain] = useState("");
+  const score = strength(next, [me.email.split("@")[0]!, me.email]);
+  const mismatch = again.length > 0 && again !== next;
   const [state, setState] = useState<"idle" | "saving" | "saved">("idle");
   const [error, setError] = useState("");
   const save = (e: Event) => {
@@ -24,6 +28,7 @@ export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void 
         setState("saved");
         setCurrent("");
         setNext("");
+        setAgain("");
       })
       .catch((err: Error) => {
         setError(err.message);
@@ -40,13 +45,28 @@ export function AccountSheet({ me, onClose }: { me: Person; onClose: () => void 
         </label>
         <label class="field-row">
           <span class="field-label">{t("account.next")}</span>
-          <input class="value" type="password" autoComplete="new-password" minLength={10} required value={next} onInput={(e) => setNext((e.target as HTMLInputElement).value)} />
+          <input class="value" type="password" autoComplete="new-password" minLength={10} required value={next} onInput={(e) => setNext((e.target as HTMLInputElement).value)} aria-describedby="password-strength" />
+          {next ? (
+            <span class="strength" id="password-strength" data-score={score} aria-live="polite">
+              <span class="strength-bar" aria-hidden="true">
+                {[1, 2, 3, 4].map((n) => (
+                  <span class={score >= n ? "on" : ""} />
+                ))}
+              </span>
+              <span class="strength-label">{t(`account.strength${score}` as Key)}</span>
+            </span>
+          ) : null}
           <span class="field-hint">{t("account.nextHint")}</span>
+        </label>
+        <label class="field-row">
+          <span class="field-label">{t("account.again")}</span>
+          <input class="value" type="password" autoComplete="new-password" required value={again} aria-invalid={mismatch} onInput={(e) => setAgain((e.target as HTMLInputElement).value)} />
+          {mismatch ? <span class="field-hint field-bad">{t("account.mismatch")}</span> : null}
         </label>
         <div class="settings-actions">
           {error ? <span class="settings-error">{error}</span> : null}
           {state === "saved" ? <span class="settings-ok">{t("account.saved")}</span> : null}
-          <button type="submit" class="solid" disabled={state === "saving" || !current || next.length < 10}>
+          <button type="submit" class="solid" disabled={state === "saving" || !current || next.length < 10 || again !== next}>
             <Icon name="save" />
             {t("account.save")}
           </button>

@@ -128,7 +128,9 @@ export async function importUmamiVisits(
     const created = Date.parse(info.createdAt) || runlight.now();
     // Carry on where an earlier run stopped, and end where Runlight's own visits begin.
     const resumed = Number((await runlight.store.setting(progressKey(siteId, website))) ?? 0);
-    const start = Math.max(Math.floor(created / DAY) * DAY, resumed);
+    // Never older than the site keeps, or the next scheduled check would delete it again.
+    const cutoff = (await runlight.retentionCutoff(siteId)) ?? 0;
+    const start = Math.max(Math.floor(created / DAY) * DAY, resumed, Math.ceil(cutoff / DAY) * DAY);
     const own = await runlight.store.firstOwnVisit(siteId);
     state = { website, day: start, start, end: own ?? runlight.now() };
   }

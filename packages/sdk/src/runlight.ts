@@ -417,6 +417,7 @@ export class Runlight {
     if (!this.managedSites) throw new RangeError("Sites are set in code");
     if (!this.configured.some((site) => site.id === id)) throw new RangeError("Unknown site");
     await this.store.deleteSite(id);
+    await this.store.setSetting(`retention:${id}`, null);
     // A connected install keeps its own data; only the connection goes.
     if (this.remotes.delete(id)) await this.store.setSetting(`remote:${id}`, null);
     this.configured = this.configured.filter((site) => site.id !== id);
@@ -476,15 +477,21 @@ export class Runlight {
     await this.applyRetention(site);
   }
 
+  /** The oldest moment a site keeps visits from, or null when it keeps everything. */
+  async retentionCutoff(site: string): Promise<number | null> {
+    const months = await this.retention(site);
+    if (months === null) return null;
+    const cutoff = new Date(this.now());
+    cutoff.setUTCMonth(cutoff.getUTCMonth() - months);
+    return cutoff.getTime();
+  }
+
   /** Deletes visits older than each site's retention allows. Cheap when there is nothing to delete. */
   private async applyRetention(only?: string): Promise<void> {
     for (const site of this.sites) {
       if ((only && site.id !== only) || this.remotes.has(site.id)) continue;
-      const months = await this.retention(site.id);
-      if (months === null) continue;
-      const cutoff = new Date(this.now());
-      cutoff.setUTCMonth(cutoff.getUTCMonth() - months);
-      await this.store.dropBefore(site.id, cutoff.getTime());
+      const cutoff = await this.retentionCutoff(site.id);
+      if (cutoff !== null) await this.store.dropBefore(site.id, cutoff);
     }
   }
 

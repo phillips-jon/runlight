@@ -27,6 +27,14 @@ The server listens on port 3000. It keeps its data in a folder called `runlight-
 
 On its first start the server prints a setup link with a one-time code in its log. Open that link and enter your email address and a password of at least ten characters. The link only works while the server has no account, so nobody who finds a new server first can claim it.
 
+In Docker, the log is where to look.
+
+```bash
+docker logs runlight
+```
+
+The link starts with `http://localhost:3000`. When the server runs somewhere else, keep everything from `/setup` on and put the server's own address in front, such as `https://stats.example.com/setup?code=...`. Each start makes a new code, so after a restart use the link from the newest log lines.
+
 Owners add people in **Settings**, **People**, as an owner or a viewer. An owner can change everything, and a viewer can read every site's stats without changing anything. A new person gets a password shown once, which they can change under **Account** at the bottom of the dashboard. The server always keeps at least one owner.
 
 ### Forgotten passwords
@@ -57,7 +65,7 @@ Add more sites from the menu beside the site's name. In **Settings**, **General*
 
 A site with Runlight inside its own app can join this server too, so every site is in one dashboard. Choose **Add a site**, **Connect another Runlight**, and enter the app's Runlight address, such as `https://example.com/runlight`. Your browser opens that app's Runlight, where you sign in if you need to, pick the site, and choose **Allow**. You land back here with the site added.
 
-The site's numbers stay in the app's own database. This server reads them through the app's API each time you look, so they are always current. Its goals, funnels, short links, link domains, email reports, and how long it keeps visits can all be changed from here, and each change is saved in the app. People, tokens, imports, sharing, and the app's mail service stay with the app. **All sites** in the site menu lines every site up side by side for the dates you pick.
+The site's numbers stay in the app's own database. This server reads them through the app's API each time you look, so they are always current. Its goals, funnels, short links, link domains, email reports, share links, and how long it keeps visits can all be changed from here, and each change is saved in the app. People, tokens, imports, and the app's mail service stay with the app. **All sites** in the site menu lines every site up side by side for the dates you pick.
 
 The app keeps the permission as a token in its **Settings**, **API and AI**, limited to the one site. Deleting it there disconnects this server at once. A site connected with a read-only token before this existed shows **Allow changes** in its settings, which runs the same steps.
 
@@ -105,6 +113,7 @@ The server reads its settings from environment variables.
 | `DATABASE_URL` | A `postgres://` address, to keep the data in Postgres instead of SQLite. |
 | `RUNLIGHT_SECRET` | The key that signs sign-ins and encrypts saved mail keys. Without it, the server makes one and keeps it in `DATA_DIR`. |
 | `RUNLIGHT_TOKEN` | A token that scripts can send as a bearer, in addition to the [API tokens](/docs/mcp/) made in the dashboard. |
+| `RUNLIGHT_OBSERVE_KEY` | One key a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site can use to report AI agents, for any site. Each site also has its own key in **Settings**, **Install**, limited to that site, which is the better choice. |
 | `TRUST_PROXY` | Set to `false` when no proxy sits in front of the server. |
 | `RUNLIGHT_GEO` | Where locations come from when no header gives them. It is `city` by default, and can be `country`, `off`, or a path to an MMDB file. |
 

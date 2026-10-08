@@ -157,3 +157,20 @@ test("a step that failed part way can run again without counting anything twice"
   const totals = await rl.store.db.all<{ pageviews: number; events: number }>(`SELECT SUM(pageviews) AS pageviews, SUM(events) AS events FROM rl_sessions`);
   assert.deepEqual({ pageviews: Number(totals[0]!.pageviews), events: Number(totals[0]!.events) }, { pageviews: 4, events: 1 });
 });
+
+test("Umami visit history skips days older than the site keeps", async () => {
+  fakeUmami();
+  const credentials = { url: "https://umami.example.com", apiKey: "key" };
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["blog.example.com"], timezone: "UTC" }, now: () => Date.parse("2026-09-01T12:00:00Z") });
+  await rl.init();
+  // Six months back from September 1st at noon is March 1st at noon, so March 1st is left out.
+  await rl.setRetention("default", 6);
+  let cursor: string | null = null;
+  let pageviews = 0;
+  do {
+    const step = await importUmamiVisits(rl, "default", credentials, "w1", cursor);
+    cursor = step.cursor;
+    pageviews += step.pageviews;
+  } while (cursor);
+  assert.equal(pageviews, 1, "only March 2nd comes in");
+});

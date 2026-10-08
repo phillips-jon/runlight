@@ -221,13 +221,13 @@ const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[
 
 /**
  * What a manage token, held by a Runlight hub, may read and change: one
- * site's goals, funnels, short links, link domains, and email reports, and
- * its name, timezone, and retention. Never people, tokens, the mail service,
- * imports, or other sites.
+ * site's goals, funnels, short links, link domains, email reports, and share
+ * links, and its name, timezone, and retention. Never people, tokens, the
+ * mail service, imports, or other sites.
  */
 export function managePath(method: string, path: string): boolean {
   if (/^\/api\/links\/import/.test(path)) return false;
-  if (/^\/api\/(links|link-domains|reports|goals|funnels)(\/|$)/.test(path)) return true;
+  if (/^\/api\/(links|link-domains|reports|goals|funnels|shares)(\/|$)/.test(path)) return true;
   if (path === "/api/mail") return method === "GET";
   if (/^\/api\/sites\/[^/]+$/.test(path)) return method === "PATCH";
   return false;

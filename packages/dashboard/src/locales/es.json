@@ -631,5 +631,12 @@
   "sites.allowChanges": "Permitir cambios",
   "mail.fromRemote": "Enviado por {host} desde {from}",
   "mail.noneRemote": "{host} aún no tiene servicio de correo, así que no puede enviar estos informes. Configura uno en su propio panel, en Ajustes, Informes por correo.",
-  "tokens.manages": "Puede cambiar ajustes"
+  "tokens.manages": "Puede cambiar ajustes",
+  "account.again": "Repite la nueva contraseña",
+  "account.mismatch": "Las dos contraseñas nuevas no coinciden.",
+  "account.strength0": "Demasiado corta",
+  "account.strength1": "Débil",
+  "account.strength2": "Aceptable",
+  "account.strength3": "Buena",
+  "account.strength4": "Fuerte"
 }

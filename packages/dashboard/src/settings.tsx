@@ -589,7 +589,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   // install-wide things (people, tokens, imports, sharing) stay with that install.
   const sections: Array<[Section, Key]> = site.remote
     ? site.manage
-      ? SECTIONS.filter(([id]) => ["general", "goals", "email", "links", "data"].includes(id))
+      ? SECTIONS.filter(([id]) => ["general", "goals", "email", "sharing", "links", "data"].includes(id))
       : [["general", "settings.general"]]
     : me?.role === "owner"
       ? [...SECTIONS, ["people", "settings.people"]]

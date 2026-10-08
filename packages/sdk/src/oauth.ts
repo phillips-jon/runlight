@@ -148,7 +148,7 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
         return page(
           `Connect ${esc(client.name)}`,
           `<p><strong>${esc(client.name)}</strong> wants to show this site’s stats and change its settings, so you can manage it from there.</p>
-<p>It will be able to change goals, funnels, short links, link domains, and email reports for the site you pick. It cannot read other sites, add people, make tokens, or change how email is sent.</p>
+<p>It will be able to change goals, funnels, short links, link domains, email reports, and share links for the site you pick. It cannot read other sites, add people, make tokens, or change how email is sent.</p>
 <form method="post" action="${esc(base)}/oauth/authorize">${hidden}
 <label>Site<select name="site">${choices}</select></label>
 <p class="note">Its token appears in Settings, API and AI, where deleting it disconnects ${esc(client.name)}.</p>

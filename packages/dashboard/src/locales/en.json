@@ -631,5 +631,12 @@
   "sites.allowChanges": "Allow changes",
   "mail.fromRemote": "Sent by {host} from {from}",
   "mail.noneRemote": "{host} has no mail service yet, so it cannot send these reports. Set one up in its own dashboard, under Settings, Email reports.",
-  "tokens.manages": "Can change settings"
+  "tokens.manages": "Can change settings",
+  "account.again": "New password again",
+  "account.mismatch": "The two new passwords are not the same.",
+  "account.strength0": "Too short",
+  "account.strength1": "Weak",
+  "account.strength2": "Fair",
+  "account.strength3": "Good",
+  "account.strength4": "Strong"
 }

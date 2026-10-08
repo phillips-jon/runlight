@@ -50,9 +50,16 @@ Every report takes the same query parameters.
 
 | Endpoint | Does |
 | --- | --- |
-| `PATCH /api/sites/:id` | Change a site’s `name` or `timezone`. |
+| `PATCH /api/sites/:id` | Change a site’s `name`, `timezone`, or `retentionMonths` (6, 12, 24, 36, or 60, or `null` to keep everything). On the standalone server, `hostnames` too. |
+| `POST /api/sites` | Add a site, when sites are managed in the dashboard as on the standalone server, from `{ "name", "hostnames", "timezone" }`. To connect another install instead, send `{ "remote": { "url", "token" } }`. |
+| `DELETE /api/sites/:id` | Delete a managed site and everything recorded for it, or disconnect a connected one. |
+| `POST /api/sites/connect` | Start connecting another install through its consent page, from `{ "url" }`. It answers with `authorize`, the address to send the owner to. |
 | `POST /api/goals`, `PATCH /api/goals/:id`, `DELETE /api/goals/:id` | Add, change, or remove a goal. |
 | `POST /api/links`, `PATCH /api/links/:id`, `DELETE /api/links/:id` | Add, change, or remove a short link. |
+| `POST /api/links/import` | Add many short links at once from `{ "rows" }`, up to 5,000 objects with `url` and, if you like, `slug`, `name`, and `domain`. It answers with how many it made and which rows failed. |
+| `POST /api/links/import/:source` | One step of an import from `umami`, `dub`, `bitly`, `shortio`, or `rebrandly`, sent as `{ "credentials", "cursor", "done" }`. Send the `cursor` it answers with until it comes back `null`. Credentials are used and never kept. |
+| `POST /api/import/umami/websites` | List the websites in an Umami account, from `{ "credentials" }`. |
+| `POST /api/import/umami/visits` | One step of bringing an Umami website’s visit history in, from `{ "credentials", "website", "cursor" }`, repeated until `cursor` is `null`. |
 | `GET`, `POST /api/link-domains`, `DELETE /api/link-domains/:domain` | List, add, or remove custom link domains. |
 | `GET`, `POST /api/shares`, `PATCH`, `DELETE /api/shares/:id` | List, add, rename, or remove share links. |
 | `GET`, `PUT`, `DELETE /api/mail`, `POST /api/mail/test` | Read, set, remove, or test the mail service. Keys are never returned. |
