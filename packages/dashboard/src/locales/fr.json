@@ -745,5 +745,7 @@
   "error.remove_self": "Vous ne pouvez pas vous retirer vous-même.",
   "error.last_owner": "Gardez au moins un propriétaire.",
   "people.demoted": "Vous êtes désormais lecteur, donc les réglages sont fermés et rien ici ne peut être modifié. Un autre propriétaire peut vous rendre propriétaire.",
-  "links.importNoUrl": "Rien n'a été importé, car le fichier n'a pas de colonne url remplie d'adresses. Utilisez les colonnes name et url, plus slug et domain si vous les avez."
+  "links.importNoUrl": "Rien n'a été importé, car le fichier n'a pas de colonne url remplie d'adresses. Utilisez les colonnes name et url, plus slug et domain si vous les avez.",
+  "app.sessionEnded": "Vous avez été déconnecté, ce qui arrive quand une session expire ou qu'un mot de passe change. {link} et vous reviendrez à cette vue.",
+  "app.signInAgain": "Reconnectez-vous"
 }

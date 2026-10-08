@@ -745,5 +745,7 @@
   "error.remove_self": "No puedes quitarte a ti mismo.",
   "error.last_owner": "Mantén al menos un propietario.",
   "people.demoted": "Ahora eres lector, así que los ajustes se cerraron y aquí no se puede cambiar nada. Otro propietario puede volver a hacerte propietario.",
-  "links.importNoUrl": "No se importó nada porque el archivo no tiene una columna url con direcciones. Usa las columnas name y url, y también slug y domain si las tienes."
+  "links.importNoUrl": "No se importó nada porque el archivo no tiene una columna url con direcciones. Usa las columnas name y url, y también slug y domain si las tienes.",
+  "app.sessionEnded": "Se cerró tu sesión, algo que pasa cuando una sesión caduca o cambia una contraseña. {link} y volverás a esta vista.",
+  "app.signInAgain": "Vuelve a iniciar sesión"
 }

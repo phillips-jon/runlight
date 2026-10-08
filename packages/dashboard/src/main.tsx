@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import { ApiError, accounts, api, base, download, install, share, viewParams, type Person, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
+import { ApiError, accounts, api, base, download, install, share, viewParams, type Person, signIn, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
@@ -313,7 +313,12 @@ function App() {
     return (
       <main class="signed-out">
         <h1>Runlight</h1>
-        <p>{rich("app.signedOut", { token: <code>?token=</code>, env: <code>RUNLIGHT_TOKEN</code> })}</p>
+        {signIn ? (
+          // The standalone server has a sign-in page, and comes back to this same view afterwards.
+          <p>{rich("app.sessionEnded", { link: <a href={`${signIn}?next=${encodeURIComponent(location.pathname + location.search)}`}>{t("app.signInAgain")}</a> })}</p>
+        ) : (
+          <p>{rich("app.signedOut", { token: <code>?token=</code>, env: <code>RUNLIGHT_TOKEN</code> })}</p>
+        )}
       </main>
     );
   }

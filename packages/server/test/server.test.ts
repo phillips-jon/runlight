@@ -178,7 +178,9 @@ test("owners add people as owners or viewers; viewers read every site and change
   assert.equal(((await refused.json()) as any).code, "owner_only");
   assert.equal((await json(viewer, "POST", "/api/tokens", { name: "x" })).status, 403);
   assert.equal((await json(viewer, "GET", "/api/people")).status, 403);
-  assert.match(await (await handle(req("/", { headers: { cookie: viewer } }))).text(), /data-accounts=""/);
+  const board = await (await handle(req("/", { headers: { cookie: viewer } }))).text();
+  assert.match(board, /data-accounts=""/);
+  assert.match(board, /data-sign-in="\/login"/, "so the dashboard can link to sign-in when a session ends");
 
   // Everyone changes their own password, and stays signed in while doing it.
   assert.equal((await json(viewer, "POST", "/api/account/password", { current: "wrong", next: "a brand new password" })).status, 400);

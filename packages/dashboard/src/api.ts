@@ -118,6 +118,8 @@ export const base = document.getElementById("app")?.dataset.base ?? "";
 export const share = document.getElementById("app")?.dataset.share ?? "";
 /** Where the standalone server signs people out; empty in library mode. */
 export const signOut = document.getElementById("app")?.dataset.signOut ?? "";
+/** Where the standalone server signs people in, for when a session ends; empty in library mode. */
+export const signIn = document.getElementById("app")?.dataset.signIn ?? "";
 /** Whether this is the standalone server, with accounts and roles. */
 export const accounts = document.getElementById("app")?.dataset.accounts !== undefined;
 
