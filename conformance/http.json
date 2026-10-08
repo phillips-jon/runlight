@@ -517,7 +517,7 @@
                   "value": "/",
                   "visitors": 2,
                   "pageviews": 2,
-                  "timeOnPage": 18000,
+                  "timeOnPage": 9000,
                   "scrollDepth": 70
                 },
                 {
@@ -1272,6 +1272,1695 @@
                 "bounceRate": 1,
                 "visitDuration": 0
               }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off&filter=event:is:Signup",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "stats": {
+                "visitors": 1,
+                "visits": 1,
+                "pageviews": 2,
+                "viewsPerVisit": 2,
+                "bounceRate": 0,
+                "visitDuration": 18000
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off&filter=event:not:Signup",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "stats": {
+                "visitors": 3,
+                "visits": 3,
+                "pageviews": 3,
+                "viewsPerVisit": 1,
+                "bounceRate": 1,
+                "visitDuration": 0
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off&filter=page:is:/pricing",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "stats": {
+                "visitors": 1,
+                "visits": 2,
+                "pageviews": 2,
+                "viewsPerVisit": 1,
+                "bounceRate": 0.5,
+                "visitDuration": 9000
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off&filter=page:is:/pricing&filter=page:is:/",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "stats": {
+                "visitors": 1,
+                "visits": 1,
+                "pageviews": 2,
+                "viewsPerVisit": 2,
+                "bounceRate": 0,
+                "visitDuration": 18000
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off&filter=page:contains:PRICING",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "stats": {
+                "visitors": 1,
+                "visits": 2,
+                "pageviews": 2,
+                "viewsPerVisit": 1,
+                "bounceRate": 0.5,
+                "visitDuration": 9000
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/series?period=today&compare=off&filter=page:not:/pricing",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "points": [
+                {
+                  "start": 1791241200000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791244800000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791248400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791252000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791255600000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791259200000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791262800000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791266400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791270000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791273600000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791277200000,
+                  "visitors": 1,
+                  "visits": 1,
+                  "pageviews": 1,
+                  "viewsPerVisit": 1,
+                  "bounceRate": 1,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791280800000,
+                  "visitors": 1,
+                  "visits": 1,
+                  "pageviews": 1,
+                  "viewsPerVisit": 1,
+                  "bounceRate": 1,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791284400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791288000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791291600000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791295200000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791298800000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791302400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791306000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791309600000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791313200000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791316800000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791320400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791324000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=page&filter=event:is:Signup",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "page",
+              "rows": [
+                {
+                  "value": "/",
+                  "visitors": 1,
+                  "pageviews": 1,
+                  "timeOnPage": 18000,
+                  "scrollDepth": 70
+                },
+                {
+                  "value": "/pricing",
+                  "visitors": 1,
+                  "pageviews": 1,
+                  "timeOnPage": 0,
+                  "scrollDepth": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=event&filter=page:is:/pricing",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "event",
+              "rows": [
+                {
+                  "value": "Signup",
+                  "visitors": 1,
+                  "events": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/rhythm?period=today&filter=page:is:/pricing",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "grid": [
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  1,
+                  1,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "cells": [
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 1,
+                    "visitors": 1,
+                    "pageviews": 1,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 1,
+                    "visitors": 1,
+                    "pageviews": 1,
+                    "bounceRate": 1
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ]
+              ]
             }
           }
         },

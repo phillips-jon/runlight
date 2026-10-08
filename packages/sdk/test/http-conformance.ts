@@ -81,6 +81,17 @@ export const SCENARIOS: Scenario[] = [
       ...["page", "entry", "exit", "event", "source", "channel", "referrer", "utm_source", "utm_campaign", "country", "city", "browser", "os", "device", "screen", "language", "ai_agent", "ai_page"].map((d) => get(`/api/breakdown?period=today&dimension=${d}`)),
       get("/api/breakdown?period=today&dimension=page&filter=country:is:GB"),
       get("/api/stats?period=today&compare=off&filter=channel:is:AI"),
+      // Page and event filters pick whole visits: "is not" means visits that never had one, a page
+      // filter counts that page's views, and "contains" ignores case.
+      get("/api/stats?period=today&compare=off&filter=event:is:Signup"),
+      get("/api/stats?period=today&compare=off&filter=event:not:Signup"),
+      get("/api/stats?period=today&compare=off&filter=page:is:/pricing"),
+      get("/api/stats?period=today&compare=off&filter=page:is:/pricing&filter=page:is:/"),
+      get("/api/stats?period=today&compare=off&filter=page:contains:PRICING"),
+      get("/api/series?period=today&compare=off&filter=page:not:/pricing"),
+      get("/api/breakdown?period=today&dimension=page&filter=event:is:Signup"),
+      get("/api/breakdown?period=today&dimension=event&filter=page:is:/pricing"),
+      get("/api/rhythm?period=today&filter=page:is:/pricing"),
       get("/api/rhythm?period=today"),
       get("/api/realtime"),
       get("/api/event-props?period=today&event=Signup"),

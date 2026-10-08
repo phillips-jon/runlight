@@ -1,7 +1,6 @@
 import {
   EVENT_DIMENSIONS,
   SESSION_DIMENSIONS,
-  isEventDimension,
   isSessionDimension,
   type Dimension,
   type Filter,
@@ -39,10 +38,15 @@ export interface Db {
  * request's insert can never land inside an import's open transaction, and
  * a rollback can only undo the transaction's own writes.
  */
+const breathe = (): Promise<void> => new Promise((resolve) => (typeof setImmediate === "function" ? setImmediate(resolve) : setTimeout(resolve, 0)));
+
 export function oneConnection(inner: Db): Db {
   let tail: Promise<unknown> = Promise.resolve();
   const turn = <T>(fn: () => Promise<T>): Promise<T> => {
-    const result = tail.then(fn, fn);
+    // Each statement waits for the event loop to come round first. A driver that runs statements
+    // synchronously holds the whole process while one runs, so this lets requests that arrived
+    // meanwhile (a tracker hit during a long export) have their turn between two statements.
+    const result = tail.then(breathe, breathe).then(fn);
     tail = result.catch(() => {});
     return result;
   };
@@ -260,9 +264,9 @@ export interface BreakdownRow {
   pageviews?: number;
   events?: number;
   bounceRate?: number;
-  /** Mean engaged time per pageview, milliseconds, for pages. */
+  /** Mean engaged time per pageview, milliseconds, for pages. A view under a second counts as none. */
   timeOnPage?: number;
-  /** Mean deepest scroll, percent, for pages. */
+  /** Mean deepest scroll, percent, for pages, over the pageviews that reported one. */
   scrollDepth?: number;
   /** Mean engaged time per visit, milliseconds, for visit dimensions. */
   visitDuration?: number;
@@ -291,8 +295,21 @@ const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
 const BUCKETS_PER_QUERY = 30;
 const VALUES_PER_QUERY = 50;
 const PARAMS_PER_QUERY = 80;
+/** D1's own limit, less a little. */
+const MAX_PARAMS = 96;
 /** The built days inside a range, as a subquery taking (site, from, to). */
 const BUILT_DAYS = "SELECT day FROM rl_rollup_days WHERE site = ? AND start_at >= ? AND end_at <= ?";
+
+/** Orders text by code point, as SQLite and Postgres's "C" collation do (JavaScript's < compares UTF-16 units). */
+function codeOrder(a: string, b: string): number {
+  const x = [...a];
+  const y = [...b];
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    const d = x[i]!.codePointAt(0)! - y[i]!.codePointAt(0)!;
+    if (d) return d;
+  }
+  return x.length - y.length;
+}
 
 /** Runs a query over pieces of a list and joins the answers, in order. */
 async function inPieces<T, R>(items: T[], size: number, run: (piece: T[]) => Promise<R[]>): Promise<R[]> {
@@ -305,17 +322,16 @@ async function inPieces<T, R>(items: T[], size: number, run: (piece: T[]) => Pro
 export const JOURNEY_VISITS = 20_000;
 
 /** How long after a visit starts its events are looked for: far past any real visit. */
-const EVENT_TAIL_MS = 2 * 86_400_000;
+export const EVENT_TAIL_MS = 2 * 86_400_000;
+
+const WEEK_MS = 7 * 86_400_000;
+
+/** Lets other work run between the pieces of a long job. */
+const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 /** A session that is a visit: a short link click alone opens one that is not. */
 const IS_VISIT = "(s.pageviews > 0 OR s.events > 0)";
 
-/**
- * True when every filter is a visit dimension, so visit reports can read the
- * sessions table alone, one row per visit, through its (site, started_at)
- * index. A visit belongs to the range it started in. Page and event filters
- * still need the events table.
- */
 /** Engaged time, or for imported visits with none, first to last request. */
 const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
@@ -446,12 +462,17 @@ function column(dimension: Filter["dimension"]): string {
 }
 
 /** One filter as a condition on its own column, with "is not" flipped to "is" when `positive` asks. */
-function condition(filter: Filter, positive = false): { sql: string; param: unknown } {
+function condition(filter: Filter, dialect: Db["dialect"], positive = false): { sql: string; params: unknown[] } {
   const col = column(filter.dimension);
   const op = positive && filter.op === "not" ? "is" : filter.op;
-  if (op === "is") return { sql: `${col} = ?`, param: filter.value };
-  if (op === "not") return { sql: `${col} <> ?`, param: filter.value };
-  return { sql: `LOWER(${col}) LIKE ? ESCAPE '\\'`, param: `%${escapeLike(filter.value.toLowerCase())}%` };
+  if (op === "is") return { sql: `${col} = ?`, params: [filter.value] };
+  if (op === "not") return { sql: `${col} <> ?`, params: [filter.value] };
+  if (dialect === "postgres") return { sql: `LOWER(${col}) LIKE ? ESCAPE '\\'`, params: [`%${escapeLike(filter.value.toLowerCase())}%`] };
+  // SQLite's LIKE and LOWER ignore case for ASCII letters only, so "über" would never find "Über". The
+  // value is also tried in lower, upper, and title case, which covers how names are written.
+  const title = filter.value.toLowerCase().replace(/(^|[\s\-/])(\p{L})/gu, (_, gap: string, letter: string) => gap + letter.toUpperCase());
+  const forms = [...new Set([filter.value, filter.value.toLowerCase(), filter.value.toUpperCase(), title])];
+  return { sql: `(${forms.map(() => `${col} LIKE ? ESCAPE '\\'`).join(" OR ")})`, params: forms.map((f) => `%${escapeLike(f)}%`) };
 }
 
 /**
@@ -461,38 +482,45 @@ function condition(filter: Filter, positive = false): { sql: string; param: unkn
  * visits, and a visit belongs to the range it started in, as it does with no filter. Rows count up to
  * EVENT_TAIL_MS past the range, for a visit still going when it ends.
  */
-function visitScope(filters: Filter[], site: string, from: number, to: number): { sql: string; params: unknown[] } {
+function visitScope(filters: Filter[], site: string, from: number, to: number, dialect: Db["dialect"]): { sql: string; params: unknown[] } {
   const parts: string[] = [];
   const params: unknown[] = [];
   for (const filter of filters) {
-    const c = condition(filter, true);
+    const c = condition(filter, dialect, true);
     if (isSessionDimension(filter.dimension)) {
-      const own = condition(filter);
+      const own = condition(filter, dialect);
       parts.push(own.sql);
-      params.push(own.param);
+      params.push(...own.params);
     } else {
-      parts.push(`s.id ${filter.op === "not" ? "NOT IN" : "IN"} (SELECT e.session FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS} AND ${c.sql})`);
-      params.push(site, from, to + EVENT_TAIL_MS, c.param);
+      const rows = `FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS} AND ${c.sql}`;
+      // Postgres plans NOT IN over a list too big for its memory as a scan of the list for every visit,
+      // which runs for hours, so it gets NOT EXISTS, an anti join. SQLite reads NOT IN through a
+      // temporary index, and runs NOT EXISTS once a visit.
+      if (filter.op === "not" && dialect === "postgres") parts.push(`NOT EXISTS (SELECT 1 ${rows} AND e.session = s.id)`);
+      else parts.push(`s.id ${filter.op === "not" ? "NOT IN" : "IN"} (SELECT e.session ${rows})`);
+      params.push(site, from, to + EVENT_TAIL_MS, ...c.params);
     }
   }
   return { sql: parts.map((p) => ` AND ${p}`).join(""), params };
 }
 
 /**
- * Conditions on `e` from the filters on the given row dimensions that keep rows (is, contains). With
+ * A condition on `e` from the filters on the given row dimensions that keep rows (is, contains). With
  * "page is /pricing", pageviews mean views of /pricing, as people expect, while the visits are whole.
+ * A row counts when it matches any of them, so every visit the filters pick has rows that count.
  */
-function rowScope(filters: Filter[], dimensions: string[]): { sql: string; params: unknown[] } {
-  const kept = filters.filter((f) => dimensions.includes(f.dimension) && f.op !== "not").map((f) => condition(f));
-  return { sql: kept.map((c) => ` AND ${c.sql}`).join(""), params: kept.map((c) => c.param) };
+function rowScope(filters: Filter[], dimensions: string[], dialect: Db["dialect"]): { sql: string; params: unknown[] } {
+  const kept = filters.filter((f) => dimensions.includes(f.dimension) && f.op !== "not").map((f) => condition(f, dialect));
+  if (!kept.length) return { sql: "", params: [] };
+  return { sql: ` AND (${kept.map((c) => c.sql).join(" OR ")})`, params: kept.flatMap((c) => c.params) };
 }
 
 /**
  * Pageviews for each visit a filter picks, as a table to LEFT JOIN on `pv.session = s.id`, when a page or
  * hostname filter narrows what counts as a pageview. Null when every pageview of a visit counts.
  */
-function pageviewsOf(filters: Filter[], site: string, from: number, to: number): { sql: string; params: unknown[] } | null {
-  const rows = rowScope(filters, ["page", "hostname"]);
+function pageviewsOf(filters: Filter[], site: string, from: number, to: number, dialect: Db["dialect"]): { sql: string; params: unknown[] } | null {
+  const rows = rowScope(filters, ["page", "hostname"], dialect);
   if (!rows.sql) return null;
   return {
     sql: `(SELECT e.session AS session, COUNT(*) AS n FROM rl_events e WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'pageview'${rows.sql} GROUP BY e.session)`,
@@ -501,16 +529,18 @@ function pageviewsOf(filters: Filter[], site: string, from: number, to: number):
 }
 
 /**
- * For reports that count rows (goals, event properties, funnels, journeys): the rows of the visits a
- * query's filters pick, as conditions on `e`. Nothing with no filter.
+ * For reports that count rows (goals, event properties, funnels): the rows of the visits a query picks,
+ * as a FROM list and conditions over `e` and `s`. These count visits the way every other report does,
+ * with or without a filter: a visit belongs to the range it started in, and its rows count up to
+ * EVENT_TAIL_MS past the range. Written as a CROSS JOIN so SQLite reads the events through their (site,
+ * kind, ts) index and looks each visit up by its id, whatever its statistics say.
  */
-function picked(filters: Filter[], site: string, from: number, to: number): { sql: string; params: unknown[]; needsSession: false } {
-  if (!filters.length) return { sql: "", params: [], needsSession: false };
-  const scope = visitScope(filters, site, from, to);
+function visitRows(filters: Filter[], site: string, from: number, to: number, dialect: Db["dialect"]): { from: string; sql: string; params: unknown[] } {
+  const scope = visitScope(filters, site, from, to, dialect);
   return {
-    sql: ` AND e.session IN (SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql})`,
-    params: [site, from, to, ...scope.params],
-    needsSession: false,
+    from: "rl_events e CROSS JOIN rl_sessions s",
+    sql: `e.site = ? AND e.ts >= ? AND e.ts < ? AND s.id = e.session AND s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}`,
+    params: [site, from, to + EVENT_TAIL_MS, site, from, to, ...scope.params],
   };
 }
 
@@ -526,21 +556,44 @@ export class SqlStore {
       const [found] = await db.all<{ value: string }>(`SELECT value FROM rl_meta WHERE key = 'schema'`);
       const from = found ? Number(found.value) : SCHEMA_VERSION;
       for (const statement of schema(db.dialect)) await db.run(statement);
+      // A column added by an upgrade that stopped before it recorded the new version is already there.
+      const addColumn = (sql: string) =>
+        db.run(sql).catch((error) => {
+          if (!/duplicate column|already exists/i.test(String(error))) throw error;
+        });
       // Version 2: settings changed in the dashboard, kept apart from the ones in code.
-      if (from < 2) await db.run(`ALTER TABLE rl_sites ADD COLUMN overrides TEXT NOT NULL DEFAULT '{}'`);
+      if (from < 2) await addColumn(`ALTER TABLE rl_sites ADD COLUMN overrides TEXT NOT NULL DEFAULT '{}'`);
       if (from < 4) await db.run(`DROP INDEX IF EXISTS rl_links_slug`);
       // Version 10: tokens that may change one site's settings, for a hub.
-      if (from >= 8 && from < 10) await db.run(`ALTER TABLE rl_tokens ADD COLUMN scope TEXT NOT NULL DEFAULT 'read'`);
-      await db.run(
-        `INSERT INTO rl_meta (key, value) VALUES ('schema', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
-        [String(SCHEMA_VERSION)],
-      );
+      if (from >= 8 && from < 10) await addColumn(`ALTER TABLE rl_tokens ADD COLUMN scope TEXT NOT NULL DEFAULT 'read'`);
+      // Written only when it changes, so a database opened read-only can still be read.
+      if (!found || found.value !== String(SCHEMA_VERSION)) {
+        await db.run(
+          `INSERT INTO rl_meta (key, value) VALUES ('schema', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
+          [String(SCHEMA_VERSION)],
+        );
+      }
     };
     this.ready ??= (this.db.exclusive ? this.db.exclusive(create) : create(this.db)).catch((error) => {
       this.ready = null;
       throw error;
     });
     return this.ready;
+  }
+
+  /**
+   * Keeps SQLite's planner statistics current, which it never gathers by itself. Without them it can
+   * choose a plan that reads a table once for every row of another. A sample of each index is enough,
+   * so this takes milliseconds even on a large database. Postgres gathers its own.
+   */
+  async optimize(): Promise<void> {
+    if (this.db.dialect !== "sqlite") return;
+    try {
+      await this.db.run("PRAGMA analysis_limit = 1000");
+      await this.db.run("ANALYZE");
+    } catch {
+      // Some hosted SQLite services refuse these, and gather statistics themselves.
+    }
   }
 
   async close(): Promise<void> {
@@ -564,6 +617,9 @@ export class SqlStore {
   // Sites
 
   async upsertSite(site: SiteRow, now: number): Promise<void> {
+    // Unchanged sites are left alone, so starting needs no write and a read-only database still opens.
+    const [row] = await this.db.all(`SELECT name, hostnames, timezone FROM rl_sites WHERE id = ?`, [site.id]);
+    if (row && row.name === site.name && row.hostnames === JSON.stringify(site.hostnames) && row.timezone === site.timezone) return;
     await this.db.run(
       `INSERT INTO rl_sites (id, name, hostnames, timezone, created_at) VALUES (?, ?, ?, ?, ?)
        ON CONFLICT (id) DO UPDATE SET name = excluded.name, hostnames = excluded.hostnames, timezone = excluded.timezone`,
@@ -585,8 +641,20 @@ export class SqlStore {
     return out;
   }
 
-  /** Deletes a site and everything recorded for it. Used by the standalone server's "Delete site". */
+  /**
+   * Deletes a site and everything recorded for it. Used by the standalone server's "Delete site". Its
+   * events and visits go a week at a time first, so a big site does not hold the database (on SQLite,
+   * the whole server) for minutes, and what is left goes in one transaction.
+   */
   async deleteSite(id: string): Promise<void> {
+    for (const [table, col] of [["rl_events", "ts"], ["rl_sessions", "started_at"]] as const) {
+      const [range] = await this.db.all(`SELECT MIN(${col}) AS a, MAX(${col}) AS b FROM ${table} WHERE site = ?`, [id]);
+      if (range?.a === null || range?.a === undefined) continue;
+      for (let from = num(range.a); from <= num(range.b); from += WEEK_MS) {
+        await this.db.run(`DELETE FROM ${table} WHERE site = ? AND ${col} < ?`, [id, from + WEEK_MS]);
+        await pause();
+      }
+    }
     await this.transaction(async (store) => {
       for (const table of ["rl_events", "rl_sessions", "rl_links", "rl_link_domains", "rl_shares", "rl_goals", "rl_funnels", "rl_reports", "rl_tokens", "rl_rollups", "rl_rollup_days", "rl_sites"]) {
         await store.db.run(`DELETE FROM ${table} WHERE ${table === "rl_sites" ? "id" : "site"} = ?`, [id]);
@@ -601,15 +669,19 @@ export class SqlStore {
     const [oldest] = await this.db.all(`SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ?`, [site]);
     const [oldestEvent] = await this.db.all(`SELECT MIN(ts) AS t FROM rl_events WHERE site = ?`, [site]);
     const first = Math.min(...[oldest?.t, oldestEvent?.t].filter((v) => v !== null && v !== undefined).map((v) => num(v)), ts);
-    for (let from = first; from < ts; from += 7 * 86_400_000) {
-      const to = Math.min(from + 7 * 86_400_000, ts);
+    for (let from = first; from < ts; from += WEEK_MS) {
+      const to = Math.min(from + WEEK_MS, ts);
       await this.transaction(async (store) => {
         // A visit's events go with it, even ones after the cutoff, so nothing is left without its visit.
-        await store.db.run(`DELETE FROM rl_events WHERE site = ? AND session IN (SELECT id FROM rl_sessions WHERE site = ? AND started_at < ?)`, [site, site, to]);
+        // They come after it starts and within EVENT_TAIL_MS, so the time bounds let the (site, ts) index find them.
+        await store.db.run(
+          `DELETE FROM rl_events WHERE site = ? AND ts >= ? AND ts < ? AND session IN (SELECT id FROM rl_sessions WHERE site = ? AND started_at >= ? AND started_at < ?)`,
+          [site, from, to + EVENT_TAIL_MS, site, from, to],
+        );
         await store.db.run(`DELETE FROM rl_events WHERE site = ? AND ts < ?`, [site, to]);
         await store.db.run(`DELETE FROM rl_sessions WHERE site = ? AND started_at < ?`, [site, to]);
       });
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await pause();
     }
     // A day that lost any of its visits is built again later, from what is left.
     await this.clearRollups(site, { before: ts });
@@ -698,8 +770,10 @@ export class SqlStore {
       params.push(range.to, range.from);
     }
     const days = (await this.db.all(`SELECT day FROM rl_rollup_days WHERE ${where}`, params)).map((r) => String(r.day));
-    for (const day of days) await this.db.run(`DELETE FROM rl_rollups WHERE site = ? AND day = ?`, [site, day]);
+    // The days stop counting as built first, so if this stops part way, no day is left marked built
+    // without its rows. Rows of a day not built are never read, and building it replaces them.
     await this.db.run(`DELETE FROM rl_rollup_days WHERE ${where}`, params);
+    for (const day of days) await this.db.run(`DELETE FROM rl_rollups WHERE site = ? AND day = ?`, [site, day]);
   }
 
   /**
@@ -735,7 +809,7 @@ export class SqlStore {
   private async rolledBreakdown(query: Query, dimension: Dimension, limit: number, offset: number): Promise<BreakdownRow[] | null> {
     const page = dimension === "page";
     const event = dimension === "event";
-    if (!page && !event && !(isSessionDimension(dimension) && !isEventDimension(dimension))) return null;
+    if (!page && !event && !isSessionDimension(dimension)) return null;
     if (query.filters.length) return null;
     // Pages and events always go this way without filters, so a range gives the same answer whether its days are built or not.
     const plan = (await this.rollupPlan(query, query.from, query.to)) ?? (page || event ? { days: [], rest: [[query.from, query.to]] as Array<[number, number]> } : null);
@@ -789,10 +863,10 @@ export class SqlStore {
     const entryExit = dimension === "entry" || dimension === "exit";
     const rows = [...sums.entries()].filter(([value, x]) => (event || value !== "") && (page ? x.pageviews > 0 : event ? x.events > 0 : x.visits > 0));
     rows.sort(([a, x], [b, y]) =>
-      entryExit ? y.visits - x.visits || (a < b ? -1 : a > b ? 1 : 0)
-      : event ? y.visitors - x.visitors || y.events - x.events || (a < b ? -1 : a > b ? 1 : 0)
-      : page ? y.visitors - x.visitors || y.pageviews - x.pageviews || (a < b ? -1 : a > b ? 1 : 0)
-      : y.visitors - x.visitors || y.visits - x.visits || (a < b ? -1 : a > b ? 1 : 0),
+      entryExit ? y.visits - x.visits || codeOrder(a, b)
+      : event ? y.visitors - x.visitors || y.events - x.events || codeOrder(a, b)
+      : page ? y.visitors - x.visitors || y.pageviews - x.pageviews || codeOrder(a, b)
+      : y.visitors - x.visitors || y.visits - x.visits || codeOrder(a, b),
     );
     return rows.slice(offset, offset + limit).map(([value, x]) => {
       if (event) return { value, visitors: x.visitors, events: x.events };
@@ -801,7 +875,8 @@ export class SqlStore {
           value,
           visitors: x.visitors,
           pageviews: x.pageviews,
-          timeOnPage: x.views > 0 ? Math.round(x.engaged / x.views) : 0,
+          // Over every pageview, counting those that sent no engaged time (under a second) as none.
+          timeOnPage: x.pageviews > 0 ? Math.round(x.engaged / x.pageviews) : 0,
           scrollDepth: x.scroll_n > 0 ? Math.round(x.scroll_sum / x.scroll_n) : 0,
         };
       }
@@ -906,8 +981,11 @@ export class SqlStore {
     );
   }
 
-  async touchSession(id: string, ts: number, kind: "pageview" | "event" | "click", path: string): Promise<void> {
-    if (kind === "click") {
+  /** Counts a row into its session. `reopen` false counts it without moving the session's last activity. */
+  async touchSession(id: string, ts: number, kind: "pageview" | "event" | "click", path: string, reopen = true): Promise<void> {
+    if (!reopen) {
+      if (kind === "event") await this.db.run(`UPDATE rl_sessions SET events = events + 1 WHERE id = ?`, [id]);
+    } else if (kind === "click") {
       await this.db.run(`UPDATE rl_sessions SET last_at = ? WHERE id = ?`, [ts, id]);
     } else if (kind === "pageview") {
       await this.db.run(
@@ -924,24 +1002,36 @@ export class SqlStore {
     await this.db.run(`UPDATE rl_sessions SET engaged_ms = COALESCE(engaged_ms, 0) + ? WHERE id = ?`, [ms, id]);
   }
 
-  /** The pageview an engagement ping or event belongs to. */
-  async pageview(site: string, pageview: string): Promise<{ session: string; visitor: string; path: string; hostname: string; ts: number } | null> {
-    const rows = await this.db.all<{ session: string; visitor: string; path: string; hostname: string; ts: unknown }>(
-      `SELECT session, visitor, path, hostname, ts FROM rl_events WHERE site = ? AND pageview = ? AND kind = 'pageview' LIMIT 1`,
+  /** The pageview an engagement ping or event belongs to, with when its visit started and was last active. */
+  async pageview(
+    site: string,
+    pageview: string,
+  ): Promise<{ session: string; visitor: string; path: string; hostname: string; ts: number; startedAt: number; lastAt: number } | null> {
+    const rows = await this.db.all<Record<string, unknown>>(
+      `SELECT e.session AS session, e.visitor AS visitor, e.path AS path, e.hostname AS hostname, e.ts AS ts, s.started_at AS started_at, s.last_at AS last_at
+       FROM rl_events e JOIN rl_sessions s ON s.id = e.session WHERE e.site = ? AND e.pageview = ? AND e.kind = 'pageview' LIMIT 1`,
       [site, pageview],
     );
     const row = rows[0];
-    return row ? { session: row.session, visitor: row.visitor, path: row.path, hostname: row.hostname, ts: num(row.ts) } : null;
+    return row
+      ? {
+          session: String(row.session),
+          visitor: String(row.visitor),
+          path: String(row.path),
+          hostname: String(row.hostname),
+          ts: num(row.ts),
+          startedAt: num(row.started_at),
+          lastAt: num(row.last_at),
+        }
+      : null;
   }
 
   /**
    * After a late event or engagement ping joins an old visit (a tab left open overnight), the day
    * that visit started may already be added up. Forget that day so the next check builds it again.
    */
-  async touchedOldVisit(site: string, session: string, before: number): Promise<void> {
-    const [row] = await this.db.all(`SELECT started_at FROM rl_sessions WHERE id = ?`, [session]);
-    const started = row ? num(row.started_at) : null;
-    if (started !== null && started < before) await this.clearRollups(site, { from: started, to: started + 1 });
+  async touchedOldVisit(site: string, started: number, before: number): Promise<void> {
+    if (started < before) await this.clearRollups(site, { from: started, to: started + 1 });
   }
 
   async insertEvent(row: EventRow): Promise<void> {
@@ -1036,9 +1126,8 @@ export class SqlStore {
    * after the step before it. Filters choose which visits enter the funnel.
    */
   async funnelCounts(query: Query, funnel: FunnelRow): Promise<number[]> {
-    // A filter picks visits (see visitScope), and the funnel follows them.
-    const f = picked(query.filters, query.site, query.from, query.to);
-    const chosen = f.sql;
+    // A funnel follows the visits a query picks (see visitRows), from their first step.
+    const v = visitRows(query.filters, query.site, query.from, query.to, this.db.dialect);
     const ctes: string[] = [];
     const params: unknown[] = [];
     funnel.steps.forEach((step, i) => {
@@ -1046,18 +1135,15 @@ export class SqlStore {
       // Each step is the first matching row after the step before, ordered by time and then by row, so two
       // steps in the same millisecond both count and one row never counts as two steps.
       if (i === 0) {
-        ctes.push(
-          `c0 AS (SELECT e.session AS session, e.ts AS ts, e.id AS id FROM rl_events e
-            WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.session <> '' AND ${scope.sql}${chosen})`,
-        );
-        params.push(query.site, query.from, query.to, ...scope.params, ...f.params);
+        ctes.push(`c0 AS (SELECT e.session AS session, e.ts AS ts, e.id AS id FROM ${v.from} WHERE ${v.sql} AND ${scope.sql})`);
+        params.push(...v.params, ...scope.params);
       } else {
         ctes.push(
           `c${i} AS (SELECT e.session AS session, e.ts AS ts, e.id AS id FROM rl_events e
             JOIN s${i - 1} p ON p.session = e.session AND (e.ts > p.t OR (e.ts = p.t AND e.id > p.id))
-            WHERE e.site = ? AND e.ts < ? AND ${scope.sql})`,
+            WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${scope.sql})`,
         );
-        params.push(query.site, query.to, ...scope.params);
+        params.push(query.site, query.from, query.to + EVENT_TAIL_MS, ...scope.params);
       }
       ctes.push(
         `s${i} AS (SELECT c.session AS session, c.ts AS t, MIN(c.id) AS id FROM c${i} c
@@ -1077,27 +1163,32 @@ export class SqlStore {
    * A window function keeps the first ones of each visit, so a long visit
    * cannot crowd the rest out. Visits belong to the range they started in.
    */
-  async journeyPages(query: Query, perVisit: number): Promise<Array<{ session: string; path: string }>> {
-    const f = picked(query.filters, query.site, query.from, query.to);
-    const chosen = f.sql;
+  async journeyPages(query: Query, perVisit: number): Promise<{ rows: Array<{ session: string; path: string }>; sampled: boolean }> {
+    const scope = visitScope(query.filters, query.site, query.from, query.to, this.db.dialect);
+    // The newest visits the filters pick, JOURNEY_VISITS at most, so a long range stays quick and small in memory.
+    const visits = `SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}
+         ORDER BY s.started_at DESC LIMIT ${JOURNEY_VISITS}`;
+    const visitParams = [query.site, query.from, query.to, ...scope.params];
     const rows = await this.db.all(
-      // The latest JOURNEY_VISITS visits at most, so a long range stays quick and small in memory.
-      // Refreshes (the same page twice in a row) are dropped before counting, so they never use up the steps.
-      `WITH latest AS (
-         SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}
-         ORDER BY s.started_at DESC LIMIT ${JOURNEY_VISITS}),
-       raw AS (
+      // The visits are read as an IN list, which every database probes from the events side, so the
+      // plan does not depend on the planner's statistics. Refreshes (the same page twice in a row) are
+      // dropped before counting, so they never use up the steps.
+      `WITH raw AS (
          SELECT e.session AS session, e.path AS path, e.ts AS ts, e.id AS id,
            LAG(e.path) OVER (PARTITION BY e.session ORDER BY e.ts, e.id) AS before
-         FROM rl_events e JOIN latest l ON l.id = e.session
-         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ?${chosen}),
+         FROM rl_events e
+         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ? AND e.session IN (${visits})),
        v AS (
          SELECT session, path, ROW_NUMBER() OVER (PARTITION BY session ORDER BY ts, id) AS n
          FROM raw WHERE before IS NULL OR before <> path)
        SELECT session, path FROM v WHERE n <= ? ORDER BY session, n`,
-      [query.site, query.from, query.to, query.site, query.from, query.to + EVENT_TAIL_MS, ...f.params, perVisit],
+      [query.site, query.from, query.to + EVENT_TAIL_MS, ...visitParams, perVisit],
     );
-    return rows.map((r) => ({ session: String(r.session), path: String(r.path) }));
+    const [count] = await this.db.all(
+      `SELECT COUNT(*) AS n FROM (${visits.replace(`LIMIT ${JOURNEY_VISITS}`, `LIMIT ${JOURNEY_VISITS + 1}`)}) x`,
+      visitParams,
+    );
+    return { rows: rows.map((r) => ({ session: String(r.session), path: String(r.path) })), sampled: num(count?.n) > JOURNEY_VISITS };
   }
 
   // API tokens
@@ -1291,20 +1382,19 @@ export class SqlStore {
 
   /** The property names sent with an event in a query's range, most used first. */
   async eventPropKeys(query: Query, event: string): Promise<Array<{ key: string; events: number }>> {
-    const f = picked(query.filters, query.site, query.from, query.to);
-    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
-    const where = `e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'event' AND e.name = ? AND e.props IS NOT NULL${f.sql}`;
-    const params = [query.site, query.from, query.to, event, ...f.params];
+    const v = visitRows(query.filters, query.site, query.from, query.to, this.db.dialect);
+    const where = `${v.sql} AND e.kind = 'event' AND e.name = ? AND e.props IS NOT NULL`;
+    const params = [...v.params, event];
     const rows =
       this.db.dialect === "postgres"
         ? await this.db.all(
-            `SELECT k AS key, COUNT(*) AS events FROM rl_events e ${join} CROSS JOIN LATERAL jsonb_object_keys(CASE WHEN jsonb_typeof(e.props::jsonb) = 'object' THEN e.props::jsonb ELSE '{}'::jsonb END) AS k
-             WHERE ${where} GROUP BY k ORDER BY events DESC, key LIMIT 30`,
+            `SELECT k AS key, COUNT(*) AS events FROM ${v.from} CROSS JOIN LATERAL jsonb_object_keys(CASE WHEN jsonb_typeof(e.props::jsonb) = 'object' THEN e.props::jsonb ELSE '{}'::jsonb END) AS k
+             WHERE ${where} GROUP BY k ORDER BY events DESC, k${this.textOrder} LIMIT 30`,
             params,
           )
         : await this.db.all(
-            `SELECT j.key AS key, COUNT(*) AS events FROM rl_events e ${join}, json_each(e.props) j
-             WHERE ${where} AND json_type(e.props) = 'object' GROUP BY j.key ORDER BY events DESC, key LIMIT 30`,
+            `SELECT j.key AS key, COUNT(*) AS events FROM ${v.from}, json_each(e.props) j
+             WHERE ${where} AND json_type(e.props) = 'object' GROUP BY j.key ORDER BY events DESC, key${this.textOrder} LIMIT 30`,
             params,
           );
     return rows.map((r) => ({ key: String(r.key), events: num(r.events) }));
@@ -1312,15 +1402,14 @@ export class SqlStore {
 
   /** The values one property of an event took, with how often and by how many visitors. */
   async eventPropValues(query: Query, event: string, key: string, limit: number): Promise<Array<{ value: string; events: number; visitors: number }>> {
-    const f = picked(query.filters, query.site, query.from, query.to);
-    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    const v = visitRows(query.filters, query.site, query.from, query.to, this.db.dialect);
     const value = this.db.dialect === "postgres" ? `(e.props::jsonb ->> ?)` : `CAST(json_extract(e.props, ?) AS TEXT)`;
     const path = this.db.dialect === "postgres" ? key : `$."${key}"`;
     const rows = await this.db.all(
-      `SELECT ${value} AS value, COUNT(*) AS events, COUNT(DISTINCT e.visitor) AS visitors FROM rl_events e ${join}
-       WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'event' AND e.name = ? AND ${value} IS NOT NULL${f.sql}
-       GROUP BY 1 ORDER BY events DESC, value LIMIT ?`,
-      [path, query.site, query.from, query.to, event, path, ...f.params, limit],
+      `SELECT * FROM (SELECT ${value} AS value, COUNT(*) AS events, COUNT(DISTINCT e.visitor) AS visitors FROM ${v.from}
+         WHERE ${v.sql} AND e.kind = 'event' AND e.name = ? AND ${value} IS NOT NULL GROUP BY 1) t
+       ORDER BY events DESC, value${this.textOrder} LIMIT ?`,
+      [path, ...v.params, event, path, limit],
     );
     return rows.map((r) => ({ value: String(r.value), events: num(r.events), visitors: num(r.visitors) }));
   }
@@ -1338,16 +1427,15 @@ export class SqlStore {
    */
   async goalTotalsAll(query: Query, goals: GoalRow[]): Promise<Map<string, GoalTotals>> {
     const out = new Map<string, GoalTotals>();
-    const f = picked(query.filters, query.site, query.from, query.to);
-    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    const v = visitRows(query.filters, query.site, query.from, query.to, this.db.dialect);
     // As many goals per query as keep it under D1's parameter limit.
     const chunks: GoalRow[][] = [[]];
-    let count = 3 + f.params.length;
+    let count = v.params.length;
     for (const goal of goals) {
-      const cost = this.goalScope(goal).params.length * 3 + this.revenueValue(goal).params.length;
+      const cost = this.goalScope(goal).params.length * 4 + this.revenueValue(goal).params.length;
       if (chunks[chunks.length - 1]!.length && count + cost > PARAMS_PER_QUERY) {
         chunks.push([]);
-        count = 3 + f.params.length;
+        count = v.params.length;
       }
       chunks[chunks.length - 1]!.push(goal);
       count += cost;
@@ -1356,6 +1444,9 @@ export class SqlStore {
       if (!chunk.length) continue;
       const columns: string[] = [];
       const params: unknown[] = [];
+      // Only rows some goal of the chunk counts are read.
+      const any: string[] = [];
+      const anyParams: unknown[] = [];
       chunk.forEach((goal, i) => {
         const scope = this.goalScope(goal);
         const value = this.revenueValue(goal);
@@ -1365,11 +1456,13 @@ export class SqlStore {
           `SUM(CASE WHEN ${scope.sql} THEN ${value.sql} ELSE 0 END) AS r${i}`,
         );
         params.push(...scope.params, ...scope.params, ...scope.params, ...value.params);
+        any.push(`(${scope.sql})`);
+        anyParams.push(...scope.params);
       });
       const [row] = await this.db.all(
-        `SELECT ${columns.join(", ")} FROM rl_events e ${join}
-         WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind IN ('pageview', 'event')${f.sql}`,
-        [...params, query.site, query.from, query.to, ...f.params],
+        `SELECT ${columns.join(", ")} FROM ${v.from}
+         WHERE ${v.sql} AND e.kind IN ('pageview', 'event') AND (${any.join(" OR ")})`,
+        [...params, ...v.params, ...anyParams],
       );
       chunk.forEach((goal, i) =>
         out.set(goal.id, { conversions: num(row?.[`c${i}`]), visitors: num(row?.[`v${i}`]), revenue: Math.round(num(row?.[`r${i}`]) * 100) / 100 }),
@@ -1390,32 +1483,28 @@ export class SqlStore {
 
   /** One goal's conversions, converting visitors, and revenue for a query's range and filters. */
   async goalTotals(query: Query, goal: GoalRow): Promise<GoalTotals> {
-    const f = picked(query.filters, query.site, query.from, query.to);
-    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
+    const v = visitRows(query.filters, query.site, query.from, query.to, this.db.dialect);
     const scope = this.goalScope(goal);
     const revenue = this.revenueSql(goal);
     const [row] = await this.db.all(
       `SELECT COUNT(*) AS conversions, COUNT(DISTINCT e.visitor) AS visitors, ${revenue.sql} AS revenue
-       FROM rl_events e ${join}
-       WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${scope.sql}${f.sql}`,
-      [...revenue.params, query.site, query.from, query.to, ...scope.params, ...f.params],
+       FROM ${v.from} WHERE ${v.sql} AND ${scope.sql}`,
+      [...revenue.params, ...v.params, ...scope.params],
     );
     return { conversions: num(row?.conversions), visitors: num(row?.visitors), revenue: Math.round(num(row?.revenue) * 100) / 100 };
   }
 
   /** A goal's conversions split by where the visit came from, or by the page it happened on. */
   async goalBreakdown(query: Query, goal: GoalRow, by: "source" | "channel" | "path", limit = 10): Promise<Array<{ value: string } & GoalTotals>> {
-    const f = picked(query.filters, query.site, query.from, query.to);
-    const session = by !== "path" || f.needsSession;
+    const v = visitRows(query.filters, query.site, query.from, query.to, this.db.dialect);
     const col = by === "path" ? "e.path" : `s.${by}`;
     const scope = this.goalScope(goal);
     const revenue = this.revenueSql(goal);
     const rows = await this.db.all(
       `SELECT ${col} AS value, COUNT(*) AS conversions, COUNT(DISTINCT e.visitor) AS visitors, ${revenue.sql} AS revenue
-       FROM rl_events e ${session ? "JOIN rl_sessions s ON s.id = e.session" : ""}
-       WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${scope.sql}${f.sql}
+       FROM ${v.from} WHERE ${v.sql} AND ${scope.sql}
        GROUP BY ${col} ORDER BY conversions DESC, ${col}${this.textOrder} LIMIT ?`,
-      [...revenue.params, query.site, query.from, query.to, ...scope.params, ...f.params, limit],
+      [...revenue.params, ...v.params, ...scope.params, limit],
     );
     return rows.map((r) => ({
       value: String(r.value ?? ""),
@@ -1425,23 +1514,25 @@ export class SqlStore {
     }));
   }
 
-  /** A goal's conversions and revenue in each bucket. */
+  /** A goal's conversions and revenue in each bucket, by when each visit started. */
   async goalSeries(query: Omit<Query, "from" | "to">, goal: GoalRow, buckets: Bucket[]): Promise<Array<{ start: number; conversions: number; revenue: number }>> {
     if (buckets.length === 0) return [];
-    if (buckets.length > BUCKETS_PER_QUERY) return inPieces(buckets, BUCKETS_PER_QUERY, (piece) => this.goalSeries(query, goal, piece));
-    const f = picked(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end);
-    const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
-    const cast = this.db.dialect === "postgres";
-    const values = buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ");
     const scope = this.goalScope(goal);
     const revenue = this.revenueSql(goal);
+    // Each bucket binds three values; the rest are fixed. As many buckets a statement as keep it under D1's 100.
+    const fixed = revenue.params.length + scope.params.length + visitRows(query.filters, query.site, 0, 0, this.db.dialect).params.length;
+    const size = Math.max(1, Math.min(BUCKETS_PER_QUERY, Math.floor((MAX_PARAMS - fixed) / 3)));
+    if (buckets.length > size) return inPieces(buckets, size, (piece) => this.goalSeries(query, goal, piece));
+    const v = visitRows(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end, this.db.dialect);
+    const cast = this.db.dialect === "postgres";
+    const values = buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ");
     const rows = await this.db.all(
       `WITH b (i, bs, be) AS (VALUES ${values})
        SELECT b.i AS i, COUNT(*) AS conversions, ${revenue.sql} AS revenue
-       FROM b JOIN rl_events e ON e.site = ? AND e.ts >= b.bs AND e.ts < b.be ${join}
-       WHERE ${scope.sql}${f.sql}
+       FROM ${v.from} CROSS JOIN b
+       WHERE ${v.sql} AND s.started_at >= b.bs AND s.started_at < b.be AND ${scope.sql}
        GROUP BY b.i`,
-      [...buckets.flatMap((b, i) => [i, b.start, b.end]), ...revenue.params, query.site, ...scope.params, ...f.params],
+      [...buckets.flatMap((b, i) => [i, b.start, b.end]), ...revenue.params, ...v.params, ...scope.params],
     );
     const found = new Map(rows.map((r) => [num(r.i), r]));
     return buckets.map((b, i) => ({ start: b.start, conversions: num(found.get(i)?.conversions), revenue: Math.round(num(found.get(i)?.revenue) * 100) / 100 }));
@@ -1536,7 +1627,7 @@ export class SqlStore {
 
   /** Just the visitor count from stats(), in one query, for conversion rates. */
   async visitors(query: Query): Promise<number> {
-    const scope = visitScope(query.filters, query.site, query.from, query.to);
+    const scope = visitScope(query.filters, query.site, query.from, query.to, this.db.dialect);
     const [row] = await this.db.all(
       `SELECT COUNT(DISTINCT s.visitor) AS visitors FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}`,
       [query.site, query.from, query.to, ...scope.params],
@@ -1548,8 +1639,8 @@ export class SqlStore {
     const rolled = await this.rolledStats(query);
     if (rolled) return rolled;
     // Filtered or not, the numbers describe visits that started in the range (see visitScope).
-    const scope = visitScope(query.filters, query.site, query.from, query.to);
-    const pv = pageviewsOf(query.filters, query.site, query.from, query.to);
+    const scope = visitScope(query.filters, query.site, query.from, query.to, this.db.dialect);
+    const pv = pageviewsOf(query.filters, query.site, query.from, query.to, this.db.dialect);
     const [row] = await this.db.all(
       `SELECT COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(${pv ? "COALESCE(pv.n, 0)" : "s.pageviews"}) AS pageviews,
          SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
@@ -1571,35 +1662,21 @@ export class SqlStore {
 
   async series(query: Omit<Query, "from" | "to">, buckets: Bucket[]): Promise<SeriesPoint[]> {
     if (buckets.length === 0) return [];
-    // Filters add parameters of their own, so fewer buckets go in each statement (D1 allows 100).
-    const per = query.filters.length ? 20 : BUCKETS_PER_QUERY;
-    if (buckets.length > per) return inPieces(buckets, per, (piece) => this.series(query, piece));
+    if (buckets.length > BUCKETS_PER_QUERY) return inPieces(buckets, BUCKETS_PER_QUERY, (piece) => this.series(query, piece));
     const cast = this.db.dialect === "postgres";
     const values = buckets
       .map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)"))
       .join(", ");
     const params: unknown[] = buckets.flatMap((b, i) => [i, b.start, b.end]);
     // Filtered or not, each bucket counts the visits that started in it (see visitScope).
-    const scope = visitScope(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end);
-    const pv = pageviewsOf(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end);
+    const scope = visitScope(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end, this.db.dialect);
+    const pv = pageviewsOf(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end, this.db.dialect);
     // Built days that fit inside one bucket come from rollups; the rest from the visits.
     const plan = await this.rollupPlan(query, buckets[0]!.start, buckets[buckets.length - 1]!.end);
     const inBucket = (d: { start: number; end: number }) => buckets.findIndex((b) => b.start <= d.start && d.end <= b.end);
     const used = plan ? plan.days.filter((d) => inBucket(d) >= 0) : [];
-    const sums = new Map<number, Record<string, number>>();
-    const bump = (i: number, row: Record<string, unknown>) => {
-      const into = sums.get(i) ?? { visitors: 0, n: 0, views: 0, bounced: 0, duration: 0 };
-      for (const k of Object.keys(into)) into[k]! += num(row[k]);
-      sums.set(i, into);
-    };
     let rest: Array<[number, number]> | null = null;
     if (used.length) {
-      const rolled = await this.db.all(
-        `SELECT day, visitors, visits AS n, pageviews AS views, bounced, duration FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${BUILT_DAYS})`,
-        [query.site, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end],
-      );
-      const at = new Map(used.map((d) => [d.day, inBucket(d)]));
-      for (const row of rolled) if (at.has(String(row.day))) bump(at.get(String(row.day))!, row);
       rest = [];
       let from = buckets[0]!.start;
       for (const d of used) {
@@ -1609,6 +1686,26 @@ export class SqlStore {
       if (from < buckets[buckets.length - 1]!.end) rest.push([from, buckets[buckets.length - 1]!.end]);
     }
     const w = rest ? SqlStore.within(rest) : { sql: "1 = 1", params: [] };
+    // Filters and scattered unbuilt days add values of their own; when they would pass D1's 100, the
+    // buckets go in halves.
+    if (params.length + 1 + w.params.length + scope.params.length + (pv?.params.length ?? 0) > MAX_PARAMS && buckets.length > 1) {
+      const half = Math.ceil(buckets.length / 2);
+      return [...(await this.series(query, buckets.slice(0, half))), ...(await this.series(query, buckets.slice(half)))];
+    }
+    const sums = new Map<number, Record<string, number>>();
+    const bump = (i: number, row: Record<string, unknown>) => {
+      const into = sums.get(i) ?? { visitors: 0, n: 0, views: 0, bounced: 0, duration: 0 };
+      for (const k of Object.keys(into)) into[k]! += num(row[k]);
+      sums.set(i, into);
+    };
+    if (used.length) {
+      const rolled = await this.db.all(
+        `SELECT day, visitors, visits AS n, pageviews AS views, bounced, duration FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${BUILT_DAYS})`,
+        [query.site, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end],
+      );
+      const at = new Map(used.map((d) => [d.day, inBucket(d)]));
+      for (const row of rolled) if (at.has(String(row.day))) bump(at.get(String(row.day))!, row);
+    }
     const rows = await this.db.all<Record<string, unknown>>(
       `WITH b (i, bs, be) AS (VALUES ${values})
        SELECT b.i AS i, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS n, SUM(${pv ? "COALESCE(pv.n, 0)" : "s.pageviews"}) AS views,
@@ -1652,9 +1749,9 @@ export class SqlStore {
     if (rolled) return rolled;
 
     // Filtered or not, the visits are those that started in the range (see visitScope).
-    const scope = visitScope(query.filters, query.site, query.from, query.to);
-    if (isSessionDimension(dimension) && !isEventDimension(dimension)) {
-      const pv = pageviewsOf(query.filters, query.site, query.from, query.to);
+    const scope = visitScope(query.filters, query.site, query.from, query.to, this.db.dialect);
+    if (isSessionDimension(dimension)) {
+      const pv = pageviewsOf(query.filters, query.site, query.from, query.to, this.db.dialect);
       const col = `s.${SESSION_DIMENSIONS[dimension]}`;
       const entryExit = dimension === "entry" || dimension === "exit";
       const rows = await this.db.all(
@@ -1681,11 +1778,10 @@ export class SqlStore {
       });
     }
 
-    // Rows from the picked visits: with no filter, every row in the range; with one, the rows of the
-    // visits it picks, narrowed by any filter on the same kind of row ("page is /pricing" on pages).
+    // Rows from the visits that started in the range and that the filters pick, narrowed by any filter on
+    // the same kind of row ("page is /pricing" on pages), as the rollups count them.
     const within = (dimensions: string[]) => {
-      if (!query.filters.length) return { sql: "", params: [] as unknown[], to: query.to };
-      const rows = rowScope(query.filters, dimensions);
+      const rows = rowScope(query.filters, dimensions, this.db.dialect);
       return {
         sql: ` AND e.session IN (SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql})${rows.sql}`,
         params: [query.site, query.from, query.to, ...scope.params, ...rows.params],
@@ -1718,7 +1814,7 @@ export class SqlStore {
         const byPath = new Map(times.map((t) => [String(t.value), t]));
         for (const row of out) {
           const time = byPath.get(row.value);
-          row.timeOnPage = time && num(time.views) > 0 ? Math.round(num(time.total) / num(time.views)) : 0;
+          row.timeOnPage = time && row.pageviews ? Math.round(num(time.total) / row.pageviews) : 0;
           row.scrollDepth = time?.scroll === null || time?.scroll === undefined ? 0 : Math.round(num(time.scroll));
         }
       }
@@ -1772,14 +1868,16 @@ export class SqlStore {
       for (const row of raw) bump(Math.floor(num(row.quarter)), row);
       return [...sums.values()];
     }
-    const matching = visitScope(query.filters, query.site, query.from, query.to);
+    const matching = visitScope(query.filters, query.site, query.from, query.to, this.db.dialect);
+    // A page filter counts that page's views as pageviews here too, as the cards do.
+    const pv = pageviewsOf(query.filters, query.site, query.from, query.to, this.db.dialect);
     const rows = await this.db.all(
       `SELECT s.started_at / 900000 AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
-         SUM(s.pageviews) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
-       FROM rl_sessions s
+         SUM(${pv ? "COALESCE(pv.n, 0)" : "s.pageviews"}) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
+       FROM rl_sessions s ${pv ? `LEFT JOIN ${pv.sql} pv ON pv.session = s.id` : ""}
        WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${matching.sql}
        GROUP BY 1`,
-      [query.site, query.from, query.to, ...matching.params],
+      [...(pv?.params ?? []), query.site, query.from, query.to, ...matching.params],
     );
     return rows.map((row) => ({
       quarter: Math.floor(num(row.quarter)),

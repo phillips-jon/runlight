@@ -9,7 +9,7 @@ import { PROVIDERS, type AssistantSettings } from "./assistant.js";
 import { RateLimit } from "./limit.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww, type Page } from "./sources.js";
-import type { ReportRow, SiteOverrides, SiteRow, SqlStore } from "./store.js";
+import { EVENT_TAIL_MS, type ReportRow, type SiteOverrides, type SiteRow, type SqlStore } from "./store.js";
 import { addDays, isTimezone, localDate, startOf } from "./time.js";
 import { aiAgent, isBot, parseClient } from "./ua.js";
 
@@ -759,11 +759,16 @@ export class Runlight {
 
     const page = parsePage(payload.url);
     let session: { id: string; visitor: string } | null = null;
+    let reopen = true;
     if (payload.kind === "event" && payload.pageviewId) {
       const pageview = await this.store.pageview(site.id, payload.pageviewId);
-      if (pageview) {
+      // An event joins its page's visit unless that visit began longer ago than reports look for its rows
+      // (a tab left open for days); it then starts a visit of its own, as any later activity would.
+      if (pageview && now - pageview.startedAt < EVENT_TAIL_MS) {
         session = { id: pageview.session, visitor: pageview.visitor };
-        if (now - pageview.ts > 3_600_000) await this.store.touchedOldVisit(site.id, pageview.session, now - ROLLUP_DELAY_MS + 3_600_000);
+        // A visit idle past the 30 minutes stays ended: the event counts in it without reopening it.
+        reopen = now - pageview.lastAt <= SESSION_IDLE_MS;
+        if (now - pageview.startedAt > 3_600_000) await this.store.touchedOldVisit(site.id, pageview.startedAt, now - ROLLUP_DELAY_MS + 3_600_000);
       }
     }
     session ??= await this.sessionFor(site, request, context, page, payload.referrer, now, {
@@ -772,7 +777,7 @@ export class Runlight {
       language: payload.language,
     });
 
-    await this.store.touchSession(session.id, now, payload.kind, page.path);
+    await this.store.touchSession(session.id, now, payload.kind, page.path, reopen);
     await this.store.insertEvent({
       site: site.id,
       ts: now,
@@ -972,10 +977,11 @@ export class Runlight {
   private async engagement(site: SiteRow, payload: Payload, now: number): Promise<void> {
     if (payload.engagedMs <= 0) return;
     const pageview = await this.store.pageview(site.id, payload.pageviewId);
-    if (!pageview) return;
+    // Reports look for a visit's rows only so long after it began, so later time on it is let go.
+    if (!pageview || now - pageview.startedAt >= EVENT_TAIL_MS) return;
     await this.store.addEngagement(pageview.session, payload.engagedMs);
-    // Only a pageview from more than an hour ago can belong to a day that is already added up.
-    if (now - pageview.ts > 3_600_000) await this.store.touchedOldVisit(site.id, pageview.session, now - ROLLUP_DELAY_MS + 3_600_000);
+    // Only a visit that began more than an hour ago can belong to a day that is already added up.
+    if (now - pageview.startedAt > 3_600_000) await this.store.touchedOldVisit(site.id, pageview.startedAt, now - ROLLUP_DELAY_MS + 3_600_000);
     await this.store.insertEvent({
       site: site.id,
       ts: now,
@@ -1048,6 +1054,17 @@ export class Runlight {
    * installs, so a change made by another process sharing the database shows up here too.
    */
   async check(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
+    // A check still running when the next is due (a long retention, say) is shared, never run twice at once.
+    this.checking ??= this.runCheck().finally(() => {
+      this.checking = null;
+    });
+    return this.checking;
+  }
+
+  private checking: Promise<{ ok: true; reports: { sent: number; failed: number } }> | null = null;
+  private optimizedAt = 0;
+
+  private async runCheck(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
     await this.init();
     if (this.managedSites) {
       this.configured = await this.store.sites();
@@ -1058,8 +1075,12 @@ export class Runlight {
     this.salts.clear();
     for (const timezone of new Set(this.sites.map((s) => s.timezone))) await this.currentSalts(this.now(), timezone);
     await this.dropOldSalts(this.now());
+    this.pruning = this.pruning.then(() => this.applyRetention()).catch((error) => console.error("Runlight: could not apply retention", error));
     await this.pruning;
-    await this.applyRetention();
+    if (this.now() - this.optimizedAt >= 86_400_000) {
+      this.optimizedAt = this.now();
+      await this.store.optimize();
+    }
     await this.buildRollups();
     return { ok: true, reports: await this.sendReports() };
   }

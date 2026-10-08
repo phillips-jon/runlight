@@ -16,8 +16,12 @@ test("no statement binds more than 100 parameters, as Cloudflare D1 requires", a
   t.advance(365 * DAY - Math.floor(365 / 3 + 1) * 3 * DAY);
   while ((await t.rl.buildRollups()) > 0);
   for (let g = 0; g < 30; g++) {
-    await t.rl.store.saveGoal({ id: `g${String(g).padStart(22, "0")}`, site: "default", name: `Goal ${g}`, kind: "event", match: `Goal${g}`, clickBy: "", valueMode: g % 2 ? "prop" : "fixed", value: 5, valueProp: "amount", currency: "USD", createdAt: 0 } as any);
+    await t.rl.store.saveGoal({ id: g.toString(16).padStart(24, "0"), site: "default", name: `Goal ${g}`, kind: "event", match: `Goal${g}`, clickBy: "", valueMode: g % 2 ? "prop" : "fixed", value: 5, valueProp: "amount", currency: "USD", createdAt: 0 } as any);
   }
+
+  await t.rl.store.saveFunnel({ id: "f".repeat(24), site: "default", name: "Funnel", steps: [{ kind: "page", match: "/p1" }, { kind: "event", match: "Goal1" }], createdAt: 0 });
+  // Days not built, scattered through the last month, as late engagement or an import leaves them.
+  for (let d = 2; d < 30; d += 3) await t.rl.store.clearRollups("default", { from: t.now - d * DAY, to: t.now - d * DAY + 1 });
 
   // Every statement from here on is checked.
   let most = 0;
@@ -38,6 +42,22 @@ test("no statement binds more than 100 parameters, as Cloudflare D1 requires", a
     await t.get(`/api/breakdown?${range}&dimension=page&limit=1000`);
     await t.get(`/api/breakdown?${range}&dimension=source&limit=1000&filter=page:contains:/p`);
     await t.get(`/api/breakdown?${range}&dimension=page&limit=1000&filter=country:not:XX`);
+  }
+  // As many filters as a query takes, each of the kind that binds the most.
+  const many = ["page:contains:/P", "page:contains:é", "event:contains:goal", "hostname:contains:example", "page:not:/x", "country:not:XX"].map((f) => `filter=${encodeURIComponent(f)}`).join("&");
+  for (const range of ["period=30d", "period=90d", "period=12mo&interval=day", "period=7d&interval=hour"]) {
+    await t.get(`/api/series?${range}`);
+    await t.get(`/api/series?${range}&${many}`);
+    await t.get(`/api/stats?${range}&${many}`);
+    await t.get(`/api/rhythm?${range}&${many}`);
+    // A goal valued by a property, and one with a fixed value, each with and without filters.
+    for (const id of [(1).toString(16).padStart(24, "0"), (2).toString(16).padStart(24, "0")]) {
+      await t.get(`/api/goals/${id}?${range}`);
+      await t.get(`/api/goals/${id}?${range}&${many}`);
+    }
+    await t.get(`/api/funnels?${range}&${many}`);
+    await t.get(`/api/journeys?${range}&${many}`);
+    await t.get(`/api/event-props?${range}&event=Goal1&${many}`);
   }
   const goals = await t.get("/api/goals?period=12mo");
   assert.equal(goals.goals.length, 30, "the goals report answers for all thirty");

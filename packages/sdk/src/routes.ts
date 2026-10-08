@@ -5,7 +5,7 @@ import { JOURNEY_VISITS, type ReportRow, type ShareRow, type SiteRow, type Token
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
 import { randomId, sha256 } from "./hash.js";
-import { DIMENSIONS, isDimension, isSessionDimension, parseFilter, type Filter, type Query } from "./query.js";
+import { DIMENSIONS, isDimension, isSessionDimension, MAX_FILTERS, parseFilter, type Filter, type Query } from "./query.js";
 import { EMAIL, LINK_DOMAIN_CHECK, RETENTION_MONTHS, envValue as env, type RequestContext, type Runlight } from "./runlight.js";
 import { mcpResponse } from "./mcp.js";
 import { oauthResponse, resourceMetadataUrl } from "./oauth.js";
@@ -120,10 +120,14 @@ async function passThrough(remote: { url: string; token: string; site: string },
       ...(write ? { body: await request.text() } : {}),
       // An install that answers with a redirect gets no fetch of somewhere else on its behalf.
       redirect: "manual",
-      signal: AbortSignal.timeout(15_000),
+      // A long report or an export is worked out in full before the install sends a byte, so reads get
+      // two minutes. A browser that leaves stops the wait too.
+      signal: AbortSignal.any([AbortSignal.timeout(write ? 30_000 : 120_000), ...(request ? [request.signal] : [])]),
     });
-  } catch {
-    return json({ error: `Could not reach ${new URL(remote.url).host}` }, 502);
+  } catch (error) {
+    const host = new URL(remote.url).host;
+    if ((error as Error)?.name === "TimeoutError") return json({ error: `${host} took too long to answer. Try a shorter range.` }, 504);
+    return json({ error: `Could not reach ${host}` }, 502);
   }
   // What comes back is shown from this server's origin, so it is never taken as a page:
   // JSON, or a download for exports, with sniffing off and nothing allowed to run.
@@ -313,6 +317,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
   async function readQuery(url: URL, site: SiteRow) {
     const filters: Filter[] = [];
+    if (url.searchParams.getAll("filter").length > MAX_FILTERS) return json({ error: `Use at most ${MAX_FILTERS} filters at once.` }, 400);
     for (const raw of url.searchParams.getAll("filter")) {
       const filter = parseFilter(raw);
       if (!filter) return json({ error: `Bad filter "${raw}". Use dimension:is|not|contains:value.` }, 400);
@@ -1054,6 +1059,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             language: /^[a-z]{2}$/.test(String(body.language)) ? String(body.language) : "en",
           },
           readApi,
+          request.signal,
         );
         return json(answer);
       } catch (error) {
@@ -1229,7 +1235,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (site instanceof Response) return site;
     if (!site || (only && site.id !== only)) return json({ error: "Unknown site" }, 404);
     const remote = runlight.remote(site.id);
-    if (remote) return passThrough(remote, path, url);
+    if (remote) return passThrough(remote, path, url, request);
 
     if (path === "/api/icon") {
       const host = site.hostnames[0];
@@ -1329,9 +1335,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (path === "/api/journeys") {
       const q = url.searchParams;
       const through = /^(\d+):(.+)$/.exec(q.get("through") ?? "");
-      const rows = await runlight.store.journeyPages(query, PAGES_PER_VISIT);
       // Journeys reads the newest visits up to a cap; say when it was reached.
-      const sampled = new Set(rows.map((r) => r.session)).size >= JOURNEY_VISITS;
+      const { rows, sampled } = await runlight.store.journeyPages(query, PAGES_PER_VISIT);
       const answer = journeys(rows, {
         steps: Number(q.get("steps") ?? 5),
         ...(q.get("start") ? { start: q.get("start")! } : {}),

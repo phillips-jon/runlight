@@ -86,5 +86,10 @@ export function parseFilter(text: string): Filter | null {
   const value = text.slice(second + 1);
   if (!isSessionDimension(dimension) && !isEventDimension(dimension)) return null;
   if (op !== "is" && op !== "not" && op !== "contains") return null;
-  return { dimension, op, value: value.slice(0, 500) };
+  // Paths are recorded percent-encoded, as browsers send them, so "/café" is matched as "/caf%C3%A9".
+  const path = dimension === "page" || dimension === "entry" || dimension === "exit";
+  return { dimension, op, value: (path ? value.replace(/[^\x21-\x7e]|["<>`{}]/gu, (c) => encodeURIComponent(c)) : value).slice(0, 500) };
 }
+
+/** The most filters a query takes, which keeps every statement within Cloudflare D1's 100 values. */
+export const MAX_FILTERS = 6;

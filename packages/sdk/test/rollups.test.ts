@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { SAFARI_IPHONE, STORES, cleanup, setup } from "./helpers.js";
 
+const DAY = 86_400_000;
+
 after(cleanup);
 
 const HOUR = 3_600_000;
@@ -198,3 +200,30 @@ test("a timezone changed in the dashboard reaches another process at its next ch
   await b.check();
   assert.equal(b.site("default")!.timezone, "Europe/Paris");
 });
+
+for (const kind of STORES) {
+  test(`${kind}: clearing days that stops part way leaves none marked built without its numbers`, async () => {
+    const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });
+    t.advance(-10 * DAY);
+    for (let d = 0; d < 8; d++) {
+      await t.send({ k: "pageview", u: "https://example.com/", i: `d${d}` }, { ip: `203.0.113.${d + 1}` });
+      t.advance(DAY);
+    }
+    t.advance(2 * DAY);
+    while ((await t.rl.buildRollups()) > 0);
+    const before = (await t.get("/api/stats?period=30d&compare=off")).stats;
+    // The connection drops after a few of the per-day deletes.
+    const db = t.rl.store.db;
+    const run = db.run.bind(db);
+    let deletes = 0;
+    db.run = (async (sql: string, params?: unknown[]) => {
+      if (sql.startsWith("DELETE FROM rl_rollups WHERE") && ++deletes > 3) throw new Error("connection lost");
+      return run(sql, params);
+    }) as typeof db.run;
+    await assert.rejects(t.rl.store.clearRollups("default"));
+    db.run = run;
+    assert.deepEqual((await t.get("/api/stats?period=30d&compare=off")).stats, before);
+    while ((await t.rl.buildRollups()) > 0);
+    assert.deepEqual((await t.get("/api/stats?period=30d&compare=off")).stats, before);
+  });
+}

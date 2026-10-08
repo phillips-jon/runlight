@@ -1,3 +1,4 @@
+import { pagePattern } from "./goals.js";
 import { randomId } from "./hash.js";
 import type { FunnelRow, FunnelStep } from "./store.js";
 
@@ -20,14 +21,9 @@ export function funnelFrom(input: Record<string, unknown>, site: string, existin
     if (!match) continue;
     if (kind === "page") {
       // A full URL is fine to paste; the path is what counts.
-      if (/^https?:\/\//i.test(match)) {
-        try {
-          match = new URL(match.replace(/\*/g, "__STAR__")).pathname.replace(/__STAR__/g, "*") || "/";
-        } catch {
-          throw new FunnelError(`"${match}" is not a path or a URL`);
-        }
-      }
-      if (!match.startsWith("/") && !match.startsWith("*")) match = `/${match}`;
+      const path = pagePattern(match);
+      if (path === null) throw new FunnelError(`"${match}" is not a path or a URL`);
+      match = path;
     }
     steps.push({ kind, match });
   }

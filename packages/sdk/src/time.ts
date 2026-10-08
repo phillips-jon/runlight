@@ -68,7 +68,16 @@ export function startOf(date: string, timezone: string, hour = 0): number {
   const [y, m, d] = date.split("-").map(Number);
   const guess = Date.UTC(y!, m! - 1, d!, hour);
   const first = guess - offset(guess, timezone);
-  return guess - offset(first, timezone);
+  let at = guess - offset(first, timezone);
+  // Where clocks jump forward at that time (midnight in Santiago, Havana, and the Azores), it never
+  // happens, and the sum above lands before it; the day then begins when the clocks land, at most a
+  // few quarter hours on.
+  for (let i = 0; i < 8; i++) {
+    const [ly, lm, ld, lh] = parts(at, timezone);
+    if (Date.UTC(ly!, lm! - 1, ld!, lh!) >= guess) break;
+    at += 15 * 60_000;
+  }
+  return at;
 }
 
 /** The local date of an instant, YYYY-MM-DD. */

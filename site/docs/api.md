@@ -28,7 +28,7 @@ Every report takes the same query parameters.
 | `from`, `to` | Dates as `YYYY-MM-DD`, both inclusive, instead of a period. |
 | `compare` | `previous` (the default), `year`, `custom`, or `off`. |
 | `compare_from`, `compare_to` | The dates to compare with, for `compare=custom`. |
-| `filter` | `dimension:op:value`, where op is `is`, `not`, or `contains`. Repeat it to apply several. |
+| `filter` | `dimension:op:value`, where op is `is`, `not`, or `contains`. Repeat it to apply up to six. |
 | `interval` | `hour`, `day`, `week`, or `month` for series, chosen from the range by default. |
 
 | Endpoint | Returns |

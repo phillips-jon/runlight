@@ -3,6 +3,23 @@ import type { GoalRow, SiteRow } from "./store.js";
 
 export class GoalError extends Error {}
 
+/**
+ * A page to match, written the way paths are recorded: the path of a pasted URL, with a leading slash,
+ * and percent-encoded as browsers send it, so /café matches the recorded /caf%C3%A9. `*` stays a
+ * wildcard. Null when it is not a path or a URL.
+ */
+export function pagePattern(input: string): string | null {
+  const starred = input.replace(/\*/g, "__STAR__");
+  try {
+    const url = /^https?:\/\//i.test(input) ? new URL(starred) : new URL(starred.startsWith("/") || starred.startsWith("__STAR__") ? starred : `/${starred}`, "https://x.invalid");
+    const path = url.pathname.replace(/__STAR__/g, "*") || "/";
+    // A pattern written to start with * keeps that start, rather than gaining a slash.
+    return input.startsWith("*") ? path.replace(/^\//, "") : path;
+  } catch {
+    return null;
+  }
+}
+
 const KINDS = ["event", "page", "click"] as const;
 const MODES = ["none", "fixed", "prop"] as const;
 const PROP = /^[A-Za-z0-9_.-]{1,40}$/;
@@ -26,15 +43,9 @@ export function goalFrom(input: Record<string, unknown>, site: string, existing:
   if (kind === "page") {
     if (!match) throw new GoalError("Enter a page path, like /thanks or /blog/*");
     // A full URL is fine to paste; the path is what counts.
-    if (/^https?:\/\//i.test(match)) {
-      try {
-        const url = new URL(match.replace(/\*/g, "__STAR__"));
-        match = url.pathname.replace(/__STAR__/g, "*") || "/";
-      } catch {
-        throw new GoalError("That page is not a path or a URL");
-      }
-    }
-    if (!match.startsWith("/") && !match.startsWith("*")) match = `/${match}`;
+    const path = pagePattern(match);
+    if (path === null) throw new GoalError("That page is not a path or a URL");
+    match = path;
   }
   if (kind === "click") {
     clickBy = input.clickBy === "link" ? "link" : "selector";

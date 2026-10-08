@@ -57,3 +57,17 @@ test("comparison ranges: previous, a year back, custom, and off", () => {
   assert.equal(compareRange(week, "custom", "UTC", { from: "2026-01-07", to: "2026-01-01" }), null);
   assert.equal(compareRange(week, "off", "UTC"), null);
 });
+
+test("a day whose midnight is skipped by the clocks begins when they land", () => {
+  // Santiago, Havana, and the Azores move their clocks forward at midnight.
+  for (const [date, zone, start] of [
+    ["2026-09-06", "America/Santiago", "2026-09-06T04:00:00.000Z"],
+    ["2026-03-08", "America/Havana", "2026-03-08T05:00:00.000Z"],
+    ["2026-03-29", "Atlantic/Azores", "2026-03-29T01:00:00.000Z"],
+  ] as const) {
+    const at = startOf(date, zone);
+    assert.equal(new Date(at).toISOString(), start, zone);
+    assert.equal(localDate(at, zone), date);
+    assert.notEqual(localDate(at - 1, zone), date);
+  }
+});

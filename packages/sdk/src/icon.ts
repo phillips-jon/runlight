@@ -48,24 +48,94 @@ async function get(url: string): Promise<Response | null> {
   }
 }
 
+/** A response body, stopping as soon as it passes `max` bytes rather than reading it all. Null past that. */
+async function capped(response: Response, max: number): Promise<Uint8Array | null> {
+  if (!response.body) return new Uint8Array();
+  if (Number(response.headers.get("content-length") ?? 0) > max) {
+    await response.body.cancel().catch(() => {});
+    return null;
+  }
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > max) {
+        await reader.cancel().catch(() => {});
+        return null;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    return null;
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const c of chunks) {
+    all.set(c, at);
+    at += c.length;
+  }
+  return all;
+}
+
 async function image(url: string): Promise<Icon | null> {
   const response = await get(url);
   if (!response?.ok) return null;
   const type = (response.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase();
-  if (!type.startsWith("image/")) return null;
-  const body = await response.arrayBuffer().catch(() => null);
-  if (!body || body.byteLength === 0 || body.byteLength > MAX_BYTES) return null;
-  return { body, type };
+  if (!type.startsWith("image/")) {
+    await response.body?.cancel().catch(() => {});
+    return null;
+  }
+  const bytes = await capped(response, MAX_BYTES);
+  if (!bytes || bytes.byteLength === 0) return null;
+  return { body: bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer, type };
 }
+
+/** Up to `max` bytes of a body, then stops reading. */
+async function readHead(response: Response, max: number): Promise<Uint8Array> {
+  if (!response.body) return new Uint8Array();
+  const reader = response.body.getReader();
+  const out = new Uint8Array(max);
+  let size = 0;
+  try {
+    while (size < max) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const take = Math.min(value.length, max - size);
+      out.set(value.subarray(0, take), size);
+      size += take;
+    }
+  } catch {
+    // What arrived is enough to look through.
+  }
+  await reader.cancel().catch(() => {});
+  return out.subarray(0, size);
+}
+
+/** Lookups under way, so many dashboards opening at once share one. */
+const pending = new Map<string, Promise<Icon | null>>();
 
 export async function fetchIcon(origin: string, now = Date.now()): Promise<Icon | null> {
   const cached = cache.get(origin);
   if (cached && now - cached.at < (cached.icon ? DAY : DAY / 24)) return cached.icon;
+  let lookup = pending.get(origin);
+  if (!lookup) {
+    lookup = lookUp(origin, now).finally(() => pending.delete(origin));
+    pending.set(origin, lookup);
+  }
+  return lookup;
+}
 
+async function lookUp(origin: string, now: number): Promise<Icon | null> {
   let icon: Icon | null = null;
   const page = await get(`${origin}/`);
   if (page?.ok && (page.headers.get("content-type") ?? "").includes("html")) {
-    const html = (await page.text().catch(() => "")).slice(0, 200_000);
+    // The head is all that is needed, so a huge page is not read to the end.
+    const bytes = await readHead(page, 200_000);
+    const html = new TextDecoder().decode(bytes);
     for (const url of iconLinks(html, page.url || origin).slice(0, 4)) {
       icon = await image(url);
       if (icon) break;

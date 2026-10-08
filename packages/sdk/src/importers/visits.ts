@@ -174,6 +174,12 @@ export async function importUmamiVisits(
     }
     // A visit that began in an earlier step and went on into this one is counted
     // again from its events, so a repeated step cannot leave it with doubled totals.
+    // The day it began may already be built, so that day is built again too.
+    const [earliest] = await store.db.all(
+      `SELECT MIN(started_at) AS t FROM rl_sessions WHERE site = ? AND imported = 1 AND started_at < ? AND id IN (SELECT DISTINCT session FROM rl_events WHERE site = ? AND ts >= ? AND ts < ?)`,
+      [siteId, from, siteId, from, to],
+    );
+    if (earliest?.t !== null && earliest?.t !== undefined) await store.clearRollups(siteId, { from: Number(earliest.t), to: from });
     await store.db.run(
       `UPDATE rl_sessions SET
          pageviews = (SELECT COUNT(*) FROM rl_events e WHERE e.session = rl_sessions.id AND e.kind = 'pageview'),
@@ -257,7 +263,8 @@ async function writeEvent(store: SqlStore, site: { id: string; hostnames: string
     site: site.id,
     ts: e.ts,
     kind,
-    visitor,
+    // The visit's own visitor, which for one running past midnight is the id of the day it started.
+    visitor: open?.visitor ?? visitor,
     session: id,
     pageview: "",
     path: page.path,

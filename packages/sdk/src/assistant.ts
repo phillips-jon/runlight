@@ -69,12 +69,25 @@ When a question needs numbers, read them with the tools first and never guess on
 Rule: answer only the newest message. If it asks nothing new (thanks, a greeting, "great", "that helps"), reply with one short friendly sentence, call no tools, and do not repeat, summarise, or re-check any earlier answer. Only go back to earlier numbers when the person asks about them again. Bounce rate is a fraction from 0 to 1 and durations are milliseconds in the tools; give them as a percent and in seconds or minutes. Write in the language whose code is "${context.language}".`;
 }
 
-async function post(url: string, headers: Record<string, string>, body: unknown, deadline: number): Promise<Record<string, unknown>> {
+const TOO_LONG = "That question took too long to answer. Try asking something narrower.";
+
+/** Stops when the question's time is up or the person has left, before more work starts. */
+function inTime(deadline: number, signal?: AbortSignal): void {
+  if (signal?.aborted) throw new AssistantError("The question was cancelled.");
+  if (Date.now() >= deadline) throw new AssistantError(TOO_LONG);
+}
+
+async function post(url: string, headers: Record<string, string>, body: unknown, deadline: number, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  inTime(deadline, signal);
   const left = deadline - Date.now();
-  if (left <= 0) throw new AssistantError("That question took too long to answer. Try asking something narrower.");
   let answer: Response;
   try {
-    answer = await fetch(url, { method: "POST", headers: { "content-type": "application/json", ...headers }, body: JSON.stringify(body), signal: AbortSignal.timeout(Math.min(90_000, left)) });
+    answer = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headers },
+      body: JSON.stringify(body),
+      signal: AbortSignal.any([AbortSignal.timeout(Math.min(90_000, left)), ...(signal ? [signal] : [])]),
+    });
   } catch (error) {
     throw new AssistantError(`Could not reach ${new URL(url).host}: ${(error as Error).name === "TimeoutError" ? "it took too long to answer" : "the connection failed"}`);
   }
@@ -117,7 +130,13 @@ export function acknowledgement(text: string, language: string): string | null {
 }
 
 /** Answers the last question in `messages`, calling tools as the model asks. Returns the reply and the tools it used. */
-export async function chat(settings: AssistantSettings, messages: ChatMessage[], context: ChatContext, readApi: ApiRead): Promise<{ reply: string; tools: string[] }> {
+export async function chat(
+  settings: AssistantSettings,
+  messages: ChatMessage[],
+  context: ChatContext,
+  readApi: ApiRead,
+  signal?: AbortSignal,
+): Promise<{ reply: string; tools: string[] }> {
   const provider = PROVIDERS.find((p) => p.id === settings.provider);
   if (!provider) throw new AssistantError("Choose a provider in Settings, AI Assistant");
   const base = (settings.baseUrl || provider.baseUrl).replace(/\/+$/, "");
@@ -145,7 +164,7 @@ export async function chat(settings: AssistantSettings, messages: ChatMessage[],
     const tools = TOOLS.map((t) => ({ name: t.name, description: t.description, input_schema: t.inputSchema }));
     const convo: Array<Record<string, unknown>> = history;
     for (let round = 0; round < MAX_ROUNDS; round++) {
-      const data = await post(`${base}/messages`, { "x-api-key": settings.key, "anthropic-version": "2023-06-01" }, { model, max_tokens: MAX_TOKENS, system: system(context), tools, messages: convo }, deadline);
+      const data = await post(`${base}/messages`, { "x-api-key": settings.key, "anthropic-version": "2023-06-01" }, { model, max_tokens: MAX_TOKENS, system: system(context), tools, messages: convo }, deadline, signal);
       const blocks = (data.content ?? []) as Array<{ type: string; text?: string; id?: string; name?: string; input?: unknown }>;
       const calls = blocks.filter((b) => b.type === "tool_use");
       if (data.stop_reason !== "tool_use" || !calls.length) {
@@ -154,6 +173,8 @@ export async function chat(settings: AssistantSettings, messages: ChatMessage[],
       convo.push({ role: "assistant", content: blocks });
       const results = [];
       for (const call of calls) {
+        // The deadline covers the reading too, however many tools one answer asks for.
+        inTime(deadline, signal);
         used.push(call.name ?? "");
         const out = await toolText(call.name ?? "", call.input, readApi);
         results.push({ type: "tool_result", tool_use_id: call.id, content: out.text, ...(out.error ? { is_error: true } : {}) });
@@ -169,7 +190,7 @@ export async function chat(settings: AssistantSettings, messages: ChatMessage[],
   for (let round = 0; round < MAX_ROUNDS; round++) {
     // OpenAI's newer models take max_completion_tokens and refuse max_tokens; the other services still take max_tokens.
     const limit = provider.id === "openai" ? { max_completion_tokens: MAX_TOKENS } : { max_tokens: MAX_TOKENS };
-    const data = await post(`${base}/chat/completions`, headers, { model, ...limit, messages: convo, tools }, deadline);
+    const data = await post(`${base}/chat/completions`, headers, { model, ...limit, messages: convo, tools }, deadline, signal);
     const message = ((data.choices as Array<{ message?: Record<string, unknown> }> | undefined)?.[0]?.message ?? {}) as {
       content?: string | null;
       tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }>;
@@ -177,6 +198,7 @@ export async function chat(settings: AssistantSettings, messages: ChatMessage[],
     if (!message.tool_calls?.length) return { reply: String(message.content ?? "").trim(), tools: used };
     convo.push({ role: "assistant", content: message.content ?? null, tool_calls: message.tool_calls });
     for (const call of message.tool_calls) {
+      inTime(deadline, signal);
       used.push(call.function.name);
       let args: unknown = {};
       try {

@@ -22,7 +22,7 @@ Click a card to put it on the chart; several can share it, each scaled to its ow
 
 ## The boxes
 
-- **Pages** shows top pages with time on page, entry pages with bounce rate, and exit pages.
+- **Pages** shows top pages with time on page, entry pages with bounce rate, and exit pages. Time on page is the average over every view of the page, and a view shorter than a second counts as none.
 - **Sources** breaks traffic down by channel (Organic Search, Social, Direct, AI, Email, Referral, Campaign, Paid Search), named source, and referring host.
 - **Locations** shows countries, regions, and cities, as a list or a map.
 - **When people visit** shows visits by weekday and hour, in the site’s timezone.
@@ -39,7 +39,7 @@ Click a card to put it on the chart; several can share it, each scaled to its ow
 
 Click any row to filter the whole dashboard by it. The **Filter** button can filter by page, entry or exit page, source, channel, referrer, each UTM tag, country, region, city, browser, operating system, device, screen, language, hostname, and event. Each filter uses **is**, **is not**, or **contains**, and filters combine.
 
-A filter picks visits, and the numbers then describe those whole visits, counted in the range each one started in. Filtering by the event Signup shows the people who signed up, with all their pages, time, and bounce rate, and **is not** picks the visits that never had one. A page filter counts that page’s views as pageviews, so “page is /pricing” shows how often /pricing was seen.
+A filter picks visits, and the numbers then describe those whole visits, counted in the range each one started in. Filtering by the event Signup shows the people who signed up, with all their pages, time, and bounce rate, and **is not** picks the visits that never had one. A page filter counts that page’s views as pageviews, so “page is /pricing” shows how often /pricing was seen, and with two page filters the views of either page count. Conversions, funnels, and event properties count the same visits, so a visit that starts before midnight and converts after it counts on the day it started. **Contains** ignores case, and up to six filters apply at once.
 
 ## Dates and comparison
 
