@@ -1390,7 +1390,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return json({ error: "Not found" }, 404);
   }
 
-  const oauth = { runlight, base, isOwner: async (request: Request) => (await canRead(request)) === true, ...(options.signIn ? { signIn: options.signIn } : {}) };
+  const oauth = {
+    runlight,
+    base,
+    isOwner: async (request: Request) => (await canRead(request)) === true,
+    isReader: async (request: Request) => (options.authorize ? (await options.authorize(request)) === "read" : false),
+    ...(options.signIn ? { signIn: options.signIn } : {}),
+  };
 
   const handler: FetchHandler = async (request, context = {}) => {
     const url = new URL(request.url);

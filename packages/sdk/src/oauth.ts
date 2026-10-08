@@ -22,6 +22,8 @@ interface Client {
   name: string;
   redirects: string[];
   createdAt: number;
+  /** When it was first given a token; a client that never was can be cleared away. */
+  usedAt?: number;
 }
 
 interface Code {
@@ -35,6 +37,8 @@ interface Code {
 
 const CODE_MS = 5 * 60_000;
 const MAX_CLIENTS = 200;
+/** A registered app that has not finished connecting within a day is removed. */
+const UNUSED_CLIENT_MS = 86_400_000;
 
 const esc = (value: string) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -64,6 +68,8 @@ export interface OAuthContext {
   isOwner: (request: Request) => Promise<boolean>;
   /** Where to send someone to sign in, when there is such a page (the standalone server's). */
   signIn?: string;
+  /** Whether the request comes from someone signed in who may only read, such as a viewer. */
+  isReader?: (request: Request) => Promise<boolean>;
 }
 
 /** The URL that a 401 from the MCP endpoint points clients at, to start OAuth. */
@@ -102,8 +108,23 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
     const body = (await request.json().catch(() => null)) as { client_name?: unknown; redirect_uris?: unknown } | null;
     const redirects = Array.isArray(body?.redirect_uris) ? body!.redirect_uris.map(String).filter(allowedRedirect).slice(0, 10) : [];
     if (!redirects.length) return oauthError("invalid_redirect_uri", "Register at least one https redirect address");
-    const clients = await runlight.store.settingsStartingWith("oauth-client:");
-    if (clients.length >= MAX_CLIENTS) return oauthError("invalid_client_metadata", "This Runlight has too many registered apps", 429);
+    // Anyone can register, so apps that never finished connecting are cleared away: those older than a
+    // day, and the oldest of them whenever the list is full. Only a list full of connected apps refuses.
+    const clients = (await runlight.store.settingsStartingWith("oauth-client:"))
+      .map(({ key, value }) => ({ key, client: JSON.parse(value) as Client }))
+      .sort((a, b) => a.client.createdAt - b.client.createdAt);
+    let count = clients.length;
+    for (const { key, client } of clients) {
+      if (client.usedAt) continue;
+      if (count < MAX_CLIENTS && client.createdAt > runlight.now() - UNUSED_CLIENT_MS) continue;
+      await runlight.store.setSetting(key, null);
+      count--;
+    }
+    if (count >= MAX_CLIENTS) return oauthError("invalid_client_metadata", "This Runlight has too many registered apps", 429);
+    // Codes nobody exchanged are gone too.
+    for (const { key, value } of await runlight.store.settingsStartingWith("oauth-code:")) {
+      if (((JSON.parse(value) as Partial<Code>).expires ?? 0) < runlight.now()) await runlight.store.setSetting(key, null);
+    }
     const id = randomId(16);
     const client: Client = { name: String(body?.client_name ?? "An app").trim().slice(0, 80) || "An app", redirects, createdAt: runlight.now() };
     await runlight.store.setSetting(`oauth-client:${id}`, JSON.stringify(client));
@@ -132,6 +153,10 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
     const manage = (form.get("scope") ?? "").split(/\s+/).includes("manage");
 
     if (!(await ctx.isOwner(request))) {
+      // Someone signed in who may only read would be sent to sign in again and again.
+      if (ctx.isReader && (await ctx.isReader(request))) {
+        return page("Ask an owner to connect this", `<p>You are signed in as a viewer, and only an owner of this Runlight can connect ${esc(client.name)}.</p>`, 403);
+      }
       const here = `${url.pathname}?${new URLSearchParams([...form.entries()].filter(([k]) => k !== "decision" && k !== "site")).toString()}`;
       if (ctx.signIn) return new Response(null, { status: 303, headers: { location: `${ctx.signIn}?next=${encodeURIComponent(here)}`, "cache-control": "no-store" } });
       return page("Sign in first", `<p>Open your Runlight dashboard at <a href="${esc(base || "/")}">${esc(url.host + (base || "/"))}</a> and sign in, then connect ${esc(client.name)} again.</p>`, 401);
@@ -141,6 +166,8 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
       const hidden = ["response_type", "client_id", "redirect_uri", "code_challenge", "code_challenge_method", "state", "scope", "resource"]
         .map((k) => (form.get(k) !== null ? `<input type="hidden" name="${k}" value="${esc(form.get(k)!)}">` : ""))
         .join("");
+      // The app names itself, so the page also shows where the answer goes, which it cannot fake.
+      const sendsTo = `<p class="note">Allowing sends you back to <strong>${esc(new URL(redirect).host)}</strong>. Only allow it if you started connecting there.</p>`;
       if (manage) {
         // Changing settings is for one site at a time, so there is no "every site" here.
         const sites = runlight.sites.filter((s) => !runlight.remote(s.id));
@@ -149,6 +176,7 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
           `Connect ${esc(client.name)}`,
           `<p><strong>${esc(client.name)}</strong> wants to show this site’s stats and change its settings, so you can manage it from there.</p>
 <p>It will be able to change goals, funnels, short links, link domains, email reports, and share links for the site you pick. It cannot read other sites, add people, make tokens, or change how email is sent.</p>
+${sendsTo}
 <form method="post" action="${esc(base)}/oauth/authorize">${hidden}
 <label>Site<select name="site">${choices}</select></label>
 <p class="note">Its token appears in Settings, API and AI, where deleting it disconnects ${esc(client.name)}.</p>
@@ -159,6 +187,7 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
       return page(
         `Connect ${esc(client.name)}`,
         `<p><strong>${esc(client.name)}</strong> wants to read your Runlight stats so it can answer questions about them. It will be able to read and never to change anything.</p>
+${sendsTo}
 <form method="post" action="${esc(base)}/oauth/authorize">${hidden}
 <label>Which sites it can read<select name="site"><option value="">Every site</option>${runlight.sites.length > 1 ? options : ""}</select></label>
 <p class="note">Its token appears in Settings, API and AI, where deleting it disconnects the app.</p>
@@ -191,7 +220,9 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
     if (!grant || grant.expires < runlight.now()) return oauthError("invalid_grant", "The code has expired or was already used");
     if (grant.client !== form.get("client_id") || grant.redirect !== form.get("redirect_uri")) return oauthError("invalid_grant", "The code was issued to another app");
     if ((await s256(form.get("code_verifier") ?? "")) !== grant.challenge) return oauthError("invalid_grant", "The code verifier does not match");
-    const client = JSON.parse((await runlight.store.setting(`oauth-client:${grant.client}`)) ?? "{}") as Partial<Client>;
+    const clientKey = `oauth-client:${grant.client}`;
+    const client = JSON.parse((await runlight.store.setting(clientKey)) ?? "{}") as Partial<Client>;
+    if (client.redirects && !client.usedAt) await runlight.store.setSetting(clientKey, JSON.stringify({ ...client, usedAt: runlight.now() }));
     const secret = `rl_${randomId(20)}`;
     const scope = grant.scope === "manage" ? "manage" : "read";
     const row: TokenRow = { id: randomId(), name: `${client.name ?? "An app"} (OAuth)`.slice(0, 100), site: grant.site, scope, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };

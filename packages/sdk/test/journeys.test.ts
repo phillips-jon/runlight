@@ -21,6 +21,9 @@ test("journeys line paths up by step, with flows, and follow a start, an end, an
   assert.deepEqual(all.columns[1]!.items[0], { value: "/pricing", visits: 2 }, "a refresh counts once");
   assert.deepEqual(all.links.filter((l) => l.step === 0 && l.from === "/").map((l) => [l.to, l.visits]), [["/pricing", 2], ["/blog", 1]]);
   assert.equal(all.paths.length, 5);
+  // With two steps, visits a, b, and d go on to a third page, so only c went no further than step two.
+  const two = journeys(data, { steps: 2 });
+  assert.deepEqual([two.columns[1]!.visits, two.columns[1]!.left], [4, 1], "the last step counts only visits that ended there");
   assert.deepEqual(all.paths[0], { pages: ["/", "/blog"], visits: 1 }, "ties in a fixed order");
 
   const fromPricing = journeys(data, { steps: 3, start: "/pricing" });

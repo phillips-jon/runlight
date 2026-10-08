@@ -185,7 +185,9 @@ function App() {
   const [points, setPoints] = useState<Point[]>([]);
   const [previousPoints, setPreviousPoints] = useState<Point[] | undefined>(undefined);
   // Coming back from connecting another Runlight: its settings open, or what went wrong shows.
-  const [failure, setFailure] = useState(() => new URLSearchParams(location.search).get("connect_error") ?? "");
+  const [failure, setFailure] = useState("");
+  // Kept apart from failure, which the first good load clears, so the reason stays until it is closed.
+  const [connectError, setConnectError] = useState(() => new URLSearchParams(location.search).get("connect_error") ?? "");
   const [filtering, setFiltering] = useState(false);
   const [asking, setAsking] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState<Section | null>(() => (new URLSearchParams(location.search).get("settings") === "general" ? "general" : null));
@@ -411,6 +413,16 @@ function App() {
         ) : null}
       </header>
 
+      {connectError ? (
+        <p class="failure dismissable" role="alert">
+          {connectError}
+          <button type="button" class="remove" aria-label={t("common.close")} title={t("common.close")} onClick={() => setConnectError("")}>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M4 4l8 8M12 4l-8 8" />
+            </svg>
+          </button>
+        </p>
+      ) : null}
       {failure ? <p class="failure">{failure}</p> : null}
       {settingsOpen && site && sites ? (
         <SettingsModal

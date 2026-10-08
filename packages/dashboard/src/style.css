@@ -684,6 +684,14 @@ main {
   color: var(--down);
 }
 
+.failure.dismissable {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 8px;
+}
+
 /* Metric cards and chart */
 
 .metrics {

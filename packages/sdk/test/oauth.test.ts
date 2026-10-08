@@ -46,7 +46,9 @@ test("an app connects to the MCP server over OAuth: discovery, registration, con
   assert.equal((await GET(new Request(`${origin}/runlight/oauth/authorize?${wrongRedirect}`, { headers: owner }))).status, 400, "never sends a code to an address the app did not register");
   const consent = await GET(new Request(`${origin}/runlight/oauth/authorize?${params}`, { headers: owner }));
   assert.equal(consent.status, 200);
-  assert.match(await consent.text(), /Claude<\/strong> wants to read your Runlight stats/);
+  const consentPage = await consent.text();
+  assert.match(consentPage, /Claude<\/strong> wants to read your Runlight stats/);
+  assert.match(consentPage, /sends you back to <strong>claude\.ai<\/strong>/, "the page shows where the answer goes");
   const deny = await POST(new Request(`${origin}/runlight/oauth/authorize`, { method: "POST", headers: { ...owner, "content-type": "application/x-www-form-urlencoded" }, body: `${params}&decision=deny` }));
   assert.match(deny.headers.get("location") ?? "", /error=access_denied&state=xyz/);
   const forged = await POST(new Request(`${origin}/runlight/oauth/authorize`, { method: "POST", headers: { ...owner, origin: "https://evil.example", "content-type": "application/x-www-form-urlencoded" }, body: `${params}&decision=allow` }));
@@ -75,4 +77,33 @@ test("an app connects to the MCP server over OAuth: discovery, registration, con
   assert.deepEqual(sites.map((s: any) => s.id), ["b"], "the token reads only the site chosen at consent");
   const tokens = (await (await GET(new Request(`${origin}/runlight/api/tokens`, { headers: owner }))).json()) as any;
   assert.deepEqual(tokens.tokens.map((t: any) => [t.name, t.site]), [["Claude (OAuth)", "b"]]);
+});
+
+test("registrations that never connect are cleared away, so a flood cannot fill the list", async () => {
+  let now = Date.UTC(2026, 9, 7, 12);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "Site A", hostnames: ["a.com"] }], now: () => now });
+  const { POST } = rl.routes({ token: "secret" });
+  const register = (name: string) =>
+    POST(new Request("https://x.com/runlight/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: name, redirect_uris: ["https://app.example/cb"] }) }));
+  for (let i = 0; i < 200; i++) assert.equal((await register(`flood ${i}`)).status, 201);
+  // The list is full of apps that never connected, so the oldest makes room.
+  assert.equal((await register("Claude")).status, 201);
+  assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 200);
+  // A day later every unused one is gone at the next registration.
+  now += 86_400_000 + 1;
+  assert.equal((await register("ChatGPT")).status, 201);
+  assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 1);
+});
+
+test("a signed-in viewer is told only an owner can connect, never sent to sign in again", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "Site A", hostnames: ["a.com"] }] });
+  const { GET, POST } = rl.routes({ signIn: "/login", authorize: (request) => (request.headers.get("cookie") === "viewer" ? "read" : false) });
+  const registered = await POST(new Request("https://x.com/runlight/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: "Claude", redirect_uris: ["https://claude.ai/cb"] }) }));
+  const { client_id } = (await registered.json()) as any;
+  const params = new URLSearchParams({ response_type: "code", client_id, redirect_uri: "https://claude.ai/cb", code_challenge: "a".repeat(43), code_challenge_method: "S256" });
+  const signedOut = await GET(new Request(`https://x.com/runlight/oauth/authorize?${params}`));
+  assert.equal(signedOut.status, 303);
+  const viewer = await GET(new Request(`https://x.com/runlight/oauth/authorize?${params}`, { headers: { cookie: "viewer" } }));
+  assert.equal(viewer.status, 403);
+  assert.match(await viewer.text(), /only an owner of this Runlight can connect Claude/);
 });

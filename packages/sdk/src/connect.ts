@@ -26,6 +26,14 @@ export function installUrl(value: unknown): string {
   return url;
 }
 
+/** Attempts nobody came back from are removed, so they do not pile up in settings. */
+async function clearExpired(runlight: Runlight): Promise<void> {
+  for (const { key, value } of await runlight.store.settingsStartingWith("connect:")) {
+    const pending = JSON.parse(value) as Partial<Pending>;
+    if (!pending.expires || pending.expires < runlight.now()) await runlight.store.setSetting(key, null);
+  }
+}
+
 /** Starts connecting: returns the address of the install's consent page. */
 export async function startConnect(runlight: Runlight, input: unknown, back: string): Promise<string> {
   const url = installUrl(input);
@@ -42,8 +50,14 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
     body: JSON.stringify({ client_name: `Runlight at ${new URL(back).host}`, redirect_uris: [back] }),
     signal: AbortSignal.timeout(10_000),
   }).catch(() => null);
-  const client = registered?.ok ? ((await registered.json().catch(() => null)) as { client_id?: string } | null) : null;
-  if (!client?.client_id) throw new RangeError(`${url} would not let this server connect. Its address must use https.`);
+  if (!registered) throw new RangeError(`Could not reach ${url}`);
+  const client = (await registered.json().catch(() => null)) as { client_id?: string; error_description?: string } | null;
+  if (!registered.ok || !client?.client_id) {
+    // Say why, in the install's own words when it gives them.
+    const reason = client?.error_description ? `${String(client.error_description).slice(0, 200)}.` : registered.status === 400 ? "This server's address must use https." : `It answered ${registered.status}.`;
+    throw new RangeError(`${url} would not let this server connect. ${reason}`);
+  }
+  await clearExpired(runlight);
 
   const state = randomId(16);
   const verifier = `${randomId(32)}${randomId(32)}`;

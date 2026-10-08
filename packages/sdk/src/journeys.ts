@@ -45,6 +45,8 @@ export function journeys(rows: Array<{ session: string; path: string }>, options
     visits.set(row.session, pages);
   }
   const sequences: string[][] = [];
+  // Visits that went on past the last step shown, so they never count as having gone no further.
+  const cut = new Set<string[]>();
   for (let pages of visits.values()) {
     if (options.start) {
       const at = pages.indexOf(options.start);
@@ -56,9 +58,11 @@ export function journeys(rows: Array<{ session: string; path: string }>, options
       if (at < 0) continue;
       pages = pages.slice(0, at + 1);
     }
+    const more = pages.length > steps;
     pages = pages.slice(0, steps);
     if (options.through && pages[options.through.step] !== options.through.value) continue;
     sequences.push(pages);
+    if (more) cut.add(pages);
   }
 
   const columns: JourneyColumn[] = [];
@@ -70,7 +74,7 @@ export function journeys(rows: Array<{ session: string; path: string }>, options
     for (const s of sequences) {
       if (s.length <= i) continue;
       reached++;
-      if (s.length === i + 1) left++;
+      if (s.length === i + 1 && !cut.has(s)) left++;
       counts.set(s[i]!, (counts.get(s[i]!) ?? 0) + 1);
     }
     const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
