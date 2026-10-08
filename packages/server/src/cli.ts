@@ -8,6 +8,7 @@
  *   DATABASE_URL      a postgres:// URL, to use Postgres instead of SQLite
  *   RUNLIGHT_SECRET   signs sessions and encrypts mail keys (made and kept in DATA_DIR if unset)
  *   RUNLIGHT_TOKEN    also accepted as a bearer token on the API
+ *   RUNLIGHT_URL      the dashboard's public address, which can never become a link domain
  *   TRUST_PROXY       "false" when no proxy sits in front, so forwarded addresses are ignored
  *   RUNLIGHT_GEO      city (the default), country, off, or the path to an MMDB file
  */
@@ -36,6 +37,8 @@ listens. DATA_DIR (./runlight-data) holds the SQLite file and the secret, and
 DATABASE_URL switches to Postgres. RUNLIGHT_SECRET signs sessions and encrypts
 mail keys, RUNLIGHT_TOKEN also works as a bearer token on the API, and
 TRUST_PROXY=false ignores forwarded addresses when nothing sits in front.
+RUNLIGHT_URL is the dashboard's public address, such as
+https://stats.example.com, which short links can never take over.
 RUNLIGHT_GEO picks where locations come from when no platform header gives
 them. It is city by default, which downloads DB-IP's free city database into
 DATA_DIR and refreshes it each month. Set it to country for a smaller file, to
@@ -113,8 +116,11 @@ async function main(): Promise<void> {
   const geoSetting = env("RUNLIGHT_GEO") ?? "city";
   const geo = geoSetting === "city" || geoSetting === "country" ? new Geo(path.join(dataDir, "geo"), geoSetting) : null;
   const lookup = geo ? geo.lookup : geoSetting !== "off" ? fileLookup(path.resolve(geoSetting)) : undefined;
+  const url = env("RUNLIGHT_URL");
+  if (url && !/^https?:\/\/[^/?#]+\/?$/.test(url)) throw new Error("Set RUNLIGHT_URL to the dashboard's address only, such as https://stats.example.com");
   const server = createServer({
     ...(lookup ? { geo: lookup } : {}),
+    ...(url ? { url } : {}),
     geoCredit: Boolean(geo),
     store,
     secret: secretFor(dataDir),

@@ -67,6 +67,22 @@ test("a link domain can never be where the dashboard or a counted site lives", a
   assert.equal((await call("POST", "/api/link-domains?site=blog", "owner", { domain: "go.example.com" })).status, 201);
 });
 
+test("link domains stay off the configured address and the names people signed in from, whatever Host a request names", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "blog", hostnames: ["blog.example.com"] }] });
+  const routes = rl.routes({ token: "owner", origin: "https://stats.example.com", ownHosts: async () => ["dash.example.net:443"] });
+  const call = (method: string, path: string, auth = "owner", body?: unknown) =>
+    routes.handler(new Request(`https://decoy.example.org/runlight${path}`, { method, headers: { authorization: `Bearer ${auth}`, "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
+  const add = async (domain: string) => (await call("POST", "/api/link-domains?site=blog", "owner", { domain })).status;
+  for (const taken of ["stats.example.com", "stats.example.com.", "www.stats.example.com", "dash.example.net", "decoy.example.org"]) assert.equal(await add(taken), 400, taken);
+  // Names inside private networks, which the check would make the install fetch.
+  for (const inside of ["metadata.google.internal", "db.corp", "printer.local", "nas.home.arpa", "router.lan", "10.0.0.5.nip.io", "app.localhost"]) assert.equal(await add(inside), 400, inside);
+  assert.equal(await add("go.example.org"), 201);
+  // One saved before that rule is never fetched.
+  await rl.store.addLinkDomain("db.internal", "blog", Date.now());
+  assert.deepEqual(await (await call("GET", "/api/link-domains/db.internal/check?site=blog")).json(), { domain: "db.internal", working: false, reason: "is not a public domain name" });
+
+});
+
 test("the hub never passes on an install's answer as a page, nor follows its redirects", async () => {
   const { createServer } = await import("node:http");
   const evil = createServer((req, res) => {

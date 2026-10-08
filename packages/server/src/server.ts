@@ -4,7 +4,7 @@
  * answered on any domain pointed at it.
  */
 import { randomBytes, timingSafeEqual } from "node:crypto";
-import { runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
+import { LINK_DOMAIN_CHECK, runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
 import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle, otpauthUri, type Invite, type Role, type User } from "./auth.js";
 import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
 
@@ -14,6 +14,12 @@ export interface ServerOptions {
   secret: string;
   /** Also accepted as a bearer token on the API, for scripts. */
   token?: string;
+  /**
+   * The dashboard's public address, such as https://stats.example.com. It can
+   * never become a link domain, short links never answer on it, and emails
+   * link to it whatever Host header a request carries.
+   */
+  url?: string;
   /** Trust X-Forwarded-For and friends for the visitor's address. Default true. */
   trustProxy?: boolean | "x-forwarded-for" | "x-real-ip" | "cf-connecting-ip";
   geo?: GeoLookup;
@@ -66,6 +72,19 @@ function safeNext(value: string | null): string {
   }
 }
 
+/** The server's own pages, which answer as the server on every name it is reached at, a link domain too. */
+const SERVER_PATHS = new Set(["/login", "/logout", "/setup", "/invite", "/healthz", "/auth.css", "/auth.js", "/api", "/mcp", "/s.js", "/pick.js", "/e"]);
+
+/** The most names remembered as the server's own. */
+const MAX_OWN_HOSTS = 20;
+
+/** A Host header's name, lowercase, with no port, no final dot, and no www. */
+function hostName(value: string): string {
+  const first = value.split(",")[0]!.trim().toLowerCase();
+  const name = first.startsWith("[") ? first.slice(0, first.indexOf("]") + 1) : first.replace(/:\d*$/, "");
+  return name.replace(/\.+$/, "").replace(/^www\./, "");
+}
+
 function isSecure(request: Request): boolean {
   return new URL(request.url).protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
 }
@@ -86,6 +105,34 @@ export function createServer(options: ServerOptions): RunlightServer {
   const DEVICE_COOKIE = "runlight_device";
   const setupCode = randomBytes(9).toString("base64url");
   let hasAccount = false;
+  const publicUrl = options.url ? new URL(options.url) : null;
+  const publicHost = publicUrl ? hostName(publicUrl.host) : null;
+
+  /** The name a request came in on, read as link domains read it. */
+  const hostOf = (request: Request) => hostName(((options.trustProxy ?? true) ? request.headers.get("x-forwarded-host") : null) ?? request.headers.get("host") ?? new URL(request.url).host);
+
+  // The names people signed in from, kept in the database, so a link domain can never be one of them even when
+  // whoever adds it picks another Host header. Names that are already link domains are left out.
+  let ownHosts: Set<string> | null = null;
+  const savedHosts = async () => {
+    await rl.init();
+    try {
+      return JSON.parse((await options.store.setting("server-hosts")) ?? "[]") as string[];
+    } catch {
+      return [];
+    }
+  };
+  const knownHosts = async () => (ownHosts ??= new Set(await savedHosts()));
+  const learnHost = async (request: Request) => {
+    const host = hostOf(request);
+    const known = await knownHosts();
+    if (!host || known.has(host) || known.size >= MAX_OWN_HOSTS) return;
+    if ((await options.store.linkDomains()).some((d) => d.domain === host)) return;
+    // Another copy of the server may have saved names since this one read them.
+    for (const saved of await savedHosts()) known.add(saved);
+    known.add(host);
+    await options.store.setSetting("server-hosts", JSON.stringify([...known].slice(0, MAX_OWN_HOSTS)));
+  };
 
   const signedIn = async (request: Request) => {
     const value = readCookie(request, SESSION_COOKIE);
@@ -113,9 +160,12 @@ export function createServer(options: ServerOptions): RunlightServer {
       const auth = request.headers.get("authorization") ?? "";
       if (options.token && auth.toLowerCase().startsWith("bearer ") && equal(auth.slice(7).trim(), options.token)) return true;
       const user = await signedIn(request);
+      if (user) await learnHost(request);
       // A viewer reads every site and changes nothing.
       return user ? (user.role === "viewer" ? "read" : true) : false;
     },
+    ...(publicUrl ? { origin: publicUrl.origin } : {}),
+    ownHosts: knownHosts,
   });
   const links = rl.linkHandler();
 
@@ -140,9 +190,14 @@ export function createServer(options: ServerOptions): RunlightServer {
     const path = url.pathname;
     const method = request.method;
     try {
-      // A domain pointed at this server for short links answers at its root.
-      const linked = await rl.linkDomainResponse(request, context);
-      if (linked) return linked;
+      // A domain pointed at this server for short links answers at its root, with links one segment deep. The
+      // server's own pages and its public address never answer as links, and "/" stays the dashboard for someone
+      // signed in, so a link domain added on the dashboard's own name can always be removed again.
+      const linkable = path === LINK_DOMAIN_CHECK || (/^\/[^/]*$/.test(path) && !SERVER_PATHS.has(path) && !(path === "/" && (await signedIn(request))));
+      if (linkable && !(publicHost && hostOf(request) === publicHost)) {
+        const linked = await rl.linkDomainResponse(request, context);
+        if (linked) return linked;
+      }
 
       if (path === "/healthz") return new Response("ok", { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
       if (path === "/auth.css") return new Response(AUTH_CSS, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=3600" } });
@@ -273,9 +328,9 @@ export function createServer(options: ServerOptions): RunlightServer {
    * always comes back too, for the owner to pass on another way.
    */
   async function sendInvite(request: Request, invite: Invite, code: string): Promise<{ link: string; emailed: boolean; mailError?: string }> {
-    const origin = new URL(request.url).origin;
-    const link = `${origin}/invite?code=${code}`;
-    const host = new URL(request.url).host;
+    const home = publicUrl ?? new URL(request.url);
+    const link = `${home.origin}/invite?code=${code}`;
+    const host = home.host;
     const what = invite.role === "owner" ? "an owner, who can change settings and manage people" : "a viewer, who can read every site's stats";
     const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
     if (!(await rl.mailSettings())) return { link, emailed: false };

@@ -120,6 +120,41 @@ test("sites are added in the dashboard, counted across origins, and short links 
   assert.equal((await handle(req("/api/sites", { headers: { authorization: "Bearer wrong" } }))).status, 401);
 });
 
+test("a link domain never takes over the dashboard's own name, sign-in, or API", async () => {
+  const { server, handle } = make("script-token");
+  await server.accounts.setPassword("jon@example.com", "a long password", Date.now());
+  const auth = { authorization: "Bearer script-token", "content-type": "application/json" };
+  await handle(req("/api/sites", { method: "POST", headers: auth, body: JSON.stringify({ name: "Blog", hostnames: "blog.example.com" }) }));
+  const addDomain = (domain: string, host: string) => handle(req("/api/link-domains?site=blog.example.com", { host, method: "POST", headers: auth, body: JSON.stringify({ domain }) }));
+
+  // Someone signs in at stats.example.com, so a caller naming another Host cannot add it afterwards.
+  const cookie = cookieOf(await handle(req("/login", form({ email: "jon@example.com", password: "a long password" }))));
+  assert.equal((await handle(req("/api/sites", { headers: { cookie } }))).status, 200);
+  for (const host of ["decoy.example.org", "203.0.113.5", "stats.example.com."]) assert.equal((await addDomain("stats.example.com", host)).status, 400, host);
+
+  // Added anyway, as before this rule: its short links answer, and the server's own pages stay the server's.
+  await server.runlight.store.addLinkDomain("stats.example.com", "blog.example.com", Date.now());
+  server.runlight.forgetLinkDomains();
+  await handle(req("/api/links?site=blog.example.com", { method: "POST", headers: auth, body: JSON.stringify({ url: "https://blog.example.com/a", slug: "login", domain: "stats.example.com" }) }));
+  await handle(req("/api/links?site=blog.example.com", { method: "POST", headers: auth, body: JSON.stringify({ url: "https://blog.example.com/b", slug: "sale", domain: "stats.example.com" }) }));
+  assert.equal((await handle(req("/sale"))).status, 302);
+  assert.equal((await handle(req("/login"))).status, 200, "sign-in is still the sign-in page");
+  assert.equal((await handle(req("/", { headers: { cookie } }))).status, 200, "the dashboard opens for someone signed in");
+  assert.equal((await handle(req("/", {}))).status, 404);
+  assert.equal((await handle(req("/api/link-domains/stats.example.com?site=blog.example.com", { method: "DELETE", headers: { cookie } }))).status, 200, "so it can be removed");
+  assert.equal((await handle(req("/sale"))).status, 404);
+
+  // With the public address set, short links never answer there, and nobody can add it under any Host.
+  const named = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), token: "script-token", url: "https://stats.example.com" });
+  await named.handler(req("/api/sites", { method: "POST", headers: auth, body: JSON.stringify({ name: "Blog", hostnames: "blog.example.com" }) }));
+  assert.equal((await named.handler(req("/api/link-domains?site=blog.example.com", { host: "decoy.example.org", method: "POST", headers: auth, body: JSON.stringify({ domain: "stats.example.com" }) }))).status, 400);
+  await named.runlight.store.addLinkDomain("stats.example.com", "blog.example.com", Date.now());
+  named.runlight.forgetLinkDomains();
+  await named.handler(req("/api/links?site=blog.example.com", { method: "POST", headers: auth, body: JSON.stringify({ url: "https://blog.example.com/b", slug: "sale", domain: "stats.example.com" }) }));
+  assert.equal((await named.handler(req("/sale"))).status, 404);
+  assert.equal((await named.handler(req("/"))).status, 403, "the dashboard, waiting for setup");
+});
+
 test("owners add people as owners or viewers; viewers read every site and change nothing", async () => {
   const { server, handle } = make();
   await server.accounts.setPassword("owner@example.com", "a long password", Date.now());

@@ -58,6 +58,18 @@ export interface RoutesOptions {
   accounts?: boolean;
   /** Credits DB-IP in the dashboard's footer, as its free location data asks. The standalone server sets it. */
   geoCredit?: boolean;
+  /**
+   * The address people open the app at, such as https://example.com. A link
+   * domain can never be its host, and links in email reports point there,
+   * whatever Host header a request carries. Without it, the request's own
+   * host stands in.
+   */
+  origin?: string;
+  /**
+   * More names the dashboard is reached at, which can never be link domains
+   * either. The standalone server passes the ones people signed in from.
+   */
+  ownHosts?: () => Promise<Iterable<string>>;
 }
 
 export type FetchHandler = (request: Request, context?: RequestContext) => Promise<Response>;
@@ -98,6 +110,25 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
  */
 function isJson(request: Request): boolean {
   return (request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase() === "application/json";
+}
+
+/** A Host or X-Forwarded-Host value as a bare name: lowercase, with no port, no final dot, and no www. */
+function hostName(value: string): string {
+  const first = value.split(",")[0]!.trim().toLowerCase();
+  const name = first.startsWith("[") ? first.slice(0, first.indexOf("]") + 1) : first.replace(/:\d*$/, "");
+  return name.replace(/\.+$/, "").replace(/^www\./, "");
+}
+
+/**
+ * Whether a link domain names a public host: a domain name, with no IPv4
+ * address inside it (as nip.io answers), and not under a name kept for
+ * private networks or tests. The check fetches from it, so a name inside
+ * the install's own network must never get that far.
+ */
+function publicName(domain: string): boolean {
+  if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return false;
+  if (/(^|\.)\d{1,3}(\.\d{1,3}){3}(\.|$)/.test(domain)) return false;
+  return !/\.(internal|intranet|private|local|localhost|localdomain|lan|home|corp|home\.arpa|arpa|test|invalid|example)$/.test(domain);
 }
 
 /**
@@ -248,6 +279,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const token = options.token === undefined ? env("RUNLIGHT_TOKEN") : options.token;
   const cronSecret = options.cronSecret ?? env("CRON_SECRET");
   const observeKey = options.observeKey ?? env("RUNLIGHT_OBSERVE_KEY");
+  const origin = options.origin ? new URL(options.origin).origin : null;
   let warned = false;
 
   // Requests from a manage token, already checked against its one site, act as the owner's.
@@ -363,10 +395,15 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         if (request.method === "POST") {
           const body = await readJson(request);
           if (body instanceof Response) return body;
-          const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
+          const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/\.+$/, "").replace(/^www\./, "");
           if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return json({ error: "That is not a domain name" }, 400);
+          if (!publicName(domain)) return json({ error: `${domain} is not a public domain name. Use one that browsers anywhere can reach.` }, 400);
           // A link domain answers every path on it, so it must never be where the dashboard or a counted site lives.
-          const taken = new Set([url.hostname.replace(/^www\./, "").toLowerCase(), ...runlight.sites.flatMap((s) => s.hostnames), ...runlight.sites.flatMap((s) => runlight.remote(s.id)?.hostnames ?? [])]);
+          // The request's own Host is the caller's to choose, so the configured address and the names people
+          // signed in from count too.
+          const here = [request.headers.get("host"), request.headers.get("x-forwarded-host"), url.host].filter((h): h is string => Boolean(h));
+          const own = [...(origin ? [new URL(origin).host] : []), ...here, ...((await options.ownHosts?.()) ?? [])].map(hostName);
+          const taken = new Set([...own, ...runlight.sites.flatMap((s) => s.hostnames), ...runlight.sites.flatMap((s) => runlight.remote(s.id)?.hostnames ?? [])]);
           if (taken.has(domain)) return json({ error: `${domain} is where this dashboard or one of your sites lives. Use a separate domain or subdomain for short links, such as go.${domain}.` }, 400);
           const owner = (await runlight.store.linkDomains()).find((d) => d.domain === domain);
           if (owner && owner.site !== site.id) return json({ error: `${domain} already belongs to another site` }, 409);
@@ -379,6 +416,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (checkMatch && request.method === "GET") {
         const domain = decodeURIComponent(checkMatch[1]!);
         if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return json({ error: "Unknown domain" }, 404);
+        // One added before names inside private networks were refused is never fetched.
+        if (!publicName(domain)) return json({ domain, working: false, reason: "is not a public domain name" });
         let working = false;
         let reason = "";
         try {
@@ -624,7 +663,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           // Links in the email point back to this dashboard, as the browser sees it. A report made
           // from a hub uses this install's own address, where its unsubscribe link answers.
           const given = managed.has(request) ? "" : String(body.origin ?? "");
-          const origin = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${url.origin}${base}`;
+          const home = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${url.origin}${base}`;
           const report: ReportRow = {
             id: randomId(),
             site: site.id,
@@ -632,7 +671,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             frequency,
             lang: languages().includes(String(body.lang)) ? String(body.lang) : "en",
             token: randomId(16),
-            origin,
+            origin: home,
             lastPeriod: "",
             lastSentAt: null,
             createdAt: runlight.now(),
