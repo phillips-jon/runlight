@@ -8,6 +8,7 @@
  * begin, so nothing is counted twice, and it remembers how far it got, so
  * running it again carries on from there.
  */
+import { addDays, localDate } from "../time.js";
 import type { Runlight } from "../runlight.js";
 import { SESSION_IDLE_MS } from "../runlight.js";
 import { attribute, parsePage } from "../sources.js";
@@ -202,9 +203,12 @@ export async function importUmamiVisits(
  * an event within thirty minutes of the visitor's last one joins that visit.
  * Returns whether it started a new visit.
  */
-async function writeEvent(store: SqlStore, site: { id: string; hostnames: string[] }, website: string, e: UmamiEvent & { ts: number }, session: UmamiSession | undefined): Promise<boolean> {
-  const day = new Date(e.ts).toISOString().slice(0, 10);
+async function writeEvent(store: SqlStore, site: { id: string; hostnames: string[]; timezone: string }, website: string, e: UmamiEvent & { ts: number }, session: UmamiSession | undefined): Promise<boolean> {
+  // The site's own day, as live visitors are counted, so days add up the same way in rollups.
+  const day = localDate(e.ts, site.timezone);
   const visitor = await hexId(`umami-visits:${website}:${e.sessionId}:${day}`, 16);
+  // A visit that runs past midnight keeps the id it started with, as a live one does.
+  const yesterday = await hexId(`umami-visits:${website}:${e.sessionId}:${addDays(day, -1)}`, 16);
   const host = (e.hostname || site.hostnames[0] || "imported.invalid").toLowerCase();
   let page;
   try {
@@ -212,7 +216,7 @@ async function writeEvent(store: SqlStore, site: { id: string; hostnames: string
   } catch {
     page = parsePage(new URL(`https://${host}/`));
   }
-  const open = await store.openSession(site.id, [visitor], e.ts - SESSION_IDLE_MS);
+  const open = await store.openSession(site.id, [visitor, yesterday], e.ts - SESSION_IDLE_MS);
   let id = open?.id;
   if (!id) {
     id = await hexId(`umami-visits:${website}:${e.sessionId}:${e.ts}`);

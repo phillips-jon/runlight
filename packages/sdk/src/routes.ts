@@ -95,7 +95,7 @@ function isDevelopment(): boolean {
 function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", ...headers },
+    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff", ...headers },
   });
 }
 
@@ -127,16 +127,27 @@ async function passThrough(remote: { url: string; token: string; site: string },
       method: write ? request.method : "GET",
       headers,
       ...(write ? { body: await request.text() } : {}),
+      // An install that answers with a redirect gets no fetch of somewhere else on its behalf.
+      redirect: "manual",
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
     return json({ error: `Could not reach ${new URL(remote.url).host}` }, 502);
   }
-  const back: Record<string, string> = { "cache-control": "private, no-store" };
-  for (const name of ["content-type", "content-disposition"]) {
-    const value = answer.headers.get(name);
-    if (value) back[name] = value;
+  // What comes back is shown from this server's origin, so it is never taken as a page:
+  // JSON, or a download for exports, with sniffing off and nothing allowed to run.
+  const download = /^\/api\/export$/.test(path) || (path === "/api/breakdown" && url.searchParams.get("format") === "csv");
+  const back: Record<string, string> = {
+    "cache-control": "private, no-store",
+    "x-content-type-options": "nosniff",
+    "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+    "content-type": download ? (answer.headers.get("content-type")?.startsWith("text/csv") ? "text/csv; charset=utf-8" : "application/zip") : "application/json; charset=utf-8",
+  };
+  if (download) {
+    const name = /filename="([A-Za-z0-9._-]+)"/.exec(answer.headers.get("content-disposition") ?? "")?.[1] ?? "runlight-export";
+    back["content-disposition"] = `attachment; filename="${name}"`;
   }
+  if (answer.status >= 300 && answer.status < 400) return json({ error: `${new URL(remote.url).host} answered with a redirect` }, 502);
   // The install's own errors say what went wrong there; a refused token is this server's problem to report.
   if (answer.status === 401) return json({ error: `${new URL(remote.url).host} refused the token. Connect it again from the site's settings.` }, 502);
   return new Response(answer.body, { status: answer.status, headers: back });
@@ -250,6 +261,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
   // Requests from a manage token, already checked against its one site, act as the owner's.
   const managed = new WeakSet<Request>();
+  // When each report's last sample went out.
+  const sampleSent = new Map<string, number>();
 
   async function canRead(request: Request): Promise<boolean | "unconfigured"> {
     if (managed.has(request)) return true;
@@ -361,6 +374,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           if (body instanceof Response) return body;
           const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
           if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return json({ error: "That is not a domain name" }, 400);
+          // A link domain answers every path on it, so it must never be where the dashboard or a counted site lives.
+          const taken = new Set([url.hostname.replace(/^www\./, "").toLowerCase(), ...runlight.sites.flatMap((s) => s.hostnames), ...runlight.sites.flatMap((s) => runlight.remote(s.id)?.hostnames ?? [])]);
+          if (taken.has(domain)) return json({ error: `${domain} is where this dashboard or one of your sites lives. Use a separate domain or subdomain for short links, such as go.${domain}.` }, 400);
           const owner = (await runlight.store.linkDomains()).find((d) => d.domain === domain);
           if (owner && owner.site !== site.id) return json({ error: `${domain} already belongs to another site` }, 409);
           await runlight.store.addLinkDomain(domain, site.id, runlight.now());
@@ -562,13 +578,15 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
               if (settings?.[f.name]) saved.push(f.name);
             } else fields[f.name] = String(settings?.[f.name] ?? "");
           }
+          // A hub with a manage token learns which service sends the reports and from where, nothing more.
+          const viaManage = managed.has(request);
           return json({
             source: settings?.source ?? null,
             service: settings?.service ?? "",
             from: settings?.from ?? "",
             fromName: settings?.fromName ?? "",
-            fields,
-            saved,
+            fields: viaManage ? {} : fields,
+            saved: viaManage ? [] : saved,
             encrypted: runlight.secret !== null,
             services: SERVICES,
           });
@@ -612,8 +630,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           const existing = await runlight.store.reports(site.id);
           if (existing.some((r) => r.email === email && r.frequency === frequency)) return json({ error: `${email} already gets the ${frequency} report` }, 400);
           if (existing.length >= 50) return json({ error: "A site can send to at most 50 addresses" }, 400);
-          // Links in the email point back to this dashboard, as the browser sees it.
-          const given = String(body.origin ?? "");
+          // Links in the email point back to this dashboard, as the browser sees it. A report made
+          // from a hub uses this install's own address, where its unsubscribe link answers.
+          const given = managed.has(request) ? "" : String(body.origin ?? "");
           const origin = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${url.origin}${base}`;
           const report: ReportRow = {
             id: randomId(),
@@ -637,6 +656,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const report = match ? await runlight.store.reportBy("id", match[1]!) : null;
       if (!report || report.site !== site.id) return json({ error: "Unknown report" }, 404);
       if (match![2] && request.method === "POST") {
+        // A sample at most once a minute per report, so the send button cannot be used to flood an inbox.
+        const last = sampleSent.get(report.id) ?? 0;
+        if (runlight.now() - last < 60_000) return json({ error: "A sample went out less than a minute ago. Wait a moment and try again." }, 429);
+        sampleSent.set(report.id, runlight.now());
         await runlight.deliverReport(report, site);
         return json({ ok: true });
       }
@@ -790,7 +813,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const asked = url.searchParams.get("site");
       const siteMatch = /^\/api\/sites\/([^/]+)$/.exec(path);
       if ((asked && asked !== token.site) || (siteMatch && decodeURIComponent(siteMatch[1]!) !== token.site)) return json({ error: "Unknown site" }, 404);
-      if (siteMatch && request.headers.get("content-type")?.includes("json")) {
+      if (siteMatch && isJson(request)) {
         // Where a site lives stays with its owner: a hub may rename it, never move it.
         const body = (await request.clone().json().catch(() => null)) as Record<string, unknown> | null;
         if (body && body.hostnames !== undefined) return json({ error: "A connected hub cannot change a site's domains" }, 403);
@@ -823,17 +846,26 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         const at = typeof item.at === "number" ? item.at : typeof item.at === "string" ? Date.parse(item.at) : undefined;
         pages.push({ page, userAgent: String(item.userAgent ?? "").slice(0, 500), ...(at !== undefined && Number.isFinite(at) ? { at } : {}) });
       }
+      await runlight.init();
+      let keep = pages;
       if (!anySite) {
-        // A site's own key reports only pages on that site's domains.
-        await runlight.init();
-        for (const host of new Set(pages.map((p) => p.page.hostname))) {
-          const site = runlight.siteFor(host);
-          const key = site ? await runlight.store.setting(`observe-key:${site.id}`) : null;
-          if (!key || !constantTimeEqual(given, key)) return json({ error: "Unauthorized" }, 401);
+        // A site's own key reports only pages on that site's domains. Pages elsewhere in a batch (another
+        // host in the same log, say) are skipped, not a reason to refuse the rest.
+        let keySite: string | null = null;
+        for (const site of runlight.sites) {
+          const key = await runlight.store.setting(`observe-key:${site.id}`);
+          if (key && constantTimeEqual(given, key)) keySite = site.id;
         }
+        if (!keySite) return json({ error: "Unauthorized" }, 401);
+        keep = pages.filter((p) => runlight.siteFor(p.page.hostname)?.id === keySite);
+        // A single report for another site's page is a misconfigured plugin, which should hear about it.
+        if (!Array.isArray(body.fetches) && keep.length === 0) return json({ error: "Unauthorized" }, 401);
       }
-      for (const p of pages) await runlight.observe(new Request(p.page, { headers: { "user-agent": p.userAgent } }), p.at);
-      return new Response(null, { status: 204 });
+      let recorded = 0;
+      for (const p of keep) if (await runlight.observe(new Request(p.page, { headers: { "user-agent": p.userAgent } }), p.at)) recorded++;
+      // A single report, as the CMS plugins send, needs no answer; a batch learns what was kept.
+      if (!Array.isArray(body.fetches)) return new Response(null, { status: 204 });
+      return json({ recorded, skipped: pages.length - recorded });
     }
 
     // GET too: Vercel Cron calls with GET and the cron secret as a bearer token.

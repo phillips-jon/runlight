@@ -666,7 +666,10 @@ export class Runlight {
     let session: { id: string; visitor: string } | null = null;
     if (payload.kind === "event" && payload.pageviewId) {
       const pageview = await this.store.pageview(site.id, payload.pageviewId);
-      if (pageview) session = { id: pageview.session, visitor: pageview.visitor };
+      if (pageview) {
+        session = { id: pageview.session, visitor: pageview.visitor };
+        if (now - pageview.ts > 3_600_000) await this.store.touchedOldVisit(site.id, pageview.session, now - ROLLUP_DELAY_MS + 3_600_000);
+      }
     }
     session ??= await this.sessionFor(site, request, context, page, payload.referrer, now, {
       screenWidth: payload.screenWidth,
@@ -808,7 +811,9 @@ export class Runlight {
    */
   async linkDomainResponse(request: Request, context: RequestContext = {}): Promise<Response | null> {
     const url = new URL(request.url);
-    const host = stripWww((request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host).split(":")[0] ?? "");
+    // A forwarded host only counts behind a proxy that sets it; otherwise any client could pick one.
+    const given = (this.trustProxy ? request.headers.get("x-forwarded-host") : null) ?? request.headers.get("host") ?? url.host;
+    const host = stripWww(given.split(",")[0]!.trim().split(":")[0] ?? "");
     if (!(await this.linkDomainSet()).has(host)) return null;
     // Lets the dashboard confirm that requests to this domain reach Runlight.
     if (url.pathname === LINK_DOMAIN_CHECK) {
@@ -874,6 +879,8 @@ export class Runlight {
     const pageview = await this.store.pageview(site.id, payload.pageviewId);
     if (!pageview) return;
     await this.store.addEngagement(pageview.session, payload.engagedMs);
+    // Only a pageview from more than an hour ago can belong to a day that is already added up.
+    if (now - pageview.ts > 3_600_000) await this.store.touchedOldVisit(site.id, pageview.session, now - ROLLUP_DELAY_MS + 3_600_000);
     await this.store.insertEvent({
       site: site.id,
       ts: now,
@@ -897,22 +904,24 @@ export class Runlight {
    * every page request; it ignores everything else and never throws.
    * Agents do not run JavaScript, so the tracker cannot see them.
    */
-  async observe(request: Request, at?: number): Promise<void> {
+  async observe(request: Request, at?: number): Promise<boolean> {
     try {
-      if (request.method !== "GET") return;
+      if (request.method !== "GET") return false;
       const agent = aiAgent(request.headers.get("user-agent") ?? "");
-      if (!agent) return;
+      if (!agent) return false;
       const url = new URL(request.url);
       // Pages, not their assets.
       const ext = /\.([a-z0-9]+)$/i.exec(url.pathname)?.[1]?.toLowerCase();
-      if (ext && !["html", "htm", "md", "txt", "php"].includes(ext)) return;
+      if (ext && !["html", "htm", "md", "txt", "php"].includes(ext)) return false;
       const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.hostname;
       await this.init();
       const site = this.siteFor(host.split(":")[0] ?? host);
-      if (!site) return;
-      // A log reader sends when the page was served; anything older than a week, or ahead, counts as now.
+      if (!site) return false;
+      // A log reader sends when the page was served. Older than a week is dropped, so a first run over
+      // an old log does not land as one spike on today; a time ahead of now counts as now.
       const now = this.now();
-      const ts = at !== undefined && Number.isFinite(at) && at > now - 7 * 86_400_000 && at <= now + 300_000 ? Math.floor(at) : now;
+      if (at !== undefined && Number.isFinite(at) && at < now - 7 * 86_400_000) return false;
+      const ts = at !== undefined && Number.isFinite(at) && at <= now ? Math.floor(at) : now;
       await this.store.insertEvent({
         site: site.id,
         ts,
@@ -929,9 +938,11 @@ export class Runlight {
         scroll: null,
         link: "",
       });
+      return true;
     } catch (error) {
       // Analytics must never break the page it watches, but a failure should still be seen.
       console.error("Runlight: could not record an AI agent fetch", error);
+      return false;
     }
   }
 

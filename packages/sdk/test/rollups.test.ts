@@ -73,3 +73,30 @@ for (const kind of STORES) {
 
   });
 }
+
+for (const kind of STORES) {
+  test(`${kind}: a late event and engagement on an old pageview are counted once the day is built again`, async () => {
+    const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });
+    // Evening of October 5th, then rollups built the next morning.
+    t.advance(-(Date.UTC(2026, 9, 6, 12) - Date.UTC(2026, 9, 5, 20)));
+    await t.send({ k: "pageview", u: "https://example.com/", i: "late1" }, { ip: "203.0.113.50" });
+    t.advance(7 * HOUR);
+    assert.ok((await t.rl.buildRollups()) >= 1);
+    // The tab was left open overnight: its event and engagement arrive now.
+    await t.send({ k: "event", u: "https://example.com/", i: "late1", n: "Signup" }, { ip: "203.0.113.50" });
+    await t.send({ k: "engagement", u: "https://example.com/", i: "late1", e: 60_000, d: 80 }, { ip: "203.0.113.50" });
+    const range = "from=2026-10-05&to=2026-10-05";
+    const read = async () => ({
+      stats: (await t.get(`/api/stats?${range}&compare=off`)).stats,
+      events: (await t.get(`/api/breakdown?${range}&dimension=event`)).rows,
+      pages: (await t.get(`/api/breakdown?${range}&dimension=page`)).rows,
+    });
+    await t.rl.buildRollups();
+    const rolled = await read();
+    await t.rl.store.clearRollups("default");
+    const raw = await read();
+    assert.deepEqual(rolled, raw);
+    assert.equal(raw.stats.bounceRate, 0, "the event means the visit did not bounce");
+    assert.deepEqual(raw.events.map((r: any) => r.value), ["Signup"]);
+  });
+}

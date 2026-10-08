@@ -59,3 +59,35 @@ test("a read token still only reads", async () => {
   assert.equal((await call("POST", "/api/goals?site=blog", read, { name: "Signup", kind: "event", match: "Signup" })).status, 401);
   assert.equal((await call("GET", "/api/stats?site=blog&period=today", read)).status, 200);
 });
+
+test("a link domain can never be where the dashboard or a counted site lives", async () => {
+  const { call } = await app();
+  assert.equal((await call("POST", "/api/link-domains?site=blog", "owner", { domain: "app.example.com" })).status, 400, "the dashboard's own host");
+  assert.equal((await call("POST", "/api/link-domains?site=blog", "owner", { domain: "shop.example.com" })).status, 400, "a site's domain");
+  assert.equal((await call("POST", "/api/link-domains?site=blog", "owner", { domain: "go.example.com" })).status, 201);
+});
+
+test("the hub never passes on an install's answer as a page, nor follows its redirects", async () => {
+  const { createServer } = await import("node:http");
+  const evil = createServer((req, res) => {
+    if (req.url?.startsWith("/runlight/api/sites")) return res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ sites: [{ id: "x", name: "X", timezone: "UTC", hostnames: ["x.example.com"] }] }));
+    if (req.url?.startsWith("/runlight/api/stats")) return res.writeHead(200, { "content-type": "text/html" }).end("<script>alert(1)</script>");
+    if (req.url?.startsWith("/runlight/api/series")) return res.writeHead(302, { location: "http://169.254.169.254/" }).end();
+    res.writeHead(404).end("{}");
+  });
+  await new Promise<void>((resolve) => evil.listen(0, "127.0.0.1", resolve));
+  try {
+    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+    const { handler } = hub.routes({ token: "owner" });
+    const call = (path: string, init: RequestInit = {}) => handler(new Request(`https://hub.example.com/runlight${path}`, { ...init, headers: { authorization: "Bearer owner", "content-type": "application/json" } }));
+    const added = await call("/api/sites", { method: "POST", body: JSON.stringify({ remote: { url: `http://127.0.0.1:${(evil.address() as { port: number }).port}/runlight`, token: "rl_x" } }) });
+    const id = ((await added.json()) as any).site.id;
+    const page = await call(`/api/stats?site=${id}&period=today`);
+    assert.match(page.headers.get("content-type")!, /^application\/json/);
+    assert.equal(page.headers.get("x-content-type-options"), "nosniff");
+    assert.match(page.headers.get("content-security-policy")!, /default-src 'none'/);
+    assert.equal((await call(`/api/series?site=${id}&period=today`)).status, 502, "a redirect is reported, not followed");
+  } finally {
+    evil.close();
+  }
+});

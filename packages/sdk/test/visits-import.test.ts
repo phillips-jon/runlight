@@ -174,3 +174,30 @@ test("Umami visit history skips days older than the site keeps", async () => {
   } while (cursor);
   assert.equal(pageviews, 1, "only March 2nd comes in");
 });
+
+test("an imported visit across UTC midnight is one visit on the site's own day", async () => {
+  const events = [
+    { sessionId: "n1", createdAt: "2026-03-02T23:55:00.000Z", hostname: "blog.example.com", urlPath: "/", eventType: 1, country: "CA", device: "desktop", os: "Mac OS", browser: "chrome" },
+    { sessionId: "n1", createdAt: "2026-03-03T00:05:00.000Z", hostname: "blog.example.com", urlPath: "/about", eventType: 1, country: "CA", device: "desktop", os: "Mac OS", browser: "chrome" },
+  ];
+  globalThis.fetch = (async (input: string | URL | Request) => {
+    const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
+    const reply = (body: unknown) => new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+    if (url.pathname === "/api/websites/w1") return reply({ id: "w1", createdAt: "2026-03-02T00:00:00Z" });
+    const from = Number(url.searchParams.get("startAt"));
+    const to = Number(url.searchParams.get("endAt"));
+    if (url.pathname === "/api/websites/w1/events") {
+      const rows = events.filter((e) => Date.parse(e.createdAt) >= from && Date.parse(e.createdAt) <= to);
+      return reply({ data: rows, count: rows.length });
+    }
+    if (url.pathname === "/api/websites/w1/sessions") return reply({ data: [{ id: "n1" }], count: 1 });
+    return new Response("{}", { status: 404 });
+  }) as typeof fetch;
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["blog.example.com"], timezone: "America/Toronto" }, now: () => Date.parse("2026-03-10T00:00:00Z") });
+  let cursor: string | null = null;
+  do {
+    cursor = (await importUmamiVisits(rl, "default", { url: "https://umami.example.com", apiKey: "key" }, "w1", cursor)).cursor;
+  } while (cursor);
+  const stats = (await (await rl.routes({ token: "t" }).GET(new Request("https://x/runlight/api/stats?from=2026-03-02&to=2026-03-02&compare=off", { headers: { authorization: "Bearer t" } }))).json()) as any;
+  assert.deepEqual([stats.stats.visits, stats.stats.visitors, stats.stats.pageviews], [1, 1, 2]);
+});

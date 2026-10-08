@@ -19,6 +19,19 @@ export interface Fetch {
   at: number;
 }
 
+/**
+ * A request target as a page on the site. Absolute targets ("GET http://other/x", a proxy
+ * request) name somewhere else and are skipped; "//x" is a path, not a host.
+ */
+function pageUrl(target: string, base: string): string | null {
+  if (!target.startsWith("/")) return null;
+  try {
+    return new URL(`/${target.replace(/^\/+/, "")}`, base).href;
+  } catch {
+    return null;
+  }
+}
+
 const MONTHS: Record<string, number> = { Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5, Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11 };
 
 /** "07/Oct/2026:13:55:36 -0400" as epoch milliseconds. */
@@ -50,7 +63,9 @@ export function parseLine(line: string, site?: string): { method: string; url: s
       if (!host) return null;
       const ua = request.headers?.["User-Agent"]?.[0] ?? request.headers?.["user-agent"]?.[0] ?? "";
       const at = typeof entry.ts === "number" ? entry.ts * 1000 : Date.parse(String(entry.ts ?? ""));
-      return { method: request.method, url: new URL(request.uri, host).href, status: Number(entry.status ?? 0), userAgent: ua, at };
+      const url = pageUrl(request.uri, host);
+      if (!url) return null;
+      return { method: request.method, url, status: Number(entry.status ?? 0), userAgent: ua, at };
     } catch {
       return null;
     }
@@ -61,11 +76,8 @@ export function parseLine(line: string, site?: string): { method: string; url: s
   const vhost = m[1] && /[a-z]/i.test(m[1]) && !/^[\d.:]+$/.test(m[1]) ? m[1].replace(/:\d+$/, "") : null;
   const base = vhost ? `https://${vhost}` : site;
   if (!base) return null;
-  try {
-    return { method: m[3]!, url: new URL(m[4]!, base).href, status: Number(m[5]), userAgent: m[6]!.replace(/\\"/g, '"'), at: logTime(m[2]!) };
-  } catch {
-    return null;
-  }
+  const url = pageUrl(m[4]!, base);
+  return url ? { method: m[3]!, url, status: Number(m[5]), userAgent: m[6]!.replace(/\\"/g, '"'), at: logTime(m[2]!) } : null;
 }
 
 /** The lines worth sending: GETs that succeeded, from known AI agents. */
@@ -87,8 +99,9 @@ export interface AgentsOptions {
   out?: (line: string) => void;
 }
 
-/** Sends fetches to /api/observe, 500 at a time. */
-async function send(options: AgentsOptions, fetches: Fetch[]): Promise<void> {
+/** Sends fetches to /api/observe, 500 at a time, and returns how many Runlight kept. */
+async function send(options: AgentsOptions, fetches: Fetch[]): Promise<number> {
+  let kept = 0;
   for (let i = 0; i < fetches.length; i += 500) {
     const answer = await fetch(`${options.to.replace(/\/+$/, "")}/api/observe`, {
       method: "POST",
@@ -98,22 +111,30 @@ async function send(options: AgentsOptions, fetches: Fetch[]): Promise<void> {
     });
     if (answer.status === 401) throw new Error("Runlight refused the key. Use the site's key from Settings, Install, Key for CMS plugins.");
     if (!answer.ok) throw new Error(`Runlight answered ${answer.status}: ${(await answer.text()).slice(0, 200)}`);
+    const body = (await answer.json().catch(() => null)) as { recorded?: number } | null;
+    kept += body?.recorded ?? 0;
   }
+  return kept;
 }
 
-/** Reads from a byte offset to the end of the file, returning whole lines and where the next read starts. */
-function readFrom(file: string, offset: number): { lines: string[]; next: number } {
+/** The most of a log read at once, so a log of any size fits in memory a piece at a time. */
+const CHUNK = 32 * 1024 * 1024;
+
+/**
+ * Reads whole lines from a byte offset, at most a chunk, and returns where the next read starts.
+ * The offset counts bytes up to the last newline byte, so a malformed character cannot shift it.
+ */
+function readFrom(file: string, offset: number): { lines: string[]; next: number; more: boolean } {
   const size = statSync(file).size;
-  if (size <= offset) return { lines: [], next: offset };
+  if (size <= offset) return { lines: [], next: offset, more: false };
   const fd = openSync(file, "r");
   try {
-    const buffer = Buffer.alloc(size - offset);
+    const buffer = Buffer.alloc(Math.min(size - offset, CHUNK));
     readSync(fd, buffer, 0, buffer.length, offset);
-    const text = buffer.toString("utf8");
-    const end = text.lastIndexOf("\n");
-    // A half-written last line waits for the next read.
-    if (end < 0) return { lines: [], next: offset };
-    return { lines: text.slice(0, end).split("\n"), next: offset + Buffer.byteLength(text.slice(0, end + 1)) };
+    const end = buffer.lastIndexOf(0x0a);
+    // A half-written last line waits for the next read (or, in a chunk with no newline at all, is skipped).
+    if (end < 0) return buffer.length === CHUNK ? { lines: [], next: offset + buffer.length, more: true } : { lines: [], next: offset, more: false };
+    return { lines: buffer.subarray(0, end).toString("utf8").split("\n"), next: offset + end + 1, more: offset + buffer.length < size };
   } finally {
     closeSync(fd);
   }
@@ -123,11 +144,20 @@ export async function runAgents(options: AgentsOptions): Promise<number> {
   const out = options.out ?? ((line: string) => console.log(line));
   if (!existsSync(options.log)) throw new Error(`No log at ${options.log}`);
   let total = 0;
+  let warned = false;
   const handle = async (lines: string[]) => {
     const fetches = lines.map((line) => agentFetch(line, options.site)).filter((f): f is Fetch => f !== null);
-    if (fetches.length) await send(options, fetches);
-    total += fetches.length;
-    return fetches.length;
+    // Lines with no host and no --site cannot be placed on a site; say so once rather than skip them silently.
+    if (!options.site && !warned && lines.some((line) => !line.trim().startsWith("{") && /"\S+ \/\S* [^"]*" \d{3}/.test(line) && !parseLine(line))) {
+      warned = true;
+      out("Some lines have no host in them. Add --site https://your-site.example so they can be counted.");
+    }
+    const kept = fetches.length ? await send(options, fetches) : 0;
+    total += kept;
+    return kept;
+  };
+  const save = (ino: number, offset: number) => {
+    if (options.state) writeFileSync(options.state, JSON.stringify({ ino, offset }));
   };
 
   if (!options.follow) {
@@ -135,17 +165,26 @@ export async function runAgents(options: AgentsOptions): Promise<number> {
     type Saved = { ino: number; offset: number };
     const saved: Saved | null = options.state && existsSync(options.state) ? (JSON.parse(readFileSync(options.state, "utf8")) as Saved) : null;
     const stat = statSync(options.log);
-    const start = saved && saved.ino === stat.ino && saved.offset <= stat.size ? saved.offset : 0;
-    const { lines, next } = readFrom(options.log, start);
-    await handle(lines);
-    if (options.state) writeFileSync(options.state, JSON.stringify({ ino: stat.ino, offset: next }));
-    out(`Sent ${total} AI agent fetches from ${lines.length} new lines.`);
+    let offset = saved && saved.ino === stat.ino && saved.offset <= stat.size ? saved.offset : 0;
+    let count = 0;
+    // A chunk at a time, saving the place after each, so a failure part way resends nothing already sent.
+    for (;;) {
+      const { lines, next, more } = readFrom(options.log, offset);
+      await handle(lines);
+      count += lines.length;
+      offset = next;
+      save(stat.ino, offset);
+      if (!more) break;
+    }
+    out(`Sent ${total} AI agent fetches from ${count} new lines.`);
     return total;
   }
 
-  // Follow: start at the end, like tail -F, and start over when the log is replaced.
+  // Follow: start where --state says, else at the end like tail -F, and start over when the log is replaced.
+  type Saved = { ino: number; offset: number };
+  const resumed: Saved | null = options.state && existsSync(options.state) ? (JSON.parse(readFileSync(options.state, "utf8")) as Saved) : null;
   let ino = statSync(options.log).ino;
-  let offset = statSync(options.log).size;
+  let offset = resumed && resumed.ino === ino && resumed.offset <= statSync(options.log).size ? resumed.offset : statSync(options.log).size;
   out(`Following ${options.log}. AI agent fetches go to ${options.to} as they happen.`);
   for (;;) {
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -160,6 +199,7 @@ export async function runAgents(options: AgentsOptions): Promise<number> {
       const sent = await handle(lines);
       // Only past lines that were sent, so a failed send is tried again next time.
       offset = next;
+      save(ino, offset);
       if (sent) out(`Sent ${sent} AI agent fetches.`);
     } catch (error) {
       out(`Could not send, trying again shortly: ${(error as Error).message}`);

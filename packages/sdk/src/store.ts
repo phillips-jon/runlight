@@ -838,12 +838,23 @@ export class SqlStore {
   }
 
   /** The pageview an engagement ping or event belongs to. */
-  async pageview(site: string, pageview: string): Promise<{ session: string; visitor: string; path: string; hostname: string } | null> {
-    const rows = await this.db.all<{ session: string; visitor: string; path: string; hostname: string }>(
-      `SELECT session, visitor, path, hostname FROM rl_events WHERE site = ? AND pageview = ? AND kind = 'pageview' LIMIT 1`,
+  async pageview(site: string, pageview: string): Promise<{ session: string; visitor: string; path: string; hostname: string; ts: number } | null> {
+    const rows = await this.db.all<{ session: string; visitor: string; path: string; hostname: string; ts: unknown }>(
+      `SELECT session, visitor, path, hostname, ts FROM rl_events WHERE site = ? AND pageview = ? AND kind = 'pageview' LIMIT 1`,
       [site, pageview],
     );
-    return rows[0] ?? null;
+    const row = rows[0];
+    return row ? { session: row.session, visitor: row.visitor, path: row.path, hostname: row.hostname, ts: num(row.ts) } : null;
+  }
+
+  /**
+   * After a late event or engagement ping joins an old visit (a tab left open overnight), the day
+   * that visit started may already be added up. Forget that day so the next check builds it again.
+   */
+  async touchedOldVisit(site: string, session: string, before: number): Promise<void> {
+    const [row] = await this.db.all(`SELECT started_at FROM rl_sessions WHERE id = ?`, [session]);
+    const started = row ? num(row.started_at) : null;
+    if (started !== null && started < before) await this.clearRollups(site, { from: started, to: started + 1 });
   }
 
   async insertEvent(row: EventRow): Promise<void> {

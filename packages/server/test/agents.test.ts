@@ -52,7 +52,7 @@ test("a log is read once, carries on where it stopped, and starts over after rot
   const run = () => runAgents({ log, to, key: "rlo_site", site: "https://example.com", state, out: () => {} });
   try {
     writeFileSync(log, [line("/a", GPTBOT), line("/b", CHROME), line("/c", CLAUDE, 200, "GET", "07/Oct/2026:13:56:00 -0400"), line("/style.css", GPTBOT), ""].join("\n"));
-    assert.equal(await run(), 3, "two pages and a stylesheet go; the person stays out");
+    assert.equal(await run(), 2, "two pages count; the stylesheet and the person do not");
     const first = await fetches();
     assert.deepEqual(first.map((f) => [f.path, f.name]), [["/a", "GPTBot"], ["/c", "ClaudeBot"]], "Runlight keeps pages, not their assets");
     assert.equal(Number(first[0]!.ts), Date.UTC(2026, 9, 7, 17, 55, 36), "counted when the page was served");
@@ -67,6 +67,26 @@ test("a log is read once, carries on where it stopped, and starts over after rot
     assert.deepEqual((await fetches()).map((f) => f.path).sort(), ["/a", "/c", "/d", "/e"]);
 
     await assert.rejects(runAgents({ log, to, key: "rlo_wrong", site: "https://example.com", out: () => {} }), /refused the key/);
+
+    // Lines for another host, a // path, an absolute target, an old line, and a bad byte: none stops the rest.
+    const before = (await fetches()).length;
+    writeFileSync(
+      log,
+      Buffer.concat([
+        Buffer.from(`${line("/f", GPTBOT, 200, "GET", "07/Oct/2026:13:57:00 -0400", "other.example:443")}\n`),
+        Buffer.from(`${line("//g", GPTBOT)}\n`),
+        Buffer.from(`${line("http://evil.example/h", GPTBOT)}\n`),
+        Buffer.from(`${line("/old", GPTBOT, 200, "GET", "01/Sep/2026:10:00:00 -0400")}\n`),
+        Buffer.from([0xff, 0xfe, 0x0a]),
+        Buffer.from(`${line("/i", CLAUDE)}\n`),
+      ]),
+    );
+    assert.equal(await run(), 2, "/g and /i count; the other host, the absolute target, and the old line do not");
+    const paths = (await fetches()).map((f) => f.path);
+    assert.equal(paths.length, before + 2);
+    assert.ok(paths.includes("/g") && paths.includes("/i"));
+    assert.ok(!paths.includes("/f") && !paths.includes("/h") && !paths.includes("/old"));
+    assert.equal(await run(), 0, "the offset after a bad byte lands on the next line, so nothing is sent twice");
   } finally {
     server.close();
   }
