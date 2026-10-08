@@ -347,7 +347,6 @@
   "compare.allTime": "No hay nada antes de todo el tiempo con qué comparar.",
   "view.reset": "Restablecer",
   "view.resetHint": "Volver a los últimos 30 días, sin filtros ni comparación",
-  "headline.fromNone": "{who} {verb} {when}, frente a nadie {against}.",
   "settings.sharing": "Compartir",
   "share.intro": "Un enlace para compartir muestra las estadísticas de este sitio a quien lo tenga, sin iniciar sesión: las cifras, las páginas, las fuentes y los lugares. Nunca muestra tus enlaces cortos, tus ajustes ni la dirección del sitio.",
   "share.namePlaceholder": "Para quién es, como un cliente o tu equipo",

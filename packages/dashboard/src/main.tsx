@@ -87,10 +87,11 @@ function todayIn(timezone: string): string {
 
 const isPeriod = (p: string) => (PERIODS as readonly string[]).includes(p);
 
-function Delta({ now, before, lowerIsBetter }: { now: number; before: number | undefined; lowerIsBetter?: boolean }) {
+function Delta({ now, before, lowerIsBetter, compared }: { now: number; before: number | undefined; lowerIsBetter?: boolean; compared?: boolean }) {
   const c = change(now, before);
-  // Nothing in the compared period has no percentage, so the card says it rose from zero.
-  if (c === null && before === 0) {
+  // A compared period with no visits at all has nothing to compare with. One that had visits but none
+  // of this has no percentage, so the card says it rose from zero.
+  if (c === null && before === 0 && compared) {
     if (!now) return <span class="delta flat" title={t("delta.title")}>{t("delta.none")}</span>;
     return <span class={`delta ${lowerIsBetter ? "down" : "up"}`} title={t("delta.title")}>{`↑ ${t("delta.fromNone")}`}</span>;
   }
@@ -179,17 +180,9 @@ function Headline({ view, stats, previous, compare }: { view: View; stats: Stats
     change:
       c === null ? "" : <span class={c > 0 ? "up" : "down"}>{t(c > 0 ? "headline.more" : "headline.fewer", { pct: Math.abs(Math.round(c * 100)) })}</span>,
   };
-  // Nobody in the compared range (a site younger than a year, say) has no percentage, but is still worth saying.
-  const fromNone = Boolean(against) && previous?.visitors === 0 && stats.visitors > 0;
-  const key: Key = fromNone
-    ? "headline.fromNone"
-    : c === null || !against
-      ? "headline.plain"
-      : Math.abs(c) < 0.005
-        ? "headline.same"
-        : c > 0
-          ? "headline.up"
-          : "headline.down";
+  // Nobody in the compared range (a site younger than a year, say) leaves nothing to compare with, so the
+  // sentence just says how many came.
+  const key: Key = c === null || !against ? "headline.plain" : Math.abs(c) < 0.005 ? "headline.same" : c > 0 ? "headline.up" : "headline.down";
   return <p class="headline">{rich(key, parts)}</p>;
 }
 
@@ -556,7 +549,7 @@ function App() {
                 </span>
                 <span class="metric-value">{value === undefined ? " " : m.format(value)}</span>
                 <span class="metric-foot">
-                  {stats ? <Delta now={stats.stats[m.key]} before={stats.previous?.[m.key]} lowerIsBetter={m.lowerIsBetter} /> : null}
+                  {stats ? <Delta now={stats.stats[m.key]} before={stats.previous?.[m.key]} lowerIsBetter={m.lowerIsBetter} compared={Boolean(stats.previous?.visits)} /> : null}
                 </span>
               </button>
             );

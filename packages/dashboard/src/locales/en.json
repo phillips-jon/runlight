@@ -347,7 +347,6 @@
   "compare.allTime": "There is nothing before all time to compare with.",
   "view.reset": "Reset",
   "view.resetHint": "Back to the last 30 days, with no filters or comparison",
-  "headline.fromNone": "{who} {verb} {when}, up from none in {against}.",
   "settings.sharing": "Sharing",
   "share.intro": "A share link shows this site's stats to anyone who has it, with no sign-in. It never shows your short links, your settings, or the site's address.",
   "share.namePlaceholder": "Who it is for, like a client or your team",
