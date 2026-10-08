@@ -8,6 +8,7 @@ import { hmac, randomId, sha256 } from "./hash.js";
 import { DIMENSIONS, isDimension, isSessionDimension, MAX_FILTERS, parseFilter, type Filter, type Query } from "./query.js";
 import { EMAIL, LINK_DOMAIN_CHECK, RETENTION_MONTHS, envValue as env, type RequestContext, type Runlight } from "./runlight.js";
 import { mcpResponse } from "./mcp.js";
+import { PrivateAddressError, publicFetch } from "./net.js";
 import { oauthResponse, resourceMetadataUrl } from "./oauth.js";
 import { csv, zip } from "./zip.js";
 import { GoalError, clickRules, goalFrom } from "./goals.js";
@@ -451,12 +452,14 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         let working = false;
         let reason = "";
         try {
-          const answer = await fetch(`https://${domain}${LINK_DOMAIN_CHECK}`, { signal: AbortSignal.timeout(5000), redirect: "manual" });
+          // Only a public address is fetched, so the check cannot be pointed into a private network.
+          const answer = await publicFetch(`https://${domain}${LINK_DOMAIN_CHECK}`, { signal: AbortSignal.timeout(5000) });
           const body = (await answer.json().catch(() => null)) as { runlight?: boolean; domain?: string } | null;
           working = answer.ok && body?.runlight === true && body.domain === domain;
           if (!working) reason = answer.ok ? "answered, but not from Runlight" : `answered ${answer.status}`;
         } catch (error) {
-          reason = error instanceof Error && error.name === "TimeoutError" ? "timed out" : "could not connect over HTTPS";
+          reason =
+            error instanceof PrivateAddressError ? "is not a public address" : error instanceof Error && error.name === "TimeoutError" ? "timed out" : "could not connect over HTTPS";
         }
         return json({ domain, working, reason });
       }

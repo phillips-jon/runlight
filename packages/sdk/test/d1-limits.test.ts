@@ -45,6 +45,8 @@ test("no statement binds more than 100 parameters, as Cloudflare D1 requires", a
   }
   // As many filters as a query takes, each of the kind that binds the most.
   const many = ["page:contains:/P", "page:contains:é", "event:contains:goal", "hostname:contains:example", "page:not:/x", "country:not:XX"].map((f) => `filter=${encodeURIComponent(f)}`).join("&");
+  // Path filters in mixed case are tried in several forms, each a value of its own.
+  const paths = ["page:contains:/pÉ", "page:contains:/Pé", "page:contains:/xÜ", "page:contains:/üX", "page:contains:/ÉtÉ", "hostname:contains:eXa"].map((f) => `filter=${encodeURIComponent(f)}`).join("&");
   for (const range of ["period=30d", "period=90d", "period=12mo&interval=day", "period=7d&interval=hour"]) {
     await t.get(`/api/series?${range}`);
     await t.get(`/api/series?${range}&${many}`);
@@ -58,6 +60,11 @@ test("no statement binds more than 100 parameters, as Cloudflare D1 requires", a
     await t.get(`/api/funnels?${range}&${many}`);
     await t.get(`/api/journeys?${range}&${many}`);
     await t.get(`/api/event-props?${range}&event=Goal1&${many}`);
+    for (const filters of [many, paths]) {
+      await t.get(`/api/breakdown?${range}&dimension=page&limit=1000&${filters}`);
+      await t.get(`/api/stats?${range}&${filters}`);
+      await t.get(`/api/series?${range}&${filters}`);
+    }
   }
   const goals = await t.get("/api/goals?period=12mo");
   assert.equal(goals.goals.length, 30, "the goals report answers for all thirty");

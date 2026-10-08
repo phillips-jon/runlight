@@ -1,23 +1,21 @@
 import { randomId } from "./hash.js";
+import { recordedPath } from "./sources.js";
 import type { GoalRow, SiteRow } from "./store.js";
 
 export class GoalError extends Error {}
 
 /**
  * A page to match, written the way paths are recorded: the path of a pasted URL, with a leading slash,
- * and percent-encoded as browsers send it, so /café matches the recorded /caf%C3%A9. `*` stays a
- * wildcard. Null when it is not a path or a URL.
+ * percent-encoded as browsers send it, so /café matches the recorded /caf%C3%A9, and with a hash
+ * route kept, so /#/thanks counts only that route. `*` stays a wildcard. Null when it is not a path or a URL.
  */
 export function pagePattern(input: string): string | null {
   const starred = input.replace(/\*/g, "__STAR__");
-  try {
-    const url = /^https?:\/\//i.test(input) ? new URL(starred) : new URL(starred.startsWith("/") || starred.startsWith("__STAR__") ? starred : `/${starred}`, "https://x.invalid");
-    const path = url.pathname.replace(/__STAR__/g, "*") || "/";
-    // A pattern written to start with * keeps that start, rather than gaining a slash.
-    return input.startsWith("*") ? path.replace(/^\//, "") : path;
-  } catch {
-    return null;
-  }
+  // A pattern written to start with * keeps that start, rather than gaining a slash.
+  const path = recordedPath(starred.startsWith("__STAR__") ? `/${starred}` : starred);
+  if (path === null) return null;
+  const pattern = path.replace(/__STAR__/g, "*");
+  return input.startsWith("*") ? pattern.replace(/^\//, "") : pattern;
 }
 
 const KINDS = ["event", "page", "click"] as const;

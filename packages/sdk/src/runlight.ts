@@ -93,8 +93,8 @@ export interface Remote {
 /** A path on every link domain that answers when the domain reaches this Runlight. */
 export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
 
-/** Raised whenever what a rolled-up day holds changes. 2: the heatmap counts visits only. */
-const ROLLUP_VERSION = 2;
+/** Raised whenever what a rolled-up day holds changes. 2: the heatmap counts visits only. 3: a page counts the views that can report time. */
+const ROLLUP_VERSION = 3;
 /** Days of rollups built per site in one scheduled check, and how long after a day ends it is built. */
 const ROLLUP_BATCH = 10;
 const ROLLUP_DELAY_MS = 2 * 3_600_000;
@@ -150,6 +150,9 @@ export class Runlight {
   /** Where links on the app's own domain are served, such as "/go". */
   readonly linkPath: string;
   private ready: Promise<void> | null = null;
+  /** The scheduled check under way, which a second caller shares, and when planner statistics were last gathered. */
+  private checking: Promise<{ ok: true; reports: { sent: number; failed: number } }> | null = null;
+  private optimizedAt = 0;
   private linkDomainCache: { at: number; domains: Set<string> } | null = null;
   /** Work queued per key by oneAtATime, such as one visitor's session. */
   private readonly turns = new Map<string, Promise<void>>();
@@ -451,6 +454,7 @@ export class Runlight {
     await this.store.setSetting(`retention:${id}`, null);
     await this.store.setSetting(`observe-key:${id}`, null);
     await this.store.setSetting(`rollup-zone:${id}`, null);
+    await this.store.setSetting(`orphans-swept:${id}`, null);
     // A site made again with the same id starts its Umami import from the beginning.
     for (const { key } of await this.store.settingsStartingWith(`import:umami-visits:${id}:`)) await this.store.setSetting(key, null);
     // A connected install keeps its own data; only the connection goes, and its token there with it.
@@ -649,7 +653,14 @@ export class Runlight {
     for (const site of this.sites) {
       if ((only && site.id !== only) || this.remotes.has(site.id)) continue;
       const cutoff = await this.retentionCutoff(site.id);
-      if (cutoff !== null) await this.store.dropBefore(site.id, cutoff);
+      if (cutoff === null) continue;
+      await this.store.dropBefore(site.id, cutoff);
+      // Earlier versions let an event join its visit days late, so retention could leave such an event behind
+      // once its visit was gone. They are swept once; events can no longer join a visit that late.
+      if (!(await this.store.setting(`orphans-swept:${site.id}`))) {
+        await this.store.dropOrphans(site.id, cutoff, this.now());
+        await this.store.setSetting(`orphans-swept:${site.id}`, "1");
+      }
     }
   }
 
@@ -1058,16 +1069,13 @@ export class Runlight {
    * daily rollups. It also rereads sites, their dashboard settings, and connected
    * installs, so a change made by another process sharing the database shows up here too.
    */
-  async check(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
+  check(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
     // A check still running when the next is due (a long retention, say) is shared, never run twice at once.
     this.checking ??= this.runCheck().finally(() => {
       this.checking = null;
     });
     return this.checking;
   }
-
-  private checking: Promise<{ ok: true; reports: { sent: number; failed: number } }> | null = null;
-  private optimizedAt = 0;
 
   private async runCheck(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
     await this.init();
