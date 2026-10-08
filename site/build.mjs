@@ -106,7 +106,7 @@ function readDocs() {
 
 const NAV = [["Docs", "/docs/"], ["Install", "/docs/install/"], ["Privacy", "/docs/privacy/"], ["GitHub", GITHUB]];
 
-function layout({ title, description, body, pagePath, assets }) {
+function layout({ title, description, body, pagePath, assets, noindex = false }) {
   const full = pagePath === "/" ? "Runlight | Analytics that lives inside your app" : `${title} | Runlight`;
   const here = (href) => (!href.startsWith("http") && (href === pagePath || (href === "/docs/" && pagePath.startsWith("/docs/") && !NAV.some(([, h]) => h !== "/docs/" && h === pagePath))) ? ' aria-current="page"' : "");
   const links = NAV.map(([label, href]) => `<a href="${href}"${here(href)}>${label}</a>`).join("");
@@ -117,7 +117,7 @@ function layout({ title, description, body, pagePath, assets }) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(full)}</title>
-<meta name="description" content="${escape(description)}">
+<meta name="description" content="${escape(description)}">${noindex ? '\n<meta name="robots" content="noindex">' : ""}
 <link rel="canonical" href="${SITE}${pagePath}">
 <meta property="og:title" content="${escape(full)}">
 <meta property="og:description" content="${escape(description)}">
@@ -303,9 +303,35 @@ function build() {
     path.join(DIST, "sitemap.xml"),
     `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${["/", ...docs.map((d) => d.path), ...pages].map((p) => `  <url><loc>${SITE}${p}</loc></url>`).join("\n")}\n</urlset>\n`,
   );
+  // The web server answers missing pages with 404.html and its own failures with 50x.html.
+  const lost = (code, heading, line, note) => `<section class="lost">
+  <p class="code" aria-hidden="true">${code}</p>
+  <h1>${heading}</h1>
+  <p class="line">${line}</p>
+  <div class="actions"><a class="btn" href="/"><span class="dot" aria-hidden="true"></span>Go to the start</a><a class="ghost-btn" href="/docs/">Read the docs</a></div>
+  <p class="note">${note}</p>
+</section>`;
   writeFileSync(
     path.join(DIST, "404.html"),
-    layout({ title: "Not found", description: "", body: `<section class="notfound"><p class="label">404</p><h1>Nothing here.</h1><p>That page does not exist. Try <a href="/docs/">the docs</a> or <a href="/">the home page</a>.</p></section>`, pagePath: "/404/", assets }),
+    layout({
+      title: "Not found",
+      description: "That page is not here.",
+      body: lost("404", "That page is not here", "The address may be old, or it may have a typo in it.", `If a link on this site sent you here, <a href="/contact/">tell us</a> or <a href="${GITHUB}/issues">open an issue on GitHub</a>.`),
+      pagePath: "/404/",
+      assets,
+      noindex: true,
+    }),
+  );
+  writeFileSync(
+    path.join(DIST, "50x.html"),
+    layout({
+      title: "Something went wrong",
+      description: "Something went wrong on our side.",
+      body: lost("500", "Something went wrong on our side", "The server could not finish that request. Try again in a minute.", `If it keeps happening, <a href="${GITHUB}/issues">open an issue on GitHub</a>.`),
+      pagePath: "/50x/",
+      assets,
+      noindex: true,
+    }),
   );
   return docs;
 }
