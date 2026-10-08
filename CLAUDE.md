@@ -13,5 +13,6 @@ many sites. Planning docs and specs live outside the repo; never commit them.
   asked.
 - Never store an IP address, a full user agent, or any identifier that lasts
   longer than a day.
-- Behaviour lands in TypeScript first, then `conformance/` is regenerated and
-  the other implementations follow.
+- Behaviour lands in TypeScript first, then `conformance/` is regenerated
+  (`npm run conformance` writes `conformance/http.json`) and the other
+  implementations follow.

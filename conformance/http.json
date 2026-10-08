@@ -1,0 +1,3438 @@
+{
+  "description": "HTTP requests to a fresh Runlight on a fixed clock, and the answers every implementation must give. Paths are relative to the routes' base (/runlight). Before each step the clock moves by advance milliseconds. capture keeps a value from an answer for later {{name}} in paths and headers. Ids, tokens, secrets, and hints in answers are written as <key>.",
+  "scenarios": [
+    {
+      "name": "a day of visits and the reports they make",
+      "site": {
+        "hostnames": [
+          "example.com"
+        ],
+        "timezone": "Europe/London"
+      },
+      "start": 1791277200000,
+      "token": "conformance",
+      "steps": [
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.1",
+            "x-vercel-ip-country": "GB",
+            "x-vercel-ip-city": "London"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://example.com/?utm_source=newsletter&utm_campaign=autumn",
+            "r": "https://mail.google.com/",
+            "i": "pv1",
+            "t": "Home",
+            "w": 1440,
+            "h": 900,
+            "l": "en-GB"
+          },
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.1"
+          },
+          "body": {
+            "k": "engagement",
+            "u": "https://example.com/",
+            "i": "pv1",
+            "e": 18000,
+            "d": 70
+          },
+          "advance": 20000,
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.1"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://example.com/pricing",
+            "r": "https://example.com/",
+            "i": "pv2"
+          },
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.1"
+          },
+          "body": {
+            "k": "event",
+            "u": "https://example.com/pricing",
+            "i": "pv2",
+            "n": "Signup",
+            "p": {
+              "plan": "pro"
+            }
+          },
+          "advance": 5000,
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+            "x-forwarded-for": "198.51.100.7",
+            "x-vercel-ip-country": "US"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://example.com/blog/post",
+            "r": "https://chatgpt.com/",
+            "i": "pv3",
+            "w": 390,
+            "h": 844
+          },
+          "advance": 60000,
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "192.0.2.4"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://example.com/",
+            "r": "https://www.google.com/",
+            "i": "pv4"
+          },
+          "advance": 3600000,
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "curl/8.4.0",
+            "x-forwarded-for": "192.0.2.9"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://example.com/",
+            "i": "pv5"
+          },
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "192.0.2.10"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://elsewhere.example/",
+            "i": "pv6"
+          },
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.1"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://example.com/pricing",
+            "i": "pv7"
+          },
+          "advance": 1860000,
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/observe",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "url": "https://example.com/blog/post",
+            "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)"
+          },
+          "expect": {
+            "status": 204
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "stats": {
+                "visitors": 3,
+                "visits": 4,
+                "pageviews": 5,
+                "viewsPerVisit": 1.25,
+                "bounceRate": 0.75,
+                "visitDuration": 4500
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/series?period=today&compare=off",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "points": [
+                {
+                  "start": 1791241200000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791244800000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791248400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791252000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791255600000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791259200000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791262800000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791266400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791270000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791273600000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791277200000,
+                  "visitors": 2,
+                  "visits": 2,
+                  "pageviews": 3,
+                  "viewsPerVisit": 1.5,
+                  "bounceRate": 0.5,
+                  "visitDuration": 9000
+                },
+                {
+                  "start": 1791280800000,
+                  "visitors": 2,
+                  "visits": 2,
+                  "pageviews": 2,
+                  "viewsPerVisit": 1,
+                  "bounceRate": 1,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791284400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791288000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791291600000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791295200000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791298800000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791302400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791306000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791309600000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791313200000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791316800000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791320400000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                },
+                {
+                  "start": 1791324000000,
+                  "visitors": 0,
+                  "visits": 0,
+                  "pageviews": 0,
+                  "viewsPerVisit": 0,
+                  "bounceRate": 0,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=page",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "page",
+              "rows": [
+                {
+                  "value": "/",
+                  "visitors": 2,
+                  "pageviews": 2,
+                  "timeOnPage": 18000,
+                  "scrollDepth": 70
+                },
+                {
+                  "value": "/pricing",
+                  "visitors": 1,
+                  "pageviews": 2,
+                  "timeOnPage": 0,
+                  "scrollDepth": 0
+                },
+                {
+                  "value": "/blog/post",
+                  "visitors": 1,
+                  "pageviews": 1,
+                  "timeOnPage": 0,
+                  "scrollDepth": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=entry",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "entry",
+              "rows": [
+                {
+                  "value": "/",
+                  "visitors": 2,
+                  "visits": 2,
+                  "bounceRate": 0.5
+                },
+                {
+                  "value": "/blog/post",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1
+                },
+                {
+                  "value": "/pricing",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=exit",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "exit",
+              "rows": [
+                {
+                  "value": "/pricing",
+                  "visitors": 1,
+                  "visits": 2,
+                  "bounceRate": 0.5
+                },
+                {
+                  "value": "/",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1
+                },
+                {
+                  "value": "/blog/post",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=event",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "event",
+              "rows": [
+                {
+                  "value": "Signup",
+                  "visitors": 1,
+                  "events": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=source",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "source",
+              "rows": [
+                {
+                  "value": "ChatGPT",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                },
+                {
+                  "value": "Google",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                },
+                {
+                  "value": "Newsletter",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 0,
+                  "pageviews": 2,
+                  "visitDuration": 18000
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=channel",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "channel",
+              "rows": [
+                {
+                  "value": "AI",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                },
+                {
+                  "value": "Direct",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                },
+                {
+                  "value": "Email",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 0,
+                  "pageviews": 2,
+                  "visitDuration": 18000
+                },
+                {
+                  "value": "Organic Search",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=referrer",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "referrer",
+              "rows": [
+                {
+                  "value": "chatgpt.com",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                },
+                {
+                  "value": "google.com",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                },
+                {
+                  "value": "mail.google.com",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 0,
+                  "pageviews": 2,
+                  "visitDuration": 18000
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=utm_source",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "utm_source",
+              "rows": [
+                {
+                  "value": "newsletter",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 0,
+                  "pageviews": 2,
+                  "visitDuration": 18000
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=utm_campaign",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "utm_campaign",
+              "rows": [
+                {
+                  "value": "autumn",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 0,
+                  "pageviews": 2,
+                  "visitDuration": 18000
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=country",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "country",
+              "rows": [
+                {
+                  "value": "GB",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 0,
+                  "pageviews": 2,
+                  "visitDuration": 18000
+                },
+                {
+                  "value": "US",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=city",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "city",
+              "rows": [
+                {
+                  "value": "London",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 0,
+                  "pageviews": 2,
+                  "visitDuration": 18000
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=browser",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "browser",
+              "rows": [
+                {
+                  "value": "Chrome",
+                  "visitors": 2,
+                  "visits": 3,
+                  "bounceRate": 0.6666666666666666,
+                  "pageviews": 4,
+                  "visitDuration": 6000
+                },
+                {
+                  "value": "Safari",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=os",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "os",
+              "rows": [
+                {
+                  "value": "macOS",
+                  "visitors": 2,
+                  "visits": 3,
+                  "bounceRate": 0.6666666666666666,
+                  "pageviews": 4,
+                  "visitDuration": 6000
+                },
+                {
+                  "value": "iOS",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=device",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "device",
+              "rows": [
+                {
+                  "value": "desktop",
+                  "visitors": 2,
+                  "visits": 3,
+                  "bounceRate": 0.6666666666666666,
+                  "pageviews": 4,
+                  "visitDuration": 6000
+                },
+                {
+                  "value": "mobile",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=screen",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "screen",
+              "rows": [
+                {
+                  "value": "1440x900",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 0,
+                  "pageviews": 2,
+                  "visitDuration": 18000
+                },
+                {
+                  "value": "390x844",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=language",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "language",
+              "rows": [
+                {
+                  "value": "en-GB",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 0,
+                  "pageviews": 2,
+                  "visitDuration": 18000
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=ai_agent",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "ai_agent",
+              "rows": [
+                {
+                  "value": "GPTBot",
+                  "visitors": 0,
+                  "fetches": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=ai_page",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "ai_page",
+              "rows": [
+                {
+                  "value": "/blog/post",
+                  "visitors": 0,
+                  "fetches": 1
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=page&filter=country:is:GB",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "dimension": "page",
+              "rows": [
+                {
+                  "value": "/",
+                  "visitors": 1,
+                  "pageviews": 1,
+                  "timeOnPage": 18000,
+                  "scrollDepth": 70
+                },
+                {
+                  "value": "/pricing",
+                  "visitors": 1,
+                  "pageviews": 1,
+                  "timeOnPage": 0,
+                  "scrollDepth": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off&filter=channel:is:AI",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "stats": {
+                "visitors": 1,
+                "visits": 1,
+                "pageviews": 1,
+                "viewsPerVisit": 1,
+                "bounceRate": 1,
+                "visitDuration": 0
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/rhythm?period=today",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "grid": [
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  2,
+                  2,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              ],
+              "cells": [
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 2,
+                    "visitors": 2,
+                    "pageviews": 3,
+                    "bounceRate": 0.5
+                  },
+                  {
+                    "visits": 2,
+                    "visitors": 2,
+                    "pageviews": 2,
+                    "bounceRate": 1
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ],
+                [
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  },
+                  {
+                    "visits": 0,
+                    "visitors": 0,
+                    "pageviews": 0,
+                    "bounceRate": 0
+                  }
+                ]
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/realtime",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "visitors": 1,
+              "pages": [
+                {
+                  "value": "/pricing",
+                  "visitors": 1
+                }
+              ],
+              "sources": [],
+              "countries": [],
+              "minutes": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                1
+              ],
+              "recent": [
+                {
+                  "ts": 1791282745000,
+                  "kind": "pageview",
+                  "path": "/pricing",
+                  "name": "",
+                  "country": "",
+                  "city": "",
+                  "source": "",
+                  "device": "desktop"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/event-props?period=today&event=Signup",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "Europe/London"
+              },
+              "event": "Signup",
+              "keys": [
+                {
+                  "key": "plan",
+                  "events": 1
+                }
+              ],
+              "key": "plan",
+              "rows": [
+                {
+                  "value": "pro",
+                  "events": 1,
+                  "visitors": 1
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "goals, funnels, and links",
+      "site": {
+        "hostnames": [
+          "shop.example.com"
+        ],
+        "timezone": "America/New_York"
+      },
+      "start": 1791298800000,
+      "token": "conformance",
+      "steps": [
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.20"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://shop.example.com/",
+            "i": "a1"
+          },
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.20"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://shop.example.com/cart",
+            "i": "a2"
+          },
+          "advance": 30000,
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.20"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://shop.example.com/thanks",
+            "i": "a3"
+          },
+          "advance": 30000,
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.20"
+          },
+          "body": {
+            "k": "event",
+            "u": "https://shop.example.com/thanks",
+            "i": "a3",
+            "n": "Purchase",
+            "p": {
+              "amount": 49.5
+            }
+          },
+          "advance": 1000,
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.21"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://shop.example.com/",
+            "i": "b1"
+          },
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/goals",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "Purchase",
+            "kind": "event",
+            "match": "Purchase",
+            "valueMode": "prop",
+            "valueProp": "amount",
+            "currency": "USD"
+          },
+          "capture": {
+            "goal": "goal.id"
+          },
+          "expect": {
+            "status": 201,
+            "body": {
+              "goal": {
+                "id": "<id>",
+                "site": "default",
+                "name": "Purchase",
+                "kind": "event",
+                "match": "Purchase",
+                "clickBy": "",
+                "valueMode": "prop",
+                "value": 0,
+                "valueProp": "amount",
+                "currency": "USD",
+                "createdAt": 1791298861000
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/goals",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "Thanks page",
+            "kind": "page",
+            "match": "/thanks*"
+          },
+          "expect": {
+            "status": 201,
+            "body": {
+              "goal": {
+                "id": "<id>",
+                "site": "default",
+                "name": "Thanks page",
+                "kind": "page",
+                "match": "/thanks*",
+                "clickBy": "",
+                "valueMode": "none",
+                "value": 0,
+                "valueProp": "",
+                "currency": "USD",
+                "createdAt": 1791298861000
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/goals",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "",
+            "kind": "event",
+            "match": ""
+          },
+          "expect": {
+            "status": 400,
+            "body": {
+              "error": "Give the goal a name"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/goals?period=today",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "America/New_York"
+              },
+              "compare": {
+                "from": "2026-10-05",
+                "to": "2026-10-05"
+              },
+              "visitors": 2,
+              "goals": [
+                {
+                  "id": "<id>",
+                  "site": "default",
+                  "name": "Purchase",
+                  "kind": "event",
+                  "match": "Purchase",
+                  "clickBy": "",
+                  "valueMode": "prop",
+                  "value": 0,
+                  "valueProp": "amount",
+                  "currency": "USD",
+                  "createdAt": 1791298861000,
+                  "conversions": 1,
+                  "visitors": 1,
+                  "revenue": 49.5,
+                  "rate": 0.5,
+                  "previous": {
+                    "conversions": 0,
+                    "visitors": 0,
+                    "revenue": 0,
+                    "rate": 0
+                  }
+                },
+                {
+                  "id": "<id>",
+                  "site": "default",
+                  "name": "Thanks page",
+                  "kind": "page",
+                  "match": "/thanks*",
+                  "clickBy": "",
+                  "valueMode": "none",
+                  "value": 0,
+                  "valueProp": "",
+                  "currency": "USD",
+                  "createdAt": 1791298861000,
+                  "conversions": 1,
+                  "visitors": 1,
+                  "revenue": 0,
+                  "rate": 0.5,
+                  "previous": {
+                    "conversions": 0,
+                    "visitors": 0,
+                    "revenue": 0,
+                    "rate": 0
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/goals/{{goal}}?period=today",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "America/New_York"
+              },
+              "goal": {
+                "id": "<id>",
+                "site": "default",
+                "name": "Purchase",
+                "kind": "event",
+                "match": "Purchase",
+                "clickBy": "",
+                "valueMode": "prop",
+                "value": 0,
+                "valueProp": "amount",
+                "currency": "USD",
+                "createdAt": 1791298861000
+              },
+              "totals": {
+                "conversions": 1,
+                "visitors": 1,
+                "revenue": 49.5,
+                "rate": 0.5
+              },
+              "series": [
+                {
+                  "start": 1791259200000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791262800000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791266400000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791270000000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791273600000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791277200000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791280800000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791284400000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791288000000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791291600000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791295200000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791298800000,
+                  "conversions": 1,
+                  "revenue": 49.5
+                },
+                {
+                  "start": 1791302400000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791306000000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791309600000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791313200000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791316800000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791320400000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791324000000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791327600000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791331200000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791334800000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791338400000,
+                  "conversions": 0,
+                  "revenue": 0
+                },
+                {
+                  "start": 1791342000000,
+                  "conversions": 0,
+                  "revenue": 0
+                }
+              ],
+              "sources": [
+                {
+                  "value": "",
+                  "conversions": 1,
+                  "visitors": 1,
+                  "revenue": 49.5
+                }
+              ],
+              "channels": [
+                {
+                  "value": "Direct",
+                  "conversions": 1,
+                  "visitors": 1,
+                  "revenue": 49.5
+                }
+              ],
+              "pages": [
+                {
+                  "value": "/thanks",
+                  "conversions": 1,
+                  "visitors": 1,
+                  "revenue": 49.5
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/funnels",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "Checkout",
+            "steps": [
+              {
+                "kind": "page",
+                "match": "/"
+              },
+              {
+                "kind": "page",
+                "match": "/cart"
+              },
+              {
+                "kind": "event",
+                "match": "Purchase"
+              }
+            ]
+          },
+          "expect": {
+            "status": 201,
+            "body": {
+              "funnel": {
+                "id": "<id>",
+                "site": "default",
+                "name": "Checkout",
+                "steps": [
+                  {
+                    "kind": "page",
+                    "match": "/"
+                  },
+                  {
+                    "kind": "page",
+                    "match": "/cart"
+                  },
+                  {
+                    "kind": "event",
+                    "match": "Purchase"
+                  }
+                ],
+                "createdAt": 1791298861000
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/funnels?period=today",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "America/New_York"
+              },
+              "funnels": [
+                {
+                  "id": "<id>",
+                  "site": "default",
+                  "name": "Checkout",
+                  "steps": [
+                    {
+                      "kind": "page",
+                      "match": "/",
+                      "visits": 2
+                    },
+                    {
+                      "kind": "page",
+                      "match": "/cart",
+                      "visits": 1
+                    },
+                    {
+                      "kind": "event",
+                      "match": "Purchase",
+                      "visits": 1
+                    }
+                  ],
+                  "createdAt": 1791298861000
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/links",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "url": "https://example.org/sale",
+            "slug": "sale",
+            "name": "Sale"
+          },
+          "capture": {
+            "link": "link.id"
+          },
+          "expect": {
+            "status": 201,
+            "body": {
+              "link": {
+                "id": "<id>",
+                "site": "default",
+                "domain": "",
+                "slug": "sale",
+                "name": "Sale",
+                "url": "https://example.org/sale",
+                "createdAt": 1791298861000,
+                "updatedAt": 1791298861000
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/links",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "url": "https://example.org/other",
+            "slug": "sale"
+          },
+          "expect": {
+            "status": 400,
+            "body": {
+              "error": "/sale is already taken"
+            }
+          }
+        },
+        {
+          "method": "PATCH",
+          "path": "/api/links/{{link}}",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "Autumn sale"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "link": {
+                "id": "<id>",
+                "site": "default",
+                "domain": "",
+                "slug": "sale",
+                "name": "Autumn sale",
+                "url": "https://example.org/sale",
+                "createdAt": 1791298861000,
+                "updatedAt": 1791298861000
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/links?period=today",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "prefix": "https://example.com/go",
+              "domains": [],
+              "links": [
+                {
+                  "id": "<id>",
+                  "site": "default",
+                  "domain": "",
+                  "slug": "sale",
+                  "name": "Autumn sale",
+                  "url": "https://example.org/sale",
+                  "createdAt": 1791298861000,
+                  "updatedAt": 1791298861000,
+                  "clicks": 0,
+                  "visitors": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/goals/{{goal}}",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "ok": true
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/goals?period=today",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "America/New_York"
+              },
+              "compare": {
+                "from": "2026-10-05",
+                "to": "2026-10-05"
+              },
+              "visitors": 2,
+              "goals": [
+                {
+                  "id": "<id>",
+                  "site": "default",
+                  "name": "Thanks page",
+                  "kind": "page",
+                  "match": "/thanks*",
+                  "clickBy": "",
+                  "valueMode": "none",
+                  "value": 0,
+                  "valueProp": "",
+                  "currency": "USD",
+                  "createdAt": 1791298861000,
+                  "conversions": 1,
+                  "visitors": 1,
+                  "revenue": 0,
+                  "rate": 0.5,
+                  "previous": {
+                    "conversions": 0,
+                    "visitors": 0,
+                    "revenue": 0,
+                    "rate": 0
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "who may do what",
+      "site": {
+        "hostnames": [
+          "example.com"
+        ],
+        "timezone": "UTC"
+      },
+      "start": 1791288000000,
+      "token": "conformance",
+      "steps": [
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today",
+          "expect": {
+            "status": 401,
+            "body": {
+              "error": "Unauthorized"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today",
+          "headers": {
+            "authorization": "Bearer wrong"
+          },
+          "expect": {
+            "status": 401,
+            "body": {
+              "error": "Unauthorized"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/tokens",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "Script"
+          },
+          "capture": {
+            "secret": "secret"
+          },
+          "expect": {
+            "status": 201,
+            "body": {
+              "token": {
+                "id": "<id>",
+                "name": "Script",
+                "site": "",
+                "scope": "read",
+                "hint": "<hint>",
+                "createdAt": 1791288000000,
+                "lastUsedAt": null
+              },
+              "secret": "<secret>"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off",
+          "headers": {
+            "authorization": "Bearer {{secret}}"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "UTC"
+              },
+              "stats": {
+                "visitors": 0,
+                "visits": 0,
+                "pageviews": 0,
+                "viewsPerVisit": 0,
+                "bounceRate": 0,
+                "visitDuration": 0
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/goals",
+          "headers": {
+            "authorization": "Bearer {{secret}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "X",
+            "kind": "event",
+            "match": "X"
+          },
+          "expect": {
+            "status": 401,
+            "body": {
+              "error": "Unauthorized"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/token",
+          "headers": {
+            "authorization": "Bearer {{secret}}"
+          },
+          "expect": {
+            "status": 200,
+            "body": {
+              "scope": "read",
+              "site": ""
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/goals",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "body": "not json",
+          "expect": {
+            "status": 415,
+            "body": {
+              "error": "Send JSON"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=nonsense",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 400,
+            "body": {
+              "error": "Bad date range. Use period, or from and to as YYYY-MM-DD."
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&filter=nope",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 400,
+            "body": {
+              "error": "Bad filter \"nope\". Use dimension:is|not|contains:value."
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?site=missing&period=today",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 404,
+            "body": {
+              "error": "Unknown site"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=nope",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 400,
+            "body": {
+              "error": "Unknown dimension \"nope\""
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/e",
+          "expect": {
+            "status": 405,
+            "body": {
+              "error": "Method not allowed"
+            }
+          }
+        },
+        {
+          "method": "OPTIONS",
+          "path": "/e",
+          "expect": {
+            "status": 204
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api",
+          "expect": {
+            "status": 200,
+            "body": {
+              "name": "runlight",
+              "version": "<version>",
+              "api": 1,
+              "library": "<library>",
+              "language": "<language>"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
