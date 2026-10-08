@@ -692,6 +692,13 @@ main {
   padding-right: 8px;
 }
 
+/* Something to know rather than something that went wrong. */
+.failure.notice {
+  border-color: var(--line);
+  background: var(--card);
+  color: var(--ink);
+}
+
 /* Metric cards and chart */
 
 .metrics {

@@ -3234,7 +3234,11 @@
               "content-type": "application/json"
             },
             "body": {
-              "error": "/sale is already taken"
+              "error": "/sale is already taken",
+              "code": "link_taken",
+              "params": {
+                "slug": "sale"
+              }
             }
           }
         },

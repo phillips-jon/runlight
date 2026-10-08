@@ -85,4 +85,6 @@ Every report takes the same query parameters.
 
 ## Errors
 
-Errors are JSON, `{ "error": "..." }`, in plain words, with 400 for something wrong in the request, 401 without the token, 404 for something that is not there, and 503 when no token is set in production.
+Errors are JSON, `{ "error": "..." }`, in plain words, with 400 for something wrong in the request, 401 without the token, 403 when someone signed in as a viewer tries to change something, 404 for something that is not there, and 503 when no token is set in production.
+
+Some errors also carry a `code`, such as `link_taken` or `report_exists`, and `params` to fill it, such as `{ "slug": "launch" }`. The dashboard uses them to show the message in its own language. The English `error` is always there too.

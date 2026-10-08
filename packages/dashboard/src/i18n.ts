@@ -85,6 +85,13 @@ export function tn(key: string, n: number, vars: Record<string, string | number>
   return fill(text, { n, ...vars });
 }
 
+/** A server error in this language, from the code it sent; null when the dashboard has no words for that code. */
+export function errorText(code: string, vars: Record<string, string> = {}): string | null {
+  const key = `error.${code}`;
+  const text = (messages as unknown as Record<string, string>)[key] ?? (en as unknown as Record<string, string>)[key];
+  return text === undefined ? null : fill(text, vars);
+}
+
 /** A message whose placeholders are elements, for sentences with bold or coloured parts. */
 export function rich(key: Key, parts: Record<string, ComponentChildren>): ComponentChildren[] {
   const text = messages[key] ?? en[key] ?? key;

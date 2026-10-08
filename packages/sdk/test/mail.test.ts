@@ -168,7 +168,10 @@ test("reports go out once per period, retry after a failure, and keep keys from 
 
   const made = await call("POST", "/api/reports", { email: "Jon@Example.com", frequency: "weekly", lang: "fr", origin: "https://stats.example.com/runlight" });
   assert.equal(made.status, 201);
-  assert.equal((await call("POST", "/api/reports", { email: "jon@example.com", frequency: "weekly" })).status, 400, "no duplicates");
+  const duplicate = await call("POST", "/api/reports", { email: "jon@example.com", frequency: "weekly" });
+  assert.equal(duplicate.status, 400, "no duplicates");
+  // The code and params let the dashboard say it in its own language.
+  assert.deepEqual(await duplicate.json(), { error: "jon@example.com already gets the weekly report", code: "report_exists", params: { email: "jon@example.com" } });
 
   let calls = capture();
   assert.deepEqual(await rl.sendReports(), { sent: 0, failed: 0 }, "a report added on a Wednesday waits for the next Monday");

@@ -267,8 +267,11 @@ function ResetTwoFactor({ onReset }: { onReset: () => void }) {
   );
 }
 
-/** Settings, People: everyone who can sign in, their role, and adding or removing someone. */
-export function People({ me }: { me: Person }) {
+/**
+ * Settings, People: everyone who can sign in, their role, and adding or removing someone.
+ * `onDemoted` runs when the owner makes themselves a viewer, since owner settings no longer apply.
+ */
+export function People({ me, onDemoted }: { me: Person; onDemoted: () => void }) {
   const [people, setPeople] = useState<Person[] | null>(null);
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [email, setEmail] = useState("");
@@ -308,7 +311,7 @@ export function People({ me }: { me: Person }) {
   const change = (id: string, next: Person["role"]) =>
     api
       .setRole(id, next)
-      .then(load)
+      .then(() => (id === me.id && next === "viewer" ? onDemoted() : load()))
       .catch((err: Error) => setError(err.message));
   return (
     <div class="settings-group">

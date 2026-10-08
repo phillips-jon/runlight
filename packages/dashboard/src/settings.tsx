@@ -585,7 +585,7 @@ function LinkDomains({ site }: { site: Site }) {
   );
 }
 
-export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLanguage, onDeleted, me }: {
+export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLanguage, onDeleted, onDemoted, me }: {
   site: Site;
   view: View;
   start?: Section;
@@ -594,6 +594,8 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   onSaved: (site: Site) => void;
   onLanguage: (code: string) => void;
   onDeleted: (id: string) => void;
+  /** The owner made themselves a viewer in People. */
+  onDemoted: () => void;
   /** Who is signed in, on the standalone server; owners also manage People there. */
   me?: Person | null;
 }) {
@@ -655,7 +657,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
             ) : section === "sharing" ? (
               <Sharing site={site} />
             ) : section === "people" && me ? (
-              <People me={me} />
+              <People me={me} onDemoted={onDemoted} />
             ) : section === "api" ? (
               <Tokens sites={sites} />
             ) : section === "links" ? (

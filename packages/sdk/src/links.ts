@@ -21,7 +21,16 @@ export function randomSlug(): string {
   return Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
 }
 
-export class LinkError extends Error {}
+/** A link that cannot be made. `code` and `params` let the dashboard say it in its own language. */
+export class LinkError extends Error {
+  constructor(
+    message: string,
+    readonly code: string,
+    readonly params: Record<string, string> = {},
+  ) {
+    super(message);
+  }
+}
 
 function cleanUrl(value: unknown): string {
   const text = String(value ?? "").trim();
@@ -29,10 +38,10 @@ function cleanUrl(value: unknown): string {
   try {
     url = new URL(text);
   } catch {
-    throw new LinkError("The destination must be a full URL, starting with https://");
+    throw new LinkError("The destination must be a full URL, starting with https://", "link_url");
   }
-  if (url.protocol !== "https:" && url.protocol !== "http:") throw new LinkError("The destination must start with http:// or https://");
-  if (text.length > 2000) throw new LinkError("The destination is longer than 2,000 characters");
+  if (url.protocol !== "https:" && url.protocol !== "http:") throw new LinkError("The destination must start with http:// or https://", "link_protocol");
+  if (text.length > 2000) throw new LinkError("The destination is longer than 2,000 characters", "link_long");
   return url.toString();
 }
 
@@ -49,23 +58,23 @@ export class Links {
     const domain = stripWww(String(value ?? "").trim());
     if (!domain) return "";
     const known = await this.runlight.store.linkDomains();
-    if (!known.some((d) => d.domain === domain && d.site === site)) throw new LinkError(`Add ${domain} as a link domain in Settings first`);
+    if (!known.some((d) => d.domain === domain && d.site === site)) throw new LinkError(`Add ${domain} as a link domain in Settings first`, "link_domain", { domain });
     return domain;
   }
 
   /** Slugs are unique across every domain, so a link can always fall back to the app's own path. */
   private async freeSlug(wanted: string | undefined, except?: string): Promise<string> {
     if (wanted !== undefined && wanted !== "") {
-      if (!SLUG_PATTERN.test(wanted)) throw new LinkError("A slug is letters, digits, dashes, and underscores, up to 100");
+      if (!SLUG_PATTERN.test(wanted)) throw new LinkError("A slug is letters, digits, dashes, and underscores, up to 100", "link_slug");
       const taken = await this.runlight.store.linkBySlug(wanted);
-      if (taken && taken.id !== except) throw new LinkError(`/${wanted} is already taken`);
+      if (taken && taken.id !== except) throw new LinkError(`/${wanted} is already taken`, "link_taken", { slug: wanted });
       return wanted;
     }
     for (let i = 0; i < 8; i++) {
       const slug = randomSlug();
       if (!(await this.runlight.store.linkBySlug(slug))) return slug;
     }
-    throw new LinkError("Could not find a free slug; try again");
+    throw new LinkError("Could not find a free slug; try again", "link_no_slug");
   }
 
   async create(site: string, input: LinkInput): Promise<LinkRow> {
@@ -115,8 +124,11 @@ export class Links {
    * export: name or link_name, url or destination_url, slug or link_slug,
    * domain or tracking_domain.
    */
-  async import(site: string, rows: Array<Record<string, unknown>>): Promise<{ created: number; failed: Array<{ row: number; reason: string }> }> {
-    const failed: Array<{ row: number; reason: string }> = [];
+  async import(
+    site: string,
+    rows: Array<Record<string, unknown>>,
+  ): Promise<{ created: number; failed: Array<{ row: number; reason: string; code: string; params: Record<string, string> }> }> {
+    const failed: Array<{ row: number; reason: string; code: string; params: Record<string, string> }> = [];
     let created = 0;
     for (const [i, raw] of rows.entries()) {
       const pick = (...keys: string[]) => {
@@ -137,7 +149,7 @@ export class Links {
       } catch (error) {
         // A bad row is reported and skipped; a failing database stops the whole import.
         if (!(error instanceof LinkError)) throw error;
-        failed.push({ row: i + 1, reason: error.message });
+        failed.push({ row: i + 1, reason: error.message, code: error.code, params: error.params });
       }
     }
     return { created, failed };

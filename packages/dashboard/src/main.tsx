@@ -190,8 +190,12 @@ function App() {
   const [previousPoints, setPreviousPoints] = useState<Point[] | undefined>(undefined);
   // Coming back from connecting another Runlight: its settings open, or what went wrong shows.
   const [failure, setFailure] = useState("");
-  // Kept apart from failure, which the first good load clears, so the reason stays until it is closed.
-  const [connectError, setConnectError] = useState(() => new URLSearchParams(location.search).get("connect_error") ?? "");
+  // Kept apart from failure, which the first good load clears, so it stays until it is closed: why connecting
+  // another Runlight failed, or that the owner just made themselves a viewer.
+  const [notice, setNotice] = useState<{ text: string; error: boolean } | null>(() => {
+    const reason = new URLSearchParams(location.search).get("connect_error");
+    return reason ? { text: reason, error: true } : null;
+  });
   const [filtering, setFiltering] = useState(false);
   const [asking, setAsking] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState<Section | null>(() => (new URLSearchParams(location.search).get("settings") === "general" ? "general" : null));
@@ -419,10 +423,10 @@ function App() {
         ) : null}
       </header>
 
-      {connectError ? (
-        <p class="failure dismissable" role="alert">
-          {connectError}
-          <button type="button" class="remove" aria-label={t("common.close")} title={t("common.close")} onClick={() => setConnectError("")}>
+      {notice ? (
+        <p class={notice.error ? "failure dismissable" : "failure dismissable notice"} role="alert">
+          {notice.text}
+          <button type="button" class="remove" aria-label={t("common.close")} title={t("common.close")} onClick={() => setNotice(null)}>
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M4 4l8 8M12 4l-8 8" />
             </svg>
@@ -448,6 +452,11 @@ function App() {
             setView((v) => ({ ...v }));
           }}
           onLanguage={changeLanguage}
+          onDemoted={() => {
+            setSettingsOpen(null);
+            setNotice({ text: t("people.demoted"), error: false });
+            refreshMe();
+          }}
           me={me}
           onDeleted={(id) => {
             setSettingsOpen(null);

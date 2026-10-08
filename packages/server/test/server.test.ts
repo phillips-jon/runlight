@@ -169,8 +169,11 @@ test("owners add people as owners or viewers; viewers read every site and change
   assert.equal((await json(owner, "POST", "/api/sites", { hostnames: "blog.example.com" })).status, 201);
   assert.equal((await json(viewer, "GET", "/api/sites")).status, 200);
   assert.equal((await json(viewer, "GET", "/api/stats?site=blog.example.com&period=today")).status, 200);
-  assert.equal((await json(viewer, "POST", "/api/sites", { hostnames: "other.example.com" })).status, 401);
-  assert.equal((await json(viewer, "POST", "/api/tokens", { name: "x" })).status, 401);
+  // Refused as signed in but not allowed, so the dashboard says why instead of signing them out.
+  const refused = await json(viewer, "POST", "/api/sites", { hostnames: "other.example.com" });
+  assert.equal(refused.status, 403);
+  assert.equal(((await refused.json()) as any).code, "owner_only");
+  assert.equal((await json(viewer, "POST", "/api/tokens", { name: "x" })).status, 403);
   assert.equal((await json(viewer, "GET", "/api/people")).status, 403);
   assert.match(await (await handle(req("/", { headers: { cookie: viewer } }))).text(), /data-accounts=""/);
 
