@@ -110,6 +110,10 @@ The server runs Runlight's [scheduled check](/docs/cron/) itself every five minu
 
 Back up the data folder. It holds the SQLite file and the `secret` file, and without the secret the saved mail keys cannot be read and everyone has to sign in again. To upgrade, pull the new image or run `npx runlight.sh@latest`, and the database updates itself on start.
 
+## Running more than one copy
+
+Several copies of the server can share one Postgres database, for example behind a load balancer. Each copy rereads the list of sites and connected installs every five minutes, so one added on any copy appears on the others within five minutes. Everything else, from visits to goals and links, is shared at once.
+
 ## What comes next
 
-One database should have one server process for now, because a site added in one process only appears in another after a restart. A log reader that counts AI agents on sites without Runlight inside them is planned.
+A log reader that counts AI agents on sites with only the script tag is planned. It would read your web server's access log and report the agents it finds.

@@ -790,12 +790,15 @@ export class Runlight {
 
   /**
    * Scheduled upkeep, safe to run every minute: rotates salts, sends the email
-   * reports that are due, and rereads managed sites, so a site added by another
-   * process sharing the database shows up here too.
+   * reports that are due, and rereads managed sites and connected installs, so
+   * one added by another process sharing the database shows up here too.
    */
   async check(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
     await this.init();
-    if (this.managedSites) this.configured = await this.store.sites();
+    if (this.managedSites) {
+      this.configured = await this.store.sites();
+      await this.loadRemotes();
+    }
     this.salts.clear();
     for (const timezone of new Set(this.sites.map((s) => s.timezone))) await this.currentSalts(this.now(), timezone);
     await this.dropOldSalts(this.now());

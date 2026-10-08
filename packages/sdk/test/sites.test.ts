@@ -66,3 +66,24 @@ test("sites set in code cannot be added or deleted from the dashboard", async ()
   const listed = (await (await GET(new Request("https://x.com/runlight/api/sites", { headers: auth }))).json()) as any;
   assert.equal(listed.managed, false);
 });
+
+test("a second server process on the same database sees new sites and connected installs at its next check", async () => {
+  const { sqlite } = await import("../src/stores/sqlite.js");
+  const store = sqlite({ path: ":memory:" });
+  const one = runlight({ store, managedSites: true, secret: "k".repeat(32) });
+  const two = runlight({ store, managedSites: true, secret: "k".repeat(32) });
+  await one.init();
+  await two.init();
+  await one.addSite({ hostnames: "new.example.com" });
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ sites: [{ id: "default", name: "App", timezone: "UTC", hostnames: ["app.example.com"] }] }), { headers: { "content-type": "application/json" } })) as typeof fetch;
+  try {
+    await one.addSite({ remote: { url: "https://app.example.com/runlight", token: "rl_x" } });
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+  assert.deepEqual(two.sites.map((s) => s.id), [], "not yet");
+  await two.check();
+  assert.deepEqual(two.sites.map((s) => s.id).sort(), ["app.example.com", "new.example.com"]);
+  assert.equal(two.remote("app.example.com")?.url, "https://app.example.com/runlight");
+});
