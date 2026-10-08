@@ -61,9 +61,21 @@ async function readBody(req: NodeRequest, limit: number): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-export async function toRequest(req: NodeRequest): Promise<Request> {
+/**
+ * The request as a fetch Request. Given the response too, its signal fires when
+ * the client goes away before the response is finished, so a report or a
+ * pass-through to a connected install stops once nobody is waiting for it.
+ */
+export async function toRequest(req: NodeRequest, res?: ServerResponse): Promise<Request> {
   const method = (req.method ?? "GET").toUpperCase();
   const init: RequestInit = { method, headers: headersOf(req) };
+  if (res) {
+    const controller = new AbortController();
+    res.once("close", () => {
+      if (!res.writableFinished) controller.abort(new Error("The client went away"));
+    });
+    init.signal = controller.signal;
+  }
   if (method !== "GET" && method !== "HEAD") {
     const path = (req.originalUrl ?? req.url ?? "").split("?")[0] ?? "";
     init.body = await readBody(req, /\/e$/.test(path) ? MAX_COLLECT_BODY : MAX_BODY);
@@ -128,7 +140,7 @@ export async function writeResponse(res: ServerResponse, response: Response): Pr
 export function toNodeHandler(handler: FetchHandler): NodeHandler {
   return async (req, res, next) => {
     try {
-      const response = await handler(await toRequest(req), { ip: req.socket?.remoteAddress ?? "" });
+      const response = await handler(await toRequest(req, res), { ip: req.socket?.remoteAddress ?? "" });
       if (response.status === 404 && next && response.headers.get("content-type")?.includes("json")) {
         const body = (await response.clone().json().catch(() => null)) as { error?: string } | null;
         if (body?.error === "Not found") return next();

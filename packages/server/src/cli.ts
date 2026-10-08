@@ -153,7 +153,7 @@ async function main(): Promise<void> {
   const host = env("HOST") ?? "0.0.0.0";
   const http = createHttpServer(async (req, res) => {
     try {
-      const response = await server.handler(await toRequest(req), { ip: req.socket.remoteAddress ?? "" });
+      const response = await server.handler(await toRequest(req, res), { ip: req.socket.remoteAddress ?? "" });
       await writeResponse(res, response);
     } catch (error) {
       if (error instanceof BodyTooLarge) return void (res.headersSent || res.writeHead(413, { "content-type": "application/json" }).end(JSON.stringify({ error: "That request is too large" })));

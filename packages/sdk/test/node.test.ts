@@ -74,6 +74,36 @@ test("the Node adapter streams a body only as fast as the client reads, and stop
   }
 });
 
+test("the Node adapter's requests carry a signal that fires when the client leaves", async () => {
+  let aborted = false;
+  let finished = false;
+  const { server, port } = await serve(async (request) => {
+    if (new URL(request.url).pathname.endsWith("/quick")) {
+      request.signal.addEventListener("abort", () => (finished = true));
+      return new Response("{}");
+    }
+    await new Promise((resolve) => request.signal.addEventListener("abort", resolve));
+    aborted = request.signal.aborted;
+    return new Response("{}");
+  });
+  try {
+    const req = request({ port, host: "127.0.0.1", path: "/runlight/api/stats" });
+    req.on("error", () => {});
+    req.end();
+    await wait(200);
+    req.destroy();
+    await wait(300);
+    assert.ok(aborted, "request.signal fired");
+    const quick = await fetch(`http://127.0.0.1:${port}/runlight/api/quick`);
+    assert.equal(await quick.text(), "{}");
+    await wait(100);
+    assert.equal(finished, false, "a finished response never fires the signal");
+  } finally {
+    server.closeAllConnections();
+    server.close();
+  }
+});
+
 test("a body that fails before its first byte is a 500, and one that fails partway cuts the connection", async () => {
   const { server, port } = await serve(async (request) => {
     const partway = new URL(request.url).pathname.endsWith("/partway");
