@@ -6,8 +6,13 @@ export interface PostgresOptions {
   url?: string;
   /** Or a pool the app already has. Runlight never ends a pool it did not make. */
   pool?: pg.Pool;
-  /** Connections in the pool Runlight makes. Default 5. */
+  /** Connections in the pool Runlight makes. Default 5, and at least 2. */
   max?: number;
+  /**
+   * The longest one statement may run in the pool Runlight makes, in milliseconds, so a report over a
+   * huge range cannot hold a connection for good. Default 120000. 0 means no limit.
+   */
+  statementTimeout?: number;
 }
 
 /** Arbitrary but fixed, so every Runlight process takes the same lock to create tables. */
@@ -62,39 +67,68 @@ function driver(query: (sql: string, params: unknown[]) => Promise<pg.QueryResul
 export function postgres(options: PostgresOptions): SqlStore {
   if (!options.pool && !options.url) throw new Error("Runlight: postgres() needs a url or a pool");
   const owned = !options.pool;
-  const pool = options.pool ?? new pg.Pool({ connectionString: options.url, max: options.max ?? 5 });
+  // Settings changes hold one connection while they read through another, so one connection would wait on itself.
+  if ((options.max ?? options.pool?.options.max ?? 5) < 2) throw new Error("Runlight: postgres() needs a pool of at least 2 connections");
+  const timeout = options.statementTimeout ?? 120_000;
+  const pool =
+    options.pool ??
+    new pg.Pool({
+      connectionString: options.url,
+      max: options.max ?? 5,
+      // A tracker hit waits at most this long for a busy pool, rather than for good.
+      connectionTimeoutMillis: 10_000,
+      ...(timeout > 0 ? { statement_timeout: timeout } : {}),
+    });
   // An idle connection dropped by the server (a restart, a failover) is replaced on next use; unheard, it would end the process.
   if (owned) pool.on("error", (error) => console.error("Runlight: a Postgres connection was lost; it reconnects on the next query.", error.message));
+
+  /**
+   * Runs `fn` with a connection of its own. While it is out of the pool, the pool no longer listens for
+   * its errors, so a connection dropped between two statements would end the process; this listens
+   * instead, and a broken connection is thrown away when it goes back.
+   */
+  async function withClient<T>(fn: (client: pg.PoolClient) => Promise<T>): Promise<T> {
+    const client = await pool.connect();
+    let lost: Error | undefined;
+    const onError = (error: Error) => {
+      lost = error;
+      console.error("Runlight: a Postgres connection was lost while in use.", error.message);
+    };
+    client.on("error", onError);
+    try {
+      return await fn(client);
+    } finally {
+      client.off("error", onError);
+      client.release(lost);
+    }
+  }
 
   const db: Db = {
     dialect: "postgres",
     ...driver((sql, params) => pool.query(sql, params)),
     async exclusive<T>(fn: (db: Db) => Promise<T>): Promise<T> {
-      const client = await pool.connect();
-      try {
+      return withClient(async (client) => {
         await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK]);
         try {
           return await fn({ dialect: "postgres", ...driver((sql, params) => client.query(sql, params)) });
         } finally {
-          await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK]);
+          // A lost connection ends its session, and the lock with it.
+          await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK]).catch(() => {});
         }
-      } finally {
-        client.release();
-      }
+      });
     },
     async transaction<T>(fn: (db: Db) => Promise<T>): Promise<T> {
-      const client = await pool.connect();
-      try {
+      return withClient(async (client) => {
         await client.query("BEGIN");
-        const result = await fn({ dialect: "postgres", ...driver((sql, params) => client.query(sql, params)) });
-        await client.query("COMMIT");
-        return result;
-      } catch (error) {
-        await client.query("ROLLBACK").catch(() => {});
-        throw error;
-      } finally {
-        client.release();
-      }
+        try {
+          const result = await fn({ dialect: "postgres", ...driver((sql, params) => client.query(sql, params)) });
+          await client.query("COMMIT");
+          return result;
+        } catch (error) {
+          await client.query("ROLLBACK").catch(() => {});
+          throw error;
+        }
+      });
     },
     async close(): Promise<void> {
       if (owned) await pool.end();
