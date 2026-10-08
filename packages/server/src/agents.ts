@@ -7,8 +7,9 @@
  * successful GETs from known AI agents, and sends them in batches to a
  * Runlight's /api/observe with the site's observe key. Nothing else in the log
  * leaves the machine. With --follow it keeps reading as the log grows and
- * carries on after the log is rotated. Without it, it reads what is new since
- * the last run (remembered in --state) and stops, for cron.
+ * carries on after the log is rotated. Without it, it reads what is new and
+ * stops, for cron. In both modes --state remembers how far it read, so the
+ * next run, or a restarted --follow, carries on from there.
  */
 import { createHash } from "node:crypto";
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
@@ -22,12 +23,18 @@ export interface Fetch {
 
 /**
  * A request target as a page on the site. Absolute targets ("GET http://other/x", a proxy
- * request) name somewhere else and are skipped; "//x" is a path, not a host.
+ * request) name somewhere else and are skipped. The target is set as the path and query of the
+ * site's own address, never parsed as a URL, so "//x" and "/\x" stay paths on the site.
  */
 function pageUrl(target: string, base: string): string | null {
   if (!target.startsWith("/")) return null;
   try {
-    return new URL(`/${target.replace(/^\/+/, "")}`, base).href;
+    const url = new URL(base);
+    const query = target.indexOf("?");
+    url.pathname = `/${(query < 0 ? target : target.slice(0, query)).replace(/^\/+/, "")}`;
+    url.search = query < 0 ? "" : target.slice(query);
+    url.hash = "";
+    return url.href;
   } catch {
     return null;
   }
@@ -104,23 +111,30 @@ export interface AgentsOptions {
   pollMs?: number;
 }
 
-/** Sends fetches to /api/observe, 500 at a time, and returns how many Runlight kept. */
+/** The most fetches /api/observe takes at once. */
+const BATCH = 500;
+
+/** A failure to reach Runlight or have it take a batch, told apart from a failure to read the log. */
+class SendError extends Error {}
+
+/** Sends one batch of fetches to /api/observe and returns how many Runlight kept. */
 async function send(options: AgentsOptions, fetches: Fetch[]): Promise<number> {
-  let kept = 0;
-  for (let i = 0; i < fetches.length; i += 500) {
-    const answer = await fetch(`${options.to.replace(/\/+$/, "")}/api/observe`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${options.key}`, "content-type": "application/json" },
-      body: JSON.stringify({ fetches: fetches.slice(i, i + 500) }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (answer.status === 401) throw new Error("Runlight refused the key. Use the site's key from Settings, Install, Key for CMS plugins.");
-    if (!answer.ok) throw new Error(`Runlight answered ${answer.status}: ${(await answer.text()).slice(0, 200)}`);
-    const body = (await answer.json().catch(() => null)) as { recorded?: number } | null;
-    kept += body?.recorded ?? 0;
-  }
-  return kept;
+  const answer = await fetch(`${options.to.replace(/\/+$/, "")}/api/observe`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${options.key}`, "content-type": "application/json" },
+    body: JSON.stringify({ fetches }),
+    signal: AbortSignal.timeout(30_000),
+  }).catch((error: Error) => {
+    throw new SendError(error.message);
+  });
+  if (answer.status === 401) throw new SendError("Runlight refused the key. Use the site's key from Settings, Install, Key for CMS plugins.");
+  if (!answer.ok) throw new SendError(`Runlight answered ${answer.status}: ${(await answer.text()).slice(0, 200)}`);
+  const body = (await answer.json().catch(() => null)) as { recorded?: number } | null;
+  return body?.recorded ?? 0;
 }
+
+/** Where a run stopped: the log's inode, the byte offset, and a fingerprint of the log's start. */
+type Saved = { ino: number; offset: number; head?: string; length?: number };
 
 /** The most of a log read at once, so a log of any size fits in memory a piece at a time. */
 const CHUNK = 32 * 1024 * 1024;
@@ -130,16 +144,17 @@ const HEAD = 256;
 
 /**
  * A fingerprint of the log's first bytes. A log rotated by copying and truncating keeps its inode,
- * so a different start is how a new log shows itself.
+ * so a different start is how a new log shows itself. An open file (in follow mode) is read as it is,
+ * even once it is renamed.
  */
-function headOf(file: string, length = HEAD): { head: string; length: number } {
-  const fd = openSync(file, "r");
+function headOf(file: string | number, length = HEAD): { head: string; length: number } {
+  const fd = typeof file === "number" ? file : openSync(file, "r");
   try {
-    const buffer = Buffer.alloc(Math.min(length, statSync(file).size));
+    const buffer = Buffer.alloc(Math.min(length, fstatSync(fd).size));
     readSync(fd, buffer, 0, buffer.length, 0);
     return { head: createHash("sha256").update(buffer).digest("hex"), length: buffer.length };
   } finally {
-    closeSync(fd);
+    if (typeof file !== "number") closeSync(fd);
   }
 }
 
@@ -152,20 +167,29 @@ function sameLog(file: string, saved: { ino: number; head?: string; length?: num
 
 /**
  * Reads whole lines from a byte offset, at most a chunk, and returns where the next read starts.
- * The offset counts bytes up to the last newline byte, so a malformed character cannot shift it.
+ * Offsets count bytes up to each newline byte, so a malformed character cannot shift them. `ends`
+ * holds where the line after each one starts, so a place can be saved part way through a chunk.
  */
-function readFrom(file: string | number, offset: number): { lines: string[]; next: number; more: boolean } {
+function readFrom(file: string | number, offset: number): { lines: string[]; ends: number[]; next: number; more: boolean } {
   // A path is opened for this read; an open file (in follow mode) stays open, even once it is renamed.
   const size = typeof file === "number" ? fstatSync(file).size : statSync(file).size;
-  if (size <= offset) return { lines: [], next: offset, more: false };
+  if (size <= offset) return { lines: [], ends: [], next: offset, more: false };
   const fd = typeof file === "number" ? file : openSync(file, "r");
   try {
     const buffer = Buffer.alloc(Math.min(size - offset, CHUNK));
     readSync(fd, buffer, 0, buffer.length, offset);
     const end = buffer.lastIndexOf(0x0a);
     // A half-written last line waits for the next read (or, in a chunk with no newline at all, is skipped).
-    if (end < 0) return buffer.length === CHUNK ? { lines: [], next: offset + buffer.length, more: true } : { lines: [], next: offset, more: false };
-    return { lines: buffer.subarray(0, end).toString("utf8").split("\n"), next: offset + end + 1, more: offset + buffer.length < size };
+    if (end < 0) return buffer.length === CHUNK ? { lines: [], ends: [], next: offset + buffer.length, more: true } : { lines: [], ends: [], next: offset, more: false };
+    const lines: string[] = [];
+    const ends: number[] = [];
+    for (let start = 0; start <= end; ) {
+      const newline = buffer.indexOf(0x0a, start);
+      lines.push(buffer.subarray(start, newline).toString("utf8"));
+      ends.push(offset + newline + 1);
+      start = newline + 1;
+    }
+    return { lines, ends, next: offset + end + 1, more: offset + buffer.length < size };
   } finally {
     if (typeof file !== "number") closeSync(fd);
   }
@@ -176,79 +200,112 @@ export async function runAgents(options: AgentsOptions): Promise<number> {
   if (!existsSync(options.log)) throw new Error(`No log at ${options.log}`);
   let total = 0;
   let warned = false;
-  const handle = async (lines: string[]) => {
-    const fetches = lines.map((line) => agentFetch(line, options.site)).filter((f): f is Fetch => f !== null);
+  /**
+   * Sends the agent fetches among lines read, a batch at a time, calling `done` with where the next
+   * unsent line starts after each batch, so a failure part way sends none of the earlier batches again.
+   */
+  const handle = async (read: { lines: string[]; ends: number[] }, done: (offset: number) => void) => {
+    const { lines, ends } = read;
     // Lines with no host and no --site cannot be placed on a site; say so once rather than skip them silently.
     if (!options.site && !warned && lines.some((line) => !line.trim().startsWith("{") && /"\S+ \/\S* [^"]*" \d{3}/.test(line) && !parseLine(line))) {
       warned = true;
       out("Some lines have no host in them. Add --site https://your-site.example so they can be counted.");
     }
-    const kept = fetches.length ? await send(options, fetches) : 0;
-    total += kept;
+    let kept = 0;
+    let batch: Fetch[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const found = agentFetch(lines[i]!, options.site);
+      if (found) batch.push(found);
+      if (batch.length === BATCH || (i === lines.length - 1 && batch.length)) {
+        const recorded = await send(options, batch);
+        kept += recorded;
+        total += recorded;
+        batch = [];
+        done(ends[i]!);
+      }
+    }
     return kept;
   };
-  const save = (ino: number, offset: number) => {
-    if (options.state) writeFileSync(options.state, JSON.stringify({ ino, offset, ...headOf(options.log) }));
+  /** The place to save: the file being read, by its inode and its own start, and how far into it. */
+  const save = (ino: number, offset: number, head: { head: string; length: number }) => {
+    if (options.state) writeFileSync(options.state, JSON.stringify({ ino, offset, ...head }));
+  };
+  /** Where the last run stopped, or null with a word about it when the state file cannot be read. */
+  const readState = (): Saved | null => {
+    if (!options.state || !existsSync(options.state)) return null;
+    try {
+      const saved = JSON.parse(readFileSync(options.state, "utf8")) as Saved;
+      if (typeof saved?.ino === "number" && typeof saved.offset === "number") return saved;
+    } catch {}
+    out(`Could not read ${options.state}, so this run starts as if it were the first.`);
+    return null;
   };
 
   if (!options.follow) {
     // Where the last run stopped, unless the log was rotated since (a new file, a shorter one, or a new start).
-    type Saved = { ino: number; offset: number; head?: string; length?: number };
-    const saved: Saved | null = options.state && existsSync(options.state) ? (JSON.parse(readFileSync(options.state, "utf8")) as Saved) : null;
+    const saved = readState();
     const stat = statSync(options.log);
     let offset = saved && saved.offset <= stat.size && sameLog(options.log, saved, stat) ? saved.offset : 0;
     let count = 0;
-    // A chunk at a time, saving the place after each, so a failure part way resends nothing already sent.
+    // A batch at a time, saving the place after each, so a failure part way resends nothing already sent.
     for (;;) {
-      const { lines, next, more } = readFrom(options.log, offset);
-      await handle(lines);
-      count += lines.length;
-      offset = next;
-      save(stat.ino, offset);
-      if (!more) break;
+      const read = readFrom(options.log, offset);
+      await handle(read, (at) => save(stat.ino, at, headOf(options.log)));
+      count += read.lines.length;
+      offset = read.next;
+      save(stat.ino, offset, headOf(options.log));
+      if (!read.more) break;
     }
     out(`Sent ${total} AI agent fetches from ${count} new lines.`);
     return total;
   }
 
-  // Follow: start where --state says, else at the end like tail -F, and start over when the log is replaced.
-  type Saved = { ino: number; offset: number; head?: string; length?: number };
-  const resumed: Saved | null = options.state && existsSync(options.state) ? (JSON.parse(readFileSync(options.state, "utf8")) as Saved) : null;
+  // Follow: start where --state says, else at the end like tail -F. A log that was rotated since the
+  // state was saved is all new, so it is read from its start.
+  const resumed = readState();
   const first = statSync(options.log);
   let ino = first.ino;
-  let offset = resumed && resumed.offset <= first.size && sameLog(options.log, resumed, first) ? resumed.offset : first.size;
-  let known = headOf(options.log);
+  let offset = resumed ? (resumed.offset <= first.size && sameLog(options.log, resumed, first) ? resumed.offset : 0) : first.size;
   out(`Following ${options.log}. AI agent fetches go to ${options.to} as they happen.`);
   // The log stays open, so when it is renamed in a rotation, what was written to it before the
-  // switch is still read to the end before the new log starts.
+  // switch is still read to the end before the new log starts. Its fingerprint is taken from the
+  // open file too, so a place saved while finishing an old log names that log, never the new one.
   let fd = openSync(options.log, "r");
+  let known = headOf(fd);
+  // The same trouble every two seconds is said once, until something changes.
+  let trouble = "";
   while (!options.stop?.aborted) {
     await new Promise((resolve) => setTimeout(resolve, options.pollMs ?? 2000));
-    const stat = existsSync(options.log) ? statSync(options.log) : null;
-    const renamed = !stat || stat.ino !== ino;
-    // Copied and truncated in place: the same file, shorter or with a new start.
-    if (!renamed && (stat!.size < offset || !sameLog(options.log, { ino, ...known }, stat!))) offset = 0;
-    let read: ReturnType<typeof readFrom>;
     try {
-      read = readFrom(fd, offset);
-      const sent = await handle(read.lines);
+      const stat = existsSync(options.log) ? statSync(options.log) : null;
+      const renamed = !stat || stat.ino !== ino;
+      // Copied and truncated in place: the same file, shorter or with a new start.
+      if (!renamed && (stat!.size < offset || !sameLog(options.log, { ino, ...known }, stat!))) offset = 0;
+      const read = readFrom(fd, offset);
+      const sent = await handle(read, (at) => {
+        offset = at;
+        save(ino, offset, known);
+      });
       // Only past lines that were sent, so a failed send is tried again next time.
       offset = read.next;
-      save(ino, offset);
+      save(ino, offset, known);
       if (sent) out(`Sent ${sent} AI agent fetches.`);
+      if (renamed && stat && !read.more) {
+        // The old log is finished; the new one is read from its start.
+        const next = openSync(options.log, "r");
+        closeSync(fd);
+        fd = next;
+        ino = stat.ino;
+        offset = 0;
+      }
+      // The start grows until it is HEAD bytes long, so the fingerprint is taken again each time.
+      known = headOf(fd);
+      trouble = "";
     } catch (error) {
-      out(`Could not send, trying again shortly: ${(error as Error).message}`);
-      continue;
+      const said = error instanceof SendError ? `Could not send, trying again shortly: ${error.message}` : `Could not read ${options.log}, trying again shortly: ${(error as Error).message}`;
+      if (said !== trouble) out(said);
+      trouble = said;
     }
-    if (renamed && stat && !read.more) {
-      // The old log is finished; the new one is read from its start.
-      closeSync(fd);
-      fd = openSync(options.log, "r");
-      ino = stat.ino;
-      offset = 0;
-    }
-    // The start grows until it is HEAD bytes long, so the fingerprint is taken again each time.
-    if (stat) known = headOf(options.log);
   }
   closeSync(fd);
   return total;

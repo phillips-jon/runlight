@@ -3,17 +3,23 @@
  * behind a sign-in, with sites managed in the dashboard and short links
  * answered on any domain pointed at it.
  */
-import { randomBytes, timingSafeEqual } from "node:crypto";
-import { runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { LINK_DOMAIN_CHECK, runlight, type Runlight, type RequestContext, type SqlStore, type GeoLookup } from "@runlight/sdk";
 import { Accounts, SESSION_COOKIE, SESSION_MS, Throttle, otpauthUri, type Invite, type Role, type User } from "./auth.js";
 import { AUTH_CSS, AUTH_JS, codePage, inviteGonePage, invitePage, loginPage, setupLockedPage, setupPage } from "./pages.js";
 
 export interface ServerOptions {
   store: SqlStore;
-  /** Signs sessions and encrypts stored mail keys. Keep it stable across restarts. */
+  /** Signs sessions and encrypts saved keys, such as the mail service's and two-factor secrets. Keep it stable across restarts. */
   secret: string;
   /** Also accepted as a bearer token on the API, for scripts. */
   token?: string;
+  /**
+   * The dashboard's public address, such as https://stats.example.com. It can
+   * never become a link domain, short links never answer on it, and emails
+   * link to it whatever Host header a request carries.
+   */
+  url?: string;
   /** Trust X-Forwarded-For and friends for the visitor's address. Default true. */
   trustProxy?: boolean | "x-forwarded-for" | "x-real-ip" | "cf-connecting-ip";
   geo?: GeoLookup;
@@ -66,6 +72,19 @@ function safeNext(value: string | null): string {
   }
 }
 
+/** The server's own pages, which answer as the server on every name it is reached at, a link domain too. */
+const SERVER_PATHS = new Set(["/login", "/logout", "/setup", "/invite", "/healthz", "/auth.css", "/auth.js", "/api", "/mcp", "/s.js", "/pick.js", "/e"]);
+
+/** The most names remembered as the server's own. */
+const MAX_OWN_HOSTS = 20;
+
+/** A Host header's name, lowercase, with no port, no final dot, and no www. */
+function hostName(value: string): string {
+  const first = value.split(",")[0]!.trim().toLowerCase();
+  const name = first.startsWith("[") ? first.slice(0, first.indexOf("]") + 1) : first.replace(/:\d*$/, "");
+  return name.replace(/\.+$/, "").replace(/^www\./, "");
+}
+
 function isSecure(request: Request): boolean {
   return new URL(request.url).protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
 }
@@ -77,6 +96,7 @@ export function createServer(options: ServerOptions): RunlightServer {
   // per account from anywhere, fifty, so a caller who invents a new address
   // for every try still cannot guess on and on. Addresses come from
   // forwarding headers a client can write, so they never stand alone.
+  // Each try counts before the password is checked, and a right one is taken back.
   const perAddress = new Throttle(10);
   const perAccount = new Throttle(50);
   // Six-digit codes: five wrong tries an account every fifteen minutes. Password re-checks in Account: ten.
@@ -85,6 +105,78 @@ export function createServer(options: ServerOptions): RunlightServer {
   const DEVICE_COOKIE = "runlight_device";
   const setupCode = randomBytes(9).toString("base64url");
   let hasAccount = false;
+  const publicUrl = options.url ? new URL(options.url) : null;
+  const publicHost = publicUrl ? hostName(publicUrl.host) : null;
+
+  /** The name a request came in on, read as link domains read it. */
+  const hostOf = (request: Request) => hostName(((options.trustProxy ?? true) ? request.headers.get("x-forwarded-host") : null) ?? request.headers.get("host") ?? new URL(request.url).host);
+
+  // The names people signed in from, kept in the database, so a link domain can never be one of them even when
+  // whoever adds it picks another Host header. Names that are already link domains are left out.
+  let ownHosts: Set<string> | null = null;
+  const savedHosts = async () => {
+    await rl.init();
+    try {
+      return JSON.parse((await options.store.setting("server-hosts")) ?? "[]") as string[];
+    } catch {
+      return [];
+    }
+  };
+  const knownHosts = async () => (ownHosts ??= new Set(await savedHosts()));
+  const learnHost = async (request: Request) => {
+    const host = hostOf(request);
+    const known = await knownHosts();
+    if (!host || known.has(host) || known.size >= MAX_OWN_HOSTS) return;
+    if ((await options.store.linkDomains()).some((d) => d.domain === host)) return;
+    // Another copy of the server may have saved names since this one read them.
+    for (const saved of await savedHosts()) known.add(saved);
+    known.add(host);
+    await options.store.setSetting("server-hosts", JSON.stringify([...known].slice(0, MAX_OWN_HOSTS)));
+  };
+
+  // Who made each token, kept beside it as a setting, so removing someone deletes the tokens they made and
+  // the apps they connected. Tokens made with RUNLIGHT_TOKEN, or before this was kept, have no maker.
+  const MADE_BY = "token-by:";
+  const CODE_BY = "oauth-code-by:";
+  const digest = (value: string) => createHash("sha256").update(value).digest("hex");
+  /** Notes the maker of a token the routes just made, or of the OAuth code that becomes one. */
+  const noteMaker = async (request: Request, form: URLSearchParams | null, answer: Response) => {
+    const path = new URL(request.url).pathname;
+    if (path === "/api/tokens" && request.method === "POST" && answer.status === 201) {
+      const user = await signedIn(request);
+      const made = (await answer.clone().json().catch(() => null)) as { token?: { id?: string } } | null;
+      if (user && made?.token?.id) await options.store.setSetting(`${MADE_BY}${made.token.id}`, user.id);
+    }
+    // An owner allowed an app: the code in the redirect is theirs until it is swapped for a token.
+    if (path === "/oauth/authorize" && request.method === "POST" && answer.status === 303) {
+      const code = new URL(answer.headers.get("location") ?? "", "http://x").searchParams.get("code");
+      const user = code ? await signedIn(request) : null;
+      if (code && user) await options.store.setSetting(`${CODE_BY}${digest(code)}`, user.id);
+    }
+    if (path === "/oauth/token" && request.method === "POST" && answer.status === 200 && form) {
+      const key = `${CODE_BY}${digest(form.get("code") ?? "")}`;
+      const maker = await options.store.setting(key);
+      if (!maker) return;
+      await options.store.setSetting(key, null);
+      const granted = (await answer.clone().json().catch(() => null)) as { access_token?: string } | null;
+      const row = granted?.access_token ? await options.store.tokenByHash(digest(granted.access_token)) : null;
+      if (row) await options.store.setSetting(`${MADE_BY}${row.id}`, maker);
+    }
+  };
+
+  /** The token endpoint's fields, sent as a form or as JSON. */
+  const formOf = async (request: Request) => {
+    const text = await request.text();
+    if (!(request.headers.get("content-type") ?? "").startsWith("application/json")) return new URLSearchParams(text);
+    const fields = (() => {
+      try {
+        return JSON.parse(text) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })();
+    return new URLSearchParams(fields && typeof fields === "object" ? Object.entries(fields).map(([k, v]) => [k, String(v)]) : []);
+  };
 
   const signedIn = async (request: Request) => {
     const value = readCookie(request, SESSION_COOKIE);
@@ -112,9 +204,12 @@ export function createServer(options: ServerOptions): RunlightServer {
       const auth = request.headers.get("authorization") ?? "";
       if (options.token && auth.toLowerCase().startsWith("bearer ") && equal(auth.slice(7).trim(), options.token)) return true;
       const user = await signedIn(request);
+      if (user) await learnHost(request);
       // A viewer reads every site and changes nothing.
       return user ? (user.role === "viewer" ? "read" : true) : false;
     },
+    ...(publicUrl ? { origin: publicUrl.origin } : {}),
+    ownHosts: knownHosts,
   });
   const links = rl.linkHandler();
 
@@ -139,9 +234,14 @@ export function createServer(options: ServerOptions): RunlightServer {
     const path = url.pathname;
     const method = request.method;
     try {
-      // A domain pointed at this server for short links answers at its root.
-      const linked = await rl.linkDomainResponse(request, context);
-      if (linked) return linked;
+      // A domain pointed at this server for short links answers at its root, with links one segment deep. The
+      // server's own pages and its public address never answer as links, and "/" stays the dashboard for someone
+      // signed in, so a link domain added on the dashboard's own name can always be removed again.
+      const linkable = path === LINK_DOMAIN_CHECK || (/^\/[^/]*$/.test(path) && !SERVER_PATHS.has(path) && !(path === "/" && (await signedIn(request))));
+      if (linkable && !(publicHost && hostOf(request) === publicHost)) {
+        const linked = await rl.linkDomainResponse(request, context);
+        if (linked) return linked;
+      }
 
       if (path === "/healthz") return new Response("ok", { headers: { "content-type": "text/plain", "cache-control": "no-store" } });
       if (path === "/auth.css") return new Response(AUTH_CSS, { headers: { "content-type": "text/css; charset=utf-8", "cache-control": "public, max-age=3600" } });
@@ -178,20 +278,20 @@ export function createServer(options: ServerOptions): RunlightServer {
           const next = safeNext(form.get("next"));
           const account = email.trim().toLowerCase();
           const pair = `${account}\n${rl.clientIp(request, context) || "unknown"}`;
-          // An account under attack is limited, except from a browser that signed in to it before,
-          // so failed tries by someone else cannot lock its owner out.
+          // An account under attack is limited, except from a browser that signed in to it before, and
+          // except when it has two-factor on, where a password alone never signs in and codes have their
+          // own limit. So failed tries by someone else cannot lock its owner out of a new browser.
           const known = await accounts.byEmail(account);
-          const trusted = Boolean(known && accounts.trustsDevice(readCookie(request, DEVICE_COOKIE), known));
-          if (perAddress.blocked(pair, now()) || (perAccount.blocked(account, now()) && !trusted)) {
+          const spared = Boolean(known && (known.twoFactor || accounts.trustsDevice(readCookie(request, DEVICE_COOKIE), known)));
+          if (perAddress.blocked(pair, now()) || (perAccount.blocked(account, now()) && !spared)) {
             return html(loginPage({ error: "Too many tries. Wait fifteen minutes and try again.", email, next }), 429);
           }
+          perAddress.fail(pair, now());
+          perAccount.fail(account, now());
           const user = await accounts.signIn(email, form.get("password") ?? "");
-          if (!user) {
-            perAddress.fail(pair, now());
-            perAccount.fail(account, now());
-            return html(loginPage({ error: "That email and password do not match an account.", email, next }), 401);
-          }
+          if (!user) return html(loginPage({ error: "That email and password do not match an account.", email, next }), 401);
           perAddress.clear(pair);
+          perAccount.forgive(account);
           // With two-factor on, the password only earns the second step.
           if (user.twoFactor) return html(codePage({ pending: accounts.pendingFor(user, now()), next }));
           return signedInTo(request, user, next);
@@ -248,7 +348,11 @@ export function createServer(options: ServerOptions): RunlightServer {
         return redirect(`/login${url.search ? `?next=${encodeURIComponent(`/${url.search}`)}` : ""}`);
       }
 
-      return await routes.handler(request, context);
+      // The token endpoint's form is read here too, to find who allowed the code it swaps.
+      const form = path === "/oauth/token" && method === "POST" ? await formOf(request.clone()) : null;
+      const answer = await routes.handler(request, context);
+      if (path === "/api/tokens" || path.startsWith("/oauth/")) await noteMaker(request, form, answer);
+      return answer;
     } catch (error) {
       console.error("Runlight:", error);
       return new Response(JSON.stringify({ error: "Internal error" }), { status: 500, headers: { "content-type": "application/json" } });
@@ -272,9 +376,9 @@ export function createServer(options: ServerOptions): RunlightServer {
    * always comes back too, for the owner to pass on another way.
    */
   async function sendInvite(request: Request, invite: Invite, code: string): Promise<{ link: string; emailed: boolean; mailError?: string }> {
-    const origin = new URL(request.url).origin;
-    const link = `${origin}/invite?code=${code}`;
-    const host = new URL(request.url).host;
+    const home = publicUrl ?? new URL(request.url);
+    const link = `${home.origin}/invite?code=${code}`;
+    const host = home.host;
     const what = invite.role === "owner" ? "an owner, who can change settings and manage people" : "a viewer, who can read every site's stats";
     const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
     if (!(await rl.mailSettings())) return { link, emailed: false };
@@ -302,11 +406,9 @@ export function createServer(options: ServerOptions): RunlightServer {
     if (path === "/api/account/password" && request.method === "POST") {
       const input = await body(request);
       if (!input) return reply({ error: "Send JSON" }, 415);
-      if (rechecks.blocked(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
-      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) {
-        rechecks.fail(user.id, now());
-        return reply({ error: "Your current password is not right" }, 400);
-      }
+      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
+      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) return reply({ error: "Your current password is not right" }, 400);
+      rechecks.forgive(user.id);
       try {
         const updated = await accounts.setPassword(user.email, String(input.next ?? ""), now());
         // The new password ends every other sign-in; this browser gets a fresh one.
@@ -329,11 +431,9 @@ export function createServer(options: ServerOptions): RunlightServer {
         const updated = (await accounts.byId(user.id))!;
         return reply({ recovery: codes }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
       }
-      if (rechecks.blocked(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
-      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) {
-        rechecks.fail(user.id, now());
-        return reply({ error: "Your password is not right" }, 400);
-      }
+      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right" }, 400);
+      rechecks.forgive(user.id);
       if (action === "/start") {
         const secret = await accounts.startTwoFactor(user.id);
         return reply({ secret, uri: otpauthUri(secret, user.email, new URL(request.url).host) });
@@ -351,9 +451,16 @@ export function createServer(options: ServerOptions): RunlightServer {
       return reply({ error: "Not found" }, 404);
     }
     if (user.role !== "owner") return reply({ error: "Only an owner can manage people" }, 403);
-    // An owner can turn off someone's two-factor, for a coworker who lost both phone and recovery codes.
+    // An owner can turn off someone else's two-factor, for a coworker who lost both phone and recovery codes.
+    // It asks for the owner's password like every other two-factor change, and their own goes through Account.
     const reset = /^\/api\/people\/([a-f0-9]{24})\/2fa$/.exec(path);
     if (reset && request.method === "DELETE") {
+      if (reset[1] === user.id) return reply({ error: "Turn off your own two-factor sign-in under Account" }, 400);
+      const input = await body(request);
+      if (!input) return reply({ error: "Send JSON" }, 415);
+      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right" }, 400);
+      rechecks.forgive(user.id);
       if (!(await accounts.byId(reset[1]!))) return reply({ error: "Unknown account" }, 404);
       await accounts.disableTwoFactor(reset[1]!);
       return reply({ ok: true });
@@ -394,6 +501,12 @@ export function createServer(options: ServerOptions): RunlightServer {
         if (request.method === "DELETE") {
           if (match[1] === user.id) return reply({ error: "You cannot remove yourself" }, 400);
           await accounts.remove(match[1]!);
+          // The tokens they made, and the apps they connected, stop working with them.
+          for (const { key, value } of await options.store.settingsStartingWith(MADE_BY)) {
+            if (value !== match[1]) continue;
+            await options.store.deleteToken(key.slice(MADE_BY.length));
+            await options.store.setSetting(key, null);
+          }
           return reply({ ok: true });
         }
         const input = await body(request);

@@ -79,20 +79,44 @@ test("an app connects to the MCP server over OAuth: discovery, registration, con
   assert.deepEqual(tokens.tokens.map((t: any) => [t.name, t.site]), [["Claude (OAuth)", "b"]]);
 });
 
-test("registrations that never connect are cleared away, so a flood cannot fill the list", async () => {
+test("registrations that never connect are cleared away, so a flood cannot fill the list or evict an app part way through", async () => {
   let now = Date.UTC(2026, 9, 7, 12);
   const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "Site A", hostnames: ["a.com"] }], now: () => now });
   const { POST } = rl.routes({ token: "secret" });
-  const register = (name: string) =>
-    POST(new Request("https://x.com/runlight/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: name, redirect_uris: ["https://app.example/cb"] }) }));
-  for (let i = 0; i < 200; i++) assert.equal((await register(`flood ${i}`)).status, 201);
-  // The list is full of apps that never connected, so the oldest makes room.
+  const register = (name: string, ip = "") =>
+    POST(new Request("https://x.com/runlight/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: name, redirect_uris: ["https://app.example/cb"] }) }), { ip });
+  // All at once, which once let each of them find room.
+  const flood = await Promise.all(Array.from({ length: 260 }, (_, i) => register(`flood ${i}`).then((r) => r.status)));
+  assert.equal(flood.filter((s) => s === 201).length, 200);
+  assert.equal(flood.filter((s) => s === 429).length, 60);
+  assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 200);
+  // Apps in their first ten minutes are still connecting, so none is cleared away for a newcomer.
+  assert.equal((await register("Claude")).status, 429);
+  // After that the list is full of apps that never connected, so the oldest makes room.
+  now += 11 * 60_000;
   assert.equal((await register("Claude")).status, 201);
   assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 200);
   // A day later every unused one is gone at the next registration.
   now += 86_400_000 + 1;
   assert.equal((await register("ChatGPT")).status, 201);
   assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 1);
+  // One address registers at most ten a minute.
+  for (let i = 0; i < 10; i++) assert.equal((await register(`app ${i}`, "203.0.113.9")).status, 201);
+  assert.equal((await register("one more", "203.0.113.9")).status, 429);
+  assert.equal((await register("one more", "203.0.113.10")).status, 201);
+});
+
+test("before an owner has allowed an app once, a request it got wrong ends on a page, never on its address", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "Site A", hostnames: ["a.com"] }] });
+  const { GET, POST } = rl.routes({ signIn: "/login", authorize: () => false });
+  const registered = await POST(new Request("https://x.com/runlight/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: "x", redirect_uris: ["https://evil.example/landing"] }) }));
+  const { client_id } = (await registered.json()) as any;
+  const wrong: Array<Record<string, string>> = [{ response_type: "token" }, { response_type: "code", code_challenge_method: "plain", code_challenge: "a".repeat(43) }];
+  for (const asked of wrong) {
+    const answer = await GET(new Request(`https://x.com/runlight/oauth/authorize?${new URLSearchParams({ client_id, redirect_uri: "https://evil.example/landing", state: "x", ...asked })}`));
+    assert.equal(answer.status, 400);
+    assert.equal(answer.headers.get("location"), null);
+  }
 });
 
 test("a signed-in viewer is told only an owner can connect, never sent to sign in again", async () => {

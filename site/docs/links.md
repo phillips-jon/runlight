@@ -33,6 +33,8 @@ Links can also live on a domain of their own, like `t.example.com/sale`. Set one
 2. Make your host accept the domain and serve HTTPS for it (on Vercel or Netlify, add it to the project’s domains).
 3. Add the domain in Settings. Runlight checks that it reaches your app and says so.
 
+A link domain answers every path on it, so it can never be your app's own domain or one of your sites. It must also be a public name, so names kept for private networks, such as `.internal` or `.local`, are refused. Pass `origin` to `routes()` with your app's address, and the first rule holds whatever Host header a request names.
+
 Requests on that domain have to reach Runlight, which in Next.js happens in middleware (named `proxy.ts` from Next.js 16).
 
 ```ts file=proxy.ts

@@ -159,8 +159,8 @@ export interface TokenRow {
   /** "" reads every site; otherwise the one site it may read. */
   site: string;
   /**
-   * "read" reads stats. "manage" also changes its one site's settings (goals,
-   * funnels, links, link domains, and email reports), for a Runlight hub.
+   * "read" reads stats. "manage", for a Runlight hub, also changes its one site's goals, funnels, short
+   * links, link domains, email reports, share links, name, timezone, and retention, and makes picker tickets.
    */
   scope: "read" | "manage";
   hash: string;

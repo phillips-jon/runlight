@@ -1,10 +1,10 @@
 import { AssistantError, PROVIDERS, chat, listModels } from "./assistant.js";
-import { finishConnect, startConnect } from "./connect.js";
+import { ConnectError, finishConnect, startConnect } from "./connect.js";
 import { PAGES_PER_VISIT, journeys } from "./journeys.js";
 import { JOURNEY_VISITS, type ReportRow, type ShareRow, type SiteRow, type TokenRow } from "./store.js";
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
-import { randomId, sha256 } from "./hash.js";
+import { hmac, randomId, sha256 } from "./hash.js";
 import { DIMENSIONS, isDimension, isSessionDimension, MAX_FILTERS, parseFilter, type Filter, type Query } from "./query.js";
 import { EMAIL, LINK_DOMAIN_CHECK, RETENTION_MONTHS, envValue as env, type RequestContext, type Runlight } from "./runlight.js";
 import { mcpResponse } from "./mcp.js";
@@ -58,6 +58,18 @@ export interface RoutesOptions {
   accounts?: boolean;
   /** Credits DB-IP in the dashboard's footer, as its free location data asks. The standalone server sets it. */
   geoCredit?: boolean;
+  /**
+   * The address people open the app at, such as https://example.com. A link
+   * domain can never be its host, and links in email reports point there,
+   * whatever Host header a request carries. Without it, the request's own
+   * host stands in.
+   */
+  origin?: string;
+  /**
+   * More names the dashboard is reached at, which can never be link domains
+   * either. The standalone server passes the ones people signed in from.
+   */
+  ownHosts?: () => Promise<Iterable<string>>;
 }
 
 export type FetchHandler = (request: Request, context?: RequestContext) => Promise<Response>;
@@ -98,6 +110,25 @@ function json(body: unknown, status = 200, headers: Record<string, string> = {})
  */
 function isJson(request: Request): boolean {
   return (request.headers.get("content-type") ?? "").split(";")[0]!.trim().toLowerCase() === "application/json";
+}
+
+/** A Host or X-Forwarded-Host value as a bare name: lowercase, with no port, no final dot, and no www. */
+function hostName(value: string): string {
+  const first = value.split(",")[0]!.trim().toLowerCase();
+  const name = first.startsWith("[") ? first.slice(0, first.indexOf("]") + 1) : first.replace(/:\d*$/, "");
+  return name.replace(/\.+$/, "").replace(/^www\./, "");
+}
+
+/**
+ * Whether a link domain names a public host: a domain name, with no IPv4
+ * address inside it (as nip.io answers), and not under a name kept for
+ * private networks or tests. The check fetches from it, so a name inside
+ * the install's own network must never get that far.
+ */
+function publicName(domain: string): boolean {
+  if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return false;
+  if (/(^|\.)\d{1,3}(\.\d{1,3}){3}(\.|$)/.test(domain)) return false;
+  return !/\.(internal|intranet|private|local|localhost|localdomain|lan|home|corp|home\.arpa|arpa|test|invalid|example)$/.test(domain);
 }
 
 /**
@@ -230,18 +261,25 @@ const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[
 /**
  * What a manage token, held by a Runlight hub, may read and change: one
  * site's goals, funnels, short links, link domains, email reports, and share
- * links, and its name, timezone, and retention. Never people, tokens, the
- * mail service, imports, or other sites.
+ * links, its name, timezone, and retention, and tickets for the element
+ * picker. It may read which mail service sends reports, through GET /api/mail,
+ * which hides the service's keys. Never people, tokens, changes to the mail
+ * service, imports, or other sites.
  */
 export function managePath(method: string, path: string): boolean {
   if (/^\/api\/links\/import/.test(path)) return false;
   if (/^\/api\/(links|link-domains|reports|goals|funnels|shares)(\/|$)/.test(path)) return true;
+  if (path === "/api/pick") return method === "POST";
   if (path === "/api/mail") return method === "GET";
   if (/^\/api\/sites\/[^/]+$/.test(path)) return method === "PATCH";
   return false;
 }
 /** Where the tracker's click rules go; the script ships with this string in their place. */
 const RULES_PLACEHOLDER = '"__RUNLIGHT_RULES__"';
+/** Where the picker's one allowed receiver goes, the dashboard origin its ticket names. */
+const PICK_TARGET_PLACEHOLDER = '"__RUNLIGHT_PICK_TARGET__"';
+/** How long a picker ticket works: long enough to find the element, not to be kept. */
+const PICK_TICKET_MS = 30 * 60_000;
 const SHARE_ID = /^[a-f0-9]{32}$/;
 
 const DASHBOARD_CSP =
@@ -252,6 +290,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const token = options.token === undefined ? env("RUNLIGHT_TOKEN") : options.token;
   const cronSecret = options.cronSecret ?? env("CRON_SECRET");
   const observeKey = options.observeKey ?? env("RUNLIGHT_OBSERVE_KEY");
+  const origin = options.origin ? new URL(options.origin).origin : null;
   let warned = false;
 
   // Requests from a manage token, already checked against its one site, act as the owner's.
@@ -368,10 +407,15 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         if (request.method === "POST") {
           const body = await readJson(request);
           if (body instanceof Response) return body;
-          const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
+          const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/\.+$/, "").replace(/^www\./, "");
           if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(domain)) return json({ error: "That is not a domain name" }, 400);
+          if (!publicName(domain)) return json({ error: `${domain} is not a public domain name. Use one that browsers anywhere can reach.` }, 400);
           // A link domain answers every path on it, so it must never be where the dashboard or a counted site lives.
-          const taken = new Set([url.hostname.replace(/^www\./, "").toLowerCase(), ...runlight.sites.flatMap((s) => s.hostnames), ...runlight.sites.flatMap((s) => runlight.remote(s.id)?.hostnames ?? [])]);
+          // The request's own Host is the caller's to choose, so the configured address and the names people
+          // signed in from count too.
+          const here = [request.headers.get("host"), request.headers.get("x-forwarded-host"), url.host].filter((h): h is string => Boolean(h));
+          const own = [...(origin ? [new URL(origin).host] : []), ...here, ...((await options.ownHosts?.()) ?? [])].map(hostName);
+          const taken = new Set([...own, ...runlight.sites.flatMap((s) => s.hostnames), ...runlight.sites.flatMap((s) => runlight.remote(s.id)?.hostnames ?? [])]);
           if (taken.has(domain)) return json({ error: `${domain} is where this dashboard or one of your sites lives. Use a separate domain or subdomain for short links, such as go.${domain}.` }, 400);
           const owner = (await runlight.store.linkDomains()).find((d) => d.domain === domain);
           if (owner && owner.site !== site.id) return json({ error: `${domain} already belongs to another site` }, 409);
@@ -384,6 +428,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (checkMatch && request.method === "GET") {
         const domain = decodeURIComponent(checkMatch[1]!);
         if (!(await runlight.store.linkDomains()).some((d) => d.domain === domain && d.site === site.id)) return json({ error: "Unknown domain" }, 404);
+        // One added before names inside private networks were refused is never fetched.
+        if (!publicName(domain)) return json({ domain, working: false, reason: "is not a public domain name" });
         let working = false;
         let reason = "";
         try {
@@ -518,6 +564,31 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   // site; without a name it serves no rules, and an app's own install, whose
   // sites all belong to one owner, serves every site's.
   const trackers = new Map<string, { body: string; etag: string; at: number }>();
+  /** The key picker tickets are signed with, made on first use and kept in the database for every process. */
+  async function pickKey(): Promise<string> {
+    await runlight.init();
+    const saved = await runlight.store.setting("pick-key");
+    if (saved) return saved;
+    const made = randomId(32);
+    await runlight.store.setSetting("pick-key", made);
+    return made;
+  }
+
+  /** A ticket that lets the picker send its choice to `origin`, the dashboard that asked, for half an hour. */
+  async function pickTicket(origin: string): Promise<string> {
+    const payload = `${runlight.now() + PICK_TICKET_MS}.${Array.from(new TextEncoder().encode(origin), (b) => b.toString(16).padStart(2, "0")).join("")}`;
+    return `${payload}.${await hmac(await pickKey(), payload)}`;
+  }
+
+  /** The dashboard origin a picker ticket names, or null when it is not one this install signed or has run out. */
+  async function pickTarget(ticket: string): Promise<string | null> {
+    const parts = /^(\d+)\.([a-f0-9]{2,512})\.([a-f0-9]{64})$/.exec(ticket);
+    if (!parts || Number(parts[1]) < runlight.now()) return null;
+    if (!constantTimeEqual(parts[3]!, await hmac(await pickKey(), `${parts[1]}.${parts[2]}`))) return null;
+    const origin = new TextDecoder().decode(new Uint8Array(parts[2]!.match(/../g)!.map((h) => parseInt(h, 16))));
+    return /^https?:\/\/[^/?#\s]+$/.test(origin) ? origin : null;
+  }
+
   async function trackerScript(siteId: string | null): Promise<{ body: string; etag: string }> {
     const key = siteId ?? "";
     const cached = trackers.get(key);
@@ -626,10 +697,11 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           const existing = await runlight.store.reports(site.id);
           if (existing.some((r) => r.email === email && r.frequency === frequency)) return json({ error: `${email} already gets the ${frequency} report` }, 400);
           if (existing.length >= 50) return json({ error: "A site can send to at most 50 addresses" }, 400);
-          // Links in the email point back to this dashboard, as the browser sees it. A report made
-          // from a hub uses this install's own address, where its unsubscribe link answers.
-          const given = managed.has(request) ? "" : String(body.origin ?? "");
-          const origin = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${url.origin}${base}`;
+          // Links in the email point back to the configured address, or else to this dashboard as the
+          // browser sees it. A report made from a hub uses this install's own address, where its
+          // unsubscribe link answers, and never the Host its request names.
+          const given = managed.has(request) || origin ? "" : String(body.origin ?? "");
+          const home = /^https?:\/\/[^\s]+$/.test(given) ? given.replace(/\/+$/, "") : `${origin ?? url.origin}${base}`;
           const report: ReportRow = {
             id: randomId(),
             site: site.id,
@@ -637,7 +709,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             frequency,
             lang: languages().includes(String(body.lang)) ? String(body.lang) : "en",
             token: randomId(16),
-            origin,
+            origin: home,
             lastPeriod: "",
             lastSentAt: null,
             createdAt: runlight.now(),
@@ -652,10 +724,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const report = match ? await runlight.store.reportBy("id", match[1]!) : null;
       if (!report || report.site !== site.id) return json({ error: "Unknown report" }, 404);
       if (match![2] && request.method === "POST") {
-        // A sample at most once a minute per report, so the send button cannot be used to flood an inbox.
-        const last = sampleSent.get(report.id) ?? 0;
-        if (runlight.now() - last < 60_000) return json({ error: "A sample went out less than a minute ago. Wait a moment and try again." }, 429);
-        sampleSent.set(report.id, runlight.now());
+        // A sample at most once a minute per report, so the send button cannot be used to flood an inbox. A hub
+        // sends one every ten minutes for the whole site, so adding reports again does not start a new count.
+        const key = managed.has(request) ? `site:${site.id}` : report.id;
+        const wait = managed.has(request) ? 600_000 : 60_000;
+        const last = sampleSent.get(key) ?? 0;
+        if (runlight.now() - last < wait) return json({ error: "A sample went out a moment ago. Wait a few minutes and try again." }, 429);
+        sampleSent.set(key, runlight.now());
         await runlight.deliverReport(report, site);
         return json({ ok: true });
       }
@@ -762,9 +837,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   }
 
   async function api(request: Request, path: string, url: URL): Promise<Response> {
-    // A write signed in by cookie must be JSON, which a form on another page cannot send, even the
-    // writes that carry no body. A token is never sent by the browser on its own, so it needs no check.
-    if (!["GET", "HEAD", "OPTIONS", "DELETE"].includes(request.method) && !bearer(request) && request.headers.has("cookie") && !isJson(request)) {
+    // A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
+    // That holds without a cookie too, since a browser also sends Basic credentials or comes from an
+    // allowed address on its own. A bearer token is never sent by the browser on its own, so it needs no check.
+    if (!["GET", "HEAD", "OPTIONS", "DELETE"].includes(request.method) && !bearer(request) && !isJson(request)) {
       return json({ error: "Send JSON" }, 415);
     }
     if (path === "/api" && request.method === "GET") {
@@ -811,7 +887,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         to = `${home}?site=${encodeURIComponent(id)}&settings=general`;
       } catch (error) {
         if (!(error instanceof RangeError)) throw error;
-        to = `${home}?connect_error=${encodeURIComponent(error.message)}`;
+        // A code, never the message: the dashboard shows its own words for it, so a link cannot put text there.
+        to = `${home}?connect_error=${error instanceof ConnectError ? error.code : "failed"}`;
       }
       return new Response(null, { status: 303, headers: { location: to, "cache-control": "no-store" } });
     }
@@ -1078,6 +1155,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (connected && path === "/api/links") {
       const access = await reader(request);
       if (access === false || access === "unconfigured") return denied(access);
+      // A token limited to one site reads only that site's links, here as everywhere else.
+      if (access !== true && access.site && access.site !== asked) return json({ error: "Unknown site" }, 404);
       return passThrough(connected, path, url);
     }
 
@@ -1105,6 +1184,18 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const access = await canRead(request);
       if (access !== true) return denied(access);
       return mailApi(request, path, url);
+    }
+
+    // A ticket for the element picker, naming the dashboard it may send its choice to. A hub asks the install
+    // that serves the site's script, with its own origin, since that install signs what the script will trust.
+    if (path === "/api/pick" && request.method === "POST") {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const origin = String(body.origin ?? "");
+      if (!/^https?:\/\/[^/?#\s]+$/.test(origin)) return json({ error: "Send the dashboard's origin, such as https://stats.example.com" }, 400);
+      return json({ ticket: await pickTicket(origin) });
     }
 
     if ((path === "/api/goals" && request.method === "POST") || (/^\/api\/goals\/[^/]+$/.test(path) && (request.method === "PATCH" || request.method === "DELETE"))) {
@@ -1421,7 +1512,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const handler: FetchHandler = async (request, context = {}) => {
     const url = new URL(request.url);
     // OAuth clients look for these at the site's root; an app routes them here when it wants OAuth.
-    if (base && url.pathname.startsWith("/.well-known/oauth-")) return (await oauthResponse(oauth, request, url.pathname, url)) ?? json({ error: "Not found" }, 404);
+    if (base && url.pathname.startsWith("/.well-known/oauth-")) return (await oauthResponse(oauth, request, url.pathname, url, context)) ?? json({ error: "Not found" }, 404);
     if (base && url.pathname !== base && !url.pathname.startsWith(`${base}/`)) return json({ error: "Not found" }, 404);
     const path = url.pathname.slice(base.length) || "/";
 
@@ -1439,7 +1530,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       }
 
       if (path === "/pick.js" && request.method === "GET") {
-        return new Response(PICKER, { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "public, max-age=3600" } });
+        // The picker sends what it picked only to the dashboard its ticket names; without a good ticket it does nothing.
+        const target = await pickTarget(url.searchParams.get("runlight_ticket") ?? "");
+        return new Response(PICKER.replace(PICK_TARGET_PLACEHOLDER, () => JSON.stringify(target ?? "")), { headers: { "content-type": "application/javascript; charset=utf-8", "cache-control": "no-store" } });
       }
 
       if (path === `/assets/world.${WORLD_HASH}.json` && request.method === "GET") {
@@ -1486,7 +1579,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (path === "/api" || path.startsWith("/api/")) return await api(request, path, url);
 
       if (path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-")) {
-        const answer = await oauthResponse(oauth, request, path, url);
+        const answer = await oauthResponse(oauth, request, path, url, context);
         if (answer) return answer;
       }
 

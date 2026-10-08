@@ -48,6 +48,7 @@ Every report takes the same query parameters.
 | `GET /api/journeys` | The paths visits take: the top pages at each step, the flows between steps, and the commonest paths. It takes `steps` (2 to 8), `start` and `end` pages, and `through` as `step:page` to follow one page. |
 | `GET /api/links` | Short links with their clicks. |
 | `GET /api/links/:id` | One link’s clicks over time, sources, countries, devices, and browsers. |
+| `GET /api/icon` | The site’s icon as an image, fetched from the site’s own domain, or a 404 when it has none. Share links can read it too. |
 
 `breakdown` and `filter` accept the dimensions `page`, `entry`, `exit`, `hostname`, `event`, `referrer`, `source`, `channel`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `country`, `region`, `city`, `browser`, `browser_version`, `os`, `os_version`, `device`, `screen`, and `language`. `breakdown` also takes `ai_agent` and `ai_page`.
 
@@ -61,13 +62,15 @@ Every report takes the same query parameters.
 | `POST /api/sites/connect` | Start connecting another install through its consent page, from `{ "url" }`. It answers with `authorize`, the address to send the owner to. Add `site` with the install's id for a site to offer that one first. |
 | `GET /api/sites/connect/done` | Where the consent page sends the owner back. It finishes connecting and opens the dashboard on the site. |
 | `POST /api/goals`, `PATCH /api/goals/:id`, `DELETE /api/goals/:id` | Add, change, or remove a goal. |
+| `POST /api/pick` | Makes a ticket for the element picker from `{ "origin" }`, the dashboard's own origin, which the picker sends its choice to and nowhere else. A ticket works for half an hour. |
 | `POST /api/funnels`, `PATCH /api/funnels/:id`, `DELETE /api/funnels/:id` | Add, change, or remove a funnel, sent as `{ "name", "steps" }` with two to eight steps of `{ "kind", "match" }`, where kind is `page` or `event`. |
 | `POST /api/links`, `PATCH /api/links/:id`, `DELETE /api/links/:id` | Add, change, or remove a short link. |
 | `POST /api/links/import` | Add many short links at once from `{ "rows" }`, up to 5,000 objects with `url` and, if you like, `slug`, `name`, and `domain`. It answers with how many it made and which rows failed. |
 | `POST /api/links/import/:source` | One step of an import from `umami`, `dub`, `bitly`, `shortio`, or `rebrandly`, sent as `{ "credentials", "cursor", "done" }`. Send the `cursor` it answers with until it comes back `null`. Credentials are used and never kept. |
 | `POST /api/import/umami/websites` | List the websites in an Umami account, from `{ "credentials" }`. |
 | `POST /api/import/umami/visits` | One step of bringing an Umami website’s visit history in, from `{ "credentials", "website", "cursor" }`, repeated until `cursor` is `null`. |
-| `GET`, `POST /api/link-domains`, `DELETE /api/link-domains/:domain` | List, add, or remove custom link domains. |
+| `GET`, `POST /api/link-domains`, `DELETE /api/link-domains/:domain` | List, add, or remove custom link domains. A link domain must be a public name, and never the dashboard’s own or a site’s. |
+| `GET /api/link-domains/:domain/check` | Whether requests to a link domain reach Runlight, as `{ "domain", "working", "reason" }`, where `reason` says what answered instead. |
 | `GET`, `POST /api/shares`, `PATCH`, `DELETE /api/shares/:id` | List, add, rename, or remove share links. |
 | `GET`, `PUT`, `DELETE /api/mail`, `POST /api/mail/test` | Read, set, remove, or test the mail service. Keys are never returned. |
 | `GET`, `POST /api/reports`, `DELETE /api/reports/:id`, `POST /api/reports/:id/send` | List, add, or remove report recipients, or send a sample. |
@@ -80,6 +83,7 @@ Every report takes the same query parameters.
 | `DELETE /api/token` | Deletes the token sent with it. A hub does this when it disconnects a site or is given a new token. |
 | `DELETE /api/tokens/:id` | Deletes a token, which stops it working at once. |
 | `GET`, `PUT`, `DELETE /api/assistant` | Read, set, or remove the dashboard assistant's `{ "provider", "model", "baseUrl", "key" }`. The key is never returned. Owners only, though anyone at the dashboard can ask whether it is set up. |
+| `POST /api/assistant/models` | The models a provider offers, from `{ "provider", "baseUrl", "key" }`, for the settings form. Leave `key` out to use the saved one, which works only for the same provider and address. Owners only. |
 | `POST /api/assistant/chat` | Ask the assistant, sending `{ "site", "messages", "view", "language" }`, where messages are `{ "role", "content" }` pairs ending with a question. It answers `{ "reply", "tools" }`. People at the dashboard only, never API tokens or share links. |
 | `POST /mcp` | The MCP server for AI assistants, described in [Ask your AI](/docs/mcp/). |
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { sqlite } from "@runlight/sdk/sqlite";
-import { base32, totp } from "../src/auth.js";
+import { Throttle, base32, totp } from "../src/auth.js";
 import { createServer } from "../src/server.js";
 
 const origin = "https://stats.example.com";
@@ -82,8 +82,19 @@ test("two-factor sign-in: turned on with a code, then asked for at every sign-in
   const secret = await server.accounts.startTwoFactor(other!.id);
   await server.accounts.confirmTwoFactor(other!.id, code(secret), now);
   assert.equal((await server.accounts.byId(other!.id))!.twoFactor, true);
-  assert.equal((await api("DELETE", `/api/people/${other!.id}/2fa`)).status, 200);
+  assert.equal((await api("DELETE", `/api/people/${other!.id}/2fa`)).status, 415, "it asks for the owner's password");
+  assert.equal((await api("DELETE", `/api/people/${other!.id}/2fa`, { password: "nope" })).status, 400);
+  assert.equal((await server.accounts.byId(other!.id))!.twoFactor, true);
+  assert.equal((await api("DELETE", `/api/people/${other!.id}/2fa`, { password: "a long password" })).status, 200);
   assert.equal((await server.accounts.byId(other!.id))!.twoFactor, false);
+
+  // An owner's own two-factor goes off only through Account, which asks for the password.
+  const mine = (await (await api("POST", "/api/account/2fa/start", { password: "a long password" })).json()) as any;
+  cookie = cookieOf(await api("POST", "/api/account/2fa/confirm", { code: code(mine.secret) }));
+  const me = (await server.accounts.byEmail("jon@example.com"))!;
+  assert.equal((await api("DELETE", `/api/people/${me.id}/2fa`)).status, 400);
+  assert.equal((await api("DELETE", `/api/people/${me.id}/2fa`, { password: "a long password" })).status, 400);
+  assert.equal((await server.accounts.byId(me.id))!.twoFactor, true);
 });
 
 test("failed tries by others cannot lock out a browser that signed in before, and codes allow five tries", async () => {
@@ -110,6 +121,54 @@ test("failed tries by others cannot lock out a browser that signed in before, an
   const code = (value: string) => handle(req("/login/code", form({ pending, code: value })));
   for (let i = 0; i < 5; i++) assert.equal((await code("000000")).status, 401);
   assert.equal((await code(totp(secret, Math.floor(now / 30_000)))).status, 429, "even the right code waits after five wrong ones");
+});
+
+test("with two-factor on, failed passwords from others cannot lock its owner out of a new browser", async () => {
+  let now = Date.UTC(2026, 9, 7, 12);
+  const server = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), now: () => now });
+  const user = await server.accounts.setPassword("jon@example.com", "a long password", now);
+  const secret = await server.accounts.startTwoFactor(user.id);
+  await server.accounts.confirmTwoFactor(user.id, totp(secret, Math.floor(now / 30_000)), now);
+  now += 60_000;
+  const login = (password: string, ip: string) =>
+    server.handler(new Request(`${origin}/login`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-for": ip }, body: new URLSearchParams({ email: "jon@example.com", password }).toString() }));
+  for (let i = 0; i < 60; i++) assert.equal((await login("wrong wrong wrong", `203.0.113.${i}`)).status, 401, "a password alone never signs in, so the account is not blocked");
+  const step = await login("a long password", "192.0.2.77");
+  assert.equal(step.status, 200, "a new browser reaches the code step");
+  assert.match(await step.text(), /name="pending"/);
+  // Each address still has its own limit.
+  for (let i = 0; i < 10; i++) await login("wrong wrong wrong", "198.51.100.9");
+  assert.equal((await login("a long password", "198.51.100.9")).status, 429);
+});
+
+test("a burst of wrong passwords is counted before they are checked, so it cannot pass the limit", async () => {
+  const now = Date.UTC(2026, 9, 7, 12);
+  const server = createServer({ store: sqlite({ path: ":memory:" }), secret: "s".repeat(64), now: () => now });
+  await server.accounts.setPassword("jon@example.com", "a long password", now);
+  const login = (password: string, ip = "198.51.100.7") =>
+    server.handler(new Request(`${origin}/login`, { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", "x-forwarded-for": ip }, body: new URLSearchParams({ email: "jon@example.com", password }).toString() }));
+  const statuses = await Promise.all(Array.from({ length: 40 }, (_, i) => login(`guess ${i}`).then((r) => r.status)));
+  assert.equal(statuses.filter((s) => s === 401).length, 10, "ten checked");
+  assert.equal(statuses.filter((s) => s === 429).length, 30);
+
+  // The password re-checks in Account are counted the same way.
+  const cookie = cookieOf(await login("a long password", "192.0.2.1"));
+  const change = (current: string) => server.handler(req("/api/account/password", { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ current, next: "a new long password" }) }));
+  const rechecked = await Promise.all(Array.from({ length: 30 }, (_, i) => change(`guess ${i}`).then((r) => r.status)));
+  assert.equal(rechecked.filter((s) => s === 400).length, 10);
+  assert.equal(rechecked.filter((s) => s === 429).length, 20);
+});
+
+test("a right password does not use up a try, and the throttle never holds an address or an email", () => {
+  const throttle = new Throttle(2);
+  const now = Date.UTC(2026, 9, 7, 12);
+  assert.equal(throttle.take("jon@example.com\n198.51.100.7", now), true);
+  throttle.forgive("jon@example.com\n198.51.100.7");
+  assert.equal(throttle.take("jon@example.com\n198.51.100.7", now), true);
+  assert.equal(throttle.take("jon@example.com\n198.51.100.7", now), true);
+  assert.equal(throttle.take("jon@example.com\n198.51.100.7", now), false, "two wrong tries reach the limit");
+  const held = [...(throttle as unknown as { failures: Map<string, unknown> }).failures.keys()].join(" ");
+  assert.doesNotMatch(held, /198\.51|example/);
 });
 
 test("the same code used twice at once signs in only once", async () => {

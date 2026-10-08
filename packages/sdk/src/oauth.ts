@@ -15,7 +15,8 @@
  * changes one site's settings.
  */
 import { randomId, sha256 } from "./hash.js";
-import type { Runlight } from "./runlight.js";
+import { RateLimit } from "./limit.js";
+import type { RequestContext, Runlight } from "./runlight.js";
 import type { TokenRow } from "./store.js";
 
 interface Client {
@@ -39,6 +40,13 @@ const CODE_MS = 5 * 60_000;
 const MAX_CLIENTS = 200;
 /** A registered app that has not finished connecting within a day is removed. */
 const UNUSED_CLIENT_MS = 86_400_000;
+/** A newer one is never removed to make room, so a flood of registrations cannot evict an app part way through connecting. */
+const PROTECTED_CLIENT_MS = 10 * 60_000;
+/** Registrations one address may make a minute. */
+const REGISTRATIONS_PER_MINUTE = 10;
+
+/** Per install: the registration in progress, so they run one at a time, and the per-address limit. */
+const registrations = new WeakMap<Runlight, { turn: Promise<unknown>; limit: RateLimit }>();
 
 const esc = (value: string) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -80,7 +88,7 @@ export const resourceMetadataUrl = (origin: string, base: string) => `${origin}$
  * relative to the routes' base; the two well-known documents are also answered
  * at the site's root (`/.well-known/...`) for clients that look there.
  */
-export async function oauthResponse(ctx: OAuthContext, request: Request, path: string, url: URL): Promise<Response | null> {
+export async function oauthResponse(ctx: OAuthContext, request: Request, path: string, url: URL, context: RequestContext = {}): Promise<Response | null> {
   const { runlight, base } = ctx;
   const issuer = `${url.origin}${base}`;
   const known = path;
@@ -105,30 +113,16 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
 
   if (path === "/oauth/register" && request.method === "POST") {
     await runlight.init();
+    let state = registrations.get(runlight);
+    if (!state) registrations.set(runlight, (state = { turn: Promise.resolve(), limit: new RateLimit(REGISTRATIONS_PER_MINUTE, () => runlight.now()) }));
+    if (!(await state.limit.allow(runlight.clientIp(request, context)))) return oauthError("invalid_client_metadata", "Too many registrations from this address. Wait a minute and try again.", 429);
     const body = (await request.json().catch(() => null)) as { client_name?: unknown; redirect_uris?: unknown } | null;
     const redirects = Array.isArray(body?.redirect_uris) ? body!.redirect_uris.map(String).filter(allowedRedirect).slice(0, 10) : [];
     if (!redirects.length) return oauthError("invalid_redirect_uri", "Register at least one https redirect address");
-    // Anyone can register, so apps that never finished connecting are cleared away: those older than a
-    // day, and the oldest of them whenever the list is full. Only a list full of connected apps refuses.
-    const clients = (await runlight.store.settingsStartingWith("oauth-client:"))
-      .map(({ key, value }) => ({ key, client: JSON.parse(value) as Client }))
-      .sort((a, b) => a.client.createdAt - b.client.createdAt);
-    let count = clients.length;
-    for (const { key, client } of clients) {
-      if (client.usedAt) continue;
-      if (count < MAX_CLIENTS && client.createdAt > runlight.now() - UNUSED_CLIENT_MS) continue;
-      await runlight.store.setSetting(key, null);
-      count--;
-    }
-    if (count >= MAX_CLIENTS) return oauthError("invalid_client_metadata", "This Runlight has too many registered apps", 429);
-    // Codes nobody exchanged are gone too.
-    for (const { key, value } of await runlight.store.settingsStartingWith("oauth-code:")) {
-      if (((JSON.parse(value) as Partial<Code>).expires ?? 0) < runlight.now()) await runlight.store.setSetting(key, null);
-    }
-    const id = randomId(16);
-    const client: Client = { name: String(body?.client_name ?? "An app").trim().slice(0, 80) || "An app", redirects, createdAt: runlight.now() };
-    await runlight.store.setSetting(`oauth-client:${id}`, JSON.stringify(client));
-    return json({ client_id: id, client_name: client.name, redirect_uris: redirects, token_endpoint_auth_method: "none", grant_types: ["authorization_code"], response_types: ["code"] }, 201);
+    // One at a time, so registrations at once cannot each find room and overrun the list.
+    const turn = state.turn.then(() => register(runlight, String(body?.client_name ?? "An app"), redirects));
+    state.turn = turn.catch(() => {});
+    return await turn;
   }
 
   if (path === "/oauth/authorize" && (request.method === "GET" || request.method === "POST")) {
@@ -147,9 +141,13 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
       if (state) to.searchParams.set("state", state);
       return new Response(null, { status: 303, headers: { location: to.toString(), "cache-control": "no-store" } });
     };
-    if (form.get("response_type") !== "code") return back({ error: "unsupported_response_type" });
+    // Anyone can register an app with any address, so until an owner has allowed it once, a request
+    // it got wrong ends on a page here rather than sending a visitor who is not signed in on to it.
+    const refuse = (params: Record<string, string>) =>
+      client.usedAt ? back(params) : page("This app asked in a way Runlight does not support", `<p>${esc(client.name)} sent ${esc(params.error_description ?? params.error!)}. Start connecting again from the app.</p>`, 400);
+    if (form.get("response_type") !== "code") return refuse({ error: "unsupported_response_type" });
     const challenge = form.get("code_challenge") ?? "";
-    if (form.get("code_challenge_method") !== "S256" || !/^[A-Za-z0-9_-]{43,128}$/.test(challenge)) return back({ error: "invalid_request", error_description: "PKCE with S256 is required" });
+    if (form.get("code_challenge_method") !== "S256" || !/^[A-Za-z0-9_-]{43,128}$/.test(challenge)) return refuse({ error: "invalid_request", error_description: "PKCE with S256 is required" });
     const manage = (form.get("scope") ?? "").split(/\s+/).includes("manage");
 
     if (!(await ctx.isOwner(request))) {
@@ -234,6 +232,34 @@ ${sendsTo}
   }
 
   return null;
+}
+
+/** Adds a client, after clearing away apps that never finished connecting. */
+async function register(runlight: Runlight, name: string, redirects: string[]): Promise<Response> {
+  // Anyone can register, so apps that never finished connecting are cleared away: those older than a
+  // day, and whenever the list is full, the oldest past their first ten minutes. Only a list full of
+  // connected apps and apps still connecting refuses.
+  const now = runlight.now();
+  const clients = (await runlight.store.settingsStartingWith("oauth-client:"))
+    .map(({ key, value }) => ({ key, client: JSON.parse(value) as Client }))
+    .sort((a, b) => a.client.createdAt - b.client.createdAt);
+  let count = clients.length;
+  for (const { key, client } of clients) {
+    if (client.usedAt) continue;
+    const age = now - client.createdAt;
+    if (age < UNUSED_CLIENT_MS && (count < MAX_CLIENTS || age < PROTECTED_CLIENT_MS)) continue;
+    await runlight.store.setSetting(key, null);
+    count--;
+  }
+  if (count >= MAX_CLIENTS) return oauthError("invalid_client_metadata", "This Runlight has too many registered apps", 429);
+  // Codes nobody exchanged are gone too.
+  for (const { key, value } of await runlight.store.settingsStartingWith("oauth-code:")) {
+    if (((JSON.parse(value) as Partial<Code>).expires ?? 0) < now) await runlight.store.setSetting(key, null);
+  }
+  const id = randomId(16);
+  const client: Client = { name: name.trim().slice(0, 80) || "An app", redirects, createdAt: now };
+  await runlight.store.setSetting(`oauth-client:${id}`, JSON.stringify(client));
+  return json({ client_id: id, client_name: client.name, redirect_uris: redirects, token_endpoint_auth_method: "none", grant_types: ["authorization_code"], response_types: ["code"] }, 201);
 }
 
 function page(title: string, body: string, status = 200): Response {

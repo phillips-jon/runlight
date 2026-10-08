@@ -15,6 +15,8 @@ With Docker, run this.
 docker run -d --name runlight -p 3000:3000 -v runlight:/data ghcr.io/phillips-jon/runlight
 ```
 
+When a proxy on the same machine adds HTTPS, as in [Put it on the internet](#put-it-on-the-internet), publish the port on the loopback address only, with `-p 127.0.0.1:3000:3000`. Docker opens a published port past firewalls such as ufw, and a client that reaches the plain port directly can name any host and send a false forwarded address.
+
 With Node 22 or later, run this instead.
 
 ```bash
@@ -35,15 +37,15 @@ docker logs runlight
 
 The link starts with `http://localhost:3000`. When the server runs somewhere else, keep everything from `/setup` on and put the server's own address in front, such as `https://stats.example.com/setup?code=...`. Each start makes a new code, so after a restart use the link from the newest log lines.
 
-Owners invite people in **Settings**, **People**, as an owner or a viewer. An owner can change everything, and a viewer can read every site's stats without changing anything. The invite goes out by email when the server has a mail service (set in **Settings**, **Email reports**), and the dashboard always shows the link too, so you can send it another way. The person opens it, chooses a password, and is signed in. A link works once, for seven days, and **Send again** makes a new one. Everyone can change their password later under **Account** at the bottom of the dashboard. The server always keeps at least one owner. API tokens belong to the server itself, so after removing someone, check **Settings**, **API and AI** for tokens they made.
+Owners invite people in **Settings**, **People**, as an owner or a viewer. An owner can change everything, and a viewer can read every site's stats without changing anything. The invite goes out by email when the server has a mail service (set in **Settings**, **Email reports**), and the dashboard always shows the link too, so you can send it another way. The person opens it, chooses a password, and is signed in. A link works once, for seven days, and **Send again** makes a new one. Everyone can change their password later under **Account** at the bottom of the dashboard. The server always keeps at least one owner. Removing someone also deletes the API tokens they made and the apps they connected, such as Claude or a hub. Tokens made with `RUNLIGHT_TOKEN`, or before this version, have no maker on record, so after removing someone, check **Settings**, **API and AI** for those.
 
 ### Two-factor sign-in
 
-Anyone can turn on two-factor sign-in under **Account** at the bottom of the dashboard. Confirm your password, scan the QR code with an authenticator app such as 1Password, Google Authenticator, or Authy, and enter the code it shows. Signing in then asks for a fresh code after the password. You also get ten recovery codes, shown once, and each signs you in once if your phone is gone. An owner can reset someone else's two-factor in **Settings**, **People**. Turning two-factor on or off signs you out of every other browser, and the one you are using stays signed in.
+Anyone can turn on two-factor sign-in under **Account** at the bottom of the dashboard. Confirm your password, scan the QR code with an authenticator app such as 1Password, Google Authenticator, or Authy, and enter the code it shows. Signing in then asks for a fresh code after the password. You also get ten recovery codes, shown once, and each signs you in once if your phone is gone. An owner can reset someone else's two-factor in **Settings**, **People**, after entering their own password. Turning two-factor on or off signs you out of every other browser, and the one you are using stays signed in.
 
 ### Sign-in limits
 
-One address gets ten wrong passwords for an account every fifteen minutes, and the account gets fifty from anywhere. A browser that has signed in to the account before still gets in when the account is at its limit, so someone guessing cannot lock you out. The code step allows five wrong codes every fifteen minutes.
+One address gets ten wrong passwords for an account every fifteen minutes, and the account gets fifty from anywhere. Each try is counted as it arrives, so a burst of guesses sent at once gets no further. When the account is at its limit, a browser that has signed in to it before still gets in. With two-factor sign-in on, any browser still reaches the code step, because a password alone never signs in, so someone guessing cannot lock you out of a new browser either. The code step allows five wrong codes every fifteen minutes. The counts are kept in memory, with addresses and email addresses hashed by a key made at each start.
 
 ### Forgotten passwords
 
@@ -89,6 +91,8 @@ stats.example.com {
 }
 ```
 
+Set `RUNLIGHT_URL` to the server's public address, such as `https://stats.example.com`. Short links can then never take over that name, and invite and report emails link to it whatever Host header a request names.
+
 Runlight reads each visitor's address from the last `X-Forwarded-For` entry, the one your proxy adds. Set `TRUST_PROXY` to `x-real-ip` or `cf-connecting-ip` when that header holds the address instead, such as behind Cloudflare and another proxy. Set `TRUST_PROXY=false` when nothing sits in front of the server, so a visitor cannot send a false address.
 
 ## Short links on your own domains
@@ -101,7 +105,7 @@ stats.example.com, go.example.com {
 }
 ```
 
-Every link also answers at `/go/your-slug` on the server's own domain.
+Every link also answers at `/go/your-slug` on the server's own domain. The server's own pages, such as `/login` and everything under `/api`, answer as the server on a link domain too, so a link with one of those slugs works only at `/go/`. A link domain can never be the server's public address or a name someone has signed in from, and if one was added that way before, signing in at `/login` still opens the dashboard so you can remove it.
 
 ## Locations
 
@@ -120,6 +124,7 @@ The server reads its settings from environment variables.
 | `DATA_DIR` | The folder for the SQLite file, the secret, and the location data. The default is `./runlight-data`, or `/data` in Docker. |
 | `DATABASE_URL` | A `postgres://` address, to keep the data in Postgres instead of SQLite. |
 | `RUNLIGHT_SECRET` | The key that signs sign-ins and encrypts saved keys, for mail, the AI Assistant, connected installs, and two-factor sign-in. Without it, the server makes one and keeps it in `DATA_DIR`. |
+| `RUNLIGHT_URL` | The server's public address, such as `https://stats.example.com`, which can never become a link domain. Invite and report emails link to it. |
 | `RUNLIGHT_TOKEN` | A token that scripts can send as a bearer, in addition to the [API tokens](/docs/mcp/) made in the dashboard. |
 | `RUNLIGHT_OBSERVE_KEY` | One key a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site can use to report AI agents, for any site. Each site also has its own key in **Settings**, **Install**, limited to that site, which is the better choice. |
 | `TRUST_PROXY` | Set to `false` when no proxy sits in front of the server. |
@@ -131,7 +136,7 @@ The server runs Runlight's [scheduled check](/docs/cron/) itself every five minu
 
 ## Backups and upgrades
 
-Back up the data folder. It holds the SQLite file and the `secret` file, and without the secret the saved mail keys cannot be read and everyone has to sign in again. To upgrade, pull the new image or run `npx runlight.sh@latest`, and the database updates itself on start.
+Back up the data folder. It holds the SQLite file and the `secret` file, and without the secret the saved keys cannot be read and everyone has to sign in again. Those are the mail service's, the AI Assistant's, the tokens for connected installs, and everyone's two-factor secrets, so two-factor sign-in has to be set up again too. To upgrade, pull the new image or run `npx runlight.sh@latest`, and the database updates itself on start.
 
 ## Running more than one copy
 

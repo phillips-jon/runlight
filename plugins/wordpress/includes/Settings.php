@@ -52,12 +52,14 @@ final class Settings {
 	public static function sanitize( $input ): array {
 		$input  = is_array( $input ) ? $input : array();
 		$before = self::get();
-		$key    = isset( $input['observe_key'] ) ? trim( sanitize_text_field( wp_unslash( (string) $input['observe_key'] ) ) ) : '';
+		$key     = isset( $input['observe_key'] ) ? trim( sanitize_text_field( wp_unslash( (string) $input['observe_key'] ) ) ) : '';
+		$address = self::sanitize_address( isset( $input['address'] ) ? sanitize_text_field( wp_unslash( (string) $input['address'] ) ) : '' );
 		return array(
-			'address'     => self::sanitize_address( isset( $input['address'] ) ? sanitize_text_field( wp_unslash( (string) $input['address'] ) ) : '' ),
+			'address'     => $address,
 			'site'        => isset( $input['site'] ) ? preg_replace( '/[^a-z0-9._-]/i', '', (string) $input['site'] ) : '',
-			// Left blank, a saved key stays, so it never has to be shown again.
-			'observe_key' => '' === $key ? $before['observe_key'] : $key,
+			// Left blank, a saved key stays, so it never has to be shown again, but only for the same
+			// address: pointed somewhere else, the plugin must never send that Runlight's key there.
+			'observe_key' => '' === $key ? ( $address === $before['address'] ? $before['observe_key'] : '' ) : $key,
 			'skip_admins' => ! empty( $input['skip_admins'] ),
 			'outbound'    => ! empty( $input['outbound'] ),
 			'downloads'   => ! empty( $input['downloads'] ),

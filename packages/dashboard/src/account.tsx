@@ -251,19 +251,26 @@ function TwoFactor({ me }: { me: Person }) {
   );
 }
 
-/** Resetting someone's two-factor takes a second click, like deleting. */
-function ResetTwoFactor({ onReset }: { onReset: () => void }) {
-  const [armed, setArmed] = useState(false);
-  useEffect(() => {
-    if (!armed) return;
-    const timer = setTimeout(() => setArmed(false), 4000);
-    return () => clearTimeout(timer);
-  }, [armed]);
+/** Resetting someone's two-factor asks for your own password first, like every two-factor change. */
+function ResetTwoFactor({ onReset, onCancel }: { onReset: (password: string) => Promise<void>; onCancel: () => void }) {
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = (e: Event) => {
+    e.preventDefault();
+    setBusy(true);
+    void onReset(password).finally(() => setBusy(false));
+  };
   return (
-    <button type="button" class={armed ? "copy inline armed" : "copy inline"} title={t("people.resetTwoFactorHint")} onClick={() => (armed ? onReset() : setArmed(true))}>
-      <Icon name="reset" />
-      {armed ? t("links.confirm") : t("people.resetTwoFactor")}
-    </button>
+    <form class="reset-twofactor" onSubmit={submit}>
+      <Secret class="value" autoComplete="current-password" required placeholder={t("twofa.password")} value={password} onInput={(e) => setPassword((e.target as HTMLInputElement).value)} />
+      <button type="submit" class="copy inline armed" disabled={busy || !password}>
+        <Icon name="reset" />
+        {t("people.resetTwoFactor")}
+      </button>
+      <button type="button" class="copy inline" onClick={onCancel}>
+        {t("common.cancel")}
+      </button>
+    </form>
   );
 }
 
@@ -277,6 +284,8 @@ export function People({ me }: { me: Person }) {
   const [error, setError] = useState("");
   // While an invite is on its way, its buttons wait, so a double click sends one.
   const [sending, setSending] = useState(false);
+  // Whose two-factor is being reset, while the owner's password is asked for.
+  const [resetting, setResetting] = useState<string | null>(null);
   const load = () =>
     api
       .people()
@@ -345,23 +354,44 @@ export function People({ me }: { me: Person }) {
                 <span class="share-meta">{t("links.createdOn", { date: dateOf(p.createdAt) })}</span>
               </div>
               <div class="domain-actions">
-                {p.twoFactor && p.id !== me.id ? (
-                  <ResetTwoFactor onReset={() => void api.resetTwoFactor(p.id).then(load).catch((err: Error) => setError(err.message))} />
-                ) : null}
-                <select class="value people-role" value={p.role} aria-label={t("people.role")} onChange={(e) => void change(p.id, (e.target as HTMLSelectElement).value as Person["role"])}>
-                  <option value="owner">{t("people.owner")}</option>
-                  <option value="viewer">{t("people.viewer")}</option>
-                </select>
-                {p.id === me.id ? null : (
-                  <DeleteButton
-                    name={p.email}
-                    onDelete={() =>
-                      void api
-                        .removePerson(p.id)
-                        .then(load)
+                {resetting === p.id ? (
+                  <ResetTwoFactor
+                    onCancel={() => setResetting(null)}
+                    onReset={(password) =>
+                      api
+                        .resetTwoFactor(p.id, password)
+                        .then(() => {
+                          setResetting(null);
+                          setError("");
+                          return load();
+                        })
                         .catch((err: Error) => setError(err.message))
                     }
                   />
+                ) : (
+                  <>
+                    {p.twoFactor && p.id !== me.id ? (
+                      <button type="button" class="copy inline" title={t("people.resetTwoFactorHint")} onClick={() => setResetting(p.id)}>
+                        <Icon name="reset" />
+                        {t("people.resetTwoFactor")}
+                      </button>
+                    ) : null}
+                    <select class="value people-role" value={p.role} aria-label={t("people.role")} onChange={(e) => void change(p.id, (e.target as HTMLSelectElement).value as Person["role"])}>
+                      <option value="owner">{t("people.owner")}</option>
+                      <option value="viewer">{t("people.viewer")}</option>
+                    </select>
+                    {p.id === me.id ? null : (
+                      <DeleteButton
+                        name={p.email}
+                        onDelete={() =>
+                          void api
+                            .removePerson(p.id)
+                            .then(load)
+                            .catch((err: Error) => setError(err.message))
+                        }
+                      />
+                    )}
+                  </>
                 )}
               </div>
             </li>

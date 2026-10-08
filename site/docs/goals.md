@@ -38,7 +38,7 @@ A click goal counts clicks with no code, on either of two kinds of target.
 - **An element**, by CSS selector, such as `#signup` or `.pricing .buy-button`, or
 - **Links to an address**, such as `https://buy.stripe.com/*` for every Stripe checkout link, or `/pricing` for links to your own page.
 
-**Pick on my site** opens your site in a picking mode where hovering shows what you would choose. Click the element and press **Use this**, and the selector comes back to the form along with how many elements on the page it matches. Picking counts nothing and makes no request of its own.
+**Pick on my site** opens your site in a picking mode where hovering shows what you would choose. Click the element and press **Use this**, and the selector comes back to the form along with how many elements on the page it matches. Picking counts nothing and makes no request of its own. The selector goes back only to the dashboard that opened the page, which Runlight names in a ticket that works for half an hour, so another page that opens your site in picking mode gets nothing.
 
 Click goals ship inside the tracker script, so there is no extra request on your pages. The script is cached for five minutes, so a new click goal starts counting within about five minutes. Click goals are the exception to counting the past, because a click goal counts only from when it was added.
 

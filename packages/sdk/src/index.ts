@@ -16,7 +16,7 @@ export function runlight(options: RunlightOptions): Runlight {
   return new Runlight(options);
 }
 
-export { Runlight, SESSION_IDLE_MS } from "./runlight.js";
+export { Runlight, SESSION_IDLE_MS, LINK_DOMAIN_CHECK } from "./runlight.js";
 export type { RunlightOptions, SiteOptions, RequestContext } from "./runlight.js";
 export type { Routes, RoutesOptions, FetchHandler } from "./routes.js";
 export { RUNLIGHT_ICON } from "./routes.js";

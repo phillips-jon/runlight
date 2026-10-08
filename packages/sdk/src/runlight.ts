@@ -40,10 +40,12 @@ export interface RunlightOptions {
   /** Looks up a location for an IP when the platform sends no location headers. */
   geo?: GeoLookup;
   /**
-   * Read the client IP from forwarding headers (CF-Connecting-IP,
-   * X-Real-IP, then the first X-Forwarded-For). Default true: analytics
-   * needs the visitor's address, and most apps sit behind a proxy. A
-   * client can forge these, which can only skew its own counts.
+   * Read the client IP from forwarding headers: the last X-Forwarded-For
+   * entry, which the nearest proxy wrote, then X-Real-IP, then
+   * CF-Connecting-IP. Name one of them to read only that header, such as
+   * "cf-connecting-ip" behind Cloudflare and another proxy. Default true:
+   * analytics needs the visitor's address, and most apps sit behind a proxy.
+   * False reads only the socket's address, for an app nothing sits in front of.
    */
   trustProxy?: boolean | "x-forwarded-for" | "x-real-ip" | "cf-connecting-ip";
   /** Where short links on the app's own domain live, as `{linkPath}/{slug}`. Default "/go". */
@@ -54,7 +56,8 @@ export interface RunlightOptions {
    */
   mail?: MailSettings;
   /**
-   * Encrypts the mail service's keys in the database. Default the
+   * Encrypts the keys kept in the database: the mail service's, the AI
+   * Assistant's, and the tokens for connected installs. Default the
    * RUNLIGHT_SECRET environment variable, then RUNLIGHT_TOKEN.
    */
   secret?: string;
@@ -134,7 +137,7 @@ export class Runlight {
   private configured: SiteRow[];
   /** Whether sites are managed in the dashboard. */
   readonly managedSites: boolean;
-  /** Sites counted by another Runlight install, read through its API with a read-only token. */
+  /** Sites counted by another Runlight install, read through its API with the token it gave, read or manage. */
   private readonly remotes = new Map<string, Remote>();
   private readonly remoteSeen = new Map<string, { at: number; lastSeen: number | null; retentionMonths: number | null | undefined }>();
   private overrides = new Map<string, SiteOverrides>();
@@ -153,7 +156,7 @@ export class Runlight {
   /** Each timezone's salts for its current day, so a lookup is a map read until midnight there. */
   private readonly salts = new Map<string, { day: string; today: string; yesterday: string | null }>();
   private readonly mailInCode: MailSettings | undefined;
-  /** Encrypts stored mail keys; null leaves them readable, and the dashboard says so. */
+  /** Encrypts the keys kept in the database; null leaves them readable, and the dashboard says so. */
   readonly secret: string | null;
 
   constructor(options: RunlightOptions) {
@@ -336,8 +339,10 @@ export class Runlight {
     return (await this.remoteInfo(id))?.lastSeen ?? null;
   }
 
-  /** What a connected install says about its site: its last visit and how long it keeps visits. Asked at most once a minute. */
-  /** What a connected install says about its site, kept for a minute. Retention is undefined while it cannot be reached. */
+  /**
+   * What a connected install says about its site: its last visit and how long it keeps visits, asked
+   * at most once a minute. Retention is undefined while the install cannot be reached.
+   */
   async remoteInfo(id: string): Promise<{ lastSeen: number | null; retentionMonths: number | null | undefined } | null> {
     const remote = this.remotes.get(id);
     if (!remote) return null;
@@ -359,16 +364,16 @@ export class Runlight {
     this.remoteSeen.delete(id);
   }
 
-  /**
-   * Connects a site counted by another Runlight (an app's own install) so this
-   * server shows it too. Takes the install's address, as its dashboard is
-   * (https://example.com/runlight), and an API token made there.
-   */
   /** Asks a connected install to delete the token this server holds for it. A failure leaves it listed there. */
   private async revokeRemoteToken(remote: Remote): Promise<void> {
     await fetch(`${remote.url}/api/token`, { method: "DELETE", headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(5_000) }).catch(() => null);
   }
 
+  /**
+   * Connects a site counted by another Runlight (an app's own install) so this
+   * server shows it too. Takes the install's address, as its dashboard is
+   * (https://example.com/runlight), and an API token made there.
+   */
   private async addRemoteSite(input: { url?: unknown; token?: unknown; site?: unknown; name?: unknown }): Promise<SiteRow> {
     const url = String(input.url ?? "").trim().replace(/\/+$/, "");
     if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) throw new RangeError("Enter the install's address, like https://example.com/runlight");

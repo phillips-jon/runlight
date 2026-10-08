@@ -121,6 +121,7 @@ The address is dropped after the lookup, so only the place is kept.
 | `token` | `RUNLIGHT_TOKEN` | Protects the dashboard and API. Send it as `Authorization: Bearer <token>`, or open the dashboard once with `?token=` to get a cookie. `null` leaves everything open, for example behind your own auth. |
 | `authorize` | | Your own check, used in place of a token. Return `true` for full access, `"read"` for someone who may only read, or `false`, from a function or a promise. |
 | `cronSecret` | `CRON_SECRET` | A second secret the [scheduled check](/docs/cron/) accepts besides the token. |
+| `origin` | | Your app's public address, such as `https://example.com`. A [link domain](/docs/links/#custom-domains) can never be its host, and links in email reports point to it, whatever Host header a request names. Without it, the request's own host stands in. |
 | `observeKey` | `RUNLIGHT_OBSERVE_KEY` | An install-wide key a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site can use to report AI agent fetches to `POST /api/observe` for any site. Each site also has its own key in **Settings**, **Install**, which reports only for that site, and is the better choice. |
 
 With no token, the dashboard and API answer 503 until you set one, unless `NODE_ENV` is `development`. Collecting visits, the script, short links, share links, and unsubscribe links never need the token.

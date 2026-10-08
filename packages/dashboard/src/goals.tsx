@@ -287,8 +287,20 @@ function GoalForm({ site, goal, view, onDone }: { site: Site; goal: Goal | null;
   const pick = () => {
     if (!host) return;
     setPicking(true);
-    const from = encodeURIComponent(location.origin);
-    pickWindow.current = window.open(`https://${host}/?runlight=pick&runlight_lang=${currentLocale().slice(0, 2)}&runlight_from=${from}`, "runlight-pick");
+    // The tab opens at once, while the click still allows it, and goes to the site when the ticket is back.
+    // The ticket names this dashboard, so the picker sends its choice here and nowhere else.
+    const opened = window.open("about:blank", "runlight-pick");
+    pickWindow.current = opened;
+    api
+      .pickTicket(site.id, location.origin)
+      .then(({ ticket }) => {
+        if (opened) opened.location.href = `https://${host}/?runlight=pick&runlight_lang=${currentLocale().slice(0, 2)}&runlight_ticket=${encodeURIComponent(ticket)}`;
+      })
+      .catch((err: Error) => {
+        opened?.close();
+        setPicking(false);
+        setError(err.message);
+      });
   };
 
   const save = (e: Event) => {

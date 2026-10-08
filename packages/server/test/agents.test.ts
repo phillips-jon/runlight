@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { appendFileSync, mkdtempSync, renameSync, writeFileSync } from "node:fs";
+import { appendFileSync, chmodSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
@@ -29,6 +29,9 @@ test("log lines: nginx and Apache combined, a vhost column, and Caddy's JSON", (
   const caddy = JSON.stringify({ ts: 1791399336.5, status: 200, request: { method: "GET", host: "example.com", uri: "/docs/", tls: {}, headers: { "User-Agent": [CLAUDE] } } });
   assert.deepEqual(parseLine(caddy), { method: "GET", url: "https://example.com/docs/", status: 200, userAgent: CLAUDE, at: 1791399336500 });
   assert.equal(parseLine("not a log line"), null);
+  // A target is a path and query on the site, never read as an address: a backslash cannot name another host.
+  assert.equal(parseLine(line("/\\evil.example/x?y=1", GPTBOT), "https://example.com")?.url, "https://example.com//evil.example/x?y=1");
+  assert.equal(parseLine(line("//evil.example/x", GPTBOT), "https://example.com")?.url, "https://example.com/evil.example/x");
 
   // Only successful GETs from AI agents are worth sending.
   assert.ok(agentFetch(line("/", GPTBOT), "https://example.com"));
@@ -124,6 +127,97 @@ test("following a log reads what was written just before a rotation, then the ne
     await following;
     const paths = (await rl.store.db.all<{ path: string }>(`SELECT path FROM rl_events WHERE kind = 'fetch' ORDER BY path`)).map((r) => r.path);
     assert.deepEqual(paths, ["/before", "/last-old", "/new"]);
+  } finally {
+    stop.abort();
+    server.close();
+  }
+});
+
+test("a failed batch sends none of the earlier ones again, and a bad state file starts over with a word", async () => {
+  let stored = 0;
+  let posts = 0;
+  let failAt = 0;
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      posts++;
+      if (posts === failAt) return void res.writeHead(503).end("busy");
+      const n = (JSON.parse(body) as { fetches: unknown[] }).fetches.length;
+      stored += n;
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ recorded: n }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const to = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const dir = mkdtempSync(path.join(tmpdir(), "runlight-batches-"));
+  const log = path.join(dir, "access.log");
+  const state = path.join(dir, "state.json");
+  try {
+    writeFileSync(log, Array.from({ length: 1200 }, (_, i) => `${line(`/p${i}`, GPTBOT)}\n`).join(""));
+    failAt = 2;
+    await assert.rejects(runAgents({ log, to, key: "k", site: "https://example.com", state, out: () => {} }), /503/);
+    assert.equal(stored, 500, "the first batch went");
+    await runAgents({ log, to, key: "k", site: "https://example.com", state, out: () => {} });
+    assert.equal(stored, 1200, "each line once");
+
+    writeFileSync(state, "{ not json");
+    const said: string[] = [];
+    stored = 0;
+    await runAgents({ log, to, key: "k", site: "https://example.com", state, out: (l) => said.push(l) });
+    assert.match(said[0]!, /Could not read .*state\.json/);
+    assert.equal(stored, 1200, "read from the top");
+    assert.equal(JSON.parse(readFileSync(state, "utf8")).offset, readFileSync(log).length);
+  } finally {
+    server.close();
+  }
+});
+
+test("following a log that cannot be read waits and says so, and a restart reads a log rotated meanwhile from its start", async (t) => {
+  if (process.getuid?.() === 0) return t.skip("root reads every file");
+  let stored = 0;
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", () => {
+      stored += (JSON.parse(body) as { fetches: unknown[] }).fetches.length;
+      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ recorded: 1 }));
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const to = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const dir = mkdtempSync(path.join(tmpdir(), "runlight-unreadable-"));
+  const log = path.join(dir, "access.log");
+  const state = path.join(dir, "state.json");
+  const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+  const stop = new AbortController();
+  try {
+    writeFileSync(log, "");
+    const said: string[] = [];
+    const following = runAgents({ log, to, key: "k", site: "https://example.com", state, follow: true, pollMs: 30, stop: stop.signal, out: (l) => said.push(l) });
+    await wait(100);
+    appendFileSync(log, `${line("/a", GPTBOT)}\n`);
+    await wait(150);
+    chmodSync(log, 0o000);
+    await wait(300);
+    chmodSync(log, 0o644);
+    appendFileSync(log, `${line("/b", GPTBOT)}\n`);
+    await wait(200);
+    stop.abort();
+    await following;
+    assert.equal(stored, 2, "it carried on once the log could be read again");
+    assert.equal(said.filter((l) => l.startsWith("Could not read")).length, 1, "said once, not every poll");
+    assert.ok(!said.some((l) => l.startsWith("Could not send")));
+
+    // Stopped, then the log was rotated: everything in the new log is unread.
+    renameSync(log, `${log}.1`);
+    writeFileSync(log, `${line("/c", GPTBOT)}\n${line("/d", GPTBOT)}\n`);
+    const again = new AbortController();
+    const resumed = runAgents({ log, to, key: "k", site: "https://example.com", state, follow: true, pollMs: 30, stop: again.signal, out: () => {} });
+    await wait(150);
+    again.abort();
+    await resumed;
+    assert.equal(stored, 4);
   } finally {
     stop.abort();
     server.close();
