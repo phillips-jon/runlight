@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
 import { ApiError, accounts, api, base, download, install, share, viewParams, type Person, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
-import { Chart, Spark, asSeries } from "./chart.js";
+import { Chart, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, fieldName, opName } from "./filters.js";
 import { Icon } from "./icons.js";
@@ -474,7 +474,6 @@ function App() {
                 <span class="metric-foot">
                   {stats ? <Delta now={stats.stats[m.key]} before={stats.previous?.[m.key]} lowerIsBetter={m.lowerIsBetter} /> : null}
                 </span>
-                <Spark points={points} metric={m} on={on} />
               </button>
             );
           })}

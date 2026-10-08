@@ -179,26 +179,3 @@ export function smooth(xs: number[], ys: number[]): string {
   return d;
 }
 
-/** A faint area of one metric over the range, filling the bottom of its card. */
-export function Spark({ points, metric, on }: { points: Point[]; metric: MetricDef; on: boolean }) {
-  if (points.length < 2) return null;
-  const vals = points.map((p) => p[metric.key]);
-  const max = Math.max(...vals);
-  const min = Math.min(...vals);
-  const w = 200;
-  const h = 60;
-  // Its own low to high, in the lower part of the card, so a steady metric
-  // still shows its movement without climbing behind the number.
-  // The floor sits one span below the lowest point, so small wobbles stay small.
-  const floor = Math.max(0, min - (max - min));
-  const span = max - floor || 1;
-  const xs = vals.map((_, i) => (i / (vals.length - 1)) * w);
-  const ys = vals.map((v) => h - 3 - ((v - floor) / span) * (h * 0.62));
-  const line = smooth(xs, ys);
-  return (
-    <svg class={`spark s${metric.slot}${on ? " on" : ""}`} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden="true">
-      <path class="spark-area" d={`${line}L${w},${h}L0,${h}Z`} />
-      <path class="spark-line" d={line} vector-effect="non-scaling-stroke" />
-    </svg>
-  );
-}

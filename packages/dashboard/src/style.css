@@ -699,8 +699,7 @@ main {
   flex-direction: column;
   align-items: stretch;
   gap: 4px;
-  min-height: 112px;
-  padding: 14px 14px 10px;
+  padding: 14px 14px 12px;
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--card);
@@ -781,40 +780,6 @@ main {
 }
 
 /* The card's background chart: faint, full width, along the bottom. */
-.spark {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: 100%;
-  height: 58%;
-  pointer-events: none;
-}
-
-.spark-area {
-  fill: var(--c);
-  fill-opacity: 0.05;
-}
-
-.spark-line {
-  fill: none;
-  stroke: var(--c);
-  stroke-width: 1.25;
-  stroke-opacity: 0.3;
-}
-
-.spark.on .spark-area {
-  fill-opacity: 0.12;
-}
-
-.spark.on .spark-line {
-  stroke-opacity: 0.65;
-}
-
-.metric:hover .spark-line {
-  stroke-opacity: 0.6;
-}
-
 .metric-label,
 .metric-value,
 .metric-foot {
