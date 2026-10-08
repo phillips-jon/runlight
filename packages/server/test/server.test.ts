@@ -21,9 +21,12 @@ test("a new server is locked until the setup link's code makes the first account
   assert.equal((await handle(req("/setup?code=wrong"))).status, 403);
   assert.equal((await handle(req("/setup", form({ code: "wrong", email: "a@b.co", password: "long enough pw" })))).status, 403);
   assert.equal((await handle(req(`/setup?code=${server.setupCode}`))).status, 200);
-  assert.equal((await handle(req("/setup", form({ code: server.setupCode, email: "a@b.co", password: "short" })))).status, 400);
+  assert.equal((await handle(req("/setup", form({ code: server.setupCode, email: "a@b.co", password: "short", again: "short" })))).status, 400);
+  const mismatch = await handle(req("/setup", form({ code: server.setupCode, email: "a@b.co", password: "a long password", again: "a long pasword" })));
+  assert.equal(mismatch.status, 400, "the password is asked twice");
+  assert.match(await mismatch.text(), /not the same/);
 
-  const made = await handle(req("/setup", form({ code: server.setupCode, email: "Jon@Example.com", password: "a long password" })));
+  const made = await handle(req("/setup", form({ code: server.setupCode, email: "Jon@Example.com", password: "a long password", again: "a long password" })));
   assert.equal(made.status, 303);
   assert.equal(made.headers.get("location"), "/");
   assert.match(made.headers.get("set-cookie") ?? "", /HttpOnly; SameSite=Lax; Max-Age=2592000; Secure/);

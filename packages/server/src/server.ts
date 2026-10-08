@@ -161,6 +161,10 @@ export function createServer(options: ServerOptions): RunlightServer {
           const form = new URLSearchParams(await request.text());
           const code = form.get("code") ?? "";
           if (!equal(code, setupCode)) return html(setupLockedPage(), 403);
+          // Asked twice, since a typo here would lock the first owner out.
+          if ((form.get("password") ?? "") !== (form.get("again") ?? "")) {
+            return html(setupPage({ code, error: "The two passwords are not the same.", email: form.get("email") ?? "" }), 400);
+          }
           try {
             const user = await accounts.setPassword(form.get("email") ?? "", form.get("password") ?? "", now());
             hasAccount = true;
