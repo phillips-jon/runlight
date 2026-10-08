@@ -79,27 +79,44 @@ test("an app connects to the MCP server over OAuth: discovery, registration, con
   assert.deepEqual(tokens.tokens.map((t: any) => [t.name, t.site]), [["Claude (OAuth)", "b"]]);
 });
 
-test("registrations that never connect are cleared away, so a flood cannot fill the list or evict an app part way through", async () => {
+test("registering stores nothing, so a flood of registrations never keeps a real app out", async () => {
   let now = Date.UTC(2026, 9, 7, 12);
   const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "Site A", hostnames: ["a.com"] }], now: () => now });
-  const { POST } = rl.routes({ token: "secret" });
-  const register = (name: string, ip = "") =>
-    POST(new Request("https://x.com/runlight/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: name, redirect_uris: ["https://app.example/cb"] }) }), { ip });
-  // All at once, which once let each of them find room.
-  const flood = await Promise.all(Array.from({ length: 260 }, (_, i) => register(`flood ${i}`).then((r) => r.status)));
-  assert.equal(flood.filter((s) => s === 201).length, 200);
-  assert.equal(flood.filter((s) => s === 429).length, 60);
-  assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 200);
-  // Apps in their first ten minutes are still connecting, so none is cleared away for a newcomer.
-  assert.equal((await register("Claude")).status, 429);
-  // After that the list is full of apps that never connected, so the oldest makes room.
-  now += 11 * 60_000;
-  assert.equal((await register("Claude")).status, 201);
-  assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 200);
-  // A day later every unused one is gone at the next registration.
-  now += 86_400_000 + 1;
-  assert.equal((await register("ChatGPT")).status, 201);
-  assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 1);
+  const { GET, POST } = rl.routes({ token: "secret" });
+  const register = (name: string, ip = "", redirect = "https://app.example/cb") =>
+    POST(new Request("https://x.com/runlight/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: name, redirect_uris: [redirect] }) }), { ip });
+  const flood = await Promise.all(Array.from({ length: 500 }, (_, i) => register(`flood ${i}`).then((r) => r.status)));
+  assert.ok(flood.every((s) => s === 201));
+  assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 0);
+  assert.equal((await rl.store.settingsStartingWith("oauth-used:")).length, 0);
+
+  // A real app still registers, and its id names it and its address, signed, so nobody can change them.
+  const claude = await register("Claude", "", "https://claude.ai/cb");
+  assert.equal(claude.status, 201);
+  const { client_id } = (await claude.json()) as any;
+  const verifier = b64url(randomBytes(32));
+  const params = new URLSearchParams({ response_type: "code", client_id, redirect_uri: "https://claude.ai/cb", code_challenge: b64url(createHash("sha256").update(verifier).digest()), code_challenge_method: "S256" });
+  assert.match(await (await GET(new Request(`https://x.com/runlight/oauth/authorize?${params}`, { headers: { authorization: "Bearer secret" } }))).text(), /Claude<\/strong> wants to read/);
+  const [payload] = client_id.split(".");
+  const forged = `${Buffer.from(JSON.stringify({ n: "Claude", r: ["https://evil.example/cb"], t: now })).toString("base64url")}.${client_id.split(".")[1]}`;
+  assert.notEqual(forged.split(".")[0], payload);
+  assert.equal((await GET(new Request(`https://x.com/runlight/oauth/authorize?${new URLSearchParams({ ...Object.fromEntries(params), client_id: forged, redirect_uri: "https://evil.example/cb" })}`, { headers: { authorization: "Bearer secret" } }))).status, 400);
+
+  // Allowed and swapped for a token, the app gets its first row.
+  const allow = await POST(new Request("https://x.com/runlight/oauth/authorize", { method: "POST", headers: { authorization: "Bearer secret", origin: "https://x.com", "content-type": "application/x-www-form-urlencoded" }, body: `${params}&decision=allow` }));
+  const code = new URL(allow.headers.get("location")!).searchParams.get("code")!;
+  const issued = await POST(new Request("https://x.com/runlight/oauth/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ grant_type: "authorization_code", code, client_id, redirect_uri: "https://claude.ai/cb", code_verifier: verifier }).toString() }));
+  assert.equal(issued.status, 200);
+  assert.equal((await rl.store.settingsStartingWith("oauth-used:")).length, 1);
+
+  // An app stored before ids were signed still works, and one that never connected goes after a day.
+  await rl.store.setSetting(`oauth-client:${"a".repeat(32)}`, JSON.stringify({ name: "Old", redirects: ["https://old.example/cb"], createdAt: now }));
+  const old = new URLSearchParams({ ...Object.fromEntries(params), client_id: "a".repeat(32), redirect_uri: "https://old.example/cb" });
+  assert.equal((await GET(new Request(`https://x.com/runlight/oauth/authorize?${old}`, { headers: { authorization: "Bearer secret" } }))).status, 200);
+  now += 86_400_000;
+  await register("Another");
+  assert.equal((await rl.store.settingsStartingWith("oauth-client:")).length, 0);
+
   // One address registers at most ten a minute.
   for (let i = 0; i < 10; i++) assert.equal((await register(`app ${i}`, "203.0.113.9")).status, 201);
   assert.equal((await register("one more", "203.0.113.9")).status, 429);

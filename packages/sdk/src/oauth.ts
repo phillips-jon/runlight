@@ -14,7 +14,7 @@
  * stats, or with the "manage" scope (asked for by a Runlight hub) it also
  * changes one site's settings.
  */
-import { randomId, sha256 } from "./hash.js";
+import { hmac, randomId, sha256 } from "./hash.js";
 import { RateLimit } from "./limit.js";
 import type { RequestContext, Runlight } from "./runlight.js";
 import type { TokenRow } from "./store.js";
@@ -23,7 +23,7 @@ interface Client {
   name: string;
   redirects: string[];
   createdAt: number;
-  /** When it was first given a token; a client that never was can be cleared away. */
+  /** When it was first given a token. Until then, a request it gets wrong ends on a page here. */
   usedAt?: number;
 }
 
@@ -37,16 +37,54 @@ interface Code {
 }
 
 const CODE_MS = 5 * 60_000;
-const MAX_CLIENTS = 200;
-/** A registered app that has not finished connecting within a day is removed. */
+/** An app stored before client ids were signed, which never finished connecting within a day, is removed. */
 const UNUSED_CLIENT_MS = 86_400_000;
-/** A newer one is never removed to make room, so a flood of registrations cannot evict an app part way through connecting. */
-const PROTECTED_CLIENT_MS = 10 * 60_000;
 /** Registrations one address may make a minute. */
 const REGISTRATIONS_PER_MINUTE = 10;
+/** The longest client id, which carries the app's name and redirect addresses. */
+const MAX_CLIENT_ID = 2048;
 
-/** Per install: the registration in progress, so they run one at a time, and the per-address limit. */
-const registrations = new WeakMap<Runlight, { turn: Promise<unknown>; limit: RateLimit }>();
+/** Per install, the per-address limit on registrations. */
+const registrations = new WeakMap<Runlight, RateLimit>();
+
+const base64url = (text: string) => btoa(String.fromCharCode(...new TextEncoder().encode(text))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const fromBase64url = (text: string) => new TextDecoder().decode(Uint8Array.from(atob(text.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0)));
+
+/** The key client ids are signed with, made on first use and kept in the database for every process. */
+async function clientKey(runlight: Runlight): Promise<string> {
+  const saved = await runlight.store.setting("oauth-key");
+  if (saved) return saved;
+  const made = randomId(32);
+  await runlight.store.setSetting("oauth-key", made);
+  return made;
+}
+
+/**
+ * The app a client id names, and where to note that it connected. A new id
+ * carries the app's name and addresses, signed, so registering stores
+ * nothing and a flood of registrations fills nothing. Ids from before that
+ * were stored.
+ */
+async function clientFor(runlight: Runlight, id: string): Promise<{ client: Client; usedKey: string } | null> {
+  if (/^[a-f0-9]{32}$/.test(id)) {
+    const stored = await runlight.store.setting(`oauth-client:${id}`);
+    return stored ? { client: JSON.parse(stored) as Client, usedKey: `oauth-client:${id}` } : null;
+  }
+  const parts = /^([A-Za-z0-9_-]{1,2000})\.([a-f0-9]{64})$/.exec(id);
+  if (!parts || id.length > MAX_CLIENT_ID) return null;
+  if (!constantTimeEqual(parts[2]!, await hmac(await clientKey(runlight), parts[1]!))) return null;
+  const meta = JSON.parse(fromBase64url(parts[1]!)) as { n: string; r: string[]; t: number };
+  const usedKey = `oauth-used:${await sha256(id)}`;
+  const used = await runlight.store.setting(usedKey);
+  return { client: { name: meta.n, redirects: meta.r, createdAt: meta.t, ...(used ? { usedAt: Number(used) } : {}) }, usedKey };
+}
+
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 const esc = (value: string) => value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
@@ -113,24 +151,20 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
 
   if (path === "/oauth/register" && request.method === "POST") {
     await runlight.init();
-    let state = registrations.get(runlight);
-    if (!state) registrations.set(runlight, (state = { turn: Promise.resolve(), limit: new RateLimit(REGISTRATIONS_PER_MINUTE, () => runlight.now()) }));
-    if (!(await state.limit.allow(runlight.clientIp(request, context)))) return oauthError("invalid_client_metadata", "Too many registrations from this address. Wait a minute and try again.", 429);
+    let limit = registrations.get(runlight);
+    if (!limit) registrations.set(runlight, (limit = new RateLimit(REGISTRATIONS_PER_MINUTE, () => runlight.now())));
+    if (!(await limit.allow(runlight.clientIp(request, context)))) return oauthError("invalid_client_metadata", "Too many registrations from this address. Wait a minute and try again.", 429);
     const body = (await request.json().catch(() => null)) as { client_name?: unknown; redirect_uris?: unknown } | null;
     const redirects = Array.isArray(body?.redirect_uris) ? body!.redirect_uris.map(String).filter(allowedRedirect).slice(0, 10) : [];
     if (!redirects.length) return oauthError("invalid_redirect_uri", "Register at least one https redirect address");
-    // One at a time, so registrations at once cannot each find room and overrun the list.
-    const turn = state.turn.then(() => register(runlight, String(body?.client_name ?? "An app"), redirects));
-    state.turn = turn.catch(() => {});
-    return await turn;
+    return register(runlight, String(body?.client_name ?? "An app"), redirects);
   }
 
   if (path === "/oauth/authorize" && (request.method === "GET" || request.method === "POST")) {
     await runlight.init();
     const form = request.method === "POST" ? new URLSearchParams(await request.text()) : url.searchParams;
     const clientId = form.get("client_id") ?? "";
-    const stored = /^[a-f0-9]{32}$/.test(clientId) ? await runlight.store.setting(`oauth-client:${clientId}`) : null;
-    const client = stored ? (JSON.parse(stored) as Client) : null;
+    const client = (await clientFor(runlight, clientId))?.client ?? null;
     const redirect = form.get("redirect_uri") ?? "";
     // Without a known client and one of its own addresses there is nowhere safe to send an answer.
     if (!client || !client.redirects.includes(redirect)) return page("This app is not registered", "<p>Start connecting again from the app.</p>", 400);
@@ -220,9 +254,13 @@ ${sendsTo}
     if (!grant || grant.expires < runlight.now()) return oauthError("invalid_grant", "The code has expired or was already used");
     if (grant.client !== form.get("client_id") || grant.redirect !== form.get("redirect_uri")) return oauthError("invalid_grant", "The code was issued to another app");
     if ((await s256(form.get("code_verifier") ?? "")) !== grant.challenge) return oauthError("invalid_grant", "The code verifier does not match");
-    const clientKey = `oauth-client:${grant.client}`;
-    const client = JSON.parse((await runlight.store.setting(clientKey)) ?? "{}") as Partial<Client>;
-    if (client.redirects && !client.usedAt) await runlight.store.setSetting(clientKey, JSON.stringify({ ...client, usedAt: runlight.now() }));
+    // The first row an app gets here: it has connected, so a request it gets wrong may go back to it.
+    const found = await clientFor(runlight, grant.client);
+    const client: Partial<Client> = found?.client ?? {};
+    if (found && !found.client.usedAt) {
+      const stored = found.usedKey.startsWith("oauth-client:");
+      await runlight.store.setSetting(found.usedKey, stored ? JSON.stringify({ ...found.client, usedAt: runlight.now() }) : String(runlight.now()));
+    }
     const secret = `rl_${randomId(20)}`;
     const scope = grant.scope === "manage" ? "manage" : "read";
     const row: TokenRow = { id: randomId(), name: `${client.name ?? "An app"} (OAuth)`.slice(0, 100), site: grant.site, scope, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
@@ -234,31 +272,24 @@ ${sendsTo}
   return null;
 }
 
-/** Adds a client, after clearing away apps that never finished connecting. */
+/**
+ * Registers a client by signing its name and addresses into its id, so
+ * nothing is stored until an owner allows it and the app swaps its code.
+ */
 async function register(runlight: Runlight, name: string, redirects: string[]): Promise<Response> {
-  // Anyone can register, so apps that never finished connecting are cleared away: those older than a
-  // day, and whenever the list is full, the oldest past their first ten minutes. Only a list full of
-  // connected apps and apps still connecting refuses.
   const now = runlight.now();
-  const clients = (await runlight.store.settingsStartingWith("oauth-client:"))
-    .map(({ key, value }) => ({ key, client: JSON.parse(value) as Client }))
-    .sort((a, b) => a.client.createdAt - b.client.createdAt);
-  let count = clients.length;
-  for (const { key, client } of clients) {
-    if (client.usedAt) continue;
-    const age = now - client.createdAt;
-    if (age < UNUSED_CLIENT_MS && (count < MAX_CLIENTS || age < PROTECTED_CLIENT_MS)) continue;
-    await runlight.store.setSetting(key, null);
-    count--;
+  // Apps stored before ids were signed, which never connected, and codes nobody exchanged are cleared away.
+  for (const { key, value } of await runlight.store.settingsStartingWith("oauth-client:")) {
+    const client = JSON.parse(value) as Client;
+    if (!client.usedAt && now - client.createdAt >= UNUSED_CLIENT_MS) await runlight.store.setSetting(key, null);
   }
-  if (count >= MAX_CLIENTS) return oauthError("invalid_client_metadata", "This Runlight has too many registered apps", 429);
-  // Codes nobody exchanged are gone too.
   for (const { key, value } of await runlight.store.settingsStartingWith("oauth-code:")) {
     if (((JSON.parse(value) as Partial<Code>).expires ?? 0) < now) await runlight.store.setSetting(key, null);
   }
-  const id = randomId(16);
   const client: Client = { name: name.trim().slice(0, 80) || "An app", redirects, createdAt: now };
-  await runlight.store.setSetting(`oauth-client:${id}`, JSON.stringify(client));
+  const payload = base64url(JSON.stringify({ n: client.name, r: redirects, t: now }));
+  const id = `${payload}.${await hmac(await clientKey(runlight), payload)}`;
+  if (id.length > MAX_CLIENT_ID) return oauthError("invalid_client_metadata", "Register fewer or shorter redirect addresses");
   return json({ client_id: id, client_name: client.name, redirect_uris: redirects, token_endpoint_auth_method: "none", grant_types: ["authorization_code"], response_types: ["code"] }, 201);
 }
 
