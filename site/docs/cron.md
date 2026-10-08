@@ -1,11 +1,11 @@
 ---
 title: Scheduled check
-description: One request an hour rotates the daily salt and sends email reports.
+description: One request an hour keeps salts, reports, retention, and daily totals up to date.
 group: Features
 order: 9
 ---
 
-Once an hour, Runlight makes the day’s new salt for [counting visitors](/docs/privacy/) and deletes the old ones. The same run sends any [email reports](/docs/reports/) that are due. This upkeep happens when something calls the check.
+Once an hour, Runlight makes the day’s new salt for [counting visitors](/docs/privacy/) and deletes the old ones. The same run sends any [email reports](/docs/reports/) that are due and deletes visits older than a site keeps. It also adds up each finished day, so long ranges load quickly. This upkeep happens when something calls the check.
 
 ```bash
 curl -X POST https://example.com/runlight/api/check -H "Authorization: Bearer $CRON_SECRET"
@@ -13,7 +13,7 @@ curl -X POST https://example.com/runlight/api/check -H "Authorization: Bearer $C
 
 The check accepts GET or POST, with `CRON_SECRET` (or the dashboard token) as a bearer token. Calling it more often does no harm.
 
-Visits are counted correctly without the check, because the first visit of the day also makes the salt. Reports go out only when the check runs.
+Visits are counted correctly without the check, because the first visit of the day also makes the salt. Without it, no reports go out and visits past a site’s retention are kept. Long ranges also stay slower, since they read every visit.
 
 ## Vercel
 

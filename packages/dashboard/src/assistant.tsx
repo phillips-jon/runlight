@@ -1,10 +1,11 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { api, type AssistantProvider, type AssistantState, type Site, type View } from "./api.js";
-import { currentLocale, t } from "./i18n.js";
+import { currentLocale, t, tn } from "./i18n.js";
 import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
+import { useDialogFocus } from "./focus.js";
 
 interface Message {
   role: "user" | "assistant";
@@ -81,6 +82,8 @@ const SUGGESTIONS = ["assistant.ask1", "assistant.ask2", "assistant.ask3", "assi
 /** The chat drawer, opened from the robot button beside Filter. */
 export function AssistantDrawer({ site, view, owner, onSetup, onClose }: { site: Site; view: View; owner: boolean; onSetup: () => void; onClose: () => void }) {
   const key = `runlight_assistant:${site.id}`;
+  const dialog = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialog);
   const [state, setState] = useState<AssistantState | null>(null);
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
@@ -136,7 +139,7 @@ export function AssistantDrawer({ site, view, owner, onSetup, onClose }: { site:
 
   return (
     <div class="scrim" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="drawer assistant" role="dialog" aria-modal="true" aria-labelledby="assistant-title">
+      <div class="drawer assistant" role="dialog" aria-modal="true" aria-labelledby="assistant-title" ref={dialog}>
         <header class="drawer-head">
           <h2 id="assistant-title">{t("assistant.title")}</h2>
           <div class="assistant-tools">
@@ -194,13 +197,13 @@ export function AssistantDrawer({ site, view, owner, onSetup, onClose }: { site:
             messages.map((m) => (
               <div class={`message ${m.role}${m.error ? " error" : ""}`}>
                 {m.role === "user" ? <p>{m.content}</p> : <Reply text={m.content} />}
-                {m.checked ? <span class="message-meta">{t(m.checked === 1 ? "assistant.checked_one" : "assistant.checked_other", { n: m.checked })}</span> : null}
+                {m.checked ? <span class="message-meta">{tn("assistant.checked", m.checked)}</span> : null}
               </div>
             ))
           )}
           {busy ? (
             <div class="message assistant thinking">
-              <span class="dots" aria-label={t("assistant.thinking")}>
+              <span class="dots" role="status" aria-label={t("assistant.thinking")}>
                 <span />
                 <span />
                 <span />
@@ -220,6 +223,7 @@ export function AssistantDrawer({ site, view, owner, onSetup, onClose }: { site:
               ref={input}
               class="value"
               rows={2}
+              aria-label={t("assistant.placeholder")}
               placeholder={t("assistant.placeholder")}
               value={draft}
               onInput={(e) => setDraft((e.target as HTMLTextAreaElement).value)}

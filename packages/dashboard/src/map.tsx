@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { api, type Row, type View } from "./api.js";
 import { count, countryName, flag } from "./format.js";
 import { t, tn } from "./i18n.js";
+import { useDialogFocus } from "./focus.js";
 
 interface World {
   w: number;
@@ -112,6 +113,8 @@ export function WorldMap({ view, onFilter, large }: Props) {
 /** The map large, over the page, with the country list beside it. */
 export function MapOverlay({ view, onFilter, onClose }: Props & { onClose: () => void }) {
   const [rows, setRows] = useState<Row[]>([]);
+  const dialog = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialog);
   useEffect(() => {
     api.breakdown(view, "country", 30).then((r) => setRows(r.rows)).catch(() => setRows([]));
   }, [view]);
@@ -127,7 +130,7 @@ export function MapOverlay({ view, onFilter, onClose }: Props & { onClose: () =>
   const total = rows.reduce((sum, r) => sum + r.visitors, 0);
   return (
     <div class="scrim center" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div class="map-sheet" role="dialog" aria-modal="true" aria-label={t("map.title")}>
+      <div class="map-sheet" role="dialog" aria-modal="true" aria-label={t("map.title")} ref={dialog}>
         <header class="drawer-head">
           <h2>{t("map.title")}</h2>
           <button type="button" class="remove" aria-label={t("common.close")} onClick={onClose}>

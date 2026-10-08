@@ -12,12 +12,17 @@ function ShareRow({ site, share, home, onChanged }: { site: string; share: Share
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(share.name);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState("");
   const save = (e: Event) => {
     e.preventDefault();
-    void api.renameShare(site, share.id, name).then(() => {
-      setEditing(false);
-      onChanged();
-    });
+    setError("");
+    void api
+      .renameShare(site, share.id, name)
+      .then(() => {
+        setEditing(false);
+        onChanged();
+      })
+      .catch((err: Error) => setError(err.message));
   };
   return (
     <li>
@@ -64,8 +69,9 @@ function ShareRow({ site, share, home, onChanged }: { site: string; share: Share
             {t("share.rename")}
           </button>
         )}
-        <DeleteButton name={share.name || t("share.unnamed")} onDelete={() => void api.deleteShare(site, share.id).then(onChanged)} />
+        <DeleteButton name={share.name || t("share.unnamed")} onDelete={() => void api.deleteShare(site, share.id).then(onChanged).catch((err: Error) => setError(err.message))} />
       </div>
+      {error ? <span class="settings-error">{error}</span> : null}
     </li>
   );
 }

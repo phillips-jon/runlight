@@ -79,7 +79,8 @@ This store uses Bun’s built-in SQLite, for apps on Bun, where `better-sqlite3`
 | `linkPath` | `"/go"` | Where short links on your app’s own domain live. |
 | `rateLimit` | `120` | Tracker requests allowed from one address each minute, or `false` or `0` for no limit. |
 | `mail` | | The mail service for [email reports](/docs/reports/), set in code. |
-| `secret` | `RUNLIGHT_SECRET`, then `RUNLIGHT_TOKEN` | Encrypts mail service keys stored in the database. |
+| `managedSites` | `false` | Keep sites in the database and manage them from the dashboard, as the [standalone server](/docs/server/) does, in place of `site` and `sites`. |
+| `secret` | `RUNLIGHT_SECRET`, then `RUNLIGHT_TOKEN` | Encrypts the keys stored in the database, for the mail service, the AI Assistant, and connected installs. |
 
 ### Sites
 
@@ -118,7 +119,7 @@ The address is dropped after the lookup, so only the place is kept.
 | --- | --- | --- |
 | `basePath` | `"/runlight"` | Where the routes are mounted, with the script at `{basePath}/s.js`. |
 | `token` | `RUNLIGHT_TOKEN` | Protects the dashboard and API. Send it as `Authorization: Bearer <token>`, or open the dashboard once with `?token=` to get a cookie. `null` leaves everything open, for example behind your own auth. |
-| `authorize` | | Your own check, `(request) => boolean`, used in place of a token. |
+| `authorize` | | Your own check, used in place of a token. Return `true` for full access, `"read"` for someone who may only read, or `false`, from a function or a promise. |
 | `cronSecret` | `CRON_SECRET` | A second secret the [scheduled check](/docs/cron/) accepts besides the token. |
 | `observeKey` | `RUNLIGHT_OBSERVE_KEY` | An install-wide key a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site can use to report AI agent fetches to `POST /api/observe` for any site. Each site also has its own key in **Settings**, **Install**, which reports only for that site, and is the better choice. |
 
@@ -129,6 +130,6 @@ With no token, the dashboard and API answer 503 until you set one, unless `NODE_
 | Variable | Used for |
 | --- | --- |
 | `RUNLIGHT_TOKEN` | The dashboard and API token. |
-| `RUNLIGHT_SECRET` | Encrypting stored mail service keys (falls back to the token). |
+| `RUNLIGHT_SECRET` | Encrypting stored keys for mail, the AI Assistant, and connected installs (falls back to the token). |
 | `CRON_SECRET` | Calling the scheduled check. |
 | `RUNLIGHT_OBSERVE_KEY` | CMS plugins reporting AI agent fetches. |

@@ -6,6 +6,7 @@ import { count, countryName, day, flag } from "./format.js";
 import { t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
 import { Icon } from "./icons.js";
+import { useDialogFocus } from "./focus.js";
 
 /**
  * The address people click: at the root of the link's domain while that
@@ -44,6 +45,8 @@ function Copy({ text, small }: { text: string; small?: boolean }) {
 
 /** Modal frame shared by the link dialogs: Escape and the backdrop close it. */
 export function Sheet({ title, sub, wide, onClose, children }: { title: string; sub?: string; wide?: boolean; onClose: () => void; children: ComponentChildren }) {
+  const dialog = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialog);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -55,7 +58,7 @@ export function Sheet({ title, sub, wide, onClose, children }: { title: string; 
   }, []);
   return (
     <div class="scrim center" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div class={wide ? "list-sheet wide link-sheet" : "list-sheet link-sheet small"} role="dialog" aria-modal="true" aria-label={title}>
+      <div class={wide ? "list-sheet wide link-sheet" : "list-sheet link-sheet small"} role="dialog" aria-modal="true" aria-label={title} ref={dialog}>
         <header class="drawer-head">
           <h2>
             {title} {sub ? <span class="sheet-sub">{sub}</span> : null}

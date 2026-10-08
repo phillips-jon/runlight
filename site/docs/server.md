@@ -35,7 +35,7 @@ docker logs runlight
 
 The link starts with `http://localhost:3000`. When the server runs somewhere else, keep everything from `/setup` on and put the server's own address in front, such as `https://stats.example.com/setup?code=...`. Each start makes a new code, so after a restart use the link from the newest log lines.
 
-Owners invite people in **Settings**, **People**, as an owner or a viewer. An owner can change everything, and a viewer can read every site's stats without changing anything. The invite goes out by email when the server has a mail service (set in **Settings**, **Email reports**), and the dashboard always shows the link too, so you can send it another way. The person opens it, chooses a password, and is signed in. A link works once, for seven days, and **Send again** makes a new one. Everyone can change their password later under **Account** at the bottom of the dashboard. The server always keeps at least one owner.
+Owners invite people in **Settings**, **People**, as an owner or a viewer. An owner can change everything, and a viewer can read every site's stats without changing anything. The invite goes out by email when the server has a mail service (set in **Settings**, **Email reports**), and the dashboard always shows the link too, so you can send it another way. The person opens it, chooses a password, and is signed in. A link works once, for seven days, and **Send again** makes a new one. Everyone can change their password later under **Account** at the bottom of the dashboard. The server always keeps at least one owner. API tokens belong to the server itself, so after removing someone, check **Settings**, **API and AI** for tokens they made.
 
 ### Two-factor sign-in
 
@@ -75,7 +75,7 @@ A site with Runlight inside its own app can join this server too, so every site 
 
 The site's numbers stay in the app's own database. This server reads them through the app's API each time you look, so they are always current. Its goals, funnels, short links, link domains, email reports, share links, and how long it keeps visits can all be changed from here, and each change is saved in the app. People, tokens, imports, and the app's mail service stay with the app. **All sites** in the site menu lines every site up side by side for the dates you pick.
 
-The app keeps the permission as a token in its **Settings**, **API and AI**, limited to the one site. Deleting it there disconnects this server at once. A site connected with a read-only token before this existed shows **Allow changes** in its settings, which runs the same steps.
+The app keeps the permission as a token in its **Settings**, **API and AI**, limited to the one site. Deleting it there disconnects this server at once. A site connected with a read-only token before this existed shows **Allow changes** in its settings, which runs the same steps. If the app deletes that token, **Connect again** in the site's settings makes a new one, and disconnecting a site here deletes its token there.
 
 If the app runs a Runlight older than this, connect it with a token instead. Make one in the app's **Settings**, **API and AI**, then choose **Use an API token instead** when you connect. A read token shows the site's numbers here, and its settings stay on the app.
 
@@ -89,7 +89,7 @@ stats.example.com {
 }
 ```
 
-Runlight reads each visitor's address from the proxy's `X-Forwarded-For` header. Set `TRUST_PROXY=false` when nothing sits in front of the server, so a visitor cannot send a false address.
+Runlight reads each visitor's address from the last `X-Forwarded-For` entry, the one your proxy adds. Set `TRUST_PROXY` to `x-real-ip` or `cf-connecting-ip` when that header holds the address instead, such as behind Cloudflare and another proxy. Set `TRUST_PROXY=false` when nothing sits in front of the server, so a visitor cannot send a false address.
 
 ## Short links on your own domains
 
@@ -119,7 +119,7 @@ The server reads its settings from environment variables.
 | `HOST` | The address to listen on. The default is `0.0.0.0`. |
 | `DATA_DIR` | The folder for the SQLite file, the secret, and the location data. The default is `./runlight-data`, or `/data` in Docker. |
 | `DATABASE_URL` | A `postgres://` address, to keep the data in Postgres instead of SQLite. |
-| `RUNLIGHT_SECRET` | The key that signs sign-ins and encrypts saved mail keys. Without it, the server makes one and keeps it in `DATA_DIR`. |
+| `RUNLIGHT_SECRET` | The key that signs sign-ins and encrypts saved keys, for mail, the AI Assistant, connected installs, and two-factor sign-in. Without it, the server makes one and keeps it in `DATA_DIR`. |
 | `RUNLIGHT_TOKEN` | A token that scripts can send as a bearer, in addition to the [API tokens](/docs/mcp/) made in the dashboard. |
 | `RUNLIGHT_OBSERVE_KEY` | One key a [WordPress](/docs/wordpress/), [Drupal](/docs/drupal/), or [Craft](/docs/craft/) site can use to report AI agents, for any site. Each site also has its own key in **Settings**, **Install**, limited to that site, which is the better choice. |
 | `TRUST_PROXY` | Set to `false` when no proxy sits in front of the server. |

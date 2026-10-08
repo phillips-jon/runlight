@@ -7,6 +7,7 @@ import { MapOverlay, WorldMap } from "./map.js";
 import { EventProps } from "./eventprops.js";
 import { JourneysSheet } from "./journeys.js";
 import { Icon } from "./icons.js";
+import { useDialogFocus } from "./focus.js";
 
 export interface Tab {
   /** The API dimension. */
@@ -206,6 +207,8 @@ function SheetTable({ rows, tab, onFilter }: { rows: Row[]; tab: Tab; onFilter: 
 
 /** Every row of a tab, searchable, over the page. */
 function AllRows({ title, tab, view, onFilter, onClose }: { title: Key; tab: Tab; view: View; onFilter: (d: string, v: string) => void; onClose: () => void }) {
+  const dialog = useRef<HTMLDivElement>(null);
+  useDialogFocus(dialog);
   const [rows, setRows] = useState<Row[] | null>(null);
   const [query, setQuery] = useState("");
   const search = useRef<HTMLInputElement>(null);
@@ -224,7 +227,7 @@ function AllRows({ title, tab, view, onFilter, onClose }: { title: Key; tab: Tab
   const shown = (rows ?? []).filter((r) => !needle || label(tab.dimension, r.value).toLowerCase().includes(needle));
   return (
     <div class="scrim center" onPointerDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div class={sheetColumns(tab).length > 3 ? "list-sheet wide" : "list-sheet"} role="dialog" aria-modal="true" aria-label={`${t(title)}: ${t(tab.label)}`}>
+      <div class={sheetColumns(tab).length > 3 ? "list-sheet wide" : "list-sheet"} role="dialog" aria-modal="true" aria-label={`${t(title)}: ${t(tab.label)}`} ref={dialog}>
         <header class="drawer-head">
           <h2>
             {t(title)} <span class="sheet-sub">{t(tab.label)}</span>
@@ -366,12 +369,12 @@ export function Panel({ title, tabs, view, onFilter, wide, map }: Props) {
           ) : null}
           {map ? (
             <>
-              <button type="button" class={showMap ? "tool on" : "tool"} aria-pressed={showMap} title={t(showMap ? "panel.showList" : "panel.showMap")} onClick={() => setShowMap(!showMap)}>
+              <button type="button" class={showMap ? "tool on" : "tool"} aria-label={t(showMap ? "panel.showList" : "panel.showMap")} title={t(showMap ? "panel.showList" : "panel.showMap")} onClick={() => setShowMap(!showMap)}>
                 <svg viewBox="0 0 16 16" aria-hidden="true">
                   <path d="M1.5 3.5l4-1.5 5 2 4-1.5v10l-4 1.5-5-2-4 1.5z M5.5 2v10 M10.5 4v10" />
                 </svg>
               </button>
-              <button type="button" class="tool" title={t("panel.fullMap")} onClick={() => setFullMap(true)}>
+              <button type="button" class="tool" aria-label={t("panel.fullMap")} title={t("panel.fullMap")} onClick={() => setFullMap(true)}>
                 <svg viewBox="0 0 16 16" aria-hidden="true">
                   <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
                 </svg>

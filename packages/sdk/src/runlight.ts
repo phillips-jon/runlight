@@ -77,8 +77,7 @@ export interface RequestContext {
   ip?: string;
 }
 
-/** A path on every link domain that answers when the domain reaches this Runlight. */
-/** Another Runlight install a site is read from: its address, a read-only token, and its own id for the site. */
+/** Another Runlight install a site is read from: its address, its token there, and its own id for the site. */
 export interface Remote {
   url: string;
   token: string;
@@ -88,6 +87,7 @@ export interface Remote {
   scope?: "read" | "manage";
 }
 
+/** A path on every link domain that answers when the domain reaches this Runlight. */
 export const LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain";
 
 /** Raised whenever what a rolled-up day holds changes. 2: the heatmap counts visits only. */
@@ -119,12 +119,14 @@ function siteRow(options: SiteOptions, index: number): SiteRow {
   };
 }
 
-const envValue = (name: string): string | undefined => {
+/** An environment variable, trimmed, or undefined when it is empty or the runtime has none. */
+export const envValue = (name: string): string | undefined => {
   const value = typeof process === "undefined" ? undefined : process.env[name];
   return value?.trim() ? value.trim() : undefined;
 };
 
-const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
+/** What passes for an email address: something@somewhere.tld, with no spaces, quotes, or angle brackets. */
+export const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
 
 export class Runlight {
   readonly store: SqlStore;
@@ -738,7 +740,6 @@ export class Runlight {
     const site = this.siteFor(payload.url.hostname, payload.site) ?? (await this.setupSite(payload.url.hostname, payload.site));
     if (!site) return;
 
-    await this.init();
     const now = this.now();
     if (payload.kind === "engagement") return this.engagement(site, payload, now);
 
@@ -1027,9 +1028,10 @@ export class Runlight {
   }
 
   /**
-   * Scheduled upkeep, safe to run every minute: rotates salts, sends the email
-   * reports that are due, and rereads managed sites and connected installs, so
-   * one added by another process sharing the database shows up here too.
+   * Scheduled upkeep, safe to run every minute. It rotates salts, sends the email
+   * reports that are due, deletes visits past each site's retention, and builds
+   * daily rollups. It also rereads managed sites and connected installs, so one
+   * added by another process sharing the database shows up here too.
    */
   async check(): Promise<{ ok: true; reports: { sent: number; failed: number } }> {
     await this.init();

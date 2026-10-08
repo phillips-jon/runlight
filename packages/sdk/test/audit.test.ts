@@ -291,3 +291,14 @@ test("short link clicks are not visits in the heatmap, raw or rolled up, nor the
   await rl.buildRollups();
   assert.equal(sum(await rl.store.hourly(query)), 1, "rolled up");
 });
+
+test("a read token can open a link's stats, and still cannot change it", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), sites: [{ id: "a", name: "Site A", hostnames: ["a.com"] }] });
+  const { handler } = rl.routes({ token: "owner" });
+  const owner = { authorization: "Bearer owner", "content-type": "application/json" };
+  const made = (await (await handler(new Request("https://x.com/runlight/api/links?site=a", { method: "POST", headers: owner, body: JSON.stringify({ url: "https://example.com/sale" }) }))).json()) as any;
+  const secret = ((await (await handler(new Request("https://x.com/runlight/api/tokens", { method: "POST", headers: owner, body: JSON.stringify({ name: "Script", site: "a" }) }))).json()) as any).secret as string;
+  const read = { authorization: `Bearer ${secret}` };
+  assert.equal((await handler(new Request(`https://x.com/runlight/api/links/${made.link.id}?period=7d`, { headers: read }))).status, 200);
+  assert.equal((await handler(new Request(`https://x.com/runlight/api/links/${made.link.id}`, { method: "DELETE", headers: read }))).status, 401);
+});

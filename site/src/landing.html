@@ -25,8 +25,8 @@
       </div>
     </div>
   </div>
-  <h1 class="say"><b>Runlight</b> counts who visits your site, where they came from, and what they did next, from inside your own app, with every number kept in your own database.</h1>
-  <p class="then">Runlight is <a href="https://github.com/phillips-jon/runlight" rel="noopener">MIT licensed</a> and takes one package and one route to set up, with a script under 2 KB. It sets no cookies and stores nothing personal.</p>
+  <h1 class="say"><b>Runlight</b> counts who visits your site and where they came from, from inside your own app, with every number kept in your own database.</h1>
+  <p class="then">Runlight is <a href="https://github.com/phillips-jon/runlight" rel="noopener">MIT licensed</a> and takes one package and one route to set up, with a script under 2 KB gzipped. It sets no cookies and stores nothing personal.</p>
   <div class="installs">
     <div class="ways" role="tablist" aria-label="How you run Runlight">
       <button type="button" class="way" role="tab" id="w-app" aria-controls="g-app" aria-selected="true">In your app</button>
@@ -108,7 +108,7 @@
   <p class="label">Privacy</p>
   <div class="body">
     <h2>It counts people without knowing who they are.</h2>
-    <p>Each day, at midnight in your site’s timezone, Runlight makes a new random salt. A visitor is a hash of that salt, your site, their IP address, and their browser’s user agent, cut to 64 bits. The address and the user agent are never written down, and a salt is deleted once its day has ended in every timezone, so within three days nobody, you included, can tell whether two visits came from the same person.</p>
+    <p>Each day, at midnight in your site’s timezone, Runlight makes a new random salt. A visitor is a hash of that salt, your site, their IP address, and their browser’s user agent, cut to 64 bits. The address and the user agent are never written down, and a salt is deleted within four days, so from then on nobody, you included, can tell whether two visits came from the same person.</p>
     <p>Runlight sets no cookies and writes nothing to local storage, so there is nothing to put in a banner.</p>
     <dl class="stacks">
       <div><dt>visitor</dt><dd class="mono">a6fbd78a579b03bf</dd></div>
@@ -197,7 +197,7 @@
   <div class="body">
     <h2>Your analytics can live in the app that serves your pages.</h2>
     <p>Runlight does its counting in the app you already run and keeps the numbers in the database you already back up. You learn which pages people read and where they came from while every visit stays on your own servers, and the cost stays the same however much your traffic grows.</p>
-    <p>It never keeps anything that could say who a visitor was, so you have no cookie banner to add and no third party to trust with your visitors. The data is yours from the first visit, and it stays in a database you can query, export, or delete whenever you like.</p>
+    <p>It never keeps anything that could say who a visitor was, so you have no cookie banner to add and no third party to trust with your visitors. The data is yours from the first visit, and it stays in a database you can query or delete whenever you like.</p>
   </div>
 </section>
 

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { api, type InviteSent, type PendingInvite, type Person } from "./api.js";
 import { day } from "./format.js";
-import { t, type Key } from "./i18n.js";
+import { t, tn, type Key } from "./i18n.js";
 import { Secret } from "./secret.js";
 import { Icon } from "./icons.js";
 import { DeleteButton, Sheet } from "./links.js";
@@ -143,7 +143,7 @@ function TwoFactor({ me }: { me: Person }) {
     <div class="sheet-body link-form twofactor">
       <div class="field-row">
         <span class="field-label">{t("twofa.title")}</span>
-        <span class="field-hint">{on ? t(left === 1 ? "twofa.on_one" : "twofa.on_other", { n: left }) : t("twofa.off")}</span>
+        <span class="field-hint">{on ? tn("twofa.on", left) : t("twofa.off")}</span>
       </div>
       {codes ? (
         <div class="token-made">

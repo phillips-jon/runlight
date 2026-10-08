@@ -4,6 +4,7 @@ import { count } from "./format.js";
 import { t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
 import { Icon } from "./icons.js";
+import { useDialogFocus } from "./focus.js";
 
 export const FIELDS: Array<{ group: Key; fields: string[] }> = [
   { group: "group.pages", fields: ["page", "entry", "exit", "hostname"] },
@@ -105,6 +106,7 @@ export function FilterDrawer({ view, onApply, onClose }: { view: View; onApply: 
     view.filters.length ? view.filters.map((f) => ({ ...f, id: nextId++ })) : [{ dimension: "page", op: "is", value: "", id: nextId++ }],
   );
   const panel = useRef<HTMLDivElement>(null);
+  useDialogFocus(panel);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();

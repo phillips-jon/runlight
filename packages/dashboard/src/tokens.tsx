@@ -12,7 +12,7 @@ const dateOf = (ms: number) => day(new Date(ms).toISOString().slice(0, 10));
 export function Tokens({ sites }: { sites: Site[] }) {
   const [tokens, setTokens] = useState<ApiToken[] | null>(null);
   const [name, setName] = useState("");
-  const [scope, setScope] = useState("");
+  const [site, setSite] = useState("");
   const [made, setMade] = useState<{ name: string; secret: string } | null>(null);
   const [error, setError] = useState("");
   const server = `${location.origin}${base}/mcp`;
@@ -32,7 +32,7 @@ export function Tokens({ sites }: { sites: Site[] }) {
     setError("");
     const label = name.trim();
     api
-      .createToken(label, scope)
+      .createToken(label, site)
       .then((r) => {
         setMade({ name: label, secret: r.secret });
         setName("");
@@ -99,7 +99,7 @@ export function Tokens({ sites }: { sites: Site[] }) {
       <form class="domain-add token-add" onSubmit={create}>
         <input class="value" type="text" maxLength={100} required placeholder={t("tokens.namePlaceholder")} value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
         {sites.length > 1 ? (
-          <select class="value" value={scope} aria-label={t("tokens.scope")} onChange={(e) => setScope((e.target as HTMLSelectElement).value)}>
+          <select class="value" value={site} aria-label={t("tokens.scope")} onChange={(e) => setSite((e.target as HTMLSelectElement).value)}>
             <option value="">{t("tokens.allSites")}</option>
             {sites.map((s) => (
               <option value={s.id}>{t("tokens.siteOnly", { site: s.name })}</option>

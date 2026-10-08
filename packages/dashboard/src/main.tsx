@@ -201,6 +201,8 @@ function App() {
     if (accounts) api.account().then((r) => setMe(r.account)).catch(() => {});
   };
   useEffect(refreshMe, []);
+  // Without accounts (an app's own install) whoever signs in owns it; with them, only once the account says so.
+  const isOwner = accounts ? me?.role === "owner" : true;
   /** A shared dashboard and a viewer see the numbers and change nothing. */
   const readOnly = Boolean(share) || me?.role === "viewer";
 
@@ -481,7 +483,7 @@ function App() {
         <AssistantDrawer
           site={site}
           view={view}
-          owner={!me || me.role === "owner"}
+          owner={isOwner}
           onSetup={() => {
             setAsking(false);
             setSettingsOpen("assistant");

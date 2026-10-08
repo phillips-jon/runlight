@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { Point } from "./api.js";
 import { bucketLabel } from "./format.js";
 import { t } from "./i18n.js";
 import { MAX_FILLED, metricLabel, type MetricDef } from "./metrics.js";

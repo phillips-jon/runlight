@@ -3126,17 +3126,6 @@ select.field,
   white-space: nowrap;
 }
 
-.share-rename {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.share-rename .value {
-  height: 32px;
-  max-width: 260px;
-}
-
 a.copy.inline {
   text-decoration: none;
   color: inherit;
@@ -3743,7 +3732,7 @@ button.sign-out {
   display: block;
   height: 100%;
   border-radius: 4px;
-  background: #2a78d6;
+  background: var(--s1);
 }
 
 .funnel-rate {
@@ -3940,7 +3929,7 @@ a.box-button {
 }
 
 .strength[data-score="2"] .strength-bar .on {
-  background: #d97706;
+  background: var(--s4);
 }
 
 .strength[data-score="3"] .strength-bar .on,
@@ -3993,8 +3982,12 @@ a.ghost {
   grid-template-columns: 1fr 1fr;
 }
 
+/* The rename row is compact on purpose: a short field with its Save beside it, both 32px. */
 .share-rename {
+  display: flex;
   flex: 1;
+  gap: 6px;
+  align-items: center;
 }
 
 .share-rename .value {
@@ -4291,7 +4284,7 @@ a.ghost {
 }
 
 .journey-links path.lit {
-  stroke: #2a78d6;
+  stroke: var(--s1);
   opacity: 0.55;
 }
 
@@ -4329,8 +4322,8 @@ a.ghost {
 }
 
 .journey-page.on {
-  border-color: #2a78d6;
-  box-shadow: 0 0 0 1px #2a78d6;
+  border-color: var(--s1);
+  box-shadow: 0 0 0 1px var(--s1);
 }
 
 .journey-page.other {

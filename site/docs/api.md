@@ -11,9 +11,9 @@ The dashboard is built on this API, so anything it shows you can fetch yourself.
 curl https://example.com/runlight/api/stats?period=30d -H "Authorization: Bearer $RUNLIGHT_TOKEN"
 ```
 
-For scripts, make a read-only token in **Settings**, **API and AI**, and keep `RUNLIGHT_TOKEN` to yourself. A read-only token can read every report below and list short links. You can limit it to one site, and it stops working the moment you delete it. Endpoints that change something, along with the token, share, and mail endpoints, need `RUNLIGHT_TOKEN` itself (or your `authorize` check). The same tokens connect AI assistants, as [Ask your AI](/docs/mcp/) explains.
+For scripts, make a read-only token in **Settings**, **API and AI**, and keep `RUNLIGHT_TOKEN` to yourself. A read-only token can read every report below, short links and each one's clicks included. You can limit it to one site, and it stops working the moment you delete it. Endpoints that change something, along with the token, share, and mail endpoints, need `RUNLIGHT_TOKEN` itself (or your `authorize` check). The same tokens connect AI assistants, as [Ask your AI](/docs/mcp/) explains.
 
-A `manage` token belongs to a [standalone server](/docs/server/#connect-sites-that-count-themselves) that shows this site. It reads like a read-only token and can also change one site's goals, funnels, short links, link domains, and email reports, along with its name, timezone, and retention. It can never touch other sites, people, tokens, imports, sharing, or the mail service, and it cannot change where the site lives. The standalone server gets one through OAuth when you connect the site, so you rarely make one by hand.
+A `manage` token belongs to a [standalone server](/docs/server/#connect-sites-that-count-themselves) that shows this site. It reads like a read-only token and can also change one site's goals, funnels, short links, link domains, email reports, and share links, along with its name, timezone, and retention. It can never touch other sites, people, tokens, imports, or the mail service, and it cannot change where the site lives. It sees which mail service sends reports and from which address, and the service's keys and account details stay hidden from it. The standalone server gets one through OAuth when you connect the site, so you rarely make one by hand.
 
 Requests that change something must send `content-type: application/json`.
 
@@ -33,6 +33,7 @@ Every report takes the same query parameters.
 
 | Endpoint | Returns |
 | --- | --- |
+| `GET /api` | The name, version, and API version of the install, with no token needed. |
 | `GET /api/sites` | Every site, with when it last had a visit. |
 | `GET /api/stats` | Visitors, visits, pageviews, views per visit, bounce rate, and visit duration, with the comparison period’s. |
 | `GET /api/series` | The same numbers for each hour, day, week, or month of the range. |
@@ -41,6 +42,9 @@ Every report takes the same query parameters.
 | `GET /api/realtime` | People on the site in the last 5 minutes, pages, sources, countries, pageviews per minute, and recent activity. |
 | `GET /api/goals` | Every goal with its conversions, converted visitors, rate, and revenue. |
 | `GET /api/goals/:id` | One goal with a series and its conversions by channel, source, and page. |
+| `GET /api/funnels` | Every funnel with how many visits reached each step, in order, within one visit. |
+| `GET /api/event-props?event=` | The property names sent with an event, and the values of one of them, chosen with `key` (the first by default) and `limit` (up to 1000). |
+| `GET /api/export` | A ZIP of CSV files for the view, with the numbers, the series, and every breakdown, taking the same parameters as the reports. |
 | `GET /api/journeys` | The paths visits take: the top pages at each step, the flows between steps, and the commonest paths. It takes `steps` (2 to 8), `start` and `end` pages, and `through` as `step:page` to follow one page. |
 | `GET /api/links` | Short links with their clicks. |
 | `GET /api/links/:id` | One link’s clicks over time, sources, countries, devices, and browsers. |
@@ -54,8 +58,10 @@ Every report takes the same query parameters.
 | `PATCH /api/sites/:id` | Change a site’s `name`, `timezone`, or `retentionMonths` (6, 12, 24, 36, or 60, or `null` to keep everything). On the standalone server, `hostnames` too. |
 | `POST /api/sites` | Add a site, when sites are managed in the dashboard as on the standalone server, from `{ "name", "hostnames", "timezone" }`. To connect another install instead, send `{ "remote": { "url", "token" } }`. |
 | `DELETE /api/sites/:id` | Delete a managed site and everything recorded for it, or disconnect a connected one. |
-| `POST /api/sites/connect` | Start connecting another install through its consent page, from `{ "url" }`. It answers with `authorize`, the address to send the owner to. |
+| `POST /api/sites/connect` | Start connecting another install through its consent page, from `{ "url" }`. It answers with `authorize`, the address to send the owner to. Add `site` with the install's id for a site to offer that one first. |
+| `GET /api/sites/connect/done` | Where the consent page sends the owner back. It finishes connecting and opens the dashboard on the site. |
 | `POST /api/goals`, `PATCH /api/goals/:id`, `DELETE /api/goals/:id` | Add, change, or remove a goal. |
+| `POST /api/funnels`, `PATCH /api/funnels/:id`, `DELETE /api/funnels/:id` | Add, change, or remove a funnel, sent as `{ "name", "steps" }` with two to eight steps of `{ "kind", "match" }`, where kind is `page` or `event`. |
 | `POST /api/links`, `PATCH /api/links/:id`, `DELETE /api/links/:id` | Add, change, or remove a short link. |
 | `POST /api/links/import` | Add many short links at once from `{ "rows" }`, up to 5,000 objects with `url` and, if you like, `slug`, `name`, and `domain`. It answers with how many it made and which rows failed. |
 | `POST /api/links/import/:source` | One step of an import from `umami`, `dub`, `bitly`, `shortio`, or `rebrandly`, sent as `{ "credentials", "cursor", "done" }`. Send the `cursor` it answers with until it comes back `null`. Credentials are used and never kept. |
@@ -69,6 +75,7 @@ Every report takes the same query parameters.
 | `POST /api/observe` | Records a page served to an AI agent, sent as `{ "url", "userAgent", "at" }`, where `at` is when it was served (within the last week, as epoch milliseconds or an ISO date) and can be left out. Send up to 500 at once as `{ "fetches": [...] }`. It accepts the token or an observe key, and the CMS plugins and the [log reader](/docs/server/#ai-agents-from-a-log) call it. |
 | `GET /api/tokens` | Lists API tokens with each one's name, site, scope, last four characters, and when it was last used. The tokens themselves are never returned. |
 | `POST /api/tokens` | Makes a token from `{ "name", "site", "scope" }` and returns it once as `secret`. Leave `site` empty for every site. `scope` is `read` (the default) or `manage`, which needs a `site`. |
+| `GET /api/observe-key`, `POST /api/observe-key/new` | Read a site's key for CMS plugins, made the first time it is asked for, or replace it with a new one, which stops the old one at once. |
 | `GET /api/token` | Says what the token sent with it may do, as `{ "scope", "site" }`. A hub asks this before it offers to change anything. |
 | `DELETE /api/token` | Deletes the token sent with it. A hub does this when it disconnects a site or is given a new token. |
 | `DELETE /api/tokens/:id` | Deletes a token, which stops it working at once. |

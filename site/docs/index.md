@@ -55,7 +55,7 @@ Put this on every page, just before `</head>`.
 <script defer src="/runlight/s.js"></script>
 ```
 
-The script is under 2 KB and posts to your own domain without setting any cookies.
+The script is under 2 KB gzipped and posts to your own domain without setting any cookies.
 
 ## 5. Sign in
 
@@ -71,7 +71,7 @@ Visit any page of your site and you will see yourself under “here now” withi
 
 ## 6. Schedule the hourly check
 
-Runlight rotates its daily salt and sends [email reports](/docs/reports/) from a check you call once an hour, and [Scheduled check](/docs/cron/) shows how to set it up. On Vercel it is four lines of `vercel.json`.
+A check you call once an hour rotates the daily salt and sends [email reports](/docs/reports/). It also deletes visits a site no longer keeps and adds up finished days, and [Scheduled check](/docs/cron/) shows how to set it up. On Vercel it is four lines of `vercel.json`.
 
 ## Next
 

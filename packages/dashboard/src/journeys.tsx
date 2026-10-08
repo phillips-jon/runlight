@@ -5,7 +5,8 @@ import { t } from "./i18n.js";
 import { Icon } from "./icons.js";
 import { Sheet } from "./links.js";
 
-const STEPS = [3, 4, 5, 6, 7];
+/** The step counts the API takes. */
+const STEPS = [2, 3, 4, 5, 6, 7, 8];
 
 type Pick = { step: number; value: string } | null;
 

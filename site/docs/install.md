@@ -214,7 +214,7 @@ let routes: ReturnType<ReturnType<typeof runlight>["routes"]> | undefined;
 
 export default {
   fetch(request: Request, env: { DB: D1Database; RUNLIGHT_TOKEN: string }) {
-    // Made once per Worker instance, so the tables are checked once, not on every request.
+    // Made once per Worker instance, so the tables are checked when the instance starts.
     routes ??= runlight({ store: d1({ database: env.DB }), site: { hostnames: ["example.com"] } }).routes({ token: env.RUNLIGHT_TOKEN });
     return routes.handler(request);
   },
@@ -231,4 +231,4 @@ If your server gives you a web `Request`, pass it to `rl.routes().handler` and r
 
 ## Behind a proxy
 
-Runlight reads the visitor's address from `CF-Connecting-IP`, `X-Real-IP`, then the first `X-Forwarded-For`, an order that is correct behind Vercel, Cloudflare, Netlify, and most load balancers. The address is only used for the [daily visitor hash](/docs/privacy/) and is never stored. If your app is exposed directly with no proxy, set `trustProxy: false`.
+Runlight reads the visitor's address from the last entry in `X-Forwarded-For`, the one your proxy adds, then from `X-Real-IP` or `CF-Connecting-IP`. That is right behind Vercel, Netlify, Cloudflare, and most load balancers. When a request passes through two proxies, such as Cloudflare in front of nginx, name the header that holds the visitor's own address, like `trustProxy: "cf-connecting-ip"`. The address is used for the [daily visitor hash](/docs/privacy/) and the location lookup, and the rate limit counts it hashed. It is never stored. If your app is exposed directly with no proxy, set `trustProxy: false`.

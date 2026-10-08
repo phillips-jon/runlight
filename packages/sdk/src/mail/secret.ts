@@ -1,7 +1,8 @@
 /**
- * Mail credentials are kept encrypted in the database (AES-GCM), with a key
- * derived from a secret only the server has: `RUNLIGHT_SECRET`, or else the
- * dashboard token. A copied database alone does not give away the keys.
+ * Keys kept in the database (the mail service's, the AI Assistant's, and the tokens for connected
+ * installs) are encrypted with AES-GCM, under a key derived from a secret only the server has:
+ * `RUNLIGHT_SECRET`, or else the dashboard token. A copied database alone does not give them away.
+ * The label says "mail" because mail came first; changing it would make every saved key unreadable.
  */
 const encoder = new TextEncoder();
 

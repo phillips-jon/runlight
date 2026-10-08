@@ -51,7 +51,7 @@ Click **here now** under the site name to see the last 30 minutes. The view show
 
 ## Sharing
 
-Settings, Sharing makes a read-only link to one site’s dashboard for a client or your team. Anyone with the link sees the reports and conversions, and the link hides your short links, settings, and the site’s address. Delete the link and it stops working at once. A shared dashboard uses the same page, served from `/runlight/share/<id>`, and the id is 128 random bits.
+Settings, Sharing makes a read-only link to one site’s dashboard for a client or your team. Anyone with the link sees the reports and conversions, and the link hides your short links, settings, and the site’s address. Delete the link and it stops working at once. A shared dashboard uses the same page, served from `/runlight/share/<id>` (or `/share/<id>` on the standalone server), and the id is 128 random bits.
 
 ## Exporting
 
@@ -71,7 +71,7 @@ The arrows button in the **Pages** box opens Journeys, the paths visits take thr
 
 The robot button beside **Filter** opens an assistant you can ask about your stats in plain words, such as where visitors came from last month or which pages keep people reading. It reads the numbers with the same read-only tools as the [MCP server](/docs/mcp/), for the site and dates on screen unless you ask about others, and it can never change anything.
 
-An owner sets it up once in **Settings**, **AI Assistant**. Choose Anthropic, OpenAI, Google Gemini, OpenRouter, Ollama, LM Studio, or any service with an OpenAI-compatible API, then a model and a key. Ollama and LM Studio run a model on your own machine with no key, as long as the server running Runlight can reach it. The key is kept on the server, encrypted with `RUNLIGHT_SECRET`, and never sent back to a browser.
+An owner sets it up once in **Settings**, **AI Assistant**. Choose Anthropic, OpenAI, Google Gemini, OpenRouter, Ollama, LM Studio, or any service with an OpenAI-compatible API, then a model and a key. Ollama and LM Studio run a model on your own machine with no key, as long as the server running Runlight can reach it. The key is kept on the server, encrypted with `RUNLIGHT_SECRET` (or the token when there is no secret), and never sent back to a browser.
 
 Each question goes to the service you chose, along with the numbers the assistant reads to answer it. Runlight keeps nothing about individual visitors, so nothing personal is sent. Owners and viewers can ask it; API tokens and share links cannot. The conversation lives in the browser tab and is gone when the tab closes.
 
@@ -81,4 +81,4 @@ Each site keeps every visit unless you choose otherwise. In **Settings**, **Data
 
 ## Settings
 
-The gear beside the site name opens Settings, which holds the site’s name, timezone, and language; install steps; goals; email reports; sharing; custom domains for short links; importing links and visits; and the site’s data. The theme switch is in the footer, and Shift+Cmd+D (Shift+Ctrl+D) toggles the theme too.
+The gear beside the site name opens Settings, which holds the site’s name and timezone; install steps; goals; email reports; sharing; custom domains for short links; importing links and visits; API tokens; the AI Assistant; and the site’s data. On the standalone server it also holds People. The dashboard’s language is in General too, and it is kept for each browser. The theme switch is in the footer, and Shift+Cmd+D (Shift+Ctrl+D) toggles the theme too.

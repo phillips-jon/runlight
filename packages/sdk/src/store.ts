@@ -1807,12 +1807,8 @@ export class SqlStore {
   }
 
   /**
-   * Visits started in each UTC hour of a range, as epoch hour numbers. The
-   * caller folds them into local weekdays and hours, which keeps time zones
-   * (DST included) out of SQL.
-   */
-  /**
-   * Visits by quarter hour since the epoch. Quarters, not hours, so a site in a
+   * Visits by quarter hour since the epoch, which the caller folds into local weekdays and hours,
+   * keeping time zones (DST included) out of SQL. Quarters, not hours, so a site in a
    * half-hour or 45-minute timezone (India, Nepal) folds each into the right local hour.
    */
   async hourly(query: Query): Promise<Array<{ quarter: number; visits: number; visitors: number; pageviews: number; bounced: number }>> {

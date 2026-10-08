@@ -11,7 +11,7 @@ Runlight is built so that it never needs to know who anyone is.
 
 Each day Runlight makes a new random salt. A visitor is the SHA-256 hash of that salt, your site, the visitor’s IP address, and their browser’s user agent, cut to 64 bits. The same person on the same day gets the same value, which is how visitors and visits are counted. Tomorrow they get a different one.
 
-A site's salt changes at midnight in the site's own timezone, so a visitor is one visitor for the whole of the site's day, as its reports count days. A salt is deleted once its day has ended in every timezone, less than three days after it began. Without the salt the hash cannot be recomputed or reversed, so from then on nobody, you included, can tell whether two visits came from the same person.
+A site's salt changes at midnight in the site's own timezone, so a visitor is one visitor for the whole of the site's day, as its reports count days. A salt is kept until its day has ended in every timezone, and a day more so a visit that runs past midnight stays one visit, which means it is deleted within four days of when it began. Without the salt the hash cannot be recomputed or reversed, so from then on nobody, you included, can tell whether two visits came from the same person.
 
 ## What is stored
 

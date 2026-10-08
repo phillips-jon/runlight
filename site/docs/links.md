@@ -49,7 +49,7 @@ Removing a domain keeps its links along with their clicks and stats. They move t
 
 ## Importing links
 
-Settings, Import links brings links over from another service, with their click history where the service shares it.
+Settings, Import, Short links brings links over from another service, with their click history where the service shares it.
 
 | From | What comes across |
 | --- | --- |

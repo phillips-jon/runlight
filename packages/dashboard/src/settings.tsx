@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { api, base, download, install, type Person, type Site, type View } from "./api.js";
+import { accounts, api, base, download, install, type Person, type Site, type View } from "./api.js";
 import { People } from "./account.js";
 import { AssistantSettings } from "./assistant.js";
 import { EmailReports } from "./email.js";
@@ -14,6 +14,7 @@ import { DeleteButton } from "./links.js";
 import { Sharing } from "./sharing.js";
 import { Tokens } from "./tokens.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
+import { useDialogFocus } from "./focus.js";
 
 export type Section = "general" | "install" | "goals" | "email" | "sharing" | "api" | "links" | "import" | "people" | "data" | "assistant";
 const SECTIONS: Array<[Section, Key]> = [
@@ -609,6 +610,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   // A section this site does not have (a link from elsewhere, say) opens General instead.
   const [section, setSection] = useState<Section>(start && sections.some(([id]) => id === start) ? start : "general");
   const panel = useRef<HTMLDivElement>(null);
+  useDialogFocus(panel);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     document.addEventListener("keydown", onKey);
@@ -661,7 +663,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
             ) : section === "data" ? (
               <Data site={site} onSaved={onSaved} />
             ) : section === "assistant" ? (
-              <AssistantSettings owner={!me || me.role === "owner"} />
+              <AssistantSettings owner={accounts ? me?.role === "owner" : true} />
             ) : (
               <Import site={site} />
             )}

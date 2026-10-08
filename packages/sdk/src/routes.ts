@@ -1,28 +1,23 @@
 import { AssistantError, PROVIDERS, chat, listModels } from "./assistant.js";
 import { finishConnect, startConnect } from "./connect.js";
 import { PAGES_PER_VISIT, journeys } from "./journeys.js";
-import { JOURNEY_VISITS } from "./store.js";
+import { JOURNEY_VISITS, type ReportRow, type ShareRow, type SiteRow, type TokenRow } from "./store.js";
 import { DASHBOARD_CSS, DASHBOARD_HASH, DASHBOARD_JS, LOCALES, LOCALES_HASH, WORLD_HASH, WORLD_JSON } from "./generated/dashboard.js";
 import { PICKER, TRACKER, TRACKER_HASH } from "./generated/tracker.js";
-import { sha256 } from "./hash.js";
-import { isDimension, parseFilter, type Filter, type Query } from "./query.js";
-import { LINK_DOMAIN_CHECK, RETENTION_MONTHS, type RequestContext, type Runlight } from "./runlight.js";
-import type { ShareRow, SiteRow, TokenRow } from "./store.js";
+import { randomId, sha256 } from "./hash.js";
+import { DIMENSIONS, isDimension, isSessionDimension, parseFilter, type Filter, type Query } from "./query.js";
+import { EMAIL, LINK_DOMAIN_CHECK, RETENTION_MONTHS, envValue as env, type RequestContext, type Runlight } from "./runlight.js";
 import { mcpResponse } from "./mcp.js";
 import { oauthResponse, resourceMetadataUrl } from "./oauth.js";
 import { csv, zip } from "./zip.js";
-import { DIMENSIONS } from "./query.js";
-import { randomId } from "./hash.js";
 import { GoalError, clickRules, goalFrom } from "./goals.js";
 import { FunnelError, funnelFrom } from "./funnels.js";
 import { MailError, SERVICES } from "./mail/transports.js";
 import { languages, translator } from "./messages.js";
-import type { ReportRow } from "./store.js";
 import { fetchIcon } from "./icon.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
-import { isSessionDimension } from "./query.js";
 import { buckets, compareRange, isTimezone, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
 import { API_VERSION, VERSION } from "./version.js";
 
@@ -82,11 +77,6 @@ const IMPLEMENTATION = { library: "@runlight/sdk", language: "typescript" };
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-}
-
-function env(name: string): string | undefined {
-  const value = typeof process === "undefined" ? undefined : process.env[name];
-  return value?.trim() ? value.trim() : undefined;
 }
 
 function isDevelopment(): boolean {
@@ -562,7 +552,6 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     }
   }
 
-  const EMAIL = /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/;
   const reportView = (r: ReportRow) => ({ id: r.id, site: r.site, email: r.email, frequency: r.frequency, lang: r.lang, lastSentAt: r.lastSentAt, createdAt: r.createdAt });
 
   async function mailApi(request: Request, path: string, url: URL): Promise<Response> {
@@ -1086,16 +1075,18 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return passThrough(connected, path, url);
     }
 
-    // An API token may list links and their clicks, but not change them.
-    if (path === "/api/links" && request.method === "GET" && bearer(request).startsWith(TOKEN_PREFIX)) {
-      const token = await apiToken(request);
-      if (!token) return denied(false);
-      await runlight.init();
-      const site = runlight.site(url.searchParams.get("site") ?? (token.site || null));
-      if (!site || (token.site && site.id !== token.site)) return json({ error: "Unknown site" }, 404);
-      const scoped = new URL(url);
-      scoped.searchParams.set("site", site.id);
-      return linksApi(request, path, scoped);
+    // An API token, or someone signed in to read, may list links and see each one's clicks, but not change them.
+    if (request.method === "GET" && (path === "/api/links" || /^\/api\/links\/[a-f0-9]+$/.test(path))) {
+      const access = await reader(request);
+      if (access === false || access === "unconfigured") return denied(access);
+      if (access !== true) {
+        await runlight.init();
+        const site = runlight.site(url.searchParams.get("site") ?? (access.site || null));
+        if (!site || (access.site && site.id !== access.site)) return json({ error: "Unknown site" }, 404);
+        const scoped = new URL(url);
+        scoped.searchParams.set("site", site.id);
+        return linksApi(request, path, scoped);
+      }
     }
 
     if (path === "/api/links" || path.startsWith("/api/links/") || path === "/api/link-domains" || path.startsWith("/api/link-domains/")) {
