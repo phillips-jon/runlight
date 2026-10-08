@@ -43,7 +43,7 @@ Anyone can turn on two-factor sign-in under **Account** at the bottom of the das
 
 ### Sign-in limits
 
-One address gets ten wrong passwords for an account every fifteen minutes, and the account gets fifty from anywhere. A browser that has signed in to the account before still gets in when the account is at its limit, so someone guessing cannot lock you out. The code step allows five wrong codes every fifteen minutes.
+One address gets ten wrong passwords for an account every fifteen minutes, and the account gets fifty from anywhere. Each try is counted as it arrives, so a burst of guesses sent at once gets no further. When the account is at its limit, a browser that has signed in to it before still gets in. With two-factor sign-in on, any browser still reaches the code step, because a password alone never signs in, so someone guessing cannot lock you out of a new browser either. The code step allows five wrong codes every fifteen minutes. The counts are kept in memory, with addresses and email addresses hashed by a key made at each start.
 
 ### Forgotten passwords
 

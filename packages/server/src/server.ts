@@ -77,6 +77,7 @@ export function createServer(options: ServerOptions): RunlightServer {
   // per account from anywhere, fifty, so a caller who invents a new address
   // for every try still cannot guess on and on. Addresses come from
   // forwarding headers a client can write, so they never stand alone.
+  // Each try counts before the password is checked, and a right one is taken back.
   const perAddress = new Throttle(10);
   const perAccount = new Throttle(50);
   // Six-digit codes: five wrong tries an account every fifteen minutes. Password re-checks in Account: ten.
@@ -178,20 +179,20 @@ export function createServer(options: ServerOptions): RunlightServer {
           const next = safeNext(form.get("next"));
           const account = email.trim().toLowerCase();
           const pair = `${account}\n${rl.clientIp(request, context) || "unknown"}`;
-          // An account under attack is limited, except from a browser that signed in to it before,
-          // so failed tries by someone else cannot lock its owner out.
+          // An account under attack is limited, except from a browser that signed in to it before, and
+          // except when it has two-factor on, where a password alone never signs in and codes have their
+          // own limit. So failed tries by someone else cannot lock its owner out of a new browser.
           const known = await accounts.byEmail(account);
-          const trusted = Boolean(known && accounts.trustsDevice(readCookie(request, DEVICE_COOKIE), known));
-          if (perAddress.blocked(pair, now()) || (perAccount.blocked(account, now()) && !trusted)) {
+          const spared = Boolean(known && (known.twoFactor || accounts.trustsDevice(readCookie(request, DEVICE_COOKIE), known)));
+          if (perAddress.blocked(pair, now()) || (perAccount.blocked(account, now()) && !spared)) {
             return html(loginPage({ error: "Too many tries. Wait fifteen minutes and try again.", email, next }), 429);
           }
+          perAddress.fail(pair, now());
+          perAccount.fail(account, now());
           const user = await accounts.signIn(email, form.get("password") ?? "");
-          if (!user) {
-            perAddress.fail(pair, now());
-            perAccount.fail(account, now());
-            return html(loginPage({ error: "That email and password do not match an account.", email, next }), 401);
-          }
+          if (!user) return html(loginPage({ error: "That email and password do not match an account.", email, next }), 401);
           perAddress.clear(pair);
+          perAccount.forgive(account);
           // With two-factor on, the password only earns the second step.
           if (user.twoFactor) return html(codePage({ pending: accounts.pendingFor(user, now()), next }));
           return signedInTo(request, user, next);
@@ -302,11 +303,9 @@ export function createServer(options: ServerOptions): RunlightServer {
     if (path === "/api/account/password" && request.method === "POST") {
       const input = await body(request);
       if (!input) return reply({ error: "Send JSON" }, 415);
-      if (rechecks.blocked(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
-      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) {
-        rechecks.fail(user.id, now());
-        return reply({ error: "Your current password is not right" }, 400);
-      }
+      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
+      if (!(await accounts.signIn(user.email, String(input.current ?? "")))) return reply({ error: "Your current password is not right" }, 400);
+      rechecks.forgive(user.id);
       try {
         const updated = await accounts.setPassword(user.email, String(input.next ?? ""), now());
         // The new password ends every other sign-in; this browser gets a fresh one.
@@ -329,11 +328,9 @@ export function createServer(options: ServerOptions): RunlightServer {
         const updated = (await accounts.byId(user.id))!;
         return reply({ recovery: codes }, 200, { "set-cookie": sessionCookie(request, accounts.sessionFor(updated, now()), SESSION_MS / 1000) });
       }
-      if (rechecks.blocked(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
-      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) {
-        rechecks.fail(user.id, now());
-        return reply({ error: "Your password is not right" }, 400);
-      }
+      if (!rechecks.take(user.id, now())) return reply({ error: "Too many tries. Wait fifteen minutes and try again." }, 429);
+      if (!(await accounts.signIn(user.email, String(input.password ?? "")))) return reply({ error: "Your password is not right" }, 400);
+      rechecks.forgive(user.id);
       if (action === "/start") {
         const secret = await accounts.startTwoFactor(user.id);
         return reply({ secret, uri: otpauthUri(secret, user.email, new URL(request.url).host) });

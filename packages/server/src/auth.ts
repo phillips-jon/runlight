@@ -500,26 +500,54 @@ function matchStep(secret: string, code: string, now: number, after: number): nu
   return null;
 }
 
-/** Counts failed sign-ins under a key and refuses more than a few in a while. */
+/**
+ * Counts failed sign-ins under a key and refuses more than a few in a while.
+ * Keys are hashed with a key made at start, so the map never holds an
+ * address or an email as it was given.
+ */
 export class Throttle {
   private readonly failures = new Map<string, { count: number; until: number }>();
+  private readonly salt = randomBytes(16);
 
   constructor(
     private readonly limit = 10,
     private readonly windowMs = 15 * 60_000,
   ) {}
 
+  private id(key: string): string {
+    return createHmac("sha256", this.salt).update(key).digest("base64url").slice(0, 22);
+  }
+
   blocked(key: string, now: number): boolean {
-    const entry = this.failures.get(key);
+    const entry = this.failures.get(this.id(key));
     if (!entry || entry.until <= now) return false;
     return entry.count >= this.limit;
   }
 
+  /**
+   * Counts a try before the slow check it guards, so a burst that arrives
+   * while earlier tries are still being checked cannot get past the limit.
+   * False, counting nothing, when the key is already at its limit. A try
+   * that turns out right is taken back with forgive().
+   */
+  take(key: string, now: number): boolean {
+    if (this.blocked(key, now)) return false;
+    this.fail(key, now);
+    return true;
+  }
+
+  /** Takes back one counted try, for one that turned out right. */
+  forgive(key: string): void {
+    const entry = this.failures.get(this.id(key));
+    if (entry && entry.count > 0) entry.count--;
+  }
+
   fail(key: string, now: number): void {
-    const entry = this.failures.get(key);
+    const id = this.id(key);
+    const entry = this.failures.get(id);
     if (!entry || entry.until <= now) {
-      this.failures.delete(key);
-      this.failures.set(key, { count: 1, until: now + this.windowMs });
+      this.failures.delete(id);
+      this.failures.set(id, { count: 1, until: now + this.windowMs });
     } else entry.count++;
     // Expired entries go first, then the oldest that are not blocked, and blocked ones last, so the map
     // has a hard ceiling and a flood of made-up names cannot wipe out a real block.
@@ -537,6 +565,6 @@ export class Throttle {
   }
 
   clear(key: string): void {
-    this.failures.delete(key);
+    this.failures.delete(this.id(key));
   }
 }
