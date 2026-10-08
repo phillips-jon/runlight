@@ -25,7 +25,7 @@ The server listens on port 3000. It keeps its data in a folder called `runlight-
 
 ## Make your account
 
-On its first start the server prints a setup link with a one-time code in its log. Open that link and enter your email address and a password of at least ten characters. The link only works while the server has no account, so nobody who finds a new server first can claim it.
+On its first start the server prints a setup link with a one-time code in its log. Open that link and enter your email address and a password of at least ten characters, typed twice so a slip of the finger cannot lock you out. The link only works while the server has no account, so nobody who finds a new server first can claim it.
 
 In Docker, the log is where to look.
 
