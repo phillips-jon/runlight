@@ -63,6 +63,8 @@ export function postgres(options: PostgresOptions): SqlStore {
   if (!options.pool && !options.url) throw new Error("Runlight: postgres() needs a url or a pool");
   const owned = !options.pool;
   const pool = options.pool ?? new pg.Pool({ connectionString: options.url, max: options.max ?? 5 });
+  // An idle connection dropped by the server (a restart, a failover) is replaced on next use; unheard, it would end the process.
+  if (owned) pool.on("error", (error) => console.error("Runlight: a Postgres connection was lost; it reconnects on the next query.", error.message));
 
   const db: Db = {
     dialect: "postgres",

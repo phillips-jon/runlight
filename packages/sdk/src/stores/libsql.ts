@@ -58,5 +58,31 @@ function db(exec: Executor, client: Client | null): Db {
  *   libsql({ client: createClient({ url: process.env.TURSO_URL!, authToken: process.env.TURSO_TOKEN }) })
  */
 export function libsql(options: LibsqlOptions): SqlStore {
+  // A local file is one connection taking turns, as the SQLite store is, so a tracker hit waits
+  // for a transaction instead of meeting a locked database. Over HTTP the client's own transactions apply.
+  if ((options.client as { protocol?: string }).protocol === "file") {
+    // Another process holding the file waits a little rather than failing at once.
+    void options.client.execute("PRAGMA busy_timeout = 5000").catch(() => {});
+    return new SqlStore(takingTurns(db(options.client, options.client)));
+  }
   return new SqlStore(db(options.client, options.client));
+}
+
+/**
+ * Statements one at a time, with a transaction holding its turn until it ends. The client runs
+ * a transaction on a connection of its own, so without this a statement meanwhile meets a locked file.
+ */
+function takingTurns(inner: Db): Db {
+  let tail: Promise<unknown> = Promise.resolve();
+  const turn = <T>(fn: () => Promise<T>): Promise<T> => {
+    const result = tail.then(fn, fn);
+    tail = result.catch(() => {});
+    return result;
+  };
+  return {
+    ...inner,
+    all: (sql, params) => turn(() => inner.all(sql, params)),
+    run: (sql, params) => turn(() => inner.run(sql, params)),
+    transaction: (fn) => turn(() => inner.transaction!(fn)),
+  };
 }

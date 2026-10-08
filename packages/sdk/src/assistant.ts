@@ -62,7 +62,7 @@ function system(context: ChatContext): string {
 
 You are the assistant inside this Runlight dashboard. Today is ${context.today} in ${context.site.timezone}. The person is looking at the site "${context.site.name}" (id ${context.site.id}) for ${context.view}. Unless they ask about another site or range, use this site and these dates.
 
-Use the tools to read the numbers before you answer, and never guess one. Answer in a few short sentences or a short list, in plain language, and name the dates you looked at. Bounce rate is a fraction from 0 to 1 and durations are milliseconds in the tools; give them as a percent and in seconds or minutes. Write in the language whose code is "${context.language}".`;
+When a question needs numbers, read them with the tools first and never guess one. Answer in a few short sentences or a short list, in plain language, and name the dates you looked at. When a message needs no numbers, such as thanks, a greeting, or a remark, reply in a sentence without calling tools, and do not repeat or re-check an earlier answer unless asked. Bounce rate is a fraction from 0 to 1 and durations are milliseconds in the tools; give them as a percent and in seconds or minutes. Write in the language whose code is "${context.language}".`;
 }
 
 async function post(url: string, headers: Record<string, string>, body: unknown): Promise<Record<string, unknown>> {

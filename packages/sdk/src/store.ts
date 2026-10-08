@@ -284,6 +284,23 @@ export interface Realtime {
 export const BOUNCE_MS = 10_000;
 const BOUNCE = `(s.pageviews = 1 AND s.events = 0 AND (s.engaged_ms IS NULL OR s.engaged_ms < ${BOUNCE_MS}))`;
 const VISIT_KINDS = "e.kind IN ('pageview', 'event')";
+/**
+ * Cloudflare D1 takes at most 100 bound parameters a statement, so lists that grow with the
+ * range (chart buckets, values) go in pieces, and built days are chosen by their dates.
+ */
+const BUCKETS_PER_QUERY = 30;
+const VALUES_PER_QUERY = 50;
+const PARAMS_PER_QUERY = 80;
+/** The built days inside a range, as a subquery taking (site, from, to). */
+const BUILT_DAYS = "SELECT day FROM rl_rollup_days WHERE site = ? AND start_at >= ? AND end_at <= ?";
+
+/** Runs a query over pieces of a list and joins the answers, in order. */
+async function inPieces<T, R>(items: T[], size: number, run: (piece: T[]) => Promise<R[]>): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += size) out.push(...(await run(items.slice(i, i + size))));
+  return out;
+}
+
 /** How long after a visit starts its events are looked for: far past any real visit. */
 const EVENT_TAIL_MS = 2 * 86_400_000;
 
@@ -565,9 +582,11 @@ export class SqlStore {
          SELECT ?, ?, 'page', e.path, COUNT(DISTINCT e.visitor), COUNT(DISTINCT e.session), COUNT(*) ${ofDay("pageview")} GROUP BY e.path`,
         [site, day, ...window],
       );
+      // Per pageview first (its engaged time added up, its deepest scroll), as the raw report counts them.
       const time = await db.all(
-        `SELECT e.path AS value, SUM(e.engaged_ms) AS engaged, COUNT(DISTINCT e.pageview) AS views, SUM(e.scroll) AS scroll_sum, COUNT(e.scroll) AS scroll_n
-         ${ofDay("engagement")} GROUP BY e.path`,
+        `SELECT value, SUM(total) AS engaged, COUNT(*) AS views, SUM(deepest) AS scroll_sum, COUNT(deepest) AS scroll_n FROM (
+           SELECT e.path AS value, SUM(e.engaged_ms) AS total, MAX(e.scroll) AS deepest
+           ${ofDay("engagement")} GROUP BY e.path, e.pageview) t GROUP BY value`,
         window,
       );
       await db.run(
@@ -669,8 +688,8 @@ export class SqlStore {
       const rolled = await this.db.all(
         `SELECT value, SUM(visitors) AS visitors, SUM(visits) AS visits, SUM(pageviews) AS pageviews, SUM(bounced) AS bounced, SUM(duration) AS duration,
            SUM(engaged) AS engaged, SUM(views) AS views, SUM(scroll_sum) AS scroll_sum, SUM(scroll_n) AS scroll_n, SUM(events) AS events
-         FROM rl_rollups WHERE site = ? AND dim = ? AND day IN (${plan.days.map(() => "?").join(", ")}) GROUP BY value`,
-        [query.site, dimension, ...plan.days.map((d) => d.day)],
+         FROM rl_rollups WHERE site = ? AND dim = ? AND day IN (${BUILT_DAYS}) GROUP BY value`,
+        [query.site, dimension, query.site, query.from, query.to],
       );
       for (const row of rolled) bump(row);
     }
@@ -684,7 +703,11 @@ export class SqlStore {
       const at = [query.site, lo, hi, ...w.params];
       if (page) {
         for (const row of await this.db.all(`SELECT e.path AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(DISTINCT e.session) AS visits, COUNT(*) AS pageviews ${ofRest("pageview")} GROUP BY e.path`, at)) bump(row);
-        for (const row of await this.db.all(`SELECT e.path AS value, SUM(e.engaged_ms) AS engaged, COUNT(DISTINCT e.pageview) AS views, SUM(e.scroll) AS scroll_sum, COUNT(e.scroll) AS scroll_n ${ofRest("engagement")} GROUP BY e.path`, at)) bump(row);
+        for (const row of await this.db.all(
+          `SELECT value, SUM(total) AS engaged, COUNT(*) AS views, SUM(deepest) AS scroll_sum, COUNT(deepest) AS scroll_n FROM (
+             SELECT e.path AS value, SUM(e.engaged_ms) AS total, MAX(e.scroll) AS deepest ${ofRest("engagement")} GROUP BY e.path, e.pageview) t GROUP BY value`,
+          at,
+        )) bump(row);
       } else {
         for (const row of await this.db.all(`SELECT e.name AS value, COUNT(DISTINCT e.visitor) AS visitors, COUNT(*) AS events ${ofRest("event")} GROUP BY e.name`, at)) bump(row);
       }
@@ -732,8 +755,8 @@ export class SqlStore {
     if (!plan) return null;
     const [rolled] = await this.db.all(
       `SELECT SUM(visitors) AS visitors, SUM(visits) AS visits, SUM(pageviews) AS pageviews, SUM(bounced) AS bounced, SUM(duration) AS duration
-       FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${plan.days.map(() => "?").join(", ")})`,
-      [query.site, ...plan.days.map((d) => d.day)],
+       FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${BUILT_DAYS})`,
+      [query.site, query.site, query.from, query.to],
     );
     const w = SqlStore.within(plan.rest);
     const [raw] = await this.db.all(
@@ -1241,9 +1264,20 @@ export class SqlStore {
     const out = new Map<string, GoalTotals>();
     const f = filterSql(query.filters);
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
-    // A few dozen goals per query keeps the statement a sensible size.
-    for (let start = 0; start < goals.length; start += 40) {
-      const chunk = goals.slice(start, start + 40);
+    // As many goals per query as keep it under D1's parameter limit.
+    const chunks: GoalRow[][] = [[]];
+    let count = 3 + f.params.length;
+    for (const goal of goals) {
+      const cost = this.goalScope(goal).params.length * 3 + this.revenueValue(goal).params.length;
+      if (chunks[chunks.length - 1]!.length && count + cost > PARAMS_PER_QUERY) {
+        chunks.push([]);
+        count = 3 + f.params.length;
+      }
+      chunks[chunks.length - 1]!.push(goal);
+      count += cost;
+    }
+    for (const chunk of chunks) {
+      if (!chunk.length) continue;
       const columns: string[] = [];
       const params: unknown[] = [];
       chunk.forEach((goal, i) => {
@@ -1318,6 +1352,7 @@ export class SqlStore {
   /** A goal's conversions and revenue in each bucket. */
   async goalSeries(query: Omit<Query, "from" | "to">, goal: GoalRow, buckets: Bucket[]): Promise<Array<{ start: number; conversions: number; revenue: number }>> {
     if (buckets.length === 0) return [];
+    if (buckets.length > BUCKETS_PER_QUERY) return inPieces(buckets, BUCKETS_PER_QUERY, (piece) => this.goalSeries(query, goal, piece));
     const f = filterSql(query.filters);
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
     const cast = this.db.dialect === "postgres";
@@ -1373,6 +1408,7 @@ export class SqlStore {
   /** One link's clicks per bucket. */
   async linkSeries(site: string, link: string, buckets: Bucket[]): Promise<Array<{ start: number; clicks: number; visitors: number }>> {
     if (buckets.length === 0) return [];
+    if (buckets.length > BUCKETS_PER_QUERY) return inPieces(buckets, BUCKETS_PER_QUERY, (piece) => this.linkSeries(site, link, piece));
     const cast = this.db.dialect === "postgres";
     const values = buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ");
     const rows = await this.db.all(
@@ -1476,6 +1512,7 @@ export class SqlStore {
 
   async series(query: Omit<Query, "from" | "to">, buckets: Bucket[]): Promise<SeriesPoint[]> {
     if (buckets.length === 0) return [];
+    if (buckets.length > BUCKETS_PER_QUERY) return inPieces(buckets, BUCKETS_PER_QUERY, (piece) => this.series(query, piece));
     const f = filterSql(query.filters);
     const join = f.needsSession ? "JOIN rl_sessions s ON s.id = e.session" : "";
     const cast = this.db.dialect === "postgres";
@@ -1497,11 +1534,11 @@ export class SqlStore {
       let rest: Array<[number, number]> | null = null;
       if (used.length) {
         const rolled = await this.db.all(
-          `SELECT day, visitors, visits AS n, pageviews AS views, bounced, duration FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${used.map(() => "?").join(", ")})`,
-          [query.site, ...used.map((d) => d.day)],
+          `SELECT day, visitors, visits AS n, pageviews AS views, bounced, duration FROM rl_rollups WHERE site = ? AND dim = '' AND day IN (${BUILT_DAYS})`,
+          [query.site, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end],
         );
         const at = new Map(used.map((d) => [d.day, inBucket(d)]));
-        for (const row of rolled) bump(at.get(String(row.day))!, row);
+        for (const row of rolled) if (at.has(String(row.day))) bump(at.get(String(row.day))!, row);
         rest = [];
         let from = buckets[0]!.start;
         for (const d of used) {
@@ -1657,12 +1694,15 @@ export class SqlStore {
       );
       const out: BreakdownRow[] = rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors), pageviews: num(row.pageviews) }));
       if (dimension === "page" && out.length > 0) {
-        const times = await this.db.all(
-          `SELECT e.path AS value, SUM(e.engaged_ms) AS total, COUNT(DISTINCT e.pageview) AS views,
-             AVG(e.scroll) AS scroll
-           FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'engagement'${f.sql}
-           AND e.path IN (${out.map(() => "?").join(", ")}) GROUP BY e.path`,
-          [...params, ...out.map((row) => row.value)],
+        // Each pageview's engaged time added up and its deepest scroll, then the mean over pageviews.
+        const times = await inPieces(out, VALUES_PER_QUERY, (piece) =>
+          this.db.all(
+            `SELECT value, SUM(total) AS total, COUNT(*) AS views, AVG(deepest) AS scroll FROM (
+               SELECT e.path AS value, SUM(e.engaged_ms) AS total, MAX(e.scroll) AS deepest
+               FROM rl_events e ${join} WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND e.kind = 'engagement'${f.sql}
+               AND e.path IN (${piece.map(() => "?").join(", ")}) GROUP BY e.path, e.pageview) t GROUP BY value`,
+            [...params, ...piece.map((row) => row.value)],
+          ),
         );
         const byPath = new Map(times.map((t) => [String(t.value), t]));
         for (const row of out) {
@@ -1705,14 +1745,16 @@ export class SqlStore {
     if (out.length === 0) return out;
     // A visit has one value of each visit dimension, so its bounce and
     // duration belong to exactly one row.
-    const extras = await this.db.all(
-      `SELECT ${col} AS value, COUNT(*) AS n, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
-       FROM rl_sessions s WHERE s.id IN (
-         SELECT DISTINCT e.session FROM rl_events e ${sessionJoin}
-         WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})
-       AND ${col} IN (${out.map(() => "?").join(", ")})
-       GROUP BY ${col}`,
-      [...params, ...out.map((row) => row.value)],
+    const extras = await inPieces(out, VALUES_PER_QUERY, (piece) =>
+      this.db.all(
+        `SELECT ${col} AS value, COUNT(*) AS n, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
+         FROM rl_sessions s WHERE s.id IN (
+           SELECT DISTINCT e.session FROM rl_events e ${sessionJoin}
+           WHERE e.site = ? AND e.ts >= ? AND e.ts < ? AND ${VISIT_KINDS}${f.sql})
+         AND ${col} IN (${piece.map(() => "?").join(", ")})
+         GROUP BY ${col}`,
+        [...params, ...piece.map((row) => row.value)],
+      ),
     );
     const byValue = new Map(extras.map((x) => [String(x.value), x]));
     for (const row of out) {
@@ -1746,8 +1788,8 @@ export class SqlStore {
         sums.set(quarter, into);
       };
       const rolled = await this.db.all(
-        `SELECT value, visits, visitors, pageviews, bounced FROM rl_rollups WHERE site = ? AND dim = 'quarter' AND day IN (${plan.days.map(() => "?").join(", ")})`,
-        [query.site, ...plan.days.map((d) => d.day)],
+        `SELECT value, visits, visitors, pageviews, bounced FROM rl_rollups WHERE site = ? AND dim = 'quarter' AND day IN (${BUILT_DAYS})`,
+        [query.site, query.site, query.from, query.to],
       );
       for (const row of rolled) bump(Number(row.value), row);
       const w = SqlStore.within(plan.rest);
