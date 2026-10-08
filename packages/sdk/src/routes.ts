@@ -15,6 +15,7 @@ import { FunnelError, funnelFrom } from "./funnels.js";
 import { MailError, SERVICES } from "./mail/transports.js";
 import { languages, translator } from "./messages.js";
 import { fetchIcon } from "./icon.js";
+import { publicFetch, resolvesPrivately } from "./safefetch.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
@@ -435,7 +436,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
           if (body instanceof Response) return body;
           const domain = String(body.domain ?? "").trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/\.+$/, "").replace(/^www\./, "");
           if (!DOMAIN_NAME.test(domain)) return coded("That is not a domain name", "domain_invalid", 400);
-          if (privateName(domain)) return coded(`${domain} is not a public domain name. Use one that browsers anywhere can reach.`, "domain_not_public", 400, { domain });
+          if (privateName(domain) || (await resolvesPrivately(domain))) return coded(`${domain} is not a public domain name. Use one that browsers anywhere can reach.`, "domain_not_public", 400, { domain });
           // A link domain answers every path on it, so it must never be where the dashboard or a counted site lives.
           // The request's own Host is the caller's to choose, so the configured address and the names people
           // signed in from count too. A hub cannot know every name this app answers on, so it adds none until
@@ -461,11 +462,13 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         let working = false;
         let reason = "";
         try {
-          const answer = await fetch(`https://${domain}${LINK_DOMAIN_CHECK}`, { signal: AbortSignal.timeout(5000), redirect: "manual" });
+          // Only ever a public address, whatever the name resolves to now.
+          const answer = await publicFetch(`https://${domain}${LINK_DOMAIN_CHECK}`, { timeoutMs: 5000 });
           const body = (await answer.json().catch(() => null)) as { runlight?: boolean; domain?: string } | null;
           working = answer.ok && body?.runlight === true && body.domain === domain;
           if (!working) reason = answer.ok ? "answered, but not from Runlight" : `answered ${answer.status}`;
         } catch (error) {
+          // A private address gets the same answer as a closed port, so the check tells nothing about the network.
           reason = error instanceof Error && error.name === "TimeoutError" ? "timed out" : "could not connect over HTTPS";
         }
         return json({ domain, working, reason });
