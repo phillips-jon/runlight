@@ -1,6 +1,6 @@
 # @runlight/sdk
 
-Runlight is privacy friendly web analytics that runs inside your own app. It counts visitors without cookies and without storing anyone's IP address, keeps the numbers in your database, and serves its dashboard from your domain at `/runlight`.
+Runlight is privacy friendly web analytics that runs inside your own app. It counts visitors without cookies and without storing anyone’s IP address. The numbers stay in your database, and the dashboard is served from your domain at `/runlight`.
 
 It works with Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, and anything else that handles a web `Request`, on Node 22 or later, Bun, Deno, or Cloudflare Workers.
 
@@ -40,7 +40,7 @@ Add the script to every page, just before `</head>`.
 
 Set `RUNLIGHT_TOKEN` to a long random string and open `/runlight/?token=` followed by that string once to sign in.
 
-The [documentation](https://runlight.sh/docs/) covers every framework, Postgres, Turso, and Cloudflare D1, goals, short links, email reports, and the API.
+The [documentation](https://runlight.sh/docs/) covers every framework and every database, Postgres, Turso, and Cloudflare D1 among them. It also covers goals, short links, email reports, and the API.
 
 ## License
 

@@ -1,6 +1,6 @@
 # Runlight
 
-Runlight is privacy friendly web analytics that you run yourself. It counts visitors without cookies and without storing anyone's IP address, so there is no consent banner to show. The numbers stay in your own database, and the dashboard is served from your own domain.
+Runlight is privacy friendly web analytics that you run yourself. It counts visitors without cookies and without storing anyone’s IP address, so there is no consent banner to show. The numbers stay in your own database, and the dashboard is served from your own domain.
 
 Documentation is at [runlight.sh/docs](https://runlight.sh/docs/).
 
@@ -30,7 +30,7 @@ Plugins for WordPress, Drupal, and Craft add the script to a CMS site and report
 
 ## What it does
 
-Beyond visitors and pages, Runlight counts goals and the revenue they bring, funnels, and the paths visits take through a site. It makes short links on your own domains and counts their clicks. It emails weekly or monthly reports, shares a read-only dashboard by link, and answers questions about your numbers through an assistant or an MCP server for AI apps.
+Beyond visitors and pages, Runlight counts goals and the revenue they bring, funnels, and the paths visits take through a site. It makes short links on your own domains and counts their clicks. It emails weekly or monthly reports and shares a read-only dashboard by link. An assistant in the dashboard, or an MCP server for AI apps, answers questions about your numbers.
 
 ## This repository
 
