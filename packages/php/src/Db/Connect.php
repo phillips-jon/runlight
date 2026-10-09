@@ -4,17 +4,20 @@ declare(strict_types=1);
 
 namespace Runlight\Db;
 
+use Runlight\Json;
+
 /**
- * Opens the database a store keeps its tables in. Tables are prefixed `rl_`,
- * so the database can be the app's own.
+ * Opens the database a store keeps its tables in, set up per connection as the TypeScript drivers set up
+ * theirs. Tables are prefixed `rl_`, so the database can be the app's own.
  */
 final class Connect
 {
-    /** A SQLite file, or ":memory:". */
+    /** A SQLite file, or ":memory:", with the pragmas stores/sqlite.ts sets. */
     public static function sqlite(string $path): PdoDb
     {
         return new PdoDb(static function () use ($path): \PDO {
-            $pdo = new \PDO("sqlite:$path");
+            // better-sqlite3 waits up to five seconds for a lock from the moment it opens, pragmas included.
+            $pdo = new \PDO("sqlite:$path", null, null, [\PDO::ATTR_TIMEOUT => 5]);
             $pdo->exec('PRAGMA journal_mode = WAL');
             $pdo->exec('PRAGMA synchronous = NORMAL');
             $pdo->exec('PRAGMA busy_timeout = 5000');
@@ -24,7 +27,9 @@ final class Connect
 
     /**
      * Postgres from a URL like postgres://user:pass@host:5432/db?sslmode=require. `$statementTimeout`
-     * stops any one statement after that many milliseconds; 0 turns it off.
+     * stops any one statement after that many milliseconds; 0 turns it off. It is set when the connection
+     * starts, as pg's `statement_timeout` option sets it, so `RESET statement_timeout` comes back to it.
+     * `$schema`, when given, is the search path, as `options=-c search_path=...` sets it for pg.
      */
     public static function postgres(string $url, int $statementTimeout = 120_000, ?string $schema = null): PdoDb
     {
@@ -34,34 +39,44 @@ final class Connect
             if (isset($parts['query']['sslmode'])) {
                 $dsn .= ';sslmode=' . $parts['query']['sslmode'];
             }
-            $pdo = new \PDO($dsn, $parts['user'], $parts['password'], [\PDO::ATTR_TIMEOUT => 10]);
+            // Settings in the URL's own `options` (`?options=-c search_path=x`), as pg takes them, come first.
+            $options = isset($parts['query']['options']) ? [$parts['query']['options']] : [];
             if ($statementTimeout > 0) {
-                $pdo->exec('SET statement_timeout = ' . (int) $statementTimeout);
+                $options[] = '-c statement_timeout=' . $statementTimeout;
             }
             if ($schema !== null) {
-                $pdo->exec('SET search_path TO ' . self::quoteName($schema, '"'));
+                $options[] = '-c search_path=' . self::option($schema);
             }
-            return $pdo;
+            if ($options) {
+                $dsn .= ";options='" . implode(' ', $options) . "'";
+            }
+            // A connection waits at most 10 seconds for the server, as the pool waits for a connection.
+            return new \PDO($dsn, $parts['user'], $parts['password'], [\PDO::ATTR_TIMEOUT => 10]);
         }, 'postgres');
     }
 
-    /** MySQL or MariaDB from a URL like mysql://user:pass@host:3306/db. */
+    /**
+     * MySQL 8.4 or MariaDB 11.4 and later from a URL like mysql://user:pass@host:3306/db (or mariadb://).
+     * The session is the one mysql2 opens: utf8mb4 with the server's default collation for it, and the
+     * server's own SQL mode with IGNORE_SPACE added, which mysql2 asks for when it connects. Runlight's
+     * tables carry their own binary collation, so text compares and sorts by code point. `$statementTimeout`
+     * is set per connection as stores/mysql.ts sets it; 0 turns it off.
+     */
     public static function mysql(string $url, int $statementTimeout = 120_000): PdoDb
     {
-        $parts = self::parts($url);
+        $parts = self::parts((string) preg_replace('/^mariadb:/i', 'mysql:', $url));
         return new PdoDb(static function () use ($parts, $statementTimeout): \PDO {
             $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $parts['host'], $parts['port'] ?: 3306, $parts['database']);
-            $pdo = new \PDO($dsn, $parts['user'], $parts['password'], [\PDO::ATTR_TIMEOUT => 10]);
-            $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_bin, time_zone = '+00:00', sql_mode = CONCAT(@@sql_mode, ',ANSI_QUOTES,NO_BACKSLASH_ESCAPES')");
+            $ignoreSpace = defined('Pdo\Mysql::ATTR_IGNORE_SPACE') ? \Pdo\Mysql::ATTR_IGNORE_SPACE : \PDO::MYSQL_ATTR_IGNORE_SPACE;
+            $pdo = new \PDO($dsn, $parts['user'], $parts['password'], [\PDO::ATTR_TIMEOUT => 10, $ignoreSpace => true]);
             if ($statementTimeout > 0) {
-                $version = (string) $pdo->query('SELECT VERSION()')->fetchColumn();
-                // MariaDB counts seconds for read statements; MySQL counts milliseconds for SELECTs.
-                $pdo->exec(str_contains(strtolower($version), 'mariadb')
-                    ? 'SET SESSION max_statement_time = ' . ($statementTimeout / 1000)
-                    : 'SET SESSION max_execution_time = ' . (int) $statementTimeout);
+                $mariadb = (bool) preg_match('/mariadb/i', (string) $pdo->query('SELECT VERSION() AS v')->fetchColumn());
+                $pdo->exec($mariadb
+                    ? 'SET SESSION max_statement_time = ' . Json::number($statementTimeout / 1000)
+                    : 'SET SESSION max_execution_time = ' . $statementTimeout);
             }
             return $pdo;
-        }, 'mysql');
+        }, 'mysql', true, $statementTimeout);
     }
 
     /** Picks the database from a URL's scheme: sqlite:, file:, postgres:, postgresql:, mysql:, or mariadb:. */
@@ -79,6 +94,12 @@ final class Connect
     public static function quoteName(string $name, string $quote): string
     {
         return $quote . str_replace($quote, $quote . $quote, $name) . $quote;
+    }
+
+    /** A value inside libpq's `options`, where a space or backslash is escaped with a backslash. */
+    private static function option(string $value): string
+    {
+        return (string) preg_replace('/([\\\\\s\'])/', '\\\\$1', $value);
     }
 
     /** @return array{host: string, port: int, user: ?string, password: ?string, database: string, query: array<string, string>} */
