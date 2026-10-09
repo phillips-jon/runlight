@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import { EventEmitter } from "node:events";
 import { createServer } from "node:net";
 import { afterEach, test } from "node:test";
 import { runlight } from "../src/index.js";
 import { seal, unseal } from "../src/mail/secret.js";
 import { signV4 } from "../src/mail/ses.js";
-import { mime, smtpSend } from "../src/mail/smtp.js";
+import { mime, smtpReplies, smtpSend } from "../src/mail/smtp.js";
 import { MailError, send } from "../src/mail/transports.js";
 import { lastPeriod } from "../src/reports.js";
 import { sqlite } from "../src/stores/sqlite.js";
@@ -132,6 +133,35 @@ test("SMTP: STARTTLS refused is an error; a plain relay takes the message", asyn
   }
   const raw = mime({ ...message, subject: "Café report" }, "Runlight <reports@example.com>");
   assert.match(raw, /Subject: =\?UTF-8\?B\?/);
+});
+
+test("SMTP: a reply that comes just before the server closes is the error, not the close", async () => {
+  // A socket stand-in, so the reply and the close both land before anyone asks.
+  const socket = new EventEmitter();
+  const reader = smtpReplies(socket as never);
+  socket.emit("data", Buffer.from("535 no\r\n"));
+  socket.emit("close");
+  assert.deepEqual(await reader.next(), { code: 535, text: "no" });
+  await assert.rejects(reader.next(), /closed the connection/);
+
+  const server = createServer((s) => s.end("535 no\r\n"));
+  await new Promise<void>((r) => server.listen(0, "127.0.0.1", r));
+  const port = (server.address() as { port: number }).port;
+  try {
+    await assert.rejects(smtpSend({ service: "smtp", host: "127.0.0.1", port: String(port), security: "none" }, message, "reports@example.com"), /SMTP greeting: 535 no/);
+  } finally {
+    server.close();
+  }
+});
+
+test("SMTP: a character split across two reads comes through whole", async () => {
+  const socket = new EventEmitter();
+  const reader = smtpReplies(socket as never);
+  const bytes = Buffer.from("250 café ok\r\n");
+  const split = bytes.indexOf(0xc3) + 1;
+  socket.emit("data", bytes.subarray(0, split));
+  socket.emit("data", bytes.subarray(split));
+  assert.deepEqual(await reader.next(), { code: 250, text: "café ok" });
 });
 
 test("SMTP: a server that trickles a line now and then is cut off at the deadline", async () => {

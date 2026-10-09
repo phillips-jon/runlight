@@ -44,11 +44,13 @@ export async function umamiSignIn(credentials: Record<string, string>, token?: s
   const key = credentials.apiKey?.trim() ?? "";
   if (key || token) return { base, token: key || token! };
   if (!credentials.username || !credentials.password) throw new ImportError("Enter an API key, or a username and password", "import_umami_login");
-  const login = await getJson<{ token: string }>(`${base}/api/auth/login`, {
+  const login = await getJson<{ token?: unknown }>(`${base}/api/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ username: credentials.username, password: credentials.password }),
   });
+  // A sign-in that answers without a token was refused, whatever its status.
+  if (typeof login?.token !== "string" || !login.token) throw new ImportError("The key or sign-in was refused", "import_refused");
   return { base, token: login.token };
 }
 
@@ -66,7 +68,7 @@ export const umami: Importer = {
     const { base, token } = await umamiSignIn(credentials, saved.token);
     const state = { page: saved.page, token };
     const headers = { authorization: `Bearer ${state.token}` };
-    const list = await getJson<{ data: UmamiLink[]; count: number }>(`${base}/api/links?page=${state.page}&pageSize=${PAGE}`, { headers });
+    const list = await getJson<{ data: UmamiLink[]; count?: unknown }>(`${base}/api/links?page=${state.page}&pageSize=${PAGE}`, { headers });
 
     const all = async <T>(path: string): Promise<T[]> => {
       const out: T[] = [];
@@ -114,7 +116,9 @@ export const umami: Importer = {
         clicks,
       });
     }
-    const more = state.page * PAGE < list.count && list.data.length > 0;
-    return { cursor: more ? JSON.stringify(key ? { page: state.page + 1 } : { page: state.page + 1, token: state.token }) : null, total: list.count, links };
+    // Without a count there is no total, and a full page may have more after it.
+    const count = typeof list.count === "number" && Number.isFinite(list.count) ? list.count : null;
+    const more = count === null ? list.data.length === PAGE : state.page * PAGE < count && list.data.length > 0;
+    return { cursor: more ? JSON.stringify(key ? { page: state.page + 1 } : { page: state.page + 1, token: state.token }) : null, total: count, links };
   },
 };
