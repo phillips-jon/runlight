@@ -2287,13 +2287,14 @@ class Routes:
 
         if path == "/mcp":
             from .mcp import mcp_response
-            from .oauth import resource_metadata_url
 
             # No server-sent stream and no sessions: every message is one POST.
             if method != "POST":
                 return coded("Method not allowed", "method_not_allowed", 405, None, {"allow": "POST"})
             access = self._reader(request)
             if access is False or access == "unconfigured":
+                from .oauth import resource_metadata_url
+
                 refused = self._denied(access)
                 # Points an OAuth client at the metadata that starts the sign-in.
                 refused.headers.set("www-authenticate", f'Bearer realm="runlight", resource_metadata="{resource_metadata_url(url.origin, base)}"')
