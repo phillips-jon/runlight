@@ -44,6 +44,7 @@
   <modules>
     <module>runlight</module>
     <module>runlight-servlet</module>
+    <module>runlight-spring-boot-starter</module>
   </modules>
 
   <properties>
