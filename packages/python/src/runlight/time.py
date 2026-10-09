@@ -19,6 +19,8 @@ from functools import cache
 from typing import Any
 from zoneinfo import ZoneInfo, available_timezones
 
+from . import _js
+
 
 PERIODS = ["today", "yesterday", "7d", "30d", "90d", "month", "last_month", "year", "12mo", "all"]
 INTERVALS = ["hour", "day", "week", "month"]
@@ -92,7 +94,7 @@ def _parts(ts: int, timezone: str) -> tuple[int, int, int, int, int, int]:
     """Year, month, day, hour, minute, and second of an instant in a zone, as Intl formats them."""
     zone = _zone(timezone)
     if zone is None:
-        raise ValueError(f"Invalid time zone specified: {timezone}")
+        raise _js.RangeError(f"Invalid time zone specified: {timezone}")
     local = datetime.fromtimestamp(ts // 1000, zone)
     return local.year, local.month, local.day, local.hour, local.minute, local.second
 

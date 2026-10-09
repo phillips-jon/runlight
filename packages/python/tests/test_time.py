@@ -6,6 +6,7 @@ import calendar
 import hashlib
 from datetime import datetime, timezone
 
+import pytest
 from support import fixtures
 
 from runlight import _js
@@ -88,6 +89,11 @@ def test_a_day_whose_midnight_is_skipped_by_the_clocks_begins_when_they_land() -
         assert iso(at) == start, zone
         assert local_date(at, zone) == date
         assert local_date(at - 1, zone) != date
+
+
+def test_an_unknown_zone_is_a_range_error() -> None:
+    with pytest.raises(_js.RangeError, match="Invalid time zone specified: Nope/Zone"):
+        local_date(0, "Nope/Zone")
 
 
 def test_a_date_with_a_month_or_day_that_does_not_exist_is_not_a_date() -> None:
