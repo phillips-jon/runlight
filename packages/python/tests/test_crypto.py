@@ -51,11 +51,10 @@ def test_new_hashes_use_scrypt_and_check():
 def test_check_password_answers_as_typescript_does():
     for case in fixture()["checks"]:
         label = f"{case['password']} against {case['stored']}"
-        if "throws" in case:
-            with pytest.raises(ValueError):
-                crypto.check_password(case["password"], case["stored"])
-            continue
+        assert "throws" not in case, f"{label}: checkPassword never throws"
         assert crypto.check_password(case["password"], case["stored"]) is case["value"], label
+    assert crypto.check_password("a long password", "scrypt$@@$" + "A" * 43) is False, "nor does a bad salt"
+    assert crypto.check_password("a long password", "pbkdf2$1000$@@$" + "A" * 43) is False
 
 
 def test_sealed_text_opens_both_ways():

@@ -32,7 +32,9 @@ export async function importStep(
     return Boolean(taken && sameUrl(taken.url, url));
   };
   const result = await importer.step({ credentials, cursor, known, now: runlight.now() });
-  const step: ImportStep = { cursor: result.cursor, done, total: result.total, links: 0, clicks: 0, skipped: 0, failed: [] };
+  // A total that is not a number is as good as none.
+  const total = typeof result.total === "number" && Number.isFinite(result.total) ? result.total : null;
+  const step: ImportStep = { cursor: result.cursor, done, total, links: 0, clicks: 0, skipped: 0, failed: [] };
   for (const item of result.links) {
     if (item.known) {
       step.done++;
@@ -48,7 +50,7 @@ export async function importStep(
     else step.failed.push({ slug: item.link.slug, reason: written.reason ?? "", ...(written.code ? { code: written.code, params: written.params ?? {} } : {}) });
   }
   // Links the source skipped (deleted ones) still count toward progress.
-  if (!result.cursor && result.total !== null) step.done = Math.max(step.done, result.total);
+  if (!result.cursor && total !== null) step.done = Math.max(step.done, total);
   return step;
 }
 

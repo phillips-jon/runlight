@@ -6,7 +6,7 @@ const BASE = "https://api.rebrandly.com/v1";
 const PAGE = 25;
 
 interface RebrandlyLink {
-  id: string;
+  id: string | number;
   title?: string | null;
   slashtag: string;
   destination: string;
@@ -27,9 +27,9 @@ export const rebrandly: Importer = {
     const last = cursor ? `&last=${encodeURIComponent(cursor)}` : "";
     const list = await getJson<RebrandlyLink[]>(`${BASE}/links?orderBy=createdAt&orderDir=desc&limit=${PAGE}${last}`, { headers });
     const links = list.map((l) => ({
-      link: { sourceId: l.id, slug: l.slashtag, domain: l.domain?.fullName ?? "", name: l.title || "", url: l.destination, createdAt: Date.parse(l.createdAt) || now },
+      link: { sourceId: String(l.id), slug: l.slashtag, domain: l.domain?.fullName ?? "", name: l.title || "", url: l.destination, createdAt: Date.parse(l.createdAt) || now },
     }));
     const end = list[list.length - 1];
-    return { cursor: list.length === PAGE && end ? end.id : null, total: null, links };
+    return { cursor: list.length === PAGE && end ? String(end.id) : null, total: null, links };
   },
 };

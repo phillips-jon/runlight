@@ -47,8 +47,8 @@ export function mime(m: Message, from: string, now = new Date()): string {
 
 type Socket = import("node:net").Socket;
 
-/** Reads SMTP replies, multi-line included, one at a time. */
-function replies(socket: Socket) {
+/** Reads SMTP replies, multi-line included, one at a time. Exported for its test. */
+export function smtpReplies(socket: Socket) {
   let buffer = "";
   const waiting: Array<(line: { code: number; text: string } | Error) => void> = [];
   const ready: Array<{ code: number; text: string }> = [];
@@ -60,8 +60,10 @@ function replies(socket: Socket) {
     else ready.push(reply);
   };
   let lines: string[] = [];
+  // One decoder for the stream, so a character split across two reads comes through whole.
+  const decoder = new TextDecoder();
   const onData = (chunk: Buffer) => {
-    buffer += chunk.toString("utf8");
+    buffer += decoder.decode(chunk, { stream: true });
     let at: number;
     while ((at = buffer.indexOf("\r\n")) >= 0) {
       const line = buffer.slice(0, at);
@@ -78,9 +80,10 @@ function replies(socket: Socket) {
   socket.on("close", () => deliver(new MailError("SMTP: the server closed the connection")));
   return {
     next(): Promise<{ code: number; text: string }> {
-      if (failure) return Promise.reject(failure);
+      // Replies that came before a close or an error are answered first.
       const r = ready.shift();
       if (r) return Promise.resolve(r);
+      if (failure) return Promise.reject(failure);
       return new Promise((resolve, reject) => waiting.push((x) => (x instanceof Error ? reject(x) : resolve(x))));
     },
     detach() {
@@ -125,7 +128,7 @@ async function converse(config: MailConfig, m: Message, from: string, host: stri
     s.setTimeout(timeout, () => s.destroy(new Error("timed out")));
     s.once("error", (e) => reject(new MailError(`SMTP: could not connect to ${host}:${port}: ${e.message}`, "mail_unreachable", { host: `${host}:${port}`, detail: e.message })));
   });
-  let reader = replies(socket);
+  let reader = smtpReplies(socket);
   const write = (line: string) => socket.write(`${line}\r\n`);
   const expect = async (codes: number[], what: string) => {
     const reply = await reader.next();
@@ -148,7 +151,7 @@ async function converse(config: MailConfig, m: Message, from: string, host: stri
         track(secured);
         secured.once("error", (e) => reject(new MailError(`SMTP: TLS failed: ${e.message}`)));
       });
-      reader = replies(socket);
+      reader = smtpReplies(socket);
       write(`EHLO ${name}`);
       ehlo = await expect([250], "EHLO");
     }

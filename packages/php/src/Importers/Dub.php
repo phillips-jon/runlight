@@ -83,7 +83,7 @@ final class Dub implements Importer
                     }
                     $history = 'events';
                 } catch (HttpError $error) {
-                    if ($error->status === 401) {
+                    if (!self::planRefused($error)) {
                         throw $error;
                     }
                     $clicks = null;
@@ -103,7 +103,7 @@ final class Dub implements Importer
                         }
                     }
                 } catch (HttpError $error) {
-                    if ($error->status === 401) {
+                    if (!self::planRefused($error)) {
                         throw $error;
                     }
                     $history = 'none';
@@ -128,5 +128,15 @@ final class Dub implements Importer
             'total' => null,
             'links' => $links,
         ];
+    }
+
+    /**
+     * Whether Dub said the plan does not include what was asked (403, or 402).
+     * Any other failure (a server error that outlasts the retries, say) fails
+     * the step and leaves the history mode as it was.
+     */
+    private static function planRefused(HttpError $error): bool
+    {
+        return $error->status === 403 || $error->status === 402;
     }
 }
