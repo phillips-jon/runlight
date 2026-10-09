@@ -1,5 +1,6 @@
 """Accounts on the web, through AccountsWeb.handle() as the routes call it, with a stand-in for the Runlight (PHP
-tests/Accounts/WebTest.php). The cases follow accounts.test.ts and the accounts conformance scenario."""
+tests/Accounts/WebTest.php), on every database at hand. The cases follow accounts.test.ts and the accounts
+conformance scenario."""
 
 from __future__ import annotations
 
@@ -18,6 +19,7 @@ from runlight.accounts.web import AccountsWeb
 from runlight.http import Request, Response, SearchParams, Url
 from runlight.mail import MailError
 from runlight.store import SqlStore, Stores
+from support.databases import kinds
 
 NOW = 1_791_288_000_000
 BASE = "/runlight"
@@ -52,12 +54,14 @@ class StandIn:
 
 
 class Harness:
-    def __init__(self) -> None:
+    def __init__(self, databases: Any, kind: str) -> None:
         self.now = NOW
         self.rl: StandIn | None = None
+        self.databases = databases
+        self.kind = kind
 
     def web(self, first: Any = None, home: str | None = None) -> AccountsWeb:
-        store = Stores.sqlite(":memory:")
+        store = Stores.from_db(self.databases.db(self.kind))
         store.migrate()
         self.rl = StandIn(store)
         options: dict[str, Any] = {
@@ -73,9 +77,10 @@ class Harness:
         return accounts_web(options)
 
 
-@pytest.fixture
-def h() -> Harness:
-    return Harness()
+@pytest.fixture(params=kinds())
+def h(request, databases) -> Harness:
+    """A harness on each database at hand; each web() it makes gets a fresh one."""
+    return Harness(databases, request.param)
 
 
 def req(path: str, method: str = "GET", headers: dict[str, str] | None = None, body: str = "") -> Request:
@@ -181,7 +186,7 @@ def test_a_server_code_open_and_locked_setups(h):
     assert handle(locked, req("/somewhere")) is None
 
 
-def test_a_setup_link_can_say_where_it_is(h):
+def test_a_setup_link_can_say_where_it_is():
     store = Stores.sqlite(":memory:")
     store.migrate()
     where = "in the file setup.txt"
