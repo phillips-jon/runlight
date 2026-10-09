@@ -78,6 +78,11 @@ jobs:
       - name: ./mvnw verify
         working-directory: packages/java
         run: ./mvnw -B verify
+      # The starter's Spring is the app's own, so it is tested on the oldest Boot it supports too.
+      - name: The starter on Spring Boot 3.5.0
+        if: matrix.java == '21'
+        working-directory: packages/java
+        run: ./mvnw -B verify -pl runlight-spring-boot-starter -am -Dspring-boot.version=3.5.0 -Dtest='sh.runlight.spring.**' -Dsurefire.failIfNoSpecifiedTests=false
       - name: The formatting
         if: matrix.newest
         working-directory: packages/java
