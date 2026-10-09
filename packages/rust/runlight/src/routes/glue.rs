@@ -20,7 +20,14 @@ pub struct RoutesExtras {
 /// The sign-in accounts' web side.
 pub(crate) struct Web;
 
-pub(crate) fn web(_rl: &Runlight, _secret: &str, _base: &str, _token: Option<&str>, _open: bool, _origin: Option<&str>) -> Web {
+pub(crate) fn web(
+    _rl: &Runlight,
+    _secret: &str,
+    _base: &str,
+    _token: Option<&str>,
+    _open: bool,
+    _origin: Option<&str>,
+) -> Web {
     Web
 }
 
@@ -32,8 +39,12 @@ pub(crate) async fn web_handle(_web: &Web, _request: &Request, _path: &str) -> R
     Ok(None)
 }
 
-
-pub(crate) async fn oauth_response(_routes: &Routes, _request: &Request, _path: &str, _url: &Url) -> Result<Option<Response>, Error> {
+pub(crate) async fn oauth_response(
+    _routes: &Routes,
+    _request: &Request,
+    _path: &str,
+    _url: &Url,
+) -> Result<Option<Response>, Error> {
     Ok(None)
 }
 
@@ -71,4 +82,3 @@ pub(crate) async fn umami_import(_routes: &Routes, _path: &str, _url: &Url, _bod
 pub(crate) async fn csv_import(_routes: &Routes, _site: &str, _body: &Value) -> R {
     Ok(coded("Not found", "not_found", 404, None))
 }
-

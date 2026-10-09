@@ -54,11 +54,18 @@ impl Runlight {
         // cannot send a saved password somewhere new.
         let same = before.as_ref().is_some_and(|b| {
             b.get("service").and_then(Value::as_str) == Some(service.id)
-                && service.fields.iter().all(|f| f.secret || js::str_or_empty(b.get(f.name)) == js::str_or_empty(settings.get(f.name)))
+                && service
+                    .fields
+                    .iter()
+                    .all(|f| f.secret || js::str_or_empty(b.get(f.name)) == js::str_or_empty(settings.get(f.name)))
         });
         for f in service.fields.iter().filter(|f| f.secret) {
             let given = text(f.name);
-            let value = if given.is_empty() && same { js::str_or_empty(before.as_ref().and_then(|b| b.get(f.name))) } else { given };
+            let value = if given.is_empty() && same {
+                js::str_or_empty(before.as_ref().and_then(|b| b.get(f.name)))
+            } else {
+                given
+            };
             settings.set(f.name, value);
         }
         let from = text("from");
@@ -78,7 +85,9 @@ impl Runlight {
 
     /// Sends one email through the mail service.
     pub async fn send_mail(&self, mut message: Message) -> Result<(), Error> {
-        let Some((settings, _)) = self.mail_settings().await? else { return Err(mail_error("Set up a mail service first", "mail_unset")) };
+        let Some((settings, _)) = self.mail_settings().await? else {
+            return Err(mail_error("Set up a mail service first", "mail_unset"));
+        };
         message.from = js::str_or_empty(settings.get("from"));
         message.from_name = settings.get("fromName").map(js::js_string);
         send(&settings, &message, self.fetcher(), self.now()).await.map_err(Error::Mail)
@@ -107,7 +116,13 @@ impl Runlight {
                 Ok(()) => sent += 1,
                 Err(error) => {
                     self.store().release_report(&r.id, &period.key, &r.last_period).await?;
-                    eprintln!("Runlight: could not send the {} report for {} to {}: {}", r.frequency, site.name, r.email, error.message());
+                    eprintln!(
+                        "Runlight: could not send the {} report for {} to {}: {}",
+                        r.frequency,
+                        site.name,
+                        r.email,
+                        error.message()
+                    );
                     failed += 1;
                 }
             }
@@ -116,7 +131,12 @@ impl Runlight {
     }
 
     /// Builds and sends one report. Also used by "Send a sample now".
-    pub async fn deliver_report(&self, r: &ReportRow, site: &SiteRow, period: Option<&ReportPeriod>) -> Result<(), Error> {
+    pub async fn deliver_report(
+        &self,
+        r: &ReportRow,
+        site: &SiteRow,
+        period: Option<&ReportPeriod>,
+    ) -> Result<(), Error> {
         let owned;
         let period = match period {
             Some(p) => p,
@@ -133,7 +153,10 @@ impl Runlight {
             subject: report.subject,
             html: report.html,
             text: report.text,
-            headers: vec![("List-Unsubscribe".into(), format!("<{unsubscribe}>")), ("List-Unsubscribe-Post".into(), "List-Unsubscribe=One-Click".into())],
+            headers: vec![
+                ("List-Unsubscribe".into(), format!("<{unsubscribe}>")),
+                ("List-Unsubscribe-Post".into(), "List-Unsubscribe=One-Click".into()),
+            ],
             ..Message::default()
         })
         .await
@@ -145,7 +168,12 @@ impl Runlight {
         let Some(opened) = unseal(&stored, self.secret()) else { return Ok(None) };
         let Ok(v) = js::parse(&opened) else { return Ok(None) };
         let s = |k: &str| js::str_or_empty(v.get(k));
-        Ok(Some(AssistantSettings { provider: s("provider"), model: s("model"), base_url: s("baseUrl"), key: s("key") }))
+        Ok(Some(AssistantSettings {
+            provider: s("provider"),
+            model: s("model"),
+            base_url: s("baseUrl"),
+            key: s("key"),
+        }))
     }
 
     /// Saves the assistant's settings; an empty key keeps the one saved for the same provider. `None` removes them.
@@ -154,14 +182,19 @@ impl Runlight {
             self.store().set_setting("assistant", None).await?;
             return Ok(());
         };
-        let Some(provider) = PROVIDERS.iter().find(|p| input.get("provider").and_then(Value::as_str) == Some(p.id)) else {
+        let Some(provider) = PROVIDERS.iter().find(|p| input.get("provider").and_then(Value::as_str) == Some(p.id))
+        else {
             return Err(Error::settings("Choose a provider", "assistant_provider", &[]));
         };
         let base_url = js::trim(&js::str_or_empty(input.get("baseUrl"))).trim_end_matches('/').to_string();
         if !base_url.is_empty() {
             let ok = Url::parse(&base_url).is_some_and(|u| u.protocol() == "https:" || u.protocol() == "http:");
             if !ok {
-                return Err(Error::settings("Enter the service's address, starting with https://", "assistant_address_bad", &[]));
+                return Err(Error::settings(
+                    "Enter the service's address, starting with https://",
+                    "assistant_address_bad",
+                    &[],
+                ));
             }
         }
         if base_url.is_empty() && provider.base_url.is_empty() {
@@ -183,7 +216,11 @@ impl Runlight {
             key = b.key.clone();
         }
         if key.is_empty() && provider.key == "yes" {
-            return Err(Error::settings(format!("Enter your {} key", provider.name), "assistant_key", &[("provider", provider.name)]));
+            return Err(Error::settings(
+                format!("Enter your {} key", provider.name),
+                "assistant_key",
+                &[("provider", provider.name)],
+            ));
         }
         let settings = crate::obj! { "provider" => provider.id, "model" => model, "baseUrl" => base_url, "key" => key };
         let sealed = seal(&settings.to_json(), self.secret());

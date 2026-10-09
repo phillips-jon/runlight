@@ -25,7 +25,9 @@ const MAX_BODY: usize = 10 * 1024 * 1024;
 /// axum's `ConnectInfo`.
 fn remote_address<B>(request: &http::Request<B>) -> String {
     #[cfg(feature = "axum")]
-    if let Some(axum::extract::ConnectInfo(addr)) = request.extensions().get::<axum::extract::ConnectInfo<std::net::SocketAddr>>() {
+    if let Some(axum::extract::ConnectInfo(addr)) =
+        request.extensions().get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+    {
         return addr.ip().to_string();
     }
     request.extensions().get::<std::net::SocketAddr>().map(|a| a.ip().to_string()).unwrap_or_default()
@@ -58,10 +60,12 @@ where
     let forwarded = headers.get("x-forwarded-proto").unwrap_or_default();
     let proto = js::trim(forwarded.split(',').next().unwrap_or("")).to_lowercase();
     let proto = if proto.is_empty() { uri.scheme_str().unwrap_or("http").to_lowercase() } else { proto };
-    let host = headers.get("host").or_else(|| uri.authority().map(|a| a.to_string())).unwrap_or_else(|| "localhost".into());
+    let host =
+        headers.get("host").or_else(|| uri.authority().map(|a| a.to_string())).unwrap_or_else(|| "localhost".into());
     let target = uri.path_and_query().map_or("/", |p| p.as_str()).to_string();
     let base = format!("{}://{host}", if proto == "https" { "https" } else { "http" });
-    let url = crate::http::Url::parse_with_base(&target, &base).map_or_else(|| "http://localhost/".to_string(), |u| u.href());
+    let url =
+        crate::http::Url::parse_with_base(&target, &base).map_or_else(|| "http://localhost/".to_string(), |u| u.href());
     let mut body = Vec::new();
     if method != "GET" && method != "HEAD" {
         let limit = if uri.path().ends_with("/e") { MAX_COLLECT_BODY } else { MAX_BODY };
@@ -177,7 +181,8 @@ pub mod axum_support {
             if base.is_empty() {
                 return router.fallback_service(self.clone());
             }
-            router = router.route_service(&base, self.clone()).route_service(&format!("{base}/{{*path}}"), self.clone());
+            router =
+                router.route_service(&base, self.clone()).route_service(&format!("{base}/{{*path}}"), self.clone());
             router
         }
     }

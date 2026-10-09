@@ -16,6 +16,7 @@ pub(crate) fn languages() -> Vec<String> {
 }
 
 /// A translator for a language: `t(key, vars)`, and the language used.
+#[allow(clippy::type_complexity)]
 pub(crate) fn translator(lang: &str) -> (impl Fn(&str, &[(&str, &str)]) -> String + use<>, String) {
     let words = crate::messages::translator(lang);
     let code = words.lang.clone();
@@ -46,10 +47,15 @@ impl ApiReader {
 }
 
 impl ApiRead for ApiReader {
-    fn read<'a>(&'a self, path: &'a str, params: &'a [(String, String)]) -> BoxFuture<'a, Result<Response, crate::BoxError>> {
+    fn read<'a>(
+        &'a self,
+        path: &'a str,
+        params: &'a [(String, String)],
+    ) -> BoxFuture<'a, Result<Response, crate::BoxError>> {
         Box::pin(async move {
             let base = &self.routes.0.base;
-            let mut target = Url::parse_with_base(&format!("{base}{path}"), &self.origin).ok_or("TypeError: Invalid URL")?;
+            let mut target =
+                Url::parse_with_base(&format!("{base}{path}"), &self.origin).ok_or("TypeError: Invalid URL")?;
             let mut query = target.search_params();
             for (k, v) in params {
                 query.append(k, v);
@@ -62,7 +68,13 @@ impl ApiRead for ApiReader {
                 query.set("site", site);
             }
             target.set_search_params(&query);
-            let request = Request { url: target.href(), method: "GET".into(), headers: self.headers.clone(), body: Vec::new(), remote_address: String::new() };
+            let request = Request {
+                url: target.href(),
+                method: "GET".into(),
+                headers: self.headers.clone(),
+                body: Vec::new(),
+                remote_address: String::new(),
+            };
             let call = Call::default();
             self.routes.api(&request, path, &mut target, &call).await.map_err(|e| Box::new(e) as crate::BoxError)
         })
@@ -131,12 +143,15 @@ pub(crate) async fn save_mail_settings(rl: &Runlight, input: Option<&Value>) -> 
 }
 
 /// Sends one email through the mail service.
+#[allow(dead_code)]
 pub(crate) async fn send_mail(rl: &Runlight, message: Message) -> Result<(), Error> {
     rl.send_mail(message).await
 }
 
 pub(crate) async fn send_test_mail(rl: &Runlight, to: &str, lang: &str) -> R {
-    let Some((settings, _)) = rl.mail_settings().await? else { return Ok(coded("Set up a mail service first", "mail_unset", 400, None)) };
+    let Some((settings, _)) = rl.mail_settings().await? else {
+        return Ok(coded("Set up a mail service first", "mail_unset", 400, None));
+    };
     let (t, _) = translator(lang);
     let id = settings.get("service").and_then(Value::as_str).unwrap_or("");
     let name = SERVICES.iter().find(|s| s.id == id).map_or("", |s| s.name);
@@ -180,7 +195,12 @@ async fn ask_turn(routes: &Routes, who: &str, owner: bool) -> Result<Option<Resp
         let mine = asked.entry(who.to_string()).or_default();
         mine.0.retain(|at| now - at < 3_600_000);
         if mine.0.len() >= 30 || mine.1 >= 2 {
-            return Ok(Some(coded("You have asked a lot in a short time. Wait a little and ask again.", "assistant_soon", 429, None)));
+            return Ok(Some(coded(
+                "You have asked a lot in a short time. Wait a little and ask again.",
+                "assistant_soon",
+                429,
+                None,
+            )));
         }
     }
     if !owner {
@@ -193,7 +213,12 @@ async fn ask_turn(routes: &Routes, who: &str, owner: bool) -> Result<Option<Resp
         let mine = counts.get(who).and_then(Value::as_f64).unwrap_or(0.0);
         if mine >= limit {
             let l = js::format_number(limit);
-            return Ok(Some(coded(&format!("Viewers can ask {l} questions a day. Ask again tomorrow."), "assistant_daily", 429, Some(&[("limit", &l)]))));
+            return Ok(Some(coded(
+                &format!("Viewers can ask {l} questions a day. Ask again tomorrow."),
+                "assistant_daily",
+                429,
+                Some(&[("limit", &l)]),
+            )));
         }
         counts.set(who, mine + 1.0);
         rl.store().set_setting(&day, Some(&counts.to_json())).await?;
@@ -229,7 +254,13 @@ fn assistant_refused(failure: AssistantFailure, status: u16) -> R {
 
 /// The assistant: an owner sets it up; anyone signed in to the dashboard can ask it. `None` for a path
 /// it does not answer.
-pub(crate) async fn assistant_api(routes: &Routes, request: &Request, path: &str, url: &Url, call: &Call) -> Result<Option<Response>, Error> {
+pub(crate) async fn assistant_api(
+    routes: &Routes,
+    request: &Request,
+    path: &str,
+    url: &Url,
+    call: &Call,
+) -> Result<Option<Response>, Error> {
     let rl = routes.rl();
     let method = request.method.as_str();
     if path == "/api/assistant" {
@@ -242,7 +273,12 @@ pub(crate) async fn assistant_api(routes: &Routes, request: &Request, path: &str
                 Reader::No | Reader::Unconfigured => return Ok(Some(routes.denied_reader(&reader))),
                 // Only people at the dashboard, never an API token or a share.
                 Reader::Token(t) if !t.id.is_empty() => {
-                    return Ok(Some(coded("Only the dashboard can use the assistant", "assistant_dashboard", 403, None)));
+                    return Ok(Some(coded(
+                        "Only the dashboard can use the assistant",
+                        "assistant_dashboard",
+                        403,
+                        None,
+                    )));
                 }
                 _ => {}
             }
@@ -268,7 +304,11 @@ pub(crate) async fn assistant_api(routes: &Routes, request: &Request, path: &str
             )));
         }
         if !owner {
-            return Ok(Some(if me == CanRead::Yes { coded("Only an owner or admin can change this", "admin_only", 403, None) } else { routes.denied(me) }));
+            return Ok(Some(if me == CanRead::Yes {
+                coded("Only an owner or admin can change this", "admin_only", 403, None)
+            } else {
+                routes.denied(me)
+            }));
         }
         rl.init().await?;
         if method == "DELETE" {
@@ -337,7 +377,9 @@ pub(crate) async fn assistant_api(routes: &Routes, request: &Request, path: &str
             key,
         };
         return Ok(Some(match list_models(&settings, rl.fetcher()).await {
-            Ok(models) => json(&obj! { "models" => Value::Array(models.iter().map(|m| m.to_value()).collect()) }, 200, &[]),
+            Ok(models) => {
+                json(&obj! { "models" => Value::Array(models.iter().map(|m| m.to_value()).collect()) }, 200, &[])
+            }
             Err(f) => assistant_refused(f, 400)?,
         }));
     }
@@ -355,7 +397,12 @@ pub(crate) async fn assistant_api(routes: &Routes, request: &Request, path: &str
         }
         rl.init().await?;
         let Some(settings) = rl.assistant_settings().await? else {
-            return Ok(Some(coded("The assistant is not set up yet. An owner can set it up in Settings, AI Assistant.", "assistant_unset", 400, None)));
+            return Ok(Some(coded(
+                "The assistant is not set up yet. An owner can set it up in Settings, AI Assistant.",
+                "assistant_unset",
+                400,
+                None,
+            )));
         };
         let body = match read_json(request) {
             Ok(b) => Value::Object(b),
@@ -372,9 +419,13 @@ pub(crate) async fn assistant_api(routes: &Routes, request: &Request, path: &str
                 a.iter()
                     .filter(|m| {
                         let role = m.get("role").and_then(Value::as_str);
-                        (role == Some("user") || role == Some("assistant")) && m.get("content").is_some_and(Value::is_string)
+                        (role == Some("user") || role == Some("assistant"))
+                            && m.get("content").is_some_and(Value::is_string)
                     })
-                    .map(|m| ChatMessage { role: js::str_or_empty(m.get("role")), content: js::str_or_empty(m.get("content")) })
+                    .map(|m| ChatMessage {
+                        role: js::str_or_empty(m.get("role")),
+                        content: js::str_or_empty(m.get("content")),
+                    })
                     .collect()
             })
             .unwrap_or_default();
@@ -391,8 +442,18 @@ pub(crate) async fn assistant_api(routes: &Routes, request: &Request, path: &str
         let context = ChatContext {
             site: ChatSite { id: site.id.clone(), name: site.name.clone(), timezone: site.timezone.clone() },
             today: local_date(rl.now(), &site.timezone),
-            view: js::head16(&body.get("view").filter(|v| !v.is_null()).map_or_else(|| "the last 30 days".to_string(), js::js_string), 200),
-            language: if language.len() == 2 && language.bytes().all(|b| b.is_ascii_lowercase()) { language } else { "en".into() },
+            view: js::head16(
+                &body
+                    .get("view")
+                    .filter(|v| !v.is_null())
+                    .map_or_else(|| "the last 30 days".to_string(), js::js_string),
+                200,
+            ),
+            language: if language.len() == 2 && language.bytes().all(|b| b.is_ascii_lowercase()) {
+                language
+            } else {
+                "en".into()
+            },
         };
         let clock = || rl.now();
         let answer = chat(&settings, &messages, &context, &reader, rl.fetcher(), &clock, None).await;

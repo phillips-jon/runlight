@@ -5,7 +5,7 @@
 
 use axum::body::Body;
 use http_body_util::BodyExt;
-use runlight::{Runlight, RunlightOptions, RoutesOptions, SiteOptions, TokenOption};
+use runlight::{RoutesOptions, Runlight, RunlightOptions, SiteOptions, TokenOption};
 use tower::ServiceExt;
 
 async fn runlight() -> Runlight {
@@ -31,7 +31,10 @@ async fn the_routes_answer_through_an_axum_router() {
     let rl = runlight().await;
     let routes = rl.routes(options()).unwrap();
     let app: axum::Router = axum::Router::new().merge(routes.router()).merge(rl.link_router());
-    let request = http::Request::get("http://example.com/runlight/api").header("authorization", "Bearer secret-token").body(Body::empty()).unwrap();
+    let request = http::Request::get("http://example.com/runlight/api")
+        .header("authorization", "Bearer secret-token")
+        .body(Body::empty())
+        .unwrap();
     let (status, kind, body) = text(app.clone().oneshot(request).await.unwrap()).await;
     assert_eq!((status, kind.as_str()), (200, "application/json; charset=utf-8"));
     assert_eq!(body, r#"{"name":"runlight","version":"0.0.0","api":1,"library":"runlight","language":"rust"}"#);
@@ -43,12 +46,18 @@ async fn the_routes_answer_through_an_axum_router() {
         .body(Body::from(hit))
         .unwrap();
     assert_eq!(text(app.clone().oneshot(request).await.unwrap()).await.0, 202);
-    let request = http::Request::get("http://example.com/runlight/api/stats?period=today").header("authorization", "Bearer secret-token").body(Body::empty()).unwrap();
+    let request = http::Request::get("http://example.com/runlight/api/stats?period=today")
+        .header("authorization", "Bearer secret-token")
+        .body(Body::empty())
+        .unwrap();
     let (_, _, body) = text(app.clone().oneshot(request).await.unwrap()).await;
     assert!(body.contains(r#""visitors":1"#), "{body}");
 
     let request = http::Request::get("http://example.com/go/nope").body(Body::empty()).unwrap();
-    assert_eq!(text(app.clone().oneshot(request).await.unwrap()).await, (404, "text/plain; charset=utf-8".into(), "Not found".into()));
+    assert_eq!(
+        text(app.clone().oneshot(request).await.unwrap()).await,
+        (404, "text/plain; charset=utf-8".into(), "Not found".into())
+    );
 }
 
 #[tokio::test]
@@ -56,7 +65,10 @@ async fn a_nested_service_finds_its_mount_and_a_large_body_is_refused() {
     let rl = runlight().await;
     let routes = rl.routes(options()).unwrap();
     let app: axum::Router = axum::Router::new().nest_service("/runlight", routes);
-    let request = http::Request::get("http://example.com/runlight/api").header("authorization", "Bearer secret-token").body(Body::empty()).unwrap();
+    let request = http::Request::get("http://example.com/runlight/api")
+        .header("authorization", "Bearer secret-token")
+        .body(Body::empty())
+        .unwrap();
     assert_eq!(text(app.clone().oneshot(request).await.unwrap()).await.0, 200);
     let request = http::Request::post("http://example.com/runlight/e").body(Body::from(vec![b'x'; 20_000])).unwrap();
     let (status, _, body) = text(app.oneshot(request).await.unwrap()).await;

@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 
 use runlight::http::{FetchError, FetchInit, Fetcher, Headers, Request, Response, SearchParams, Url};
 use runlight::js::{self, Object, Value};
-use runlight::{BoxFuture, Runlight, RunlightOptions, Routes, RoutesOptions, SiteOptions, TokenOption};
+use runlight::{BoxFuture, Routes, RoutesOptions, Runlight, RunlightOptions, SiteOptions, TokenOption};
 
 /// Headers every implementation must send the same, where it sends them.
 const HEADERS: [&str; 16] = [
@@ -33,7 +33,8 @@ const HEADERS: [&str; 16] = [
     "access-control-max-age",
 ];
 const RANDOM: [&str; 8] = ["token", "secret", "hint", "version", "library", "language", "ticket", "recovery"];
-const JS_SPACE: &str = r"\t\n\x{0B}\f\r \x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}";
+const JS_SPACE: &str =
+    r"\t\n\x{0B}\f\r \x{A0}\x{1680}\x{2000}-\x{200A}\x{2028}\x{2029}\x{202F}\x{205F}\x{3000}\x{FEFF}";
 
 fn re(pattern: &str) -> fancy_regex::Regex {
     fancy_regex::Regex::new(pattern).expect("a pattern")
@@ -41,7 +42,9 @@ fn re(pattern: &str) -> fancy_regex::Regex {
 
 /// Random parts inside a longer string: secrets in a query, and long runs of hex such as ids and signatures.
 fn scrub(text: &str) -> String {
-    let a = re(&format!(r#"([?&](?:code|ticket|secret|code_challenge)=)[^&#{JS_SPACE}"'<>]+"#)).replace_all(text, "${1}<value>").into_owned();
+    let a = re(&format!(r#"([?&](?:code|ticket|secret|code_challenge)=)[^&#{JS_SPACE}"'<>]+"#))
+        .replace_all(text, "${1}<value>")
+        .into_owned();
     let b = re(r"(?<![A-Za-z0-9])[a-f0-9]{24,}(?![A-Za-z0-9])").replace_all(&a, "<hex>").into_owned();
     re(r"(?<![A-Za-z0-9_])rlo?_[A-Za-z0-9]{20,}(?![A-Za-z0-9])").replace_all(&b, "<key>").into_owned()
 }
@@ -58,7 +61,10 @@ fn normalize(value: &Value, key: &str) -> Value {
             Value::Object(out)
         }
         Value::String(s) => {
-            if RANDOM.contains(&key) || re(r"^rlo?_[A-Za-z0-9]+$").is_match(s).unwrap_or(false) || re(r"^[a-f0-9]{24}$").is_match(s).unwrap_or(false) {
+            if RANDOM.contains(&key)
+                || re(r"^rlo?_[A-Za-z0-9]+$").is_match(s).unwrap_or(false)
+                || re(r"^[a-f0-9]{24}$").is_match(s).unwrap_or(false)
+            {
                 return Value::String(format!("<{}>", if key.is_empty() { "value" } else { key }));
             }
             Value::String(scrub(s))
@@ -70,7 +76,9 @@ fn normalize(value: &Value, key: &str) -> Value {
 /// A Set-Cookie header with its value as <value>, unless it clears the cookie.
 fn cookie_shape(header: &str) -> String {
     re(r"^([^=;]+)=([^;]*)")
-        .replacen(header, 1, |c: &fancy_regex::Captures| format!("{}={}", &c[1], if c[2].is_empty() { "" } else { "<value>" }))
+        .replacen(header, 1, |c: &fancy_regex::Captures| {
+            format!("{}={}", &c[1], if c[2].is_empty() { "" } else { "<value>" })
+        })
         .into_owned()
 }
 
@@ -197,7 +205,9 @@ fn unzip(bytes: &[u8]) -> Vec<Value> {
         let name = runlight::http::utf8(&bytes[at + 30..at + 30 + name_len]);
         let start = at + 30 + name_len + extra;
         let data = &bytes[start..start + size];
-        files.push(runlight::obj! { "name" => name, "text" => normalize(&Value::String(runlight::http::utf8(data)), "") });
+        files.push(
+            runlight::obj! { "name" => name, "text" => normalize(&Value::String(runlight::http::utf8(data)), "") },
+        );
         at = start + size;
     }
     files
@@ -224,7 +234,10 @@ fn totp(secret: &str, step: i64) -> String {
     mac.update(&step.to_be_bytes());
     let m = mac.finalize().into_bytes();
     let at = (m[19] & 15) as usize;
-    let n = ((u32::from(m[at]) & 127) << 24) | (u32::from(m[at + 1]) << 16) | (u32::from(m[at + 2]) << 8) | u32::from(m[at + 3]);
+    let n = ((u32::from(m[at]) & 127) << 24)
+        | (u32::from(m[at + 1]) << 16)
+        | (u32::from(m[at + 2]) << 8)
+        | u32::from(m[at + 3]);
     format!("{:06}", n % 1_000_000)
 }
 
@@ -238,9 +251,13 @@ impl Player {
     fn fill(&self, text: &str) -> String {
         let now = self.now.load(Ordering::SeqCst);
         let with_codes = re(r"\{\{totp:(\w+)\}\}")
-            .replace_all(text, |c: &fancy_regex::Captures| totp(self.kept.get(&c[1]).map_or("", String::as_str), now.div_euclid(30_000)))
+            .replace_all(text, |c: &fancy_regex::Captures| {
+                totp(self.kept.get(&c[1]).map_or("", String::as_str), now.div_euclid(30_000))
+            })
             .into_owned();
-        re(r"\{\{(\w+)\}\}").replace_all(&with_codes, |c: &fancy_regex::Captures| self.kept.get(&c[1]).cloned().unwrap_or_default()).into_owned()
+        re(r"\{\{(\w+)\}\}")
+            .replace_all(&with_codes, |c: &fancy_regex::Captures| self.kept.get(&c[1]).cloned().unwrap_or_default())
+            .into_owned()
     }
 
     fn fill_deep(&self, v: &Value) -> Value {
@@ -282,14 +299,23 @@ fn capture(spec: &str, answer: &Response, text: &str, parsed: Option<&Value>, se
         sent.iter().map(|f| f.1.clone()).collect::<Vec<_>>().join("\n")
     } else if let Some(h) = source.strip_prefix("header:") {
         let h = h.to_lowercase();
-        if h == "set-cookie" { answer.headers.get_set_cookie().join("\n") } else { answer.headers.get(&h).unwrap_or_default() }
+        if h == "set-cookie" {
+            answer.headers.get_set_cookie().join("\n")
+        } else {
+            answer.headers.get(&h).unwrap_or_default()
+        }
     } else {
         let v = parsed.map_or(Value::Null, |p| dig(p, source));
         if v.is_null() { String::new() } else { js::js_string(&v) }
     };
     match pattern {
         None => value,
-        Some(p) => re(p).captures(&value).ok().flatten().and_then(|c| c.get(1).map(|m| m.as_str().to_string())).unwrap_or_default(),
+        Some(p) => re(p)
+            .captures(&value)
+            .ok()
+            .flatten()
+            .and_then(|c| c.get(1).map(|m| m.as_str().to_string()))
+            .unwrap_or_default(),
     }
 }
 
@@ -297,7 +323,10 @@ async fn play(scenario: &Value, store: runlight::store::SqlStore) -> Result<Vec<
     let options = scenario.at("options");
     let start = scenario.at("start").as_f64().unwrap_or(0.0) as i64;
     let now = Arc::new(AtomicI64::new(start));
-    let upstream = Arc::new(Upstream { entries: scenario.get("upstream").and_then(Value::as_array).cloned().unwrap_or_default(), fetched: Mutex::new(vec![]) });
+    let upstream = Arc::new(Upstream {
+        entries: scenario.get("upstream").and_then(Value::as_array).cloned().unwrap_or_default(),
+        fetched: Mutex::new(vec![]),
+    });
     let mut rl_options = RunlightOptions::new(store);
     if js::opt_truthy(options.get("managedSites")) {
         rl_options.managed_sites = true;
@@ -346,7 +375,10 @@ async fn play(scenario: &Value, store: runlight::store::SqlStore) -> Result<Vec<
         let mut body: Option<String> = None;
         if let Some(form) = step.get("form") {
             let filled = player.fill_deep(form);
-            let pairs: Vec<(String, String)> = filled.as_object().map(|o| o.iter().map(|(k, v)| (k.to_string(), js::js_string(v))).collect()).unwrap_or_default();
+            let pairs: Vec<(String, String)> = filled
+                .as_object()
+                .map(|o| o.iter().map(|(k, v)| (k.to_string(), js::js_string(v))).collect())
+                .unwrap_or_default();
             body = Some(SearchParams::from_pairs(pairs).to_string());
             if !headers.has("content-type") {
                 headers.set("content-type", "application/x-www-form-urlencoded");
@@ -377,11 +409,22 @@ async fn play(scenario: &Value, store: runlight::store::SqlStore) -> Result<Vec<
         let raw = format!("https://{host}{prefix}{}", player.fill(&js::js_string(step.at("path"))));
         let url = Url::parse(&raw).map_or(raw, |u| u.href());
         let method = js::js_string(step.at("method"));
-        let request = Request { url, method: method.to_ascii_uppercase(), headers, body: body.unwrap_or_default().into_bytes(), remote_address: String::new() };
+        let request = Request {
+            url,
+            method: method.to_ascii_uppercase(),
+            headers,
+            body: body.unwrap_or_default().into_bytes(),
+            remote_address: String::new(),
+        };
         upstream.take();
         let answer = match to.as_str() {
-            "links" => Some(rl.link_response(&request).await.map_err(|e| format!("{method} {}: {e}", step.at("path").to_json()))?),
-            "linkDomain" => rl.link_domain_response(&request).await.map_err(|e| format!("{method} {}: {e}", step.at("path").to_json()))?,
+            "links" => Some(
+                rl.link_response(&request).await.map_err(|e| format!("{method} {}: {e}", step.at("path").to_json()))?,
+            ),
+            "linkDomain" => rl
+                .link_domain_response(&request)
+                .await
+                .map_err(|e| format!("{method} {}: {e}", step.at("path").to_json()))?,
             _ => Some(routes.handle(request).await),
         };
         // Work the request started after answering (retention) finishes before the next one.
@@ -398,7 +441,8 @@ async fn play(scenario: &Value, store: runlight::store::SqlStore) -> Result<Vec<
             continue;
         };
         let text = answer.text();
-        let kind = js::trim(answer.headers.get("content-type").unwrap_or_default().split(';').next().unwrap_or("")).to_string();
+        let kind = js::trim(answer.headers.get("content-type").unwrap_or_default().split(';').next().unwrap_or(""))
+            .to_string();
         let parsed = if kind != "application/zip" && !text.is_empty() { js::parse(&text).ok() } else { None };
         if let Some(Value::Object(c)) = step.get("capture") {
             for (name, spec) in c.iter() {
@@ -432,7 +476,14 @@ async fn play(scenario: &Value, store: runlight::store::SqlStore) -> Result<Vec<
                 continue;
             }
             if let Some(v) = answer.headers.get(name).filter(|v| !v.is_empty()) {
-                shown.set(name, if name == "content-type" { Value::String(js::trim(v.split(';').next().unwrap_or("")).to_string()) } else { normalize(&Value::String(v), "") });
+                shown.set(
+                    name,
+                    if name == "content-type" {
+                        Value::String(js::trim(v.split(';').next().unwrap_or("")).to_string())
+                    } else {
+                        normalize(&Value::String(v), "")
+                    },
+                );
             }
         }
         let mut out = Object::new();
@@ -450,7 +501,10 @@ async fn play(scenario: &Value, store: runlight::store::SqlStore) -> Result<Vec<
             out.set("files", Value::Array(unzip(&answer.body)));
         }
         if let Some(Value::Array(look)) = step.get("look") {
-            out.set("found", Value::Array(look.iter().map(|s| Value::Bool(text.contains(&js::js_string(s)))).collect()));
+            out.set(
+                "found",
+                Value::Array(look.iter().map(|s| Value::Bool(text.contains(&js::js_string(s)))).collect()),
+            );
         }
         if !outbound.is_empty() {
             out.set("fetched", Value::Array(outbound));
@@ -486,7 +540,12 @@ async fn every_scenario_answers_as_the_typescript_sdk_does() {
                     continue;
                 }
             };
-            let differ: Vec<usize> = steps.iter().enumerate().filter(|(i, s)| canonical(s.at("expect")) != canonical(answers.get(*i).unwrap_or(&Value::Null))).map(|(i, _)| i).collect();
+            let differ: Vec<usize> = steps
+                .iter()
+                .enumerate()
+                .filter(|(i, s)| canonical(s.at("expect")) != canonical(answers.get(*i).unwrap_or(&Value::Null)))
+                .map(|(i, _)| i)
+                .collect();
             if differ.is_empty() {
                 passed += 1;
                 continue;
@@ -503,9 +562,18 @@ async fn every_scenario_answers_as_the_typescript_sdk_does() {
                 js::js_string(step.at("path"))
             );
             if detail {
-                line.push_str(&format!("\n  expected {}\n  actual   {}", canonical(step.at("expect")), canonical(&answers[i])));
+                line.push_str(&format!(
+                    "\n  expected {}\n  actual   {}",
+                    canonical(step.at("expect")),
+                    canonical(&answers[i])
+                ));
                 for j in differ.iter().skip(1).take(8) {
-                    line.push_str(&format!("\n  also step {} {} {}", j + 1, js::js_string(steps[*j].at("method")), js::js_string(steps[*j].at("path"))));
+                    line.push_str(&format!(
+                        "\n  also step {} {} {}",
+                        j + 1,
+                        js::js_string(steps[*j].at("method")),
+                        js::js_string(steps[*j].at("path"))
+                    ));
                 }
             }
             report.push(line);
