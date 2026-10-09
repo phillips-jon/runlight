@@ -136,6 +136,24 @@ defmodule Runlight.JS do
   def normalize(n) when is_float(n) and n == trunc(n) and abs(n) <= @max_safe, do: trunc(n)
   def normalize(n), do: n
 
+  @doc """
+  A float read from a 4-byte REAL as the number of its shortest text, as
+  Postgres writes a REAL and node-postgres hands it on: 9.99, not the
+  9.989999771118164 the four bytes hold.
+  """
+  @spec float32(number()) :: number()
+  def float32(n) when is_float(n) do
+    <<single::float-32>> = <<n::float-32>>
+
+    Enum.find_value(1..9, n, fn digits ->
+      text = :io_lib.format(~c"~.#{digits}g", [n]) |> IO.iodata_to_binary()
+      {back, _} = Float.parse(text)
+      if <<back::float-32>> == <<single::float-32>>, do: normalize(back)
+    end)
+  end
+
+  def float32(n), do: n
+
   @doc "A Decimal from a database as the number JavaScript would read from its text."
   @spec decimal(struct()) :: number_value()
   def decimal(%{__struct__: Decimal} = d), do: Decimal |> apply(:to_string, [d, :normal]) |> number()
