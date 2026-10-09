@@ -29,7 +29,7 @@ final class CoreTarget implements Target
 
     public static function available(): bool
     {
-        return class_exists(Runlight::class);
+        return class_exists(Runlight::class) && class_exists(\Runlight\Routes::class);
     }
 
     public function handle(Request $request): Response

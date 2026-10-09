@@ -30,7 +30,7 @@ final class ConformanceTest extends TestCase
     public function testScenario(string $kind, string $url, string $name): void
     {
         if (!CoreTarget::available()) {
-            $this->markTestSkipped('The PHP core is not here yet (no Runlight\Runlight class), so there is nothing to replay the scenarios against.');
+            $this->markTestSkipped('The PHP core is not here yet (no Runlight\Runlight or Runlight\Routes class), so there is nothing to replay the scenarios against.');
         }
         if (!class_exists(\Runlight\Store\Stores::class) || !method_exists(\Runlight\Store\Stores::class, 'fromDb')) {
             $this->markTestSkipped('Runlight\Store\Stores::fromDb(Db $db) is not here yet, so the runner cannot hand the core a fresh store.');
