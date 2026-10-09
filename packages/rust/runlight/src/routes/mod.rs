@@ -3,6 +3,7 @@
 
 mod api;
 mod glue;
+mod wired;
 mod parts;
 
 use std::collections::HashMap;
