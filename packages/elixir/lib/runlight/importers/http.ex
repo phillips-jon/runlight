@@ -73,7 +73,8 @@ defmodule Runlight.Importers.Http do
           (response.status == 429 or response.status >= 500) and attempt < 4 ->
             wait =
               case JS.number(Response.header(response, "retry-after")) do
-                n when is_number(n) and n != 0 -> n * 1000
+                # Retry-After in seconds; none, zero, negative, or not a number waits the default backoff.
+                n when is_number(n) and n > 0 -> n * 1000
                 _ -> 800 * attempt
               end
 
