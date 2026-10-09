@@ -45,7 +45,7 @@ public sealed class Rebrandly(Http? http = null, Func<long>? now = null) : IImpo
             {
                 ["link"] = new JsObject
                 {
-                    ["sourceId"] = l.Get("id"),
+                    ["sourceId"] = Js.String(l.Get("id")),
                     ["slug"] = l.Get("slashtag"),
                     ["domain"] = Http.Coalesce(Http.Field(Http.Field(l, "domain"), "fullName"), ""),
                     ["name"] = Js.Truthy(l.Get("title")) ? l.Get("title") : "",

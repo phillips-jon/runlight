@@ -82,8 +82,9 @@ public sealed partial class Http
             }
             if ((response.Status == 429 || response.Status >= 500) && attempt < 4)
             {
+                // Retry-After in seconds; none, zero, negative, or not a number waits the default backoff.
                 double wait = Js.Number(response.Headers.Get("retry-after")) * 1000;
-                wait = double.IsNaN(wait) || wait == 0 ? 800 * attempt : wait;
+                wait = double.IsNaN(wait) || wait <= 0 ? 800 * attempt : wait;
                 await PauseAsync(Math.Min(wait, 10_000), cancellationToken).ConfigureAwait(false);
                 continue;
             }

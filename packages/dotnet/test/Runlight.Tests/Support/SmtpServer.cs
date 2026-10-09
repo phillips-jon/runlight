@@ -17,6 +17,7 @@ namespace Runlight.Tests;
 /// <remarks>
 /// relay: answers as the TS tests' relay does (AUTH PLAIN checks jon/pw, no STARTTLS).
 /// trickle: sends "220-still here" every 100 ms and never finishes its greeting.
+/// refuse: sends "535 no" and closes at once.
 /// </remarks>
 public sealed class SmtpServer : IAsyncDisposable
 {
@@ -90,7 +91,7 @@ public sealed class SmtpServer : IAsyncDisposable
                 JsObject result;
                 try
                 {
-                    result = _mode == "trickle" ? await TrickleAsync(socket, received) : await RelayAsync(socket, received);
+                    result = _mode == "refuse" ? await RefuseAsync(socket) : _mode == "trickle" ? await TrickleAsync(socket, received) : await RelayAsync(socket, received);
                 }
                 catch (Exception)
                 {
@@ -99,6 +100,13 @@ public sealed class SmtpServer : IAsyncDisposable
                 _done.Writer.TryWrite(result);
             }
         }
+    }
+
+    private static async Task<JsObject> RefuseAsync(Socket socket)
+    {
+        await socket.SendAsync(Encoding.ASCII.GetBytes("535 no\r\n"), SocketFlags.None);
+        socket.Shutdown(SocketShutdown.Both);
+        return new JsObject { ["received"] = "", ["closed"] = true };
     }
 
     private async Task<JsObject> TrickleAsync(Socket socket, List<byte> received)

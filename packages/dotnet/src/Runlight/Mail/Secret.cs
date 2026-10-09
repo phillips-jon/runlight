@@ -54,7 +54,8 @@ public static class Secret
         }
         byte[]? iv = Atob(ivText);
         byte[]? data = Atob(dataText);
-        // AesGcm takes only the 12 byte nonce Seal writes.
+        // Web Crypto refuses an AES-GCM IV under 12 bytes, so such a value opens nowhere. AesGcm
+        // also takes no longer one, which Web Crypto would.
         if (iv == null || iv.Length != 12 || data == null || data.Length < TagBytes)
         {
             return null;
