@@ -95,6 +95,16 @@ for (const [config, answer] of [
   [{ service: "resend", apiKey: "   " }, answers[0]],
   [{ service: "mailgun", apiKey: "k", domain: "d", region: "asia" }, answers[0]],
   [{ service: "pigeon" }, answers[0]],
+  // Basic auth is the UTF-8 bytes of any key, beyond Latin-1 too.
+  [{ service: "mailgun", apiKey: "ключ", domain: "mg.example.com", region: "us" }, answers[0]],
+  [{ service: "mailjet", apiKey: "mj", secretKey: "s\u{1F600}" }, answers[0]],
+  // A port no socket takes, and a webhook address the URL parser refuses, are refused before anything is sent.
+  [{ service: "smtp", host: "smtp.example.com", port: "70000", security: "none" }, answers[0]],
+  [{ service: "smtp", host: "smtp.example.com", port: "0", security: "none" }, answers[0]],
+  [{ service: "smtp", host: "smtp.example.com", port: "1.5", security: "none" }, answers[0]],
+  [{ service: "smtp", host: "smtp.example.com", port: "abc", security: "none" }, answers[0]],
+  [{ service: "webhook", url: "https://" }, answers[0]],
+  [{ service: "webhook", url: "https://[" }, answers[0]],
 ] as const) {
   await mailCase(config as Record<string, string>, message, answer as never);
 }
@@ -202,6 +212,8 @@ const pages = [
   { html: '<head><link rel="icon" href="/favicon.png" type="image/png"><link rel="apple-touch-icon" href="https://cdn.example.com/touch.png"><link rel="icon" href="/i.svg"><LINK REL="Shortcut Icon" HREF=\'/old.ico\'></head>', base: "https://example.com" },
   { html: '<link rel=icon href=//other.example.com/x.ico><link rel="stylesheet" href="/s.css"><link rel="icon" href="http://insecure.example.com/i.png"><link rel="icon" href=""><link href="/late.png" rel="icon">', base: "https://example.com/blog/" },
   { html: '<link rel="icon" type="image/svg+xml" href="icon">\n<link rel="mask-icon icon" href="../m.png" >', base: "https://example.com/a/b/" },
+  // Only the attributes themselves: not a name inside another (data-rel), nor one inside a value, and the first of a repeat.
+  { html: '<link data-rel="x" rel="icon" href="/a.png"><link rel="icon" data-href="/wrong.png" href="/right.svg"><link title="rel=icon href=/t.png" rel="stylesheet" href="/s.css"><link rel="icon" href="/first.ico" href="/second.ico"><link/rel=apple-touch-icon href=/touch.png data-type=image/svg+xml><link rel="icon" data-type="image/svg+xml" href="/typed.ico">', base: "https://example.com/" },
 ];
 const icons = pages.map((p) => ({ ...p, links: iconLinks(p.html, p.base) }));
 

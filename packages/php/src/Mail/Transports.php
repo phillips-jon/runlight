@@ -135,9 +135,10 @@ final class Transports
         return ['content-type' => 'application/json', ...$headers];
     }
 
+    /** Basic auth over the UTF-8 bytes, so a key with any character is sent. */
     private static function basic(string $user, string $pass): string
     {
-        return 'Basic ' . self::btoa("$user:$pass");
+        return 'Basic ' . base64_encode("$user:$pass");
     }
 
     /** Checks a config has what its service needs, before anything is saved or sent. */
@@ -165,6 +166,14 @@ final class Transports
         $url = (string) ($config['url'] ?? '');
         if ($config['service'] === 'webhook' && !preg_match('#^https://#', $url) && !preg_match('#^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)#', $url)) {
             throw new MailError('The webhook URL must use https', 'mail_https', []);
+        }
+        if ($config['service'] === 'webhook' && !Url::canParse($url)) {
+            throw new MailError("Enter the webhook's whole URL, like https://example.com/hooks/mail", 'mail_url', []);
+        }
+        // A port a socket can connect to, read with Number() as the SMTP client reads it.
+        $port = Smtp::number((string) ($config['port'] ?? ''));
+        if ($config['service'] === 'smtp' && !(!is_nan($port) && floor($port) === $port && $port >= 1 && $port <= 65535)) {
+            throw new MailError('The port must be a whole number from 1 to 65535', 'mail_port', []);
         }
     }
 
@@ -291,18 +300,6 @@ final class Transports
     public static function trim(string $text): string
     {
         return (string) preg_replace('/^[\s\x{FEFF}\x{A0}]+|[\s\x{FEFF}\x{A0}]+$/u', '', $text);
-    }
-
-    /** btoa(): base64 of Latin-1 text, refusing a character past U+00FF as the browser's does. */
-    private static function btoa(string $text): string
-    {
-        if (preg_match('/[^\x00-\x7f]/', $text)) {
-            if (preg_match('/[^\x{0}-\x{ff}]/u', $text)) {
-                throw new \InvalidArgumentException('Invalid character');
-            }
-            $text = mb_convert_encoding($text, 'ISO-8859-1', 'UTF-8');
-        }
-        return base64_encode($text);
     }
 
     /** The first `$units` UTF-16 code units, as String.prototype.slice counts them. */

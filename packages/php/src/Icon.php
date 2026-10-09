@@ -28,19 +28,24 @@ final class Icon
     /** @var array<string, array{at: int, icon: array{body: string, type: string}|null}> */
     private static array $cache = [];
 
-    private static function attr(string $tag, string $name): string
+    /**
+     * A tag's attributes, read one after another so a name inside another
+     * (data-rel) or inside a value (title="rel=icon") is never taken for one.
+     * The first of a repeated name counts, as in a browser.
+     *
+     * @return array<string, string>
+     */
+    private static function attrs(string $tag): array
     {
-        $found = preg_match('/\b' . $name . '\s*=\s*("([^"]*)"|\'([^\']*)\'|([^\s>]+))/i', $tag, $match);
-        if (!$found) {
-            return '';
-        }
-        foreach ([2, 3, 4] as $i) {
-            if (isset($match[$i]) && $match[$i] !== '') {
-                return Mail\Transports::trim($match[$i]);
+        $out = [];
+        preg_match_all('/([^\s"\'>\/=]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+)))?/', substr($tag, strlen('<link')), $matches, PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL);
+        foreach ($matches as $m) {
+            $name = strtolower((string) $m[1]);
+            if (!array_key_exists($name, $out)) {
+                $out[$name] = Mail\Transports::trim((string) ($m[2] ?? $m[3] ?? $m[4] ?? ''));
             }
         }
-        // An empty quoted value matched.
-        return '';
+        return $out;
     }
 
     /**
@@ -53,8 +58,9 @@ final class Icon
         $found = [];
         preg_match_all('/<link\b[^>]*>/i', $html, $tags);
         foreach ($tags[0] as $tag) {
-            $rel = preg_split('/\s+/', mb_strtolower(self::attr($tag, 'rel'))) ?: [];
-            $href = self::attr($tag, 'href');
+            $attributes = self::attrs($tag);
+            $rel = preg_split('/\s+/', mb_strtolower($attributes['rel'] ?? '')) ?: [];
+            $href = $attributes['href'] ?? '';
             if ($href === '' || !(in_array('icon', $rel, true) || in_array('apple-touch-icon', $rel, true))) {
                 continue;
             }
@@ -67,7 +73,7 @@ final class Icon
             if (!str_starts_with($url, 'https://')) {
                 continue;
             }
-            $type = mb_strtolower(self::attr($tag, 'type'));
+            $type = mb_strtolower($attributes['type'] ?? '');
             $score = in_array('apple-touch-icon', $rel, true) ? 3 : (str_contains($type, 'svg') || str_ends_with($url, '.svg') ? 2 : (str_contains($type, 'png') || str_ends_with($url, '.png') ? 1 : 0));
             $found[] = ['url' => $url, 'score' => $score];
         }

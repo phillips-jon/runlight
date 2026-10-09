@@ -152,7 +152,7 @@ final class Smtp
     }
 
     /** JavaScript's Number() for the port as typed: NaN for anything that is not a number. */
-    private static function number(string $text): float
+    public static function number(string $text): float
     {
         $text = Transports::trim($text);
         if ($text === '') {
@@ -160,6 +160,15 @@ final class Smtp
         }
         if (preg_match('/^0[xX][0-9a-fA-F]+$/', $text)) {
             return (float) hexdec(substr($text, 2));
+        }
+        if (preg_match('/^0[oO][0-7]+$/', $text)) {
+            return (float) octdec(substr($text, 2));
+        }
+        if (preg_match('/^0[bB][01]+$/', $text)) {
+            return (float) bindec(substr($text, 2));
+        }
+        if (preg_match('/^[+-]?Infinity$/', $text)) {
+            return $text[0] === '-' ? -INF : INF;
         }
         if (preg_match('/^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/', $text)) {
             return (float) $text;

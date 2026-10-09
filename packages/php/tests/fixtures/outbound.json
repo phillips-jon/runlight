@@ -618,7 +618,7 @@
      "method": "POST",
      "url": "https://api.mailgun.net/v3/mg%20ex%2Fample.com/messages",
      "headers": {
-      "authorization": "Basic YXBpOmvpeQ==",
+      "authorization": "Basic YXBpOmvDqXk=",
       "content-type": "application/x-www-form-urlencoded"
      },
      "body": "from=Runlight+%3Creports%40example.com%3E&to=jon%40example.com&subject=Hello&html=%3Cp%3EHi%3C%2Fp%3E&text=Hi&h%3AList-Unsubscribe=%3Chttps%3A%2F%2Fx%2Fu%3E&h%3AList-Unsubscribe-Post=List-Unsubscribe%3DOne-Click"
@@ -649,7 +649,7 @@
      "method": "POST",
      "url": "https://api.mailgun.net/v3/mg%20ex%2Fample.com/messages",
      "headers": {
-      "authorization": "Basic YXBpOmvpeQ==",
+      "authorization": "Basic YXBpOmvDqXk=",
       "content-type": "application/x-www-form-urlencoded"
      },
      "body": "from=reports%40example.com&to=jon%40example.com&subject=Caf%C3%A9+%F0%9F%98%80+%2F+%22quoted%22&html=%3Cp%3E%C3%A9%3C%2Fp%3E&text=line%0Anext"
@@ -682,7 +682,7 @@
      "method": "POST",
      "url": "https://api.mailgun.net/v3/mg%20ex%2Fample.com/messages",
      "headers": {
-      "authorization": "Basic YXBpOmvpeQ==",
+      "authorization": "Basic YXBpOmvDqXk=",
       "content-type": "application/x-www-form-urlencoded"
      },
      "body": "from=Jon+The+O%27Brien+%3Creports%40example.com%3E&to=jon%40example.com&subject=Hello&html=%3Cp%3EHi%3C%2Fp%3E&text=Hi"
@@ -1867,6 +1867,253 @@
     "code": "mail_service",
     "params": {}
    }
+  },
+  {
+   "config": {
+    "service": "mailgun",
+    "apiKey": "ключ",
+    "domain": "mg.example.com",
+    "region": "us"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailgun.net/v3/mg.example.com/messages",
+     "headers": {
+      "authorization": "Basic YXBpOtC60LvRjtGH",
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "from=Runlight+%3Creports%40example.com%3E&to=jon%40example.com&subject=Hello&html=%3Cp%3EHi%3C%2Fp%3E&text=Hi&h%3AList-Unsubscribe=%3Chttps%3A%2F%2Fx%2Fu%3E&h%3AList-Unsubscribe-Post=List-Unsubscribe%3DOne-Click"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailjet",
+    "apiKey": "mj",
+    "secretKey": "s😀"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailjet.com/v3.1/send",
+     "headers": {
+      "authorization": "Basic bWo6c/CfmIA=",
+      "content-type": "application/json"
+     },
+     "body": "{\"Messages\":[{\"From\":{\"Email\":\"reports@example.com\",\"Name\":\"Runlight\"},\"To\":[{\"Email\":\"jon@example.com\"}],\"Subject\":\"Hello\",\"TextPart\":\"Hi\",\"HTMLPart\":\"<p>Hi</p>\",\"Headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "smtp",
+    "host": "smtp.example.com",
+    "port": "70000",
+    "security": "none"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "The port must be a whole number from 1 to 65535",
+    "code": "mail_port",
+    "params": {}
+   }
+  },
+  {
+   "config": {
+    "service": "smtp",
+    "host": "smtp.example.com",
+    "port": "0",
+    "security": "none"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "The port must be a whole number from 1 to 65535",
+    "code": "mail_port",
+    "params": {}
+   }
+  },
+  {
+   "config": {
+    "service": "smtp",
+    "host": "smtp.example.com",
+    "port": "1.5",
+    "security": "none"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "The port must be a whole number from 1 to 65535",
+    "code": "mail_port",
+    "params": {}
+   }
+  },
+  {
+   "config": {
+    "service": "smtp",
+    "host": "smtp.example.com",
+    "port": "abc",
+    "security": "none"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "The port must be a whole number from 1 to 65535",
+    "code": "mail_port",
+    "params": {}
+   }
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "https://"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "Enter the webhook's whole URL, like https://example.com/hooks/mail",
+    "code": "mail_url",
+    "params": {}
+   }
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "https://["
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "Enter the webhook's whole URL, like https://example.com/hooks/mail",
+    "code": "mail_url",
+    "params": {}
+   }
   }
  ],
  "replies": [
@@ -2463,6 +2710,17 @@
    "links": [
     "https://example.com/a/b/icon",
     "https://example.com/a/m.png"
+   ]
+  },
+  {
+   "html": "<link data-rel=\"x\" rel=\"icon\" href=\"/a.png\"><link rel=\"icon\" data-href=\"/wrong.png\" href=\"/right.svg\"><link title=\"rel=icon href=/t.png\" rel=\"stylesheet\" href=\"/s.css\"><link rel=\"icon\" href=\"/first.ico\" href=\"/second.ico\"><link/rel=apple-touch-icon href=/touch.png data-type=image/svg+xml><link rel=\"icon\" data-type=\"image/svg+xml\" href=\"/typed.ico\">",
+   "base": "https://example.com/",
+   "links": [
+    "https://example.com/touch.png",
+    "https://example.com/right.svg",
+    "https://example.com/a.png",
+    "https://example.com/first.ico",
+    "https://example.com/typed.ico"
    ]
   }
  ],
