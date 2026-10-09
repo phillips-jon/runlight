@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
-import { setup } from "./helpers.js";
+import { after, test } from "node:test";
+import { STORES, cleanup, setup } from "./helpers.js";
 
 const DAY = 86_400_000;
 
-test("no statement binds more than 100 parameters, as Cloudflare D1 requires", async () => {
-  const t = setup("sqlite", { site: { hostnames: ["example.com"], timezone: "UTC" } });
+after(cleanup);
+
+// SQLite as D1 runs it, and MySQL, whose statements for the same reports are written differently, over a year of data.
+for (const kind of STORES.filter((k) => k === "sqlite" || k === "mysql")) test(`${kind}: no statement binds more than 100 parameters, as Cloudflare D1 requires`, async () => {
+  const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });
   // A visit a day for a year, so a year of days can be built.
   t.advance(-365 * DAY);
   for (let d = 0; d < 365; d += 3) {

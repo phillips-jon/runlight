@@ -1,17 +1,53 @@
 import pg from "pg";
+import mysql2 from "mysql2/promise";
 import { runlight, type RunlightOptions } from "../src/index.js";
 import type { SqlStore } from "../src/store.js";
 import { postgres } from "../src/stores/postgres.js";
+import { mysql } from "../src/stores/mysql.js";
 import { sqlite } from "../src/stores/sqlite.js";
 import { libsql } from "../src/stores/libsql.js";
 import { d1 } from "../src/stores/d1.js";
 import { createClient } from "@libsql/client";
 import Database from "better-sqlite3";
 
-export type StoreKind = "sqlite" | "postgres" | "libsql" | "d1";
+export type StoreKind = "sqlite" | "postgres" | "libsql" | "d1" | "mysql";
 
-/** SQLite, libSQL, and D1 always; Postgres too when RUNLIGHT_TEST_PG holds a connection string. */
-export const STORES: StoreKind[] = process.env.RUNLIGHT_TEST_PG ? ["sqlite", "libsql", "d1", "postgres"] : ["sqlite", "libsql", "d1"];
+/**
+ * SQLite, libSQL, and D1 always; Postgres too when RUNLIGHT_TEST_PG holds a connection string, and MySQL or
+ * MariaDB when RUNLIGHT_TEST_MYSQL holds a connection URL.
+ */
+export const STORES: StoreKind[] = [
+  "sqlite",
+  "libsql",
+  "d1",
+  ...(process.env.RUNLIGHT_TEST_PG ? (["postgres"] as const) : []),
+  ...(process.env.RUNLIGHT_TEST_MYSQL ? (["mysql"] as const) : []),
+];
+
+/** A new, empty MySQL database of its own, dropped by cleanup(), and a URL that reaches it. */
+export function freshMysqlDatabase(): { url: string; ready: Promise<void> } {
+  const name = `rl_test_${Math.random().toString(36).slice(2, 10)}`;
+  const base = new URL(process.env.RUNLIGHT_TEST_MYSQL!);
+  const ready = (async () => {
+    const admin = await mysql2.createConnection(base.href);
+    try {
+      await admin.query(`CREATE DATABASE ${name}`);
+    } finally {
+      await admin.end();
+    }
+  })();
+  cleanups.push(async () => {
+    const admin = await mysql2.createConnection(base.href);
+    try {
+      await admin.query(`DROP DATABASE IF EXISTS ${name}`);
+    } finally {
+      await admin.end();
+    }
+  });
+  const url = new URL(base.href);
+  url.pathname = `/${name}`;
+  return { url: url.href, ready };
+}
 
 /** Cloudflare's D1 binding, played by an in-memory SQLite, so the D1 store runs the same tests. */
 function fakeD1() {
@@ -43,11 +79,27 @@ export async function cleanup(): Promise<void> {
   while (cleanups.length > 0) await cleanups.pop()!();
 }
 
-/** A fresh store: an in-memory SQLite, or a Postgres schema of its own. */
+/** A fresh store: an in-memory SQLite, or a Postgres schema or MySQL database of its own. */
 export function freshStore(kind: StoreKind): SqlStore {
   if (kind === "sqlite") return sqlite({ path: ":memory:" });
   if (kind === "libsql") return libsql({ client: createClient({ url: ":memory:" }) });
   if (kind === "d1") return d1({ database: fakeD1() });
+  if (kind === "mysql") {
+    const { url, ready } = freshMysqlDatabase();
+    const store = mysql({ url, max: 3 });
+    // Nothing reaches the database before it exists.
+    const db = store.db as unknown as Record<string, unknown>;
+    for (const name of ["all", "run", "affected", "exclusive", "transaction"]) {
+      const inner = db[name] as (...args: unknown[]) => Promise<unknown>;
+      db[name] = async (...args: unknown[]) => {
+        await ready;
+        return inner(...args);
+      };
+    }
+    // Registered after the database's own cleanup, so it runs first: the pool closes before the database goes.
+    cleanups.push(() => store.close());
+    return store;
+  }
   const schema = `rl_test_${Math.random().toString(36).slice(2, 10)}`;
   const url = process.env.RUNLIGHT_TEST_PG!;
   const pool = new pg.Pool({ connectionString: url, max: 3, options: `-c search_path=${schema}` });
