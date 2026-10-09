@@ -80,7 +80,9 @@ final class Cli
                     return self::setup(new Config($root, $file), $out);
                 case 'migrate':
                     $config = new Config($root, $file);
-                    $config->standalone(['now' => $now], false)->runlight->init();
+                    $rl = $config->standalone(['now' => $now], false)->runlight;
+                    $rl->init();
+                    $rl->store->migrate(true);
                     fwrite($out, "Runlight's tables are up to date in {$config->where()}.\n");
                     return 0;
                 default:

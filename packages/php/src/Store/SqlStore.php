@@ -39,16 +39,35 @@ final class SqlStore
     public const MYSQL_COLLATION = Sql::MYSQL_COLLATION;
 
     private bool $ready = false;
+    private bool $checkedAll = false;
 
     public function __construct(public readonly Db $db)
     {
     }
 
-    /** Creates the tables on first use. Safe to call any number of times. */
-    public function migrate(): void
+    /**
+     * Creates the tables on first use. Safe to call any number of times.
+     *
+     * A PHP process serves one request, so going over every table and index each time would cost every
+     * tracker hit a few milliseconds on MySQL and Postgres. When the database already records the current
+     * schema version, that is taken as done; `$full` goes over everything anyway, as the scheduled check
+     * and `runlight migrate` do, which adds an index a database of this version may still lack.
+     */
+    public function migrate(bool $full = false): void
     {
-        if ($this->ready) {
+        if ($this->checkedAll || ($this->ready && !$full)) {
             return;
+        }
+        if (!$full && !$this->ready) {
+            try {
+                $found = $this->db->all('SELECT value FROM rl_meta WHERE "key" = \'schema\'')[0]['value'] ?? null;
+                if ($found !== null && (string) $found === (string) Sql::SCHEMA_VERSION) {
+                    $this->ready = true;
+                    return;
+                }
+            } catch (\Throwable) {
+                // No rl_meta yet: a new database, made below.
+            }
         }
         $create = function (Db $db): void {
             // On Postgres an index on a big table takes a while to build, so the build may run past the
@@ -70,6 +89,7 @@ final class SqlStore
         };
         $this->db->exclusive($create);
         $this->ready = true;
+        $this->checkedAll = true;
     }
 
     private function upgrade(Db $db, bool $postgres): void

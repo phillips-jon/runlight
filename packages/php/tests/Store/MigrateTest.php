@@ -109,6 +109,26 @@ final class MigrateTest extends TestCase
         $next->close();
     }
 
+    public function testARequestTakesACurrentSchemaOnTrustAndTheFullPassAddsWhatIsMissing(): void
+    {
+        $file = sys_get_temp_dir() . '/runlight-trust-' . bin2hex(random_bytes(4)) . '.db';
+        try {
+            Stores::sqlite($file)->migrate();
+            Stores::sqlite($file)->db->run('DROP INDEX rl_events_link');
+            $index = fn (SqlStore $store) => $store->db->all("SELECT name FROM sqlite_master WHERE name = 'rl_events_link'");
+            $request = Stores::sqlite($file);
+            $request->migrate();
+            $this->assertSame([], $index($request), 'a request at the current version does not go over every index');
+            $cron = Stores::sqlite($file);
+            $cron->migrate(true);
+            $this->assertSame([['name' => 'rl_events_link']], $index($cron), 'the full pass builds it again');
+        } finally {
+            foreach ([$file, "$file-wal", "$file-shm"] as $path) {
+                @unlink($path);
+            }
+        }
+    }
+
     public function testADatabaseThatCanOnlyBeReadStillAnswersReports(): void
     {
         $file = $this->file();
@@ -214,7 +234,7 @@ final class MigrateTest extends TestCase
             $this->markTestSkipped('marking an index unusable needs a superuser');
         }
         $this->assertSame([['valid' => false]], $store->db->all("SELECT indisvalid AS valid FROM pg_index WHERE indexrelid = 'rl_events_link'::regclass"));
-        (new SqlStore($store->db))->migrate();
+        (new SqlStore($store->db))->migrate(true);
         $this->assertSame([['valid' => true]], $store->db->all("SELECT indisvalid AS valid FROM pg_index WHERE indexrelid = 'rl_events_link'::regclass"), 'dropped, and built again');
         $none = Stores::postgres((string) Databases::pgUrl(), ['statementTimeout' => 0]);
         $this->assertSame('0', $none->db->all('SHOW statement_timeout')[0]['statement_timeout']);

@@ -1554,6 +1554,8 @@ final class Runlight
     private function runCheck(): array
     {
         $this->init();
+        // Requests take a current schema version on trust; the scheduled check goes over every table and index.
+        $this->store->migrate(true);
         if ($this->managedSites) {
             $this->configured = $this->store->sites();
             $this->loadRemotes();
