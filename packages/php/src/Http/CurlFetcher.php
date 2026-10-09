@@ -17,6 +17,7 @@ final class CurlFetcher implements Fetcher
         $headers = $headers instanceof Headers ? $headers : new Headers($headers);
         $body = isset($init['body']) ? (string) $init['body'] : null;
         $maxBytes = isset($init['maxBytes']) ? (int) $init['maxBytes'] : null;
+        $truncate = !empty($init['truncate']);
         $follow = ($init['redirect'] ?? 'follow') !== 'manual';
 
         $lines = [];
@@ -51,9 +52,12 @@ final class CurlFetcher implements Fetcher
                 }
                 return strlen($line);
             },
-            CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$received, &$tooLong, $maxBytes): int {
+            CURLOPT_WRITEFUNCTION => static function ($curl, string $chunk) use (&$received, &$tooLong, $maxBytes, $truncate): int {
                 if ($maxBytes !== null && strlen($received) + strlen($chunk) > $maxBytes) {
                     $tooLong = true;
+                    if ($truncate) {
+                        $received .= substr($chunk, 0, $maxBytes - strlen($received));
+                    }
                     return 0;
                 }
                 $received .= $chunk;
@@ -72,7 +76,9 @@ final class CurlFetcher implements Fetcher
         $ok = curl_exec($handle);
         $errno = curl_errno($handle);
         $error = curl_error($handle);
-        curl_close($handle);
+        if ($tooLong && $truncate && $status !== 0) {
+            return new Response($received, $status, $responseHeaders);
+        }
         if ($tooLong) {
             throw new BodyTooLong("Body over $maxBytes bytes");
         }
@@ -84,15 +90,28 @@ final class CurlFetcher implements Fetcher
 
     private function viaStreams(string $url, array $init): Response
     {
-        $headers = $init['headers'] ?? [];
-        $headers = $headers instanceof Headers ? $headers : new Headers($headers);
+        $headers = new Headers($init['headers'] ?? []);
+        $ssl = [];
+        // A pin connects to the checked address, with the name kept for the Host header and the certificate.
+        foreach ($init['resolve'] ?? [] as $pin) {
+            $parsed = Url::parse($url);
+            if ($parsed !== null && preg_match('/^(.+):(\d+):\[?([^\],]+)\]?/', (string) $pin, $m) && strcasecmp($m[1], $parsed->hostname) === 0) {
+                if (!$headers->has('host')) {
+                    $headers->set('host', $parsed->host());
+                }
+                $ssl = ['peer_name' => $parsed->hostname, 'SNI_enabled' => true];
+                $address = str_contains($m[3], ':') ? "[{$m[3]}]" : $m[3];
+                $url = $parsed->protocol . '//' . $address . ($parsed->port !== '' ? ":{$parsed->port}" : '') . $parsed->pathname . $parsed->search;
+                break;
+            }
+        }
         $lines = [];
         foreach ($headers->all() as $name => $values) {
             foreach ($values as $value) {
                 $lines[] = "$name: $value";
             }
         }
-        $context = stream_context_create(['http' => [
+        $context = stream_context_create(['ssl' => $ssl, 'http' => [
             'method' => strtoupper((string) ($init['method'] ?? 'GET')),
             'header' => implode("\r\n", $lines),
             'content' => (string) ($init['body'] ?? ''),
@@ -108,7 +127,9 @@ final class CurlFetcher implements Fetcher
         $received = $maxBytes === null ? (string) stream_get_contents($stream) : (string) stream_get_contents($stream, $maxBytes + 1);
         $meta = stream_get_meta_data($stream);
         fclose($stream);
-        if ($maxBytes !== null && strlen($received) > $maxBytes) {
+        if ($maxBytes !== null && strlen($received) > $maxBytes && !empty($init['truncate'])) {
+            $received = substr($received, 0, $maxBytes);
+        } elseif ($maxBytes !== null && strlen($received) > $maxBytes) {
             throw new BodyTooLong("Body over $maxBytes bytes");
         }
         $status = 0;

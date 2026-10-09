@@ -1,0 +1,6587 @@
+{
+ "note": "Written by scripts/php-fixtures-outbound.mts from the TypeScript SDK. Do not edit.",
+ "now": 1791471845678,
+ "mail": [
+  {
+   "config": {
+    "service": "ses",
+    "region": "eu-west-1",
+    "accessKeyId": " AKID ",
+    "secretAccessKey": "secret"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://email.eu-west-1.amazonaws.com/v2/email/outbound-emails",
+     "headers": {
+      "authorization": "AWS4-HMAC-SHA256 Credential=AKID/20261008/eu-west-1/ses/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=49740e495489a23751e89504fb9f69cbb392aa18908f252770a5d5b9a0a40975",
+      "content-type": "application/json",
+      "x-amz-date": "20261008T150405Z"
+     },
+     "body": "{\"FromEmailAddress\":\"Runlight <reports@example.com>\",\"Destination\":{\"ToAddresses\":[\"jon@example.com\"]},\"Content\":{\"Simple\":{\"Subject\":{\"Data\":\"Hello\",\"Charset\":\"UTF-8\"},\"Body\":{\"Html\":{\"Data\":\"<p>Hi</p>\",\"Charset\":\"UTF-8\"},\"Text\":{\"Data\":\"Hi\",\"Charset\":\"UTF-8\"}},\"Headers\":[{\"Name\":\"List-Unsubscribe\",\"Value\":\"<https://x/u>\"},{\"Name\":\"List-Unsubscribe-Post\",\"Value\":\"List-Unsubscribe=One-Click\"}]}}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "ses",
+    "region": "eu-west-1",
+    "accessKeyId": " AKID ",
+    "secretAccessKey": "secret"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://email.eu-west-1.amazonaws.com/v2/email/outbound-emails",
+     "headers": {
+      "authorization": "AWS4-HMAC-SHA256 Credential=AKID/20261008/eu-west-1/ses/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=b362dd4abbcfba88b8ab5a75bb5a067c96e652f6fc855cf843f288e94662d133",
+      "content-type": "application/json",
+      "x-amz-date": "20261008T150405Z"
+     },
+     "body": "{\"FromEmailAddress\":\"reports@example.com\",\"Destination\":{\"ToAddresses\":[\"jon@example.com\"]},\"Content\":{\"Simple\":{\"Subject\":{\"Data\":\"Café 😀 / \\\"quoted\\\"\",\"Charset\":\"UTF-8\"},\"Body\":{\"Html\":{\"Data\":\"<p>é</p>\",\"Charset\":\"UTF-8\"},\"Text\":{\"Data\":\"line\\nnext\",\"Charset\":\"UTF-8\"}},\"Headers\":[]}}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "ses",
+    "region": "eu-west-1",
+    "accessKeyId": " AKID ",
+    "secretAccessKey": "secret"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://email.eu-west-1.amazonaws.com/v2/email/outbound-emails",
+     "headers": {
+      "authorization": "AWS4-HMAC-SHA256 Credential=AKID/20261008/eu-west-1/ses/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=d209bd88152d089ccf7e87e758271136c00017d118e1d6dae4bc5c84f9b558af",
+      "content-type": "application/json",
+      "x-amz-date": "20261008T150405Z"
+     },
+     "body": "{\"FromEmailAddress\":\"Jon The O'Brien <reports@example.com>\",\"Destination\":{\"ToAddresses\":[\"jon@example.com\"]},\"Content\":{\"Simple\":{\"Subject\":{\"Data\":\"Hello\",\"Charset\":\"UTF-8\"},\"Body\":{\"Html\":{\"Data\":\"<p>Hi</p>\",\"Charset\":\"UTF-8\"},\"Text\":{\"Data\":\"Hi\",\"Charset\":\"UTF-8\"}},\"Headers\":[]}}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "resend",
+    "apiKey": "re_1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.resend.com/emails",
+     "headers": {
+      "authorization": "Bearer re_1",
+      "content-type": "application/json"
+     },
+     "body": "{\"from\":\"Runlight <reports@example.com>\",\"to\":[\"jon@example.com\"],\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "resend",
+    "apiKey": "re_1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.resend.com/emails",
+     "headers": {
+      "authorization": "Bearer re_1",
+      "content-type": "application/json"
+     },
+     "body": "{\"from\":\"reports@example.com\",\"to\":[\"jon@example.com\"],\"subject\":\"Café 😀 / \\\"quoted\\\"\",\"html\":\"<p>é</p>\",\"text\":\"line\\nnext\",\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "resend",
+    "apiKey": "re_1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.resend.com/emails",
+     "headers": {
+      "authorization": "Bearer re_1",
+      "content-type": "application/json"
+     },
+     "body": "{\"from\":\"Jon The O'Brien <reports@example.com>\",\"to\":[\"jon@example.com\"],\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "postmark",
+    "serverToken": "pm"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.postmarkapp.com/email",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json",
+      "x-postmark-server-token": "pm"
+     },
+     "body": "{\"From\":\"Runlight <reports@example.com>\",\"To\":\"jon@example.com\",\"Subject\":\"Hello\",\"HtmlBody\":\"<p>Hi</p>\",\"TextBody\":\"Hi\",\"MessageStream\":\"outbound\",\"Headers\":[{\"Name\":\"List-Unsubscribe\",\"Value\":\"<https://x/u>\"},{\"Name\":\"List-Unsubscribe-Post\",\"Value\":\"List-Unsubscribe=One-Click\"}]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "postmark",
+    "serverToken": "pm"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.postmarkapp.com/email",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json",
+      "x-postmark-server-token": "pm"
+     },
+     "body": "{\"From\":\"reports@example.com\",\"To\":\"jon@example.com\",\"Subject\":\"Café 😀 / \\\"quoted\\\"\",\"HtmlBody\":\"<p>é</p>\",\"TextBody\":\"line\\nnext\",\"MessageStream\":\"outbound\",\"Headers\":[]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "postmark",
+    "serverToken": "pm"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.postmarkapp.com/email",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json",
+      "x-postmark-server-token": "pm"
+     },
+     "body": "{\"From\":\"Jon The O'Brien <reports@example.com>\",\"To\":\"jon@example.com\",\"Subject\":\"Hello\",\"HtmlBody\":\"<p>Hi</p>\",\"TextBody\":\"Hi\",\"MessageStream\":\"outbound\",\"Headers\":[]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "postmark",
+    "serverToken": "pm",
+    "stream": "broadcast"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.postmarkapp.com/email",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json",
+      "x-postmark-server-token": "pm"
+     },
+     "body": "{\"From\":\"Runlight <reports@example.com>\",\"To\":\"jon@example.com\",\"Subject\":\"Hello\",\"HtmlBody\":\"<p>Hi</p>\",\"TextBody\":\"Hi\",\"MessageStream\":\"broadcast\",\"Headers\":[{\"Name\":\"List-Unsubscribe\",\"Value\":\"<https://x/u>\"},{\"Name\":\"List-Unsubscribe-Post\",\"Value\":\"List-Unsubscribe=One-Click\"}]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "postmark",
+    "serverToken": "pm",
+    "stream": "broadcast"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.postmarkapp.com/email",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json",
+      "x-postmark-server-token": "pm"
+     },
+     "body": "{\"From\":\"reports@example.com\",\"To\":\"jon@example.com\",\"Subject\":\"Café 😀 / \\\"quoted\\\"\",\"HtmlBody\":\"<p>é</p>\",\"TextBody\":\"line\\nnext\",\"MessageStream\":\"broadcast\",\"Headers\":[]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "postmark",
+    "serverToken": "pm",
+    "stream": "broadcast"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.postmarkapp.com/email",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json",
+      "x-postmark-server-token": "pm"
+     },
+     "body": "{\"From\":\"Jon The O'Brien <reports@example.com>\",\"To\":\"jon@example.com\",\"Subject\":\"Hello\",\"HtmlBody\":\"<p>Hi</p>\",\"TextBody\":\"Hi\",\"MessageStream\":\"broadcast\",\"Headers\":[]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sendgrid",
+    "apiKey": "SG.1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.sendgrid.com/v3/mail/send",
+     "headers": {
+      "authorization": "Bearer SG.1",
+      "content-type": "application/json"
+     },
+     "body": "{\"personalizations\":[{\"to\":[{\"email\":\"jon@example.com\"}]}],\"from\":{\"email\":\"reports@example.com\",\"name\":\"Runlight\"},\"subject\":\"Hello\",\"content\":[{\"type\":\"text/plain\",\"value\":\"Hi\"},{\"type\":\"text/html\",\"value\":\"<p>Hi</p>\"}],\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sendgrid",
+    "apiKey": "SG.1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.sendgrid.com/v3/mail/send",
+     "headers": {
+      "authorization": "Bearer SG.1",
+      "content-type": "application/json"
+     },
+     "body": "{\"personalizations\":[{\"to\":[{\"email\":\"jon@example.com\"}]}],\"from\":{\"email\":\"reports@example.com\"},\"subject\":\"Café 😀 / \\\"quoted\\\"\",\"content\":[{\"type\":\"text/plain\",\"value\":\"line\\nnext\"},{\"type\":\"text/html\",\"value\":\"<p>é</p>\"}],\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sendgrid",
+    "apiKey": "SG.1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.sendgrid.com/v3/mail/send",
+     "headers": {
+      "authorization": "Bearer SG.1",
+      "content-type": "application/json"
+     },
+     "body": "{\"personalizations\":[{\"to\":[{\"email\":\"jon@example.com\"}]}],\"from\":{\"email\":\"reports@example.com\",\"name\":\"Jon \\\"The\\\" O'Brien\\\\\\r\\n\"},\"subject\":\"Hello\",\"content\":[{\"type\":\"text/plain\",\"value\":\"Hi\"},{\"type\":\"text/html\",\"value\":\"<p>Hi</p>\"}],\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailgun",
+    "apiKey": "key",
+    "domain": "mg.example.com",
+    "region": "eu"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.eu.mailgun.net/v3/mg.example.com/messages",
+     "headers": {
+      "authorization": "Basic YXBpOmtleQ==",
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "from=Runlight+%3Creports%40example.com%3E&to=jon%40example.com&subject=Hello&html=%3Cp%3EHi%3C%2Fp%3E&text=Hi&h%3AList-Unsubscribe=%3Chttps%3A%2F%2Fx%2Fu%3E&h%3AList-Unsubscribe-Post=List-Unsubscribe%3DOne-Click"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailgun",
+    "apiKey": "key",
+    "domain": "mg.example.com",
+    "region": "eu"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.eu.mailgun.net/v3/mg.example.com/messages",
+     "headers": {
+      "authorization": "Basic YXBpOmtleQ==",
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "from=reports%40example.com&to=jon%40example.com&subject=Caf%C3%A9+%F0%9F%98%80+%2F+%22quoted%22&html=%3Cp%3E%C3%A9%3C%2Fp%3E&text=line%0Anext"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailgun",
+    "apiKey": "key",
+    "domain": "mg.example.com",
+    "region": "eu"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.eu.mailgun.net/v3/mg.example.com/messages",
+     "headers": {
+      "authorization": "Basic YXBpOmtleQ==",
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "from=Jon+The+O%27Brien+%3Creports%40example.com%3E&to=jon%40example.com&subject=Hello&html=%3Cp%3EHi%3C%2Fp%3E&text=Hi"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailgun",
+    "apiKey": "kéy",
+    "domain": "mg ex/ample.com",
+    "region": "us"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailgun.net/v3/mg%20ex%2Fample.com/messages",
+     "headers": {
+      "authorization": "Basic YXBpOmvpeQ==",
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "from=Runlight+%3Creports%40example.com%3E&to=jon%40example.com&subject=Hello&html=%3Cp%3EHi%3C%2Fp%3E&text=Hi&h%3AList-Unsubscribe=%3Chttps%3A%2F%2Fx%2Fu%3E&h%3AList-Unsubscribe-Post=List-Unsubscribe%3DOne-Click"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailgun",
+    "apiKey": "kéy",
+    "domain": "mg ex/ample.com",
+    "region": "us"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailgun.net/v3/mg%20ex%2Fample.com/messages",
+     "headers": {
+      "authorization": "Basic YXBpOmvpeQ==",
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "from=reports%40example.com&to=jon%40example.com&subject=Caf%C3%A9+%F0%9F%98%80+%2F+%22quoted%22&html=%3Cp%3E%C3%A9%3C%2Fp%3E&text=line%0Anext"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailgun",
+    "apiKey": "kéy",
+    "domain": "mg ex/ample.com",
+    "region": "us"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailgun.net/v3/mg%20ex%2Fample.com/messages",
+     "headers": {
+      "authorization": "Basic YXBpOmvpeQ==",
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "from=Jon+The+O%27Brien+%3Creports%40example.com%3E&to=jon%40example.com&subject=Hello&html=%3Cp%3EHi%3C%2Fp%3E&text=Hi"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "brevo",
+    "apiKey": "xkeysib-1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.brevo.com/v3/smtp/email",
+     "headers": {
+      "accept": "application/json",
+      "api-key": "xkeysib-1",
+      "content-type": "application/json"
+     },
+     "body": "{\"sender\":{\"email\":\"reports@example.com\",\"name\":\"Runlight\"},\"to\":[{\"email\":\"jon@example.com\"}],\"subject\":\"Hello\",\"htmlContent\":\"<p>Hi</p>\",\"textContent\":\"Hi\",\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "brevo",
+    "apiKey": "xkeysib-1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.brevo.com/v3/smtp/email",
+     "headers": {
+      "accept": "application/json",
+      "api-key": "xkeysib-1",
+      "content-type": "application/json"
+     },
+     "body": "{\"sender\":{\"email\":\"reports@example.com\"},\"to\":[{\"email\":\"jon@example.com\"}],\"subject\":\"Café 😀 / \\\"quoted\\\"\",\"htmlContent\":\"<p>é</p>\",\"textContent\":\"line\\nnext\",\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "brevo",
+    "apiKey": "xkeysib-1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.brevo.com/v3/smtp/email",
+     "headers": {
+      "accept": "application/json",
+      "api-key": "xkeysib-1",
+      "content-type": "application/json"
+     },
+     "body": "{\"sender\":{\"email\":\"reports@example.com\",\"name\":\"Jon \\\"The\\\" O'Brien\\\\\\r\\n\"},\"to\":[{\"email\":\"jon@example.com\"}],\"subject\":\"Hello\",\"htmlContent\":\"<p>Hi</p>\",\"textContent\":\"Hi\",\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailjet",
+    "apiKey": "mj",
+    "secretKey": "mjs"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailjet.com/v3.1/send",
+     "headers": {
+      "authorization": "Basic bWo6bWpz",
+      "content-type": "application/json"
+     },
+     "body": "{\"Messages\":[{\"From\":{\"Email\":\"reports@example.com\",\"Name\":\"Runlight\"},\"To\":[{\"Email\":\"jon@example.com\"}],\"Subject\":\"Hello\",\"TextPart\":\"Hi\",\"HTMLPart\":\"<p>Hi</p>\",\"Headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailjet",
+    "apiKey": "mj",
+    "secretKey": "mjs"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailjet.com/v3.1/send",
+     "headers": {
+      "authorization": "Basic bWo6bWpz",
+      "content-type": "application/json"
+     },
+     "body": "{\"Messages\":[{\"From\":{\"Email\":\"reports@example.com\"},\"To\":[{\"Email\":\"jon@example.com\"}],\"Subject\":\"Café 😀 / \\\"quoted\\\"\",\"TextPart\":\"line\\nnext\",\"HTMLPart\":\"<p>é</p>\",\"Headers\":{}}]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailjet",
+    "apiKey": "mj",
+    "secretKey": "mjs"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailjet.com/v3.1/send",
+     "headers": {
+      "authorization": "Basic bWo6bWpz",
+      "content-type": "application/json"
+     },
+     "body": "{\"Messages\":[{\"From\":{\"Email\":\"reports@example.com\",\"Name\":\"Jon \\\"The\\\" O'Brien\\\\\\r\\n\"},\"To\":[{\"Email\":\"jon@example.com\"}],\"Subject\":\"Hello\",\"TextPart\":\"Hi\",\"HTMLPart\":\"<p>Hi</p>\",\"Headers\":{}}]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailersend",
+    "apiKey": "mlsn.1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailersend.com/v1/email",
+     "headers": {
+      "authorization": "Bearer mlsn.1",
+      "content-type": "application/json"
+     },
+     "body": "{\"from\":{\"email\":\"reports@example.com\",\"name\":\"Runlight\"},\"to\":[{\"email\":\"jon@example.com\"}],\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":[{\"name\":\"List-Unsubscribe\",\"value\":\"<https://x/u>\"},{\"name\":\"List-Unsubscribe-Post\",\"value\":\"List-Unsubscribe=One-Click\"}]}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailersend",
+    "apiKey": "mlsn.1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailersend.com/v1/email",
+     "headers": {
+      "authorization": "Bearer mlsn.1",
+      "content-type": "application/json"
+     },
+     "body": "{\"from\":{\"email\":\"reports@example.com\"},\"to\":[{\"email\":\"jon@example.com\"}],\"subject\":\"Café 😀 / \\\"quoted\\\"\",\"html\":\"<p>é</p>\",\"text\":\"line\\nnext\"}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "mailersend",
+    "apiKey": "mlsn.1"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailersend.com/v1/email",
+     "headers": {
+      "authorization": "Bearer mlsn.1",
+      "content-type": "application/json"
+     },
+     "body": "{\"from\":{\"email\":\"reports@example.com\",\"name\":\"Jon \\\"The\\\" O'Brien\\\\\\r\\n\"},\"to\":[{\"email\":\"jon@example.com\"}],\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\"}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sparkpost",
+    "apiKey": "sp",
+    "region": "eu"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.eu.sparkpost.com/api/v1/transmissions",
+     "headers": {
+      "authorization": "sp",
+      "content-type": "application/json"
+     },
+     "body": "{\"recipients\":[{\"address\":{\"email\":\"jon@example.com\"}}],\"content\":{\"from\":{\"email\":\"reports@example.com\",\"name\":\"Runlight\"},\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sparkpost",
+    "apiKey": "sp",
+    "region": "eu"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.eu.sparkpost.com/api/v1/transmissions",
+     "headers": {
+      "authorization": "sp",
+      "content-type": "application/json"
+     },
+     "body": "{\"recipients\":[{\"address\":{\"email\":\"jon@example.com\"}}],\"content\":{\"from\":\"reports@example.com\",\"subject\":\"Café 😀 / \\\"quoted\\\"\",\"html\":\"<p>é</p>\",\"text\":\"line\\nnext\",\"headers\":{}}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sparkpost",
+    "apiKey": "sp",
+    "region": "eu"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.eu.sparkpost.com/api/v1/transmissions",
+     "headers": {
+      "authorization": "sp",
+      "content-type": "application/json"
+     },
+     "body": "{\"recipients\":[{\"address\":{\"email\":\"jon@example.com\"}}],\"content\":{\"from\":{\"email\":\"reports@example.com\",\"name\":\"Jon \\\"The\\\" O'Brien\\\\\\r\\n\"},\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{}}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sparkpost",
+    "apiKey": "sp",
+    "region": "us"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.sparkpost.com/api/v1/transmissions",
+     "headers": {
+      "authorization": "sp",
+      "content-type": "application/json"
+     },
+     "body": "{\"recipients\":[{\"address\":{\"email\":\"jon@example.com\"}}],\"content\":{\"from\":{\"email\":\"reports@example.com\",\"name\":\"Runlight\"},\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sparkpost",
+    "apiKey": "sp",
+    "region": "us"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.sparkpost.com/api/v1/transmissions",
+     "headers": {
+      "authorization": "sp",
+      "content-type": "application/json"
+     },
+     "body": "{\"recipients\":[{\"address\":{\"email\":\"jon@example.com\"}}],\"content\":{\"from\":\"reports@example.com\",\"subject\":\"Café 😀 / \\\"quoted\\\"\",\"html\":\"<p>é</p>\",\"text\":\"line\\nnext\",\"headers\":{}}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sparkpost",
+    "apiKey": "sp",
+    "region": "us"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.sparkpost.com/api/v1/transmissions",
+     "headers": {
+      "authorization": "sp",
+      "content-type": "application/json"
+     },
+     "body": "{\"recipients\":[{\"address\":{\"email\":\"jon@example.com\"}}],\"content\":{\"from\":{\"email\":\"reports@example.com\",\"name\":\"Jon \\\"The\\\" O'Brien\\\\\\r\\n\"},\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{}}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "https://hooks.example.com/mail",
+    "secret": "s"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://hooks.example.com/mail",
+     "headers": {
+      "content-type": "application/json",
+      "x-runlight-signature": "sha256=46fd8df8570787a3b97427e63c60272c130cbdc201eadbad77ac4368e44cd1b3"
+     },
+     "body": "{\"to\":\"jon@example.com\",\"from\":\"reports@example.com\",\"fromName\":\"Runlight\",\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "https://hooks.example.com/mail",
+    "secret": "s"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://hooks.example.com/mail",
+     "headers": {
+      "content-type": "application/json",
+      "x-runlight-signature": "sha256=f0369cd05d456614e19bc82455b2cc40987f3ff4e28cfb33e544e5b02842abde"
+     },
+     "body": "{\"to\":\"jon@example.com\",\"from\":\"reports@example.com\",\"fromName\":\"\",\"subject\":\"Café 😀 / \\\"quoted\\\"\",\"html\":\"<p>é</p>\",\"text\":\"line\\nnext\",\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "https://hooks.example.com/mail",
+    "secret": "s"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://hooks.example.com/mail",
+     "headers": {
+      "content-type": "application/json",
+      "x-runlight-signature": "sha256=8bac84c0fd690503a386da7f1169be78eb43b844728b61b8bcb2687588cb69d4"
+     },
+     "body": "{\"to\":\"jon@example.com\",\"from\":\"reports@example.com\",\"fromName\":\"Jon \\\"The\\\" O'Brien\\\\\\r\\n\",\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "http://localhost:8080/mail"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "http://localhost:8080/mail",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"to\":\"jon@example.com\",\"from\":\"reports@example.com\",\"fromName\":\"Runlight\",\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "http://localhost:8080/mail"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "http://localhost:8080/mail",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"to\":\"jon@example.com\",\"from\":\"reports@example.com\",\"fromName\":\"\",\"subject\":\"Café 😀 / \\\"quoted\\\"\",\"html\":\"<p>é</p>\",\"text\":\"line\\nnext\",\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "http://localhost:8080/mail"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jon \"The\" O'Brien\\\r\n",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {}
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "http://localhost:8080/mail",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"to\":\"jon@example.com\",\"from\":\"reports@example.com\",\"fromName\":\"Jon \\\"The\\\" O'Brien\\\\\\r\\n\",\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{}}"
+    }
+   ],
+   "error": null
+  },
+  {
+   "config": {
+    "service": "sendgrid",
+    "apiKey": "bad"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 401,
+    "body": "nope"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.sendgrid.com/v3/mail/send",
+     "headers": {
+      "authorization": "Bearer bad",
+      "content-type": "application/json"
+     },
+     "body": "{\"personalizations\":[{\"to\":[{\"email\":\"jon@example.com\"}]}],\"from\":{\"email\":\"reports@example.com\",\"name\":\"Runlight\"},\"subject\":\"Hello\",\"content\":[{\"type\":\"text/plain\",\"value\":\"Hi\"},{\"type\":\"text/html\",\"value\":\"<p>Hi</p>\"}],\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}"
+    }
+   ],
+   "error": {
+    "message": "api.sendgrid.com answered 401",
+    "code": "mail_refused",
+    "params": {
+     "host": "api.sendgrid.com",
+     "detail": "401"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "postmark",
+    "serverToken": "pm"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 422,
+    "body": "{\"ErrorCode\":300,\"Message\":\"Invalid 'To' address\"}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.postmarkapp.com/email",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json",
+      "x-postmark-server-token": "pm"
+     },
+     "body": "{\"From\":\"Runlight <reports@example.com>\",\"To\":\"jon@example.com\",\"Subject\":\"Hello\",\"HtmlBody\":\"<p>Hi</p>\",\"TextBody\":\"Hi\",\"MessageStream\":\"outbound\",\"Headers\":[{\"Name\":\"List-Unsubscribe\",\"Value\":\"<https://x/u>\"},{\"Name\":\"List-Unsubscribe-Post\",\"Value\":\"List-Unsubscribe=One-Click\"}]}"
+    }
+   ],
+   "error": {
+    "message": "api.postmarkapp.com answered 422: Invalid 'To' address",
+    "code": "mail_refused",
+    "params": {
+     "host": "api.postmarkapp.com",
+     "detail": "422 Invalid 'To' address"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "resend",
+    "apiKey": "re"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 500,
+    "body": "{\"errors\":[{\"message\":\"down for now\"}]}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.resend.com/emails",
+     "headers": {
+      "authorization": "Bearer re",
+      "content-type": "application/json"
+     },
+     "body": "{\"from\":\"Runlight <reports@example.com>\",\"to\":[\"jon@example.com\"],\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}"
+    }
+   ],
+   "error": {
+    "message": "api.resend.com answered 500: down for now",
+    "code": "mail_refused",
+    "params": {
+     "host": "api.resend.com",
+     "detail": "500 down for now"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "ses",
+    "region": "us-east-1",
+    "accessKeyId": "A",
+    "secretAccessKey": "B"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 400,
+    "body": "<ErrorResponse><Error><Message> Email address is not verified. </Message></Error></ErrorResponse>"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails",
+     "headers": {
+      "authorization": "AWS4-HMAC-SHA256 Credential=A/20261008/us-east-1/ses/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=5bd248f13b83b6547cfea6fb6316a7442c623f4539a9420ad834c8f0cb5fd039",
+      "content-type": "application/json",
+      "x-amz-date": "20261008T150405Z"
+     },
+     "body": "{\"FromEmailAddress\":\"Runlight <reports@example.com>\",\"Destination\":{\"ToAddresses\":[\"jon@example.com\"]},\"Content\":{\"Simple\":{\"Subject\":{\"Data\":\"Hello\",\"Charset\":\"UTF-8\"},\"Body\":{\"Html\":{\"Data\":\"<p>Hi</p>\",\"Charset\":\"UTF-8\"},\"Text\":{\"Data\":\"Hi\",\"Charset\":\"UTF-8\"}},\"Headers\":[{\"Name\":\"List-Unsubscribe\",\"Value\":\"<https://x/u>\"},{\"Name\":\"List-Unsubscribe-Post\",\"Value\":\"List-Unsubscribe=One-Click\"}]}}}"
+    }
+   ],
+   "error": {
+    "message": "Amazon SES answered 400: Email address is not verified.",
+    "code": "mail_refused",
+    "params": {
+     "host": "Amazon SES",
+     "detail": "400 Email address is not verified."
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "ses",
+    "region": "us-east-1",
+    "accessKeyId": "A",
+    "secretAccessKey": "B"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": "unreachable",
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://email.us-east-1.amazonaws.com/v2/email/outbound-emails",
+     "headers": {
+      "authorization": "AWS4-HMAC-SHA256 Credential=A/20261008/us-east-1/ses/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=5bd248f13b83b6547cfea6fb6316a7442c623f4539a9420ad834c8f0cb5fd039",
+      "content-type": "application/json",
+      "x-amz-date": "20261008T150405Z"
+     },
+     "body": "{\"FromEmailAddress\":\"Runlight <reports@example.com>\",\"Destination\":{\"ToAddresses\":[\"jon@example.com\"]},\"Content\":{\"Simple\":{\"Subject\":{\"Data\":\"Hello\",\"Charset\":\"UTF-8\"},\"Body\":{\"Html\":{\"Data\":\"<p>Hi</p>\",\"Charset\":\"UTF-8\"},\"Text\":{\"Data\":\"Hi\",\"Charset\":\"UTF-8\"}},\"Headers\":[{\"Name\":\"List-Unsubscribe\",\"Value\":\"<https://x/u>\"},{\"Name\":\"List-Unsubscribe-Post\",\"Value\":\"List-Unsubscribe=One-Click\"}]}}}"
+    }
+   ],
+   "error": {
+    "message": "Could not reach Amazon SES: fetch failed",
+    "code": "mail_unreachable",
+    "params": {
+     "host": "Amazon SES",
+     "detail": "fetch failed"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "https://hooks.example.com/mail"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 500,
+    "body": "{\"message\":\"secret page\"}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://hooks.example.com/mail",
+     "headers": {
+      "content-type": "application/json"
+     },
+     "body": "{\"to\":\"jon@example.com\",\"from\":\"reports@example.com\",\"fromName\":\"Runlight\",\"subject\":\"Hello\",\"html\":\"<p>Hi</p>\",\"text\":\"Hi\",\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}"
+    }
+   ],
+   "error": {
+    "message": "hooks.example.com answered 500",
+    "code": "mail_refused",
+    "params": {
+     "host": "hooks.example.com",
+     "detail": "500"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "mailgun",
+    "apiKey": "k",
+    "domain": "d",
+    "region": "us"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": "unreachable",
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.mailgun.net/v3/d/messages",
+     "headers": {
+      "authorization": "Basic YXBpOms=",
+      "content-type": "application/x-www-form-urlencoded"
+     },
+     "body": "from=Runlight+%3Creports%40example.com%3E&to=jon%40example.com&subject=Hello&html=%3Cp%3EHi%3C%2Fp%3E&text=Hi&h%3AList-Unsubscribe=%3Chttps%3A%2F%2Fx%2Fu%3E&h%3AList-Unsubscribe-Post=List-Unsubscribe%3DOne-Click"
+    }
+   ],
+   "error": {
+    "message": "Could not reach api.mailgun.net: fetch failed",
+    "code": "mail_unreachable",
+    "params": {
+     "host": "api.mailgun.net",
+     "detail": "fetch failed"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "brevo",
+    "apiKey": "b"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 400,
+    "body": "{\"message\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}"
+   },
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://api.brevo.com/v3/smtp/email",
+     "headers": {
+      "accept": "application/json",
+      "api-key": "b",
+      "content-type": "application/json"
+     },
+     "body": "{\"sender\":{\"email\":\"reports@example.com\",\"name\":\"Runlight\"},\"to\":[{\"email\":\"jon@example.com\"}],\"subject\":\"Hello\",\"htmlContent\":\"<p>Hi</p>\",\"textContent\":\"Hi\",\"headers\":{\"List-Unsubscribe\":\"<https://x/u>\",\"List-Unsubscribe-Post\":\"List-Unsubscribe=One-Click\"}}"
+    }
+   ],
+   "error": {
+    "message": "api.brevo.com answered 400: xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "code": "mail_refused",
+    "params": {
+     "host": "api.brevo.com",
+     "detail": "400 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "ses",
+    "region": "nowhere",
+    "accessKeyId": "A",
+    "secretAccessKey": "B"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "That is not an AWS region, like us-east-1",
+    "code": "mail_region",
+    "params": {}
+   }
+  },
+  {
+   "config": {
+    "service": "webhook",
+    "url": "http://example.com/x"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "The webhook URL must use https",
+    "code": "mail_https",
+    "params": {}
+   }
+  },
+  {
+   "config": {
+    "service": "resend"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "Enter the api key",
+    "code": "mail_field",
+    "params": {
+     "field": "apiKey"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "resend",
+    "apiKey": "   "
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "Enter the api key",
+    "code": "mail_field",
+    "params": {
+     "field": "apiKey"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "mailgun",
+    "apiKey": "k",
+    "domain": "d",
+    "region": "asia"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "Region must be one of us, eu",
+    "code": "mail_option",
+    "params": {
+     "field": "region",
+     "options": "us, eu"
+    }
+   }
+  },
+  {
+   "config": {
+    "service": "pigeon"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "answer": {
+    "status": 200,
+    "body": "{}"
+   },
+   "requests": [],
+   "error": {
+    "message": "Pick a mail service",
+    "code": "mail_service",
+    "params": {}
+   }
+  }
+ ],
+ "replies": [
+  {
+   "reply": "{\"message\":\"a\"}",
+   "message": "a"
+  },
+  {
+   "reply": "{\"Message\":\"b\"}",
+   "message": "b"
+  },
+  {
+   "reply": "{\"error\":\"c\"}",
+   "message": "c"
+  },
+  {
+   "reply": "{\"error\":{\"message\":\"d\"}}",
+   "message": "d"
+  },
+  {
+   "reply": "{\"errors\":[{\"message\":\"e\"}]}",
+   "message": "e"
+  },
+  {
+   "reply": "{\"errors\":[\"f\"]}",
+   "message": "f"
+  },
+  {
+   "reply": "{\"ErrorMessage\":\"g\"}",
+   "message": "g"
+  },
+  {
+   "reply": "{\"message\":\"\",\"error\":\"h\"}",
+   "message": "h"
+  },
+  {
+   "reply": "{\"message\":5}",
+   "message": ""
+  },
+  {
+   "reply": "[1,2]",
+   "message": ""
+  },
+  {
+   "reply": "null",
+   "message": ""
+  },
+  {
+   "reply": "\"text\"",
+   "message": ""
+  },
+  {
+   "reply": "<html>page</html>",
+   "message": ""
+  },
+  {
+   "reply": "<Error><Message>  spaced  </Message></Error>",
+   "message": "spaced"
+  },
+  {
+   "reply": "<Message>yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy</Message>",
+   "message": ""
+  },
+  {
+   "reply": "",
+   "message": ""
+  },
+  {
+   "reply": "not json",
+   "message": ""
+  },
+  {
+   "reply": "{\"message\":\"café\"}",
+   "message": "café"
+  }
+ ],
+ "signatures": [
+  {
+   "input": {
+    "method": "GET",
+    "url": "https://iam.amazonaws.com/?Action=ListUsers&Version=2010-05-08",
+    "body": "",
+    "region": "us-east-1",
+    "service": "iam",
+    "accessKeyId": "AKIDEXAMPLE",
+    "secretAccessKey": "wJalrXUtnFEMI/K7MDENG+bPxRfiCYEXAMPLEKEY",
+    "now": 1440938160000,
+    "headers": {
+     "content-type": "application/x-www-form-urlencoded; charset=utf-8"
+    }
+   },
+   "headers": {
+    "content-type": "application/x-www-form-urlencoded; charset=utf-8",
+    "host": "iam.amazonaws.com",
+    "x-amz-date": "20150830T123600Z",
+    "authorization": "AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE/20150830/us-east-1/iam/aws4_request, SignedHeaders=content-type;host;x-amz-date, Signature=5d672d79c15b13162d9279b0855cfba6789a8edb4c82c400e06b5924a6f2b5d7"
+   }
+  },
+  {
+   "input": {
+    "method": "POST",
+    "url": "https://example.amazonaws.com/a b/%7Ec/café?z=1&b=2+3&a=x%20y&a=0&c",
+    "body": "{\"x\":1}",
+    "region": "eu-west-1",
+    "service": "ses",
+    "accessKeyId": "K",
+    "secretAccessKey": "S",
+    "now": 1791471845678,
+    "headers": {
+     "Content-Type": "  application/json   with   spaces ",
+     "X-Extra": "v"
+    }
+   },
+   "headers": {
+    "Content-Type": "  application/json   with   spaces ",
+    "X-Extra": "v",
+    "host": "example.amazonaws.com",
+    "x-amz-date": "20261008T150405Z",
+    "authorization": "AWS4-HMAC-SHA256 Credential=K/20261008/eu-west-1/ses/aws4_request, SignedHeaders=content-type;host;x-amz-date;x-extra, Signature=6c4c96bfeb3d4f015d18e903a9d489f47a8a3397ab24a0574cd2f4f2f41cadda"
+   }
+  }
+ ],
+ "mimes": [
+  {
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "from": "Runlight <reports@example.com>",
+   "now": 1791471845678,
+   "mime": "From: Runlight <reports@example.com>\r\nTo: jon@example.com\r\nSubject: Hello\r\nDate: Thu, 08 Oct 2026 15:04:05 +0000\r\nMessage-ID: <00000000-0000-4000-8000-000000000002@example.com>\r\nMIME-Version: 1.0\r\nList-Unsubscribe: <https://x/u>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\nContent-Type: multipart/alternative; boundary=\"rl-00000000-0000-4000-8000-000000000001\"\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nSGk=\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nPHA+SGk8L3A+\r\n\r\n--rl-00000000-0000-4000-8000-000000000001--\r\n"
+  },
+  {
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long long </p>",
+    "text": ".starts with a dot\r\n.and another"
+   },
+   "from": "reports@example.com",
+   "now": 1791471845678,
+   "mime": "From: reports@example.com\r\nTo: jon@example.com\r\nSubject: =?UTF-8?B?Q2Fmw6kg8J+YgCAvICJxdW90ZWQi?=\r\nDate: Thu, 08 Oct 2026 15:04:05 +0000\r\nMessage-ID: <00000000-0000-4000-8000-000000000002@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"rl-00000000-0000-4000-8000-000000000001\"\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nLnN0YXJ0cyB3aXRoIGEgZG90DQouYW5kIGFub3RoZXI=\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nPHA+bG9uZyBsb25nIGxvbmcgbG9uZyBsb25nIGxvbmcgbG9uZyBsb25nIGxvbmcgbG9uZyBsb25n\r\nIGxvbmcgbG9uZyBsb25nIGxvbmcgbG9uZyBsb25nIGxvbmcgbG9uZyBsb25nIGxvbmcgbG9uZyBs\r\nb25nIGxvbmcgbG9uZyBsb25nIGxvbmcgbG9uZyBsb25nIGxvbmcgbG9uZyBsb25nIGxvbmcgbG9u\r\nZyBsb25nIGxvbmcgbG9uZyBsb25nIGxvbmcgbG9uZyA8L3A+\r\n\r\n--rl-00000000-0000-4000-8000-000000000001--\r\n"
+  },
+  {
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Jön",
+    "subject": "Café report",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "from": "Jön <reports@example.com>",
+   "now": 1791471845678,
+   "mime": "From: =?UTF-8?B?SsO2bg==?= <reports@example.com>\r\nTo: jon@example.com\r\nSubject: =?UTF-8?B?Q2Fmw6kgcmVwb3J0?=\r\nDate: Thu, 08 Oct 2026 15:04:05 +0000\r\nMessage-ID: <00000000-0000-4000-8000-000000000002@example.com>\r\nMIME-Version: 1.0\r\nList-Unsubscribe: <https://x/u>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\nContent-Type: multipart/alternative; boundary=\"rl-00000000-0000-4000-8000-000000000001\"\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nSGk=\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nPHA+SGk8L3A+\r\n\r\n--rl-00000000-0000-4000-8000-000000000001--\r\n"
+  },
+  {
+   "message": {
+    "to": "jon@example.com",
+    "from": "nobody",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "",
+    "text": "",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "from": "nobody",
+   "now": 1791471845678,
+   "mime": "From: nobody\r\nTo: jon@example.com\r\nSubject: Hello\r\nDate: Thu, 08 Oct 2026 15:04:05 +0000\r\nMessage-ID: <00000000-0000-4000-8000-000000000002@runlight.local>\r\nMIME-Version: 1.0\r\nList-Unsubscribe: <https://x/u>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\nContent-Type: multipart/alternative; boundary=\"rl-00000000-0000-4000-8000-000000000001\"\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\n\r\n--rl-00000000-0000-4000-8000-000000000001--\r\n"
+  }
+ ],
+ "smtp": [
+  {
+   "config": {
+    "security": "none",
+    "username": "jon",
+    "password": "pw"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": ".starts with a dot",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "from": "Runlight <reports@example.com>",
+   "received": "EHLO example.com\r\nAUTH PLAIN AGpvbgBwdw==\r\nMAIL FROM:<reports@example.com>\r\nRCPT TO:<jon@example.com>\r\nDATA\r\nFrom: Runlight <reports@example.com>\r\nTo: jon@example.com\r\nSubject: Hello\r\nDate: Thu, 08 Oct 2026 15:04:05 +0000\r\nMessage-ID: <00000000-0000-4000-8000-000000000002@example.com>\r\nMIME-Version: 1.0\r\nList-Unsubscribe: <https://x/u>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\nContent-Type: multipart/alternative; boundary=\"rl-00000000-0000-4000-8000-000000000001\"\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nLnN0YXJ0cyB3aXRoIGEgZG90\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nPHA+SGk8L3A+\r\n\r\n--rl-00000000-0000-4000-8000-000000000001--\r\n\r\n.\r\nQUIT\r\n",
+   "error": null
+  },
+  {
+   "config": {
+    "security": "none"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "subject": "Café 😀 / \"quoted\"",
+    "html": "<p>é</p>",
+    "text": "line\nnext"
+   },
+   "from": "reports@example.com",
+   "received": "EHLO example.com\r\nMAIL FROM:<reports@example.com>\r\nRCPT TO:<jon@example.com>\r\nDATA\r\nFrom: reports@example.com\r\nTo: jon@example.com\r\nSubject: =?UTF-8?B?Q2Fmw6kg8J+YgCAvICJxdW90ZWQi?=\r\nDate: Thu, 08 Oct 2026 15:04:05 +0000\r\nMessage-ID: <00000000-0000-4000-8000-000000000002@example.com>\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"rl-00000000-0000-4000-8000-000000000001\"\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nbGluZQpuZXh0\r\n\r\n--rl-00000000-0000-4000-8000-000000000001\r\nContent-Type: text/html; charset=utf-8\r\nContent-Transfer-Encoding: base64\r\n\r\nPHA+w6k8L3A+\r\n\r\n--rl-00000000-0000-4000-8000-000000000001--\r\n\r\n.\r\nQUIT\r\n",
+   "error": null
+  },
+  {
+   "config": {
+    "security": "none",
+    "username": "jon",
+    "password": "wrong"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "from": "reports@example.com",
+   "received": "EHLO example.com\r\nAUTH PLAIN AGpvbgB3cm9uZw==\r\n",
+   "error": {
+    "message": "SMTP sign-in: 535 no",
+    "code": "mail_failed",
+    "params": {
+     "detail": "SMTP sign-in: 535 no"
+    }
+   }
+  },
+  {
+   "config": {
+    "security": "starttls"
+   },
+   "message": {
+    "to": "jon@example.com",
+    "from": "reports@example.com",
+    "fromName": "Runlight",
+    "subject": "Hello",
+    "html": "<p>Hi</p>",
+    "text": "Hi",
+    "headers": {
+     "List-Unsubscribe": "<https://x/u>",
+     "List-Unsubscribe-Post": "List-Unsubscribe=One-Click"
+    }
+   },
+   "from": "reports@example.com",
+   "received": "EHLO example.com\r\n",
+   "error": {
+    "message": "SMTP: the server does not offer STARTTLS; pick tls or none",
+    "code": "smtp_starttls",
+    "params": {}
+   }
+  }
+ ],
+ "sealed": [
+  {
+   "value": "{\"apiKey\":\"re_123\"}",
+   "secret": "server secret",
+   "sealed": "v1:P/SRwg4J6dJdYeAt:a4ZlMyv0WJi/5itUlvfaPDvOECDGlNYxthtFO0DM+ePDmyQ="
+  },
+  {
+   "value": "café 😀",
+   "secret": "s",
+   "sealed": "v1:YSgupbZM/A7lWAwO:KNNHZM2b60AVJp7beGpcB6Ku8P/syIu9zbs="
+  },
+  {
+   "value": "",
+   "secret": "s",
+   "sealed": "v1:HHNgJaQPxT8Vs5Zs:dgjlGp7DiqyW/eFEuSCxRQ=="
+  },
+  {
+   "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "secret": "long",
+   "sealed": "v1:xrSjLpyFT0OCuswS:jCpfOg6HvWxuqBEK0hHbX0ZnQIRDf4JpfKHZzAQOj1W+3+DRFcNrh4ge90TXNgJiQDF5aDJVq9pem2KxrVMyUAjWnHOTuSWKcWJ5snx/rnDxwbGl6ufeGRJ+0Dguz0hhuGun5vDiehMVjYksy/F8bqgc/bKzNrX6gJC6NWdNnWRCD0qyf/SWcVJMlT+E6TO+WSt9c62mgn8aew7J0UulrzwRLwQg0c6todds7Ic9BPTbr9f5nRYRrYoegnB7jko0eDv/26/2YjK1ToXk8Tcnr7urdZrDfuY/biFWRwtYjBVwc9cm3dqIrcXCpP3kRRj9DJmy3R6S+3PaU6/GFKb71apW5aIaHJWRjJaoSij6m6GbFW8oHJUjc7kXpO/oxGhSomKDKPKRjSC5pNC751sXElqGMuVgUDOFg8PNr3foZy7ZK4FAvfXRM1dTXEu05Uv5/MbUcoucSpIVasPkW57k2j27NUiG25O5opIAwEGmb3x8/eoUNTL9b9T+3qG9IyTFTVbzzAXDgyNvmQKgu5Wbed7PPqMoipu2+5B9Alc2RORGLpbZsgn1fDbNq2yfUUN7QTXw9S3M3Rh6snUFem+CwHd3oU2YaLPy3MYhqFkoqLTxpzvIo/WmsrgrjQPhE1KrnV7NTY973WFdBRGTcIoVw1X2ymeGGNJ3u4BSZwfQi20OUhUsmuLYnyOwODlVhfBhh0Csx+/U1qg4KfXMv5xJL29nWZaIq/2pz4vfxKbmHnF2yqXsa+UwscCGkEwMfYzXM4uiI5Q9ZXmE3VHqLoJQH/76m2os+yz7rwKMIwNrQyd5QZuQvQ6lImqERDG0K2/aFm8oxO5TWgDBDheawoDe0z0yjfdVKFfZuJDr8AM1I811uLWEgDTwU5fwyKcELeNB+OkSz9DSmJzgIlPFV/ERMvENw/qZuhJNYeT1BRVbwbRqMAwPmBlxKPuEVSd4LbzJbiFZSbKHH5aE9nEq/RT6xmbNhoY7VBtuziuFhjW4hRGAzQcwZU0mqkVIX7CnLUFqHMJ+Zu91+e2XbluYHWgmDVLqEJuXorFHQhN33tRWO/nSQc+MooersKWtzi4TzdIago9H99a/UkrGLBd7SXaN0NWdLTxZUwVaoPzCtky5+WbQY/5bGK5eBCCWcJTVF47mnAxNFrsYCa/ZFZCnqSKWjfdca5+Vu5ddraIce9afjfGaoD0+vDPVBxlj20k1zic0DcVBSgcpiY8RozDjkGYSS7RAGImn3XnY4qoVC5B03iJWCfFezXlsxzhsySt+gh7RRREMy/JnqZtj3WVGigeyQ3amNg8R6P9+IoC2dRc3syw41b+jV5EzOWiMAvMU8i/wKag0G/0UIlw="
+  }
+ ],
+ "ips": [
+  {
+   "ip": "93.184.215.14",
+   "public": true
+  },
+  {
+   "ip": "1.1.1.1",
+   "public": true
+  },
+  {
+   "ip": "2606:4700:4700::1111",
+   "public": true
+  },
+  {
+   "ip": "2a00:1450:4001:82a::200e",
+   "public": true
+  },
+  {
+   "ip": "8.8.8.8",
+   "public": true
+  },
+  {
+   "ip": "100.63.255.255",
+   "public": true
+  },
+  {
+   "ip": "100.128.0.0",
+   "public": true
+  },
+  {
+   "ip": "172.15.0.1",
+   "public": true
+  },
+  {
+   "ip": "172.32.0.1",
+   "public": true
+  },
+  {
+   "ip": "192.0.1.1",
+   "public": true
+  },
+  {
+   "ip": "198.17.0.1",
+   "public": true
+  },
+  {
+   "ip": "198.20.0.1",
+   "public": true
+  },
+  {
+   "ip": "223.255.255.255",
+   "public": true
+  },
+  {
+   "ip": "::ffff:8.8.8.8",
+   "public": true
+  },
+  {
+   "ip": "64:ff9b::808:808",
+   "public": true
+  },
+  {
+   "ip": "2002:808:808::",
+   "public": true
+  },
+  {
+   "ip": "2001:4860::1",
+   "public": true
+  },
+  {
+   "ip": "fec0::1",
+   "public": true
+  },
+  {
+   "ip": "::2",
+   "public": false
+  },
+  {
+   "ip": "::0.0.0.2",
+   "public": false
+  },
+  {
+   "ip": "127.0.0.1",
+   "public": false
+  },
+  {
+   "ip": "10.0.0.1",
+   "public": false
+  },
+  {
+   "ip": "172.16.5.4",
+   "public": false
+  },
+  {
+   "ip": "192.168.1.1",
+   "public": false
+  },
+  {
+   "ip": "169.254.169.254",
+   "public": false
+  },
+  {
+   "ip": "100.64.0.1",
+   "public": false
+  },
+  {
+   "ip": "0.0.0.0",
+   "public": false
+  },
+  {
+   "ip": "224.0.0.1",
+   "public": false
+  },
+  {
+   "ip": "255.255.255.255",
+   "public": false
+  },
+  {
+   "ip": "192.0.0.1",
+   "public": false
+  },
+  {
+   "ip": "192.0.2.1",
+   "public": false
+  },
+  {
+   "ip": "198.18.0.1",
+   "public": false
+  },
+  {
+   "ip": "198.51.100.1",
+   "public": false
+  },
+  {
+   "ip": "203.0.113.1",
+   "public": false
+  },
+  {
+   "ip": "::1",
+   "public": false
+  },
+  {
+   "ip": "::",
+   "public": false
+  },
+  {
+   "ip": "fe80::1",
+   "public": false
+  },
+  {
+   "ip": "fd00::1",
+   "public": false
+  },
+  {
+   "ip": "fc00::1",
+   "public": false
+  },
+  {
+   "ip": "ff02::1",
+   "public": false
+  },
+  {
+   "ip": "::ffff:127.0.0.1",
+   "public": false
+  },
+  {
+   "ip": "::ffff:7f00:1",
+   "public": false
+  },
+  {
+   "ip": "::ffff:169.254.169.254",
+   "public": false
+  },
+  {
+   "ip": "64:ff9b::a00:1",
+   "public": false
+  },
+  {
+   "ip": "2002:a00:1::",
+   "public": false
+  },
+  {
+   "ip": "2001:db8::1",
+   "public": false
+  },
+  {
+   "ip": "2001:0:4136:e378::1",
+   "public": false
+  },
+  {
+   "ip": "100::1",
+   "public": false
+  },
+  {
+   "ip": "[::1]",
+   "public": false
+  },
+  {
+   "ip": "[2606:4700::1]",
+   "public": true
+  },
+  {
+   "ip": "fe80::1%eth0",
+   "public": false
+  },
+  {
+   "ip": "not an address",
+   "public": false
+  },
+  {
+   "ip": "1.2.3",
+   "public": false
+  },
+  {
+   "ip": "1.2.3.256",
+   "public": false
+  },
+  {
+   "ip": "01.02.03.04",
+   "public": true
+  },
+  {
+   "ip": "1.2.3.4.5",
+   "public": false
+  },
+  {
+   "ip": "1::2::3",
+   "public": false
+  },
+  {
+   "ip": "1:2:3:4:5:6:7:8:9",
+   "public": false
+  },
+  {
+   "ip": "1:2:3:4:5:6:7::",
+   "public": true
+  },
+  {
+   "ip": "::1.2.3",
+   "public": false
+  },
+  {
+   "ip": "::ffff:1.2.3.999",
+   "public": false
+  },
+  {
+   "ip": "",
+   "public": false
+  },
+  {
+   "ip": "g::1",
+   "public": false
+  },
+  {
+   "ip": "2606:4700:4700:0000:0000:0000:0000:1111",
+   "public": true
+  },
+  {
+   "ip": "::FFFF:7F00:1",
+   "public": false
+  },
+  {
+   "ip": "1:2:3:4:5:6:1.2.3.4",
+   "public": true
+  }
+ ],
+ "icons": [
+  {
+   "html": "<head><link rel=\"icon\" href=\"/favicon.png\" type=\"image/png\"><link rel=\"apple-touch-icon\" href=\"https://cdn.example.com/touch.png\"><link rel=\"icon\" href=\"/i.svg\"><LINK REL=\"Shortcut Icon\" HREF='/old.ico'></head>",
+   "base": "https://example.com",
+   "links": [
+    "https://cdn.example.com/touch.png",
+    "https://example.com/i.svg",
+    "https://example.com/favicon.png",
+    "https://example.com/old.ico"
+   ]
+  },
+  {
+   "html": "<link rel=icon href=//other.example.com/x.ico><link rel=\"stylesheet\" href=\"/s.css\"><link rel=\"icon\" href=\"http://insecure.example.com/i.png\"><link rel=\"icon\" href=\"\"><link href=\"/late.png\" rel=\"icon\">",
+   "base": "https://example.com/blog/",
+   "links": [
+    "https://example.com/late.png",
+    "https://other.example.com/x.ico"
+   ]
+  },
+  {
+   "html": "<link rel=\"icon\" type=\"image/svg+xml\" href=\"icon\">\n<link rel=\"mask-icon icon\" href=\"../m.png\" >",
+   "base": "https://example.com/a/b/",
+   "links": [
+    "https://example.com/a/b/icon",
+    "https://example.com/a/m.png"
+   ]
+  }
+ ],
+ "importers": [
+  {
+   "name": "dub events",
+   "source": "dub",
+   "credentials": {
+    "apiKey": " dub_test "
+   },
+   "routes": [
+    {
+     "pattern": "api\\.dub\\.co\\/links\\?.*startingAfter=l2",
+     "body": []
+    },
+    {
+     "pattern": "api\\.dub\\.co\\/links\\?",
+     "body": [
+      {
+       "id": "l1",
+       "domain": "dub.sh",
+       "key": "launch",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l2",
+       "domain": "go.brand.com",
+       "key": "sale",
+       "url": "https://a.com/sale",
+       "title": null,
+       "createdAt": "2026-02-03T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "pattern": "\\/events\\?.*linkId=l1",
+     "body": [
+      {
+       "timestamp": "2026-03-01T10:00:00Z",
+       "click": {
+        "id": "c1",
+        "country": "CA",
+        "city": "Toronto",
+        "device": "Mobile",
+        "browser": "Chrome",
+        "os": "iOS",
+        "referer": "instagram.com",
+        "refererUrl": "https://instagram.com/"
+       }
+      },
+      {
+       "timestamp": "2026-03-02T10:00:00Z",
+       "click": {
+        "id": "c2",
+        "country": "US",
+        "device": "Desktop",
+        "browser": "Safari",
+        "os": "Mac OS",
+        "referer": "(direct)"
+       }
+      },
+      {
+       "timestamp": "2026-03-03T10:00:00.5+02:00",
+       "click": {
+        "id": "c3",
+        "country": null,
+        "referer": "news.ycombinator.com",
+        "region": "CA-ON"
+       }
+      },
+      {
+       "timestamp": "bad",
+       "click": null
+      },
+      {
+       "timestamp": "2026-03-04"
+      }
+     ]
+    },
+    {
+     "pattern": "\\/events\\?.*linkId=l2",
+     "body": []
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/links?pageSize=10&showArchived=true",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l2&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "l1",
+     "launch",
+     "https://a.com/launch"
+    ],
+    [
+     "l2",
+     "sale",
+     "https://a.com/sale"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "l1",
+         "slug": "launch",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1767312000000
+        },
+        "clicks": [
+         {
+          "ts": 1772359200000,
+          "visit": "c1",
+          "referrer": "https://instagram.com/",
+          "country": "CA",
+          "city": "Toronto",
+          "device": "mobile",
+          "browser": "Chrome",
+          "os": "iOS"
+         },
+         {
+          "ts": 1772445600000,
+          "visit": "c2",
+          "referrer": "",
+          "country": "US",
+          "device": "desktop",
+          "browser": "Safari",
+          "os": "Mac OS"
+         },
+         {
+          "ts": 1772524800500,
+          "visit": "c3",
+          "referrer": "https://news.ycombinator.com/",
+          "country": null,
+          "region": "CA-ON"
+         },
+         {
+          "ts": null,
+          "referrer": ""
+         },
+         {
+          "ts": 1772582400000,
+          "referrer": ""
+         }
+        ]
+       },
+       {
+        "link": {
+         "sourceId": "l2",
+         "slug": "sale",
+         "domain": "go.brand.com",
+         "name": "",
+         "url": "https://a.com/sale",
+         "createdAt": 1770076800000
+        },
+        "clicks": []
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "dub full page",
+   "source": "dub",
+   "credentials": {
+    "apiKey": "k"
+   },
+   "routes": [
+    {
+     "pattern": "startingAfter=l9",
+     "body": []
+    },
+    {
+     "pattern": "api\\.dub\\.co\\/links\\?",
+     "body": [
+      {
+       "id": "l0",
+       "domain": "dub.sh",
+       "key": "k0",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l1",
+       "domain": "dub.sh",
+       "key": "k1",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l2",
+       "domain": "dub.sh",
+       "key": "k2",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l3",
+       "domain": "dub.sh",
+       "key": "k3",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "nope"
+      },
+      {
+       "id": "l4",
+       "domain": "dub.sh",
+       "key": "k4",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l5",
+       "domain": "dub.sh",
+       "key": "k5",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l6",
+       "domain": "dub.sh",
+       "key": "k6",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l7",
+       "domain": "dub.sh",
+       "key": "k7",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l8",
+       "domain": "dub.sh",
+       "key": "k8",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l9",
+       "domain": "dub.sh",
+       "key": "k9",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "pattern": "\\/events\\?",
+     "body": []
+    }
+   ],
+   "known": [
+    "l4",
+    "k5 https://a.com/launch"
+   ],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/links?pageSize=10&showArchived=true",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l0&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l2&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l3&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l6&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l7&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l8&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l9&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/links?pageSize=10&showArchived=true&startingAfter=l9",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "l0",
+     "k0",
+     "https://a.com/launch"
+    ],
+    [
+     "l1",
+     "k1",
+     "https://a.com/launch"
+    ],
+    [
+     "l2",
+     "k2",
+     "https://a.com/launch"
+    ],
+    [
+     "l3",
+     "k3",
+     "https://a.com/launch"
+    ],
+    [
+     "l4",
+     "k4",
+     "https://a.com/launch"
+    ],
+    [
+     "l5",
+     "k5",
+     "https://a.com/launch"
+    ],
+    [
+     "l6",
+     "k6",
+     "https://a.com/launch"
+    ],
+    [
+     "l7",
+     "k7",
+     "https://a.com/launch"
+    ],
+    [
+     "l8",
+     "k8",
+     "https://a.com/launch"
+    ],
+    [
+     "l9",
+     "k9",
+     "https://a.com/launch"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": "{\"after\":\"l9\",\"history\":\"events\"}",
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "l0",
+         "slug": "k0",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1767312000000
+        },
+        "clicks": []
+       },
+       {
+        "link": {
+         "sourceId": "l1",
+         "slug": "k1",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1767312000000
+        },
+        "clicks": []
+       },
+       {
+        "link": {
+         "sourceId": "l2",
+         "slug": "k2",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1767312000000
+        },
+        "clicks": []
+       },
+       {
+        "link": {
+         "sourceId": "l3",
+         "slug": "k3",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1791471845678
+        },
+        "clicks": []
+       },
+       {
+        "link": {
+         "sourceId": "l4",
+         "slug": "k4",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/launch",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "l5",
+         "slug": "k5",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/launch",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "l6",
+         "slug": "k6",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1767312000000
+        },
+        "clicks": []
+       },
+       {
+        "link": {
+         "sourceId": "l7",
+         "slug": "k7",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1767312000000
+        },
+        "clicks": []
+       },
+       {
+        "link": {
+         "sourceId": "l8",
+         "slug": "k8",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1767312000000
+        },
+        "clicks": []
+       },
+       {
+        "link": {
+         "sourceId": "l9",
+         "slug": "k9",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1767312000000
+        },
+        "clicks": []
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "{\"after\":\"l9\",\"history\":\"events\"}",
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "dub daily",
+   "source": "dub",
+   "credentials": {
+    "apiKey": "dub_test"
+   },
+   "routes": [
+    {
+     "pattern": "api\\.dub\\.co\\/links\\?",
+     "body": [
+      {
+       "id": "l1",
+       "domain": "dub.sh",
+       "key": "x",
+       "url": "https://a.com",
+       "title": "X",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l 2",
+       "domain": "dub.sh",
+       "key": "y",
+       "url": "https://a.com/y",
+       "title": "",
+       "createdAt": "2026-01-03T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "pattern": "\\/events\\?",
+     "status": 403,
+     "body": {
+      "error": {
+       "message": "Business plan required"
+      }
+     }
+    },
+    {
+     "pattern": "\\/analytics\\?",
+     "body": [
+      {
+       "start": "2026-03-01T00:00:00.000Z",
+       "clicks": 3
+      },
+      {
+       "start": "2026-03-02T00:00:00.000Z",
+       "clicks": 0
+      }
+     ]
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/links?pageSize=10&showArchived=true",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/analytics?event=clicks&groupBy=timeseries&interval=all&linkId=l1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/analytics?event=clicks&groupBy=timeseries&interval=all&linkId=l%202",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "l1",
+     "x",
+     "https://a.com"
+    ],
+    [
+     "l 2",
+     "y",
+     "https://a.com/y"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "l1",
+         "slug": "x",
+         "domain": "dub.sh",
+         "name": "X",
+         "url": "https://a.com",
+         "createdAt": 1767312000000
+        },
+        "daily": [
+         {
+          "day": "2026-03-01",
+          "clicks": 3
+         }
+        ]
+       },
+       {
+        "link": {
+         "sourceId": "l 2",
+         "slug": "y",
+         "domain": "dub.sh",
+         "name": "",
+         "url": "https://a.com/y",
+         "createdAt": 1767398400000
+        },
+        "daily": [
+         {
+          "day": "2026-03-01",
+          "clicks": 3
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "dub none",
+   "source": "dub",
+   "credentials": {
+    "apiKey": "dub_test"
+   },
+   "routes": [
+    {
+     "pattern": "api\\.dub\\.co\\/links\\?",
+     "body": [
+      {
+       "id": "l1",
+       "domain": "dub.sh",
+       "key": "x",
+       "url": "https://a.com",
+       "title": "X",
+       "createdAt": "2026-01-02T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "pattern": "\\/events\\?",
+     "status": 403,
+     "body": {}
+    },
+    {
+     "pattern": "\\/analytics\\?",
+     "status": 402,
+     "body": {}
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/links?pageSize=10&showArchived=true",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/analytics?event=clicks&groupBy=timeseries&interval=all&linkId=l1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "l1",
+     "x",
+     "https://a.com"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "l1",
+         "slug": "x",
+         "domain": "dub.sh",
+         "name": "X",
+         "url": "https://a.com",
+         "createdAt": 1767312000000
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "dub refused",
+   "source": "dub",
+   "credentials": {
+    "apiKey": "dub_test"
+   },
+   "routes": [
+    {
+     "pattern": "api\\.dub\\.co\\/links\\?",
+     "body": [
+      {
+       "id": "l1",
+       "domain": "dub.sh",
+       "key": "launch",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l2",
+       "domain": "go.brand.com",
+       "key": "sale",
+       "url": "https://a.com/sale",
+       "title": null,
+       "createdAt": "2026-02-03T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "pattern": "\\/events\\?",
+     "status": 401,
+     "body": {}
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/links?pageSize=10&showArchived=true",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "l1",
+     "launch",
+     "https://a.com/launch"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "The key or sign-in was refused",
+      "code": "import_refused",
+      "params": {},
+      "status": 401,
+      "name": "HttpError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "dub cursor",
+   "source": "dub",
+   "credentials": {
+    "apiKey": "k"
+   },
+   "routes": [
+    {
+     "pattern": "links\\?",
+     "body": [
+      {
+       "id": "l1",
+       "domain": "dub.sh",
+       "key": "launch",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l2",
+       "domain": "go.brand.com",
+       "key": "sale",
+       "url": "https://a.com/sale",
+       "title": null,
+       "createdAt": "2026-02-03T00:00:00Z"
+      }
+     ]
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/links?pageSize=10&showArchived=true&startingAfter=l%261",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "l1",
+     "launch",
+     "https://a.com/launch"
+    ],
+    [
+     "l2",
+     "sale",
+     "https://a.com/sale"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": "{\"after\":\"l&1\",\"history\":\"none\"}",
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "l1",
+         "slug": "launch",
+         "domain": "dub.sh",
+         "name": "Launch",
+         "url": "https://a.com/launch",
+         "createdAt": 1767312000000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "l2",
+         "slug": "sale",
+         "domain": "go.brand.com",
+         "name": "",
+         "url": "https://a.com/sale",
+         "createdAt": 1770076800000
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "dub no key",
+   "source": "dub",
+   "credentials": {
+    "apiKey": "  "
+   },
+   "routes": [],
+   "known": [],
+   "ordered": true,
+   "requests": [],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "Enter a Dub API key",
+      "code": "import_key",
+      "params": {
+       "service": "Dub"
+      },
+      "name": "ImportError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bitly",
+   "source": "bitly",
+   "credentials": {
+    "token": "bitly_test"
+   },
+   "routes": [
+    {
+     "pattern": "\\/v4\\/groups$",
+     "body": {
+      "groups": [
+       {
+        "guid": "G1"
+       },
+       {
+        "guid": "G2"
+       }
+      ]
+     }
+    },
+    {
+     "pattern": "\\/groups\\/G1\\/bitlinks",
+     "body": {
+      "links": [
+       {
+        "id": "bit.ly/3abc",
+        "link": "https://bit.ly/3abc",
+        "long_url": "https://a.com/1",
+        "title": "One",
+        "created_at": "2026-01-01T00:00:00+0000",
+        "custom_bitlinks": [
+         "https://t.brand.com/one/"
+        ]
+       },
+       {
+        "id": "bit.ly/gone",
+        "link": "https://bit.ly/gone",
+        "long_url": "https://a.com/x",
+        "title": "Gone",
+        "created_at": "2026-01-01T00:00:00+0000",
+        "is_deleted": true
+       }
+      ],
+      "pagination": {
+       "search_after": ""
+      }
+     }
+    },
+    {
+     "pattern": "\\/groups\\/G2\\/bitlinks",
+     "body": {
+      "links": [
+       {
+        "id": "bit.ly/4def",
+        "link": "https://bit.ly/4def",
+        "long_url": "https://a.com/2",
+        "title": null,
+        "created_at": "2026-02-01T00:00:00+0000"
+       }
+      ],
+      "pagination": {}
+     }
+    },
+    {
+     "pattern": "\\/bitlinks\\/bit\\.ly%2F3abc\\/clicks",
+     "body": {
+      "link_clicks": [
+       {
+        "clicks": 5,
+        "date": "2026-03-01T00:00:00+0000"
+       },
+       {
+        "clicks": 2,
+        "date": "2026-03-02T00:00:00+0000"
+       },
+       {
+        "clicks": 0,
+        "date": "2026-03-03T00:00:00+0000"
+       }
+      ]
+     }
+    },
+    {
+     "pattern": "\\/bitlinks\\/bit\\.ly%2F4def\\/clicks",
+     "status": 402,
+     "body": {
+      "message": "UPGRADE_REQUIRED"
+     }
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/groups",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer bitly_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/groups/G1/bitlinks?size=20&archived=both",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer bitly_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F3abc/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer bitly_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/groups/G2/bitlinks?size=20&archived=both",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer bitly_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F4def/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer bitly_test"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "bit.ly/3abc",
+     "one",
+     "https://a.com/1"
+    ],
+    [
+     "bit.ly/4def",
+     "4def",
+     "https://a.com/2"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": "{\"groups\":[\"G1\",\"G2\"],\"g\":1,\"after\":null}",
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "bit.ly/3abc",
+         "slug": "one",
+         "domain": "t.brand.com",
+         "name": "One",
+         "url": "https://a.com/1",
+         "createdAt": 1767225600000
+        },
+        "daily": [
+         {
+          "day": "2026-03-01",
+          "clicks": 5
+         },
+         {
+          "day": "2026-03-02",
+          "clicks": 2
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "{\"groups\":[\"G1\",\"G2\"],\"g\":1,\"after\":null}",
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "bit.ly/4def",
+         "slug": "4def",
+         "domain": "bit.ly",
+         "name": "",
+         "url": "https://a.com/2",
+         "createdAt": 1769904000000
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "bitly paged",
+   "source": "bitly",
+   "credentials": {
+    "apiKey": "b"
+   },
+   "routes": [
+    {
+     "pattern": "\\/v4\\/groups$",
+     "body": {
+      "groups": [
+       {
+        "guid": "G1"
+       }
+      ]
+     }
+    },
+    {
+     "pattern": "search_after=next%2Fpage",
+     "body": {
+      "links": [],
+      "pagination": {}
+     }
+    },
+    {
+     "pattern": "\\/groups\\/G1\\/bitlinks",
+     "body": {
+      "links": [
+       {
+        "id": "bit.ly/0",
+        "link": "",
+        "long_url": "https://a.com/0",
+        "title": "T0",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/1",
+        "link": "",
+        "long_url": "https://a.com/1",
+        "title": "T1",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/2",
+        "link": "",
+        "long_url": "https://a.com/2",
+        "title": "T2",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/3",
+        "link": "",
+        "long_url": "https://a.com/3",
+        "title": "T3",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/4",
+        "link": "",
+        "long_url": "https://a.com/4",
+        "title": "T4",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/5",
+        "link": "",
+        "long_url": "https://a.com/5",
+        "title": "T5",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/6",
+        "link": "",
+        "long_url": "https://a.com/6",
+        "title": "T6",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/7",
+        "link": "",
+        "long_url": "https://a.com/7",
+        "title": "T7",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/8",
+        "link": "",
+        "long_url": "https://a.com/8",
+        "title": "T8",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/9",
+        "link": "",
+        "long_url": "https://a.com/9",
+        "title": "T9",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/10",
+        "link": "",
+        "long_url": "https://a.com/10",
+        "title": "T10",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/11",
+        "link": "",
+        "long_url": "https://a.com/11",
+        "title": "T11",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/12",
+        "link": "",
+        "long_url": "https://a.com/12",
+        "title": "T12",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/13",
+        "link": "",
+        "long_url": "https://a.com/13",
+        "title": "T13",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/14",
+        "link": "",
+        "long_url": "https://a.com/14",
+        "title": "T14",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/15",
+        "link": "",
+        "long_url": "https://a.com/15",
+        "title": "T15",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/16",
+        "link": "",
+        "long_url": "https://a.com/16",
+        "title": "T16",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/17",
+        "link": "",
+        "long_url": "https://a.com/17",
+        "title": "T17",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/18",
+        "link": "",
+        "long_url": "https://a.com/18",
+        "title": "T18",
+        "created_at": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": "bit.ly/19",
+        "link": "",
+        "long_url": "https://a.com/19",
+        "title": "T19",
+        "created_at": "2026-01-01T00:00:00Z"
+       }
+      ],
+      "pagination": {
+       "search_after": "next/page"
+      }
+     }
+    },
+    {
+     "pattern": "\\/clicks",
+     "body": {
+      "link_clicks": []
+     }
+    }
+   ],
+   "known": [
+    "bit.ly/3",
+    "7 https://a.com/7"
+   ],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/groups",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/groups/G1/bitlinks?size=20&archived=both",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F0/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F1/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F2/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F4/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F5/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F6/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F8/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F9/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F10/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F11/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F12/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F13/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F14/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F15/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F16/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F17/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F18/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/bitlinks/bit.ly%2F19/clicks?unit=day&units=-1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/groups/G1/bitlinks?size=20&archived=both&search_after=next%2Fpage",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer b"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "bit.ly/0",
+     "0",
+     "https://a.com/0"
+    ],
+    [
+     "bit.ly/1",
+     "1",
+     "https://a.com/1"
+    ],
+    [
+     "bit.ly/2",
+     "2",
+     "https://a.com/2"
+    ],
+    [
+     "bit.ly/3",
+     "3",
+     "https://a.com/3"
+    ],
+    [
+     "bit.ly/4",
+     "4",
+     "https://a.com/4"
+    ],
+    [
+     "bit.ly/5",
+     "5",
+     "https://a.com/5"
+    ],
+    [
+     "bit.ly/6",
+     "6",
+     "https://a.com/6"
+    ],
+    [
+     "bit.ly/7",
+     "7",
+     "https://a.com/7"
+    ],
+    [
+     "bit.ly/8",
+     "8",
+     "https://a.com/8"
+    ],
+    [
+     "bit.ly/9",
+     "9",
+     "https://a.com/9"
+    ],
+    [
+     "bit.ly/10",
+     "10",
+     "https://a.com/10"
+    ],
+    [
+     "bit.ly/11",
+     "11",
+     "https://a.com/11"
+    ],
+    [
+     "bit.ly/12",
+     "12",
+     "https://a.com/12"
+    ],
+    [
+     "bit.ly/13",
+     "13",
+     "https://a.com/13"
+    ],
+    [
+     "bit.ly/14",
+     "14",
+     "https://a.com/14"
+    ],
+    [
+     "bit.ly/15",
+     "15",
+     "https://a.com/15"
+    ],
+    [
+     "bit.ly/16",
+     "16",
+     "https://a.com/16"
+    ],
+    [
+     "bit.ly/17",
+     "17",
+     "https://a.com/17"
+    ],
+    [
+     "bit.ly/18",
+     "18",
+     "https://a.com/18"
+    ],
+    [
+     "bit.ly/19",
+     "19",
+     "https://a.com/19"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": "{\"groups\":[\"G1\"],\"g\":0,\"after\":\"next/page\"}",
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "bit.ly/0",
+         "slug": "0",
+         "domain": "bit.ly",
+         "name": "T0",
+         "url": "https://a.com/0",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/1",
+         "slug": "1",
+         "domain": "bit.ly",
+         "name": "T1",
+         "url": "https://a.com/1",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/2",
+         "slug": "2",
+         "domain": "bit.ly",
+         "name": "T2",
+         "url": "https://a.com/2",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/3",
+         "slug": "",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/3",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/4",
+         "slug": "4",
+         "domain": "bit.ly",
+         "name": "T4",
+         "url": "https://a.com/4",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/5",
+         "slug": "5",
+         "domain": "bit.ly",
+         "name": "T5",
+         "url": "https://a.com/5",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/6",
+         "slug": "6",
+         "domain": "bit.ly",
+         "name": "T6",
+         "url": "https://a.com/6",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/7",
+         "slug": "",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/7",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/8",
+         "slug": "8",
+         "domain": "bit.ly",
+         "name": "T8",
+         "url": "https://a.com/8",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/9",
+         "slug": "9",
+         "domain": "bit.ly",
+         "name": "T9",
+         "url": "https://a.com/9",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/10",
+         "slug": "10",
+         "domain": "bit.ly",
+         "name": "T10",
+         "url": "https://a.com/10",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/11",
+         "slug": "11",
+         "domain": "bit.ly",
+         "name": "T11",
+         "url": "https://a.com/11",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/12",
+         "slug": "12",
+         "domain": "bit.ly",
+         "name": "T12",
+         "url": "https://a.com/12",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/13",
+         "slug": "13",
+         "domain": "bit.ly",
+         "name": "T13",
+         "url": "https://a.com/13",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/14",
+         "slug": "14",
+         "domain": "bit.ly",
+         "name": "T14",
+         "url": "https://a.com/14",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/15",
+         "slug": "15",
+         "domain": "bit.ly",
+         "name": "T15",
+         "url": "https://a.com/15",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/16",
+         "slug": "16",
+         "domain": "bit.ly",
+         "name": "T16",
+         "url": "https://a.com/16",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/17",
+         "slug": "17",
+         "domain": "bit.ly",
+         "name": "T17",
+         "url": "https://a.com/17",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/18",
+         "slug": "18",
+         "domain": "bit.ly",
+         "name": "T18",
+         "url": "https://a.com/18",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "bit.ly/19",
+         "slug": "19",
+         "domain": "bit.ly",
+         "name": "T19",
+         "url": "https://a.com/19",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "{\"groups\":[\"G1\"],\"g\":0,\"after\":\"next/page\"}",
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "bitly refused",
+   "source": "bitly",
+   "credentials": {
+    "token": "t"
+   },
+   "routes": [
+    {
+     "pattern": "\\/v4\\/groups$",
+     "status": 401,
+     "body": {}
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api-ssl.bitly.com/v4/groups",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer t"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "The key or sign-in was refused",
+      "code": "import_refused",
+      "params": {},
+      "status": 401,
+      "name": "HttpError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "bitly no token",
+   "source": "bitly",
+   "credentials": {},
+   "routes": [],
+   "known": [],
+   "ordered": true,
+   "requests": [],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "Enter a Bitly access token",
+      "code": "import_key",
+      "params": {
+       "service": "Bitly"
+      },
+      "name": "ImportError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "shortio",
+   "source": "shortio",
+   "credentials": {
+    "apiKey": "sk_test"
+   },
+   "routes": [
+    {
+     "pattern": "api\\.short\\.io\\/api\\/domains",
+     "body": [
+      {
+       "id": 7,
+       "hostname": "s.brand.com",
+       "extra": 1
+      },
+      {
+       "id": 8,
+       "hostname": "t.brand.com"
+      }
+     ]
+    },
+    {
+     "pattern": "api\\/links\\?.*pageToken=P2",
+     "body": {
+      "links": [
+       {
+        "idString": "lnk2",
+        "id": 2,
+        "path": "two",
+        "originalURL": "https://a.com/2",
+        "createdAt": "2026-02-01T00:00:00Z"
+       }
+      ],
+      "nextPageToken": null
+     }
+    },
+    {
+     "pattern": "api\\/links\\?domain_id=7",
+     "body": {
+      "links": [
+       {
+        "idString": "lnk1",
+        "id": 1,
+        "path": "one",
+        "originalURL": "https://a.com/1",
+        "title": "One",
+        "createdAt": "2026-01-01T00:00:00Z"
+       }
+      ],
+      "nextPageToken": "P2"
+     }
+    },
+    {
+     "pattern": "api\\/links\\?domain_id=8",
+     "body": {
+      "links": [
+       {
+        "id": 33,
+        "path": "three",
+        "originalURL": "https://a.com/3",
+        "createdAt": "2026-01-01T00:00:00Z"
+       },
+       {
+        "id": 34,
+        "path": "four",
+        "originalURL": "https://a.com/4",
+        "createdAt": "2026-01-01T00:00:00Z"
+       }
+      ]
+     }
+    },
+    {
+     "pattern": "statistics\\/link\\/lnk1\\/by_interval",
+     "body": {
+      "clickStatistics": [
+       {
+        "x": "2026-03-01T00:00:00Z",
+        "y": 4
+       },
+       {
+        "x": "2026-03-02T00:00:00Z",
+        "y": 0
+       }
+      ]
+     }
+    },
+    {
+     "pattern": "statistics\\/link\\/lnk2\\/by_interval",
+     "body": {
+      "clickStatistics": {
+       "datasets": [
+        {
+         "data": [
+          {
+           "x": 1772409600000,
+           "y": 1
+          }
+         ]
+        }
+       ]
+      }
+     }
+    },
+    {
+     "pattern": "statistics\\/link\\/33\\/by_interval",
+     "status": 429,
+     "headers": {
+      "retry-after": "2"
+     },
+     "body": {},
+     "times": 1
+    },
+    {
+     "pattern": "statistics\\/link\\/33\\/by_interval",
+     "body": {
+      "clickStatistics": {}
+     }
+    },
+    {
+     "pattern": "statistics\\/link\\/34\\/by_interval",
+     "status": 503,
+     "body": {}
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.short.io/api/domains?limit=300",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.short.io/api/links?domain_id=7&limit=8",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "POST",
+     "url": "https://statistics.short.io/statistics/link/lnk1/by_interval",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test",
+      "content-type": "application/json"
+     },
+     "body": "{\"period\":\"total\",\"clicksChartInterval\":\"day\",\"tz\":\"UTC\"}"
+    },
+    {
+     "method": "GET",
+     "url": "https://api.short.io/api/links?domain_id=7&limit=8&pageToken=P2",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "POST",
+     "url": "https://statistics.short.io/statistics/link/lnk2/by_interval",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test",
+      "content-type": "application/json"
+     },
+     "body": "{\"period\":\"total\",\"clicksChartInterval\":\"day\",\"tz\":\"UTC\"}"
+    },
+    {
+     "method": "GET",
+     "url": "https://api.short.io/api/links?domain_id=8&limit=8",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "POST",
+     "url": "https://statistics.short.io/statistics/link/33/by_interval",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test",
+      "content-type": "application/json"
+     },
+     "body": "{\"period\":\"total\",\"clicksChartInterval\":\"day\",\"tz\":\"UTC\"}"
+    },
+    {
+     "method": "POST",
+     "url": "https://statistics.short.io/statistics/link/33/by_interval",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test",
+      "content-type": "application/json"
+     },
+     "body": "{\"period\":\"total\",\"clicksChartInterval\":\"day\",\"tz\":\"UTC\"}"
+    },
+    {
+     "method": "POST",
+     "url": "https://statistics.short.io/statistics/link/34/by_interval",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test",
+      "content-type": "application/json"
+     },
+     "body": "{\"period\":\"total\",\"clicksChartInterval\":\"day\",\"tz\":\"UTC\"}"
+    },
+    {
+     "method": "POST",
+     "url": "https://statistics.short.io/statistics/link/34/by_interval",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test",
+      "content-type": "application/json"
+     },
+     "body": "{\"period\":\"total\",\"clicksChartInterval\":\"day\",\"tz\":\"UTC\"}"
+    },
+    {
+     "method": "POST",
+     "url": "https://statistics.short.io/statistics/link/34/by_interval",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test",
+      "content-type": "application/json"
+     },
+     "body": "{\"period\":\"total\",\"clicksChartInterval\":\"day\",\"tz\":\"UTC\"}"
+    },
+    {
+     "method": "POST",
+     "url": "https://statistics.short.io/statistics/link/34/by_interval",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test",
+      "content-type": "application/json"
+     },
+     "body": "{\"period\":\"total\",\"clicksChartInterval\":\"day\",\"tz\":\"UTC\"}"
+    }
+   ],
+   "waits": [
+    1050,
+    1050,
+    1050,
+    2000,
+    1050,
+    800,
+    1600,
+    2400
+   ],
+   "knownCalls": [
+    [
+     "lnk1",
+     "one",
+     "https://a.com/1"
+    ],
+    [
+     "lnk2",
+     "two",
+     "https://a.com/2"
+    ],
+    [
+     "33",
+     "three",
+     "https://a.com/3"
+    ],
+    [
+     "34",
+     "four",
+     "https://a.com/4"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": "{\"domains\":[{\"id\":7,\"hostname\":\"s.brand.com\"},{\"id\":8,\"hostname\":\"t.brand.com\"}],\"d\":0,\"token\":\"P2\",\"total\":null}",
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "lnk1",
+         "slug": "one",
+         "domain": "s.brand.com",
+         "name": "One",
+         "url": "https://a.com/1",
+         "createdAt": 1767225600000
+        },
+        "daily": [
+         {
+          "day": "2026-03-01",
+          "clicks": 4
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "{\"domains\":[{\"id\":7,\"hostname\":\"s.brand.com\"},{\"id\":8,\"hostname\":\"t.brand.com\"}],\"d\":0,\"token\":\"P2\",\"total\":null}",
+     "result": {
+      "cursor": "{\"domains\":[{\"id\":7,\"hostname\":\"s.brand.com\"},{\"id\":8,\"hostname\":\"t.brand.com\"}],\"d\":1,\"token\":null,\"total\":null}",
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "lnk2",
+         "slug": "two",
+         "domain": "s.brand.com",
+         "name": "",
+         "url": "https://a.com/2",
+         "createdAt": 1769904000000
+        },
+        "daily": [
+         {
+          "day": "2026-03-02",
+          "clicks": 1
+         }
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "{\"domains\":[{\"id\":7,\"hostname\":\"s.brand.com\"},{\"id\":8,\"hostname\":\"t.brand.com\"}],\"d\":1,\"token\":null,\"total\":null}",
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "33",
+         "slug": "three",
+         "domain": "t.brand.com",
+         "name": "",
+         "url": "https://a.com/3",
+         "createdAt": 1767225600000
+        },
+        "daily": []
+       },
+       {
+        "link": {
+         "sourceId": "34",
+         "slug": "four",
+         "domain": "t.brand.com",
+         "name": "",
+         "url": "https://a.com/4",
+         "createdAt": 1767225600000
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "shortio no key",
+   "source": "shortio",
+   "credentials": {},
+   "routes": [],
+   "known": [],
+   "ordered": true,
+   "requests": [],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "Enter a Short.io secret API key",
+      "code": "import_key",
+      "params": {
+       "service": "Short.io"
+      },
+      "name": "ImportError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rebrandly",
+   "source": "rebrandly",
+   "credentials": {
+    "apiKey": "rb_test",
+    "workspace": " ws1 "
+   },
+   "routes": [
+    {
+     "pattern": "\\/links\\?.*last=r24",
+     "body": [
+      {
+       "id": "r25",
+       "slashtag": "s25",
+       "destination": "https://a.com/25",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r26",
+       "slashtag": "s26",
+       "destination": "https://a.com/26",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r27",
+       "slashtag": "s27",
+       "destination": "https://a.com/27",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "pattern": "rebrandly\\.com\\/v1\\/links\\?",
+     "body": [
+      {
+       "id": "r0",
+       "title": null,
+       "slashtag": "s0",
+       "destination": "https://a.com/0",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r1",
+       "title": "Titled",
+       "slashtag": "s1",
+       "destination": "https://a.com/1",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r2",
+       "title": null,
+       "slashtag": "s2",
+       "destination": "https://a.com/2",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r3",
+       "title": null,
+       "slashtag": "s3",
+       "destination": "https://a.com/3",
+       "domain": {},
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r4",
+       "title": null,
+       "slashtag": "s4",
+       "destination": "https://a.com/4",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r5",
+       "title": null,
+       "slashtag": "s5",
+       "destination": "https://a.com/5",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r6",
+       "title": null,
+       "slashtag": "s6",
+       "destination": "https://a.com/6",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r7",
+       "title": null,
+       "slashtag": "s7",
+       "destination": "https://a.com/7",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r8",
+       "title": null,
+       "slashtag": "s8",
+       "destination": "https://a.com/8",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r9",
+       "title": null,
+       "slashtag": "s9",
+       "destination": "https://a.com/9",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r10",
+       "title": null,
+       "slashtag": "s10",
+       "destination": "https://a.com/10",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r11",
+       "title": null,
+       "slashtag": "s11",
+       "destination": "https://a.com/11",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r12",
+       "title": null,
+       "slashtag": "s12",
+       "destination": "https://a.com/12",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r13",
+       "title": null,
+       "slashtag": "s13",
+       "destination": "https://a.com/13",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r14",
+       "title": null,
+       "slashtag": "s14",
+       "destination": "https://a.com/14",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r15",
+       "title": null,
+       "slashtag": "s15",
+       "destination": "https://a.com/15",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r16",
+       "title": null,
+       "slashtag": "s16",
+       "destination": "https://a.com/16",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r17",
+       "title": null,
+       "slashtag": "s17",
+       "destination": "https://a.com/17",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r18",
+       "title": null,
+       "slashtag": "s18",
+       "destination": "https://a.com/18",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r19",
+       "title": null,
+       "slashtag": "s19",
+       "destination": "https://a.com/19",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r20",
+       "title": null,
+       "slashtag": "s20",
+       "destination": "https://a.com/20",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r21",
+       "title": null,
+       "slashtag": "s21",
+       "destination": "https://a.com/21",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r22",
+       "title": null,
+       "slashtag": "s22",
+       "destination": "https://a.com/22",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r23",
+       "title": null,
+       "slashtag": "s23",
+       "destination": "https://a.com/23",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": "r24",
+       "title": null,
+       "slashtag": "s24",
+       "destination": "https://a.com/24",
+       "domain": {
+        "fullName": "rebrand.ly"
+       },
+       "createdAt": "2026-01-01T00:00:00Z"
+      }
+     ]
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb_test",
+      "workspace": "ws1"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25&last=r24",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb_test",
+      "workspace": "ws1"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": "r24",
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "r0",
+         "slug": "s0",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/0",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r1",
+         "slug": "s1",
+         "domain": "rebrand.ly",
+         "name": "Titled",
+         "url": "https://a.com/1",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r2",
+         "slug": "s2",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/2",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r3",
+         "slug": "s3",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/3",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r4",
+         "slug": "s4",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/4",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r5",
+         "slug": "s5",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/5",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r6",
+         "slug": "s6",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/6",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r7",
+         "slug": "s7",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/7",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r8",
+         "slug": "s8",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/8",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r9",
+         "slug": "s9",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/9",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r10",
+         "slug": "s10",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/10",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r11",
+         "slug": "s11",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/11",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r12",
+         "slug": "s12",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/12",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r13",
+         "slug": "s13",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/13",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r14",
+         "slug": "s14",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/14",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r15",
+         "slug": "s15",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/15",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r16",
+         "slug": "s16",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/16",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r17",
+         "slug": "s17",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/17",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r18",
+         "slug": "s18",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/18",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r19",
+         "slug": "s19",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/19",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r20",
+         "slug": "s20",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/20",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r21",
+         "slug": "s21",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/21",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r22",
+         "slug": "s22",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/22",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r23",
+         "slug": "s23",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/23",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r24",
+         "slug": "s24",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/24",
+         "createdAt": 1767225600000
+        }
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "r24",
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "r25",
+         "slug": "s25",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/25",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r26",
+         "slug": "s26",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/26",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "r27",
+         "slug": "s27",
+         "domain": "rebrand.ly",
+         "name": "",
+         "url": "https://a.com/27",
+         "createdAt": 1767225600000
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "rebrandly retries",
+   "source": "rebrandly",
+   "credentials": {
+    "apiKey": "rb"
+   },
+   "routes": [
+    {
+     "pattern": "links",
+     "status": 429,
+     "headers": {
+      "retry-after": "1.5"
+     },
+     "body": {},
+     "times": 1
+    },
+    {
+     "pattern": "links",
+     "status": 500,
+     "headers": {
+      "retry-after": "soon"
+     },
+     "body": {},
+     "times": 1
+    },
+    {
+     "pattern": "links",
+     "status": 502,
+     "headers": {
+      "retry-after": "60"
+     },
+     "body": {},
+     "times": 1
+    },
+    {
+     "pattern": "links",
+     "body": []
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [
+    1500,
+    1600,
+    10000
+   ],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "rebrandly gives up",
+   "source": "rebrandly",
+   "credentials": {
+    "apiKey": "rb"
+   },
+   "routes": [
+    {
+     "pattern": "links",
+     "status": 500,
+     "body": {}
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [
+    800,
+    1600,
+    2400
+   ],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "api.rebrandly.com answered 500",
+      "code": "import_status",
+      "params": {
+       "host": "api.rebrandly.com",
+       "status": "500"
+      },
+      "status": 500,
+      "name": "HttpError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rebrandly unreachable",
+   "source": "rebrandly",
+   "credentials": {
+    "apiKey": "rb"
+   },
+   "routes": [
+    {
+     "pattern": "links",
+     "unreachable": true
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "Could not reach api.rebrandly.com",
+      "code": "unreachable",
+      "params": {
+       "host": "api.rebrandly.com"
+      },
+      "name": "ImportError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "rebrandly unreachable twice",
+   "source": "rebrandly",
+   "credentials": {
+    "apiKey": "rb"
+   },
+   "routes": [
+    {
+     "pattern": "links",
+     "unreachable": true,
+     "times": 2
+    },
+    {
+     "pattern": "links",
+     "status": 404,
+     "body": {}
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "api.rebrandly.com answered 404",
+      "code": "import_status",
+      "params": {
+       "host": "api.rebrandly.com",
+       "status": "404"
+      },
+      "status": 404,
+      "name": "HttpError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "umami sign-in",
+   "source": "umami",
+   "credentials": {
+    "url": " https://stats.example.com// ",
+    "username": "jon",
+    "password": "pw"
+   },
+   "routes": [
+    {
+     "pattern": "\\/api\\/auth\\/login",
+     "body": {
+      "token": "tok"
+     }
+    },
+    {
+     "pattern": "\\/api\\/links\\?",
+     "body": {
+      "data": [
+       {
+        "id": "u-1",
+        "name": "Golden",
+        "url": "https://a.com",
+        "slug": "golden",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null,
+        "customDomain": {
+         "domain": "t.brand.com"
+        }
+       },
+       {
+        "id": "u-2",
+        "name": "Gone",
+        "url": "https://a.com/x",
+        "slug": "gone",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": "2026-02-01T00:00:00Z"
+       },
+       {
+        "id": "u-3",
+        "name": "Known",
+        "url": "https://a.com/k",
+        "slug": "known",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       }
+      ],
+      "count": 3
+     }
+    },
+    {
+     "pattern": "\\/websites\\/u-1\\/events.*page=1&",
+     "body": {
+      "data": [
+       {
+        "sessionId": "s1",
+        "createdAt": "2026-03-01T00:00:00Z",
+        "urlPath": "/golden",
+        "urlQuery": "utm_source=newsletter",
+        "referrerDomain": "",
+        "referrerPath": "",
+        "country": "GB",
+        "city": "London",
+        "device": "mobile",
+        "os": "iOS",
+        "browser": "ios"
+       },
+       {
+        "sessionId": "s2",
+        "createdAt": "2026-03-01T01:00:00Z",
+        "urlPath": "/golden",
+        "urlQuery": "",
+        "referrerDomain": "google.com",
+        "referrerPath": null,
+        "country": "US",
+        "city": null,
+        "device": "desktop",
+        "os": "Mac OS",
+        "browser": "chrome"
+       }
+      ],
+      "count": 3
+     }
+    },
+    {
+     "pattern": "\\/websites\\/u-1\\/events.*page=2&",
+     "body": {
+      "data": [
+       {
+        "sessionId": "s9",
+        "createdAt": "2026-03-02T00:00:00Z",
+        "urlPath": "/golden",
+        "urlQuery": "",
+        "referrerDomain": "t.co",
+        "referrerPath": "/x",
+        "country": "FR",
+        "city": "Paris",
+        "device": "mobile",
+        "os": "Android",
+        "browser": "chrome"
+       }
+      ],
+      "count": 3
+     }
+    },
+    {
+     "pattern": "\\/websites\\/u-1\\/sessions",
+     "body": {
+      "data": [
+       {
+        "id": "s1",
+        "screen": "390x844",
+        "language": "en-GB",
+        "region": "ENG"
+       },
+       {
+        "id": "s2",
+        "screen": "1920x1080",
+        "language": "en-US",
+        "region": "CA"
+       }
+      ],
+      "count": 2
+     }
+    }
+   ],
+   "known": [
+    "known https://a.com/k"
+   ],
+   "ordered": false,
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://stats.example.com/api/auth/login",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json"
+     },
+     "body": "{\"username\":\"jon\",\"password\":\"pw\"}"
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/links?page=1&pageSize=5",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer tok"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/websites/u-1/events?startAt=1767139200000&endAt=1791471905678&page=1&pageSize=1000",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer tok"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/websites/u-1/sessions?startAt=1767139200000&endAt=1791471905678&page=1&pageSize=1000",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer tok"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/websites/u-1/events?startAt=1767139200000&endAt=1791471905678&page=2&pageSize=1000",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer tok"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "u-1",
+     "golden",
+     "https://a.com"
+    ],
+    [
+     "u-3",
+     "known",
+     "https://a.com/k"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": null,
+      "total": 3,
+      "links": [
+       {
+        "link": {
+         "sourceId": "u-1",
+         "slug": "golden",
+         "domain": "t.brand.com",
+         "name": "Golden",
+         "url": "https://a.com",
+         "createdAt": 1767225600000
+        },
+        "clicks": [
+         {
+          "ts": 1772323200000,
+          "visit": "s1",
+          "referrer": "",
+          "path": "/golden",
+          "query": "utm_source=newsletter",
+          "country": "GB",
+          "region": "ENG",
+          "city": "London",
+          "browser": "ios",
+          "os": "iOS",
+          "device": "mobile",
+          "screen": "390x844",
+          "language": "en-GB"
+         },
+         {
+          "ts": 1772326800000,
+          "visit": "s2",
+          "referrer": "https://google.com/",
+          "path": "/golden",
+          "query": "",
+          "country": "US",
+          "region": "CA",
+          "city": null,
+          "browser": "chrome",
+          "os": "Mac OS",
+          "device": "desktop",
+          "screen": "1920x1080",
+          "language": "en-US"
+         },
+         {
+          "ts": 1772409600000,
+          "visit": "s9",
+          "referrer": "https://t.co/x",
+          "path": "/golden",
+          "query": "",
+          "country": "FR",
+          "city": "Paris",
+          "browser": "chrome",
+          "os": "Android",
+          "device": "mobile"
+         }
+        ]
+       },
+       {
+        "link": {
+         "sourceId": "u-3",
+         "slug": "known",
+         "domain": "",
+         "name": "Known",
+         "url": "https://a.com/k",
+         "createdAt": 0
+        },
+        "known": true
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "umami key paged",
+   "source": "umami",
+   "credentials": {
+    "url": "http://stats.example.com",
+    "apiKey": "k"
+   },
+   "routes": [
+    {
+     "pattern": "\\/api\\/links\\?page=1&",
+     "body": {
+      "data": [
+       {
+        "id": "u0",
+        "name": "N0",
+        "url": "https://a.com/0",
+        "slug": "s0",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u1",
+        "name": "N1",
+        "url": "https://a.com/1",
+        "slug": "s1",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u2",
+        "name": "N2",
+        "url": "https://a.com/2",
+        "slug": "s2",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u3",
+        "name": "N3",
+        "url": "https://a.com/3",
+        "slug": "s3",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u4",
+        "name": "N4",
+        "url": "https://a.com/4",
+        "slug": "s4",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       }
+      ],
+      "count": 6
+     }
+    },
+    {
+     "pattern": "\\/api\\/links\\?page=2&",
+     "body": {
+      "data": [
+       {
+        "id": "u5",
+        "name": "N5",
+        "url": "https://a.com/5",
+        "slug": "s5",
+        "createdAt": "x",
+        "deletedAt": null
+       }
+      ],
+      "count": 6
+     }
+    },
+    {
+     "pattern": "\\/websites\\/",
+     "body": {
+      "data": [],
+      "count": 0
+     }
+    }
+   ],
+   "known": [
+    "u0",
+    "u1",
+    "u2",
+    "u3",
+    "u4"
+   ],
+   "ordered": false,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "http://stats.example.com/api/links?page=1&pageSize=5",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "http://stats.example.com/api/links?page=2&pageSize=5",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "http://stats.example.com/api/websites/u5/events?startAt=1791385445678&endAt=1791471905678&page=1&pageSize=1000",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "http://stats.example.com/api/websites/u5/sessions?startAt=1791385445678&endAt=1791471905678&page=1&pageSize=1000",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "u0",
+     "s0",
+     "https://a.com/0"
+    ],
+    [
+     "u1",
+     "s1",
+     "https://a.com/1"
+    ],
+    [
+     "u2",
+     "s2",
+     "https://a.com/2"
+    ],
+    [
+     "u3",
+     "s3",
+     "https://a.com/3"
+    ],
+    [
+     "u4",
+     "s4",
+     "https://a.com/4"
+    ],
+    [
+     "u5",
+     "s5",
+     "https://a.com/5"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": "{\"page\":2}",
+      "total": 6,
+      "links": [
+       {
+        "link": {
+         "sourceId": "u0",
+         "slug": "s0",
+         "domain": "",
+         "name": "N0",
+         "url": "https://a.com/0",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u1",
+         "slug": "s1",
+         "domain": "",
+         "name": "N1",
+         "url": "https://a.com/1",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u2",
+         "slug": "s2",
+         "domain": "",
+         "name": "N2",
+         "url": "https://a.com/2",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u3",
+         "slug": "s3",
+         "domain": "",
+         "name": "N3",
+         "url": "https://a.com/3",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u4",
+         "slug": "s4",
+         "domain": "",
+         "name": "N4",
+         "url": "https://a.com/4",
+         "createdAt": 0
+        },
+        "known": true
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "{\"page\":2}",
+     "result": {
+      "cursor": null,
+      "total": 6,
+      "links": [
+       {
+        "link": {
+         "sourceId": "u5",
+         "slug": "s5",
+         "domain": "",
+         "name": "N5",
+         "url": "https://a.com/5",
+         "createdAt": 1791471845678
+        },
+        "clicks": []
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "umami login paged",
+   "source": "umami",
+   "credentials": {
+    "url": "https://stats.example.com",
+    "username": "jon",
+    "password": "pw"
+   },
+   "routes": [
+    {
+     "pattern": "\\/api\\/auth\\/login",
+     "body": {
+      "token": "tok"
+     }
+    },
+    {
+     "pattern": "\\/api\\/links\\?page=1&",
+     "body": {
+      "data": [
+       {
+        "id": "u0",
+        "name": "N0",
+        "url": "https://a.com/0",
+        "slug": "s0",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u1",
+        "name": "N1",
+        "url": "https://a.com/1",
+        "slug": "s1",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u2",
+        "name": "N2",
+        "url": "https://a.com/2",
+        "slug": "s2",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u3",
+        "name": "N3",
+        "url": "https://a.com/3",
+        "slug": "s3",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u4",
+        "name": "N4",
+        "url": "https://a.com/4",
+        "slug": "s4",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       }
+      ],
+      "count": 6
+     }
+    },
+    {
+     "pattern": "\\/api\\/links\\?page=2&",
+     "body": {
+      "data": [],
+      "count": 6
+     }
+    }
+   ],
+   "known": [
+    "u0",
+    "u1",
+    "u2",
+    "u3",
+    "u4"
+   ],
+   "ordered": false,
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://stats.example.com/api/auth/login",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json"
+     },
+     "body": "{\"username\":\"jon\",\"password\":\"pw\"}"
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/links?page=1&pageSize=5",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer tok"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/links?page=2&pageSize=5",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer tok"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "u0",
+     "s0",
+     "https://a.com/0"
+    ],
+    [
+     "u1",
+     "s1",
+     "https://a.com/1"
+    ],
+    [
+     "u2",
+     "s2",
+     "https://a.com/2"
+    ],
+    [
+     "u3",
+     "s3",
+     "https://a.com/3"
+    ],
+    [
+     "u4",
+     "s4",
+     "https://a.com/4"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": "{\"page\":2,\"token\":\"tok\"}",
+      "total": 6,
+      "links": [
+       {
+        "link": {
+         "sourceId": "u0",
+         "slug": "s0",
+         "domain": "",
+         "name": "N0",
+         "url": "https://a.com/0",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u1",
+         "slug": "s1",
+         "domain": "",
+         "name": "N1",
+         "url": "https://a.com/1",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u2",
+         "slug": "s2",
+         "domain": "",
+         "name": "N2",
+         "url": "https://a.com/2",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u3",
+         "slug": "s3",
+         "domain": "",
+         "name": "N3",
+         "url": "https://a.com/3",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u4",
+         "slug": "s4",
+         "domain": "",
+         "name": "N4",
+         "url": "https://a.com/4",
+         "createdAt": 0
+        },
+        "known": true
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "{\"page\":2,\"token\":\"tok\"}",
+     "result": {
+      "cursor": null,
+      "total": 6,
+      "links": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "umami wrong password",
+   "source": "umami",
+   "credentials": {
+    "url": "https://stats.example.com",
+    "username": "jon",
+    "password": "bad"
+   },
+   "routes": [
+    {
+     "pattern": "\\/api\\/auth\\/login",
+     "body": {}
+    },
+    {
+     "pattern": "\\/api\\/links\\?",
+     "body": {
+      "data": [],
+      "count": 0
+     }
+    }
+   ],
+   "known": [],
+   "ordered": false,
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://stats.example.com/api/auth/login",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json"
+     },
+     "body": "{\"username\":\"jon\",\"password\":\"bad\"}"
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/links?page=1&pageSize=5",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer undefined"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": null,
+      "total": 0,
+      "links": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "umami no address",
+   "source": "umami",
+   "credentials": {
+    "url": "nope"
+   },
+   "routes": [],
+   "known": [],
+   "ordered": false,
+   "requests": [],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "Enter your Umami address, like https://stats.example.com",
+      "code": "import_umami_address",
+      "params": {},
+      "name": "ImportError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "umami no login",
+   "source": "umami",
+   "credentials": {
+    "url": "https://stats.example.com",
+    "username": "jon"
+   },
+   "routes": [],
+   "known": [],
+   "ordered": false,
+   "requests": [],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "Enter an API key, or a username and password",
+      "code": "import_umami_login",
+      "params": {},
+      "name": "ImportError"
+     }
+    }
+   ]
+  }
+ ]
+}

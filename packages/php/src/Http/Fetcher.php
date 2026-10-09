@@ -17,6 +17,7 @@ namespace Runlight\Http;
  * - redirect: "follow" (default) or "manual", which hands back the 3xx answer
  * - timeoutMs: int, the whole request's limit, default 30000
  * - maxBytes: int, stop reading past this and throw BodyTooLong
+ * - truncate: bool, with maxBytes, hand back the first maxBytes instead of throwing (the start of a page)
  * - resolve: list<string> of "host:port:address" pins, so a checked address is the one connected to
  */
 interface Fetcher
