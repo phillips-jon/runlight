@@ -43,14 +43,14 @@ jobs:
         # Each Node major also runs against one of MySQL and MariaDB.
         include:
           - node: 22
-            mysql: mysql:8.4
+            mysql: public.ecr.aws/docker/library/mysql:8.4
             mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
           - node: 24
-            mysql: mariadb:11.4
+            mysql: public.ecr.aws/docker/library/mariadb:11.4
             mysql-health: healthcheck.sh --connect --innodb_initialized
     services:
       postgres:
-        image: postgres:16-alpine
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: pw
           POSTGRES_DB: runlight
@@ -88,14 +88,14 @@ jobs:
       matrix:
         include:
           - php: "8.2"
-            mysql: mysql:8.4
+            mysql: public.ecr.aws/docker/library/mysql:8.4
             mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
           - php: "8.4"
-            mysql: mariadb:11.4
+            mysql: public.ecr.aws/docker/library/mariadb:11.4
             mysql-health: healthcheck.sh --connect --innodb_initialized
     services:
       postgres:
-        image: postgres:16-alpine
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: pw
           POSTGRES_DB: runlight

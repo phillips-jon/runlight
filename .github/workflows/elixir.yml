@@ -27,16 +27,16 @@ jobs:
           - elixir: "1.18.5"
             otp: "27.3"
             newest: false
-            mysql: mysql:8.4
+            mysql: public.ecr.aws/docker/library/mysql:8.4
             mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
           - elixir: "1.20"
             otp: "29"
             newest: true
-            mysql: mariadb:11.4
+            mysql: public.ecr.aws/docker/library/mariadb:11.4
             mysql-health: healthcheck.sh --connect --innodb_initialized
     services:
       postgres:
-        image: postgres:16-alpine
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: pw
           POSTGRES_DB: runlight
@@ -91,9 +91,9 @@ jobs:
       - name: mix compile
         working-directory: packages/elixir
         run: |
-          MIX_ENV=test mix compile --warnings-as-errors
+          env MIX_ENV=test mix compile --warnings-as-errors
           if [ "${{ matrix.newest }}" = "false" ]; then
-            MIX_ENV=dev MIX_BUILD_ROOT=_build/no-optional mix compile --no-optional-deps --warnings-as-errors
+            env MIX_ENV=dev MIX_BUILD_ROOT=_build/no-optional mix compile --no-optional-deps --warnings-as-errors
           fi
       # The test alias sets TZ=UTC, as the fixtures are made.
       - name: mix test
