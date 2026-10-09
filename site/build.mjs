@@ -120,7 +120,7 @@ function readDocs() {
 
 const NAV = [["Docs", "/docs/"], ["Install", "/docs/install/"], ["Privacy", "/docs/privacy/"], ["GitHub", GITHUB]];
 
-function layout({ title, description, body, pagePath, assets, noindex = false }) {
+function layout({ title, description, body, pagePath, assets, noindex = false, head = "" }) {
   const full = pagePath === "/" ? "Runlight | Analytics that lives inside your app" : `${title} | Runlight`;
   const here = (href) => (!href.startsWith("http") && (href === pagePath || (href === "/docs/" && pagePath.startsWith("/docs/") && !NAV.some(([, h]) => h !== "/docs/" && h === pagePath))) ? ' aria-current="page"' : "");
   const links = NAV.map(([label, href]) => `<a href="${href}"${here(href)}>${label}</a>`).join("");
@@ -129,7 +129,7 @@ function layout({ title, description, body, pagePath, assets, noindex = false })
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1">${head ? `\n${head}` : ""}
 <title>${escape(full)}</title>
 <meta name="description" content="${escape(description)}">${noindex ? '\n<meta name="robots" content="noindex">' : ""}
 <link rel="canonical" href="${SITE}${pagePath}">
@@ -275,6 +275,74 @@ ${CONTACT_FORM}`),
   return routes;
 }
 
+/* ---- The Go module's import paths. ---- */
+
+/**
+ * The Go port's import path is runlight.sh/go, so the go command, and the
+ * module proxy for it, asks this site where the code is: for
+ * `go get runlight.sh/go/chi` it fetches /go/chi?go-get=1 and reads the
+ * go-import tag there. Every module and every package a user imports has a
+ * page, each carrying its module's tags and a line for a person who follows
+ * the path in a browser. nginx serves them as directories whatever the query
+ * (deploy/nginx.conf).
+ *
+ * A tag's last field is Go 1.25's subdirectory. The go command puts the part
+ * of a module path past the tag's prefix in front of that subdirectory, so a
+ * nested module under the core's tag would be looked for in
+ * chi/packages/go. Each nested module's page therefore names the module's
+ * own path and directory, and its release tags are packages/go/chi/vX.Y.Z,
+ * the go command's rule for a module below a repository's root
+ * (scripts/release.mjs prints them).
+ */
+const GO_SRC = `${GITHUB}/tree/main`;
+const GO_MODULES = [
+  {
+    path: "runlight.sh/go",
+    dir: "packages/go",
+    docs: "/docs/go/",
+    install: "go get runlight.sh/go",
+    what: "This is the Go version of Runlight, package <code>runlight</code>, which serves the dashboard, the API, and the script from any <code>net/http</code> app with no requirements of its own.",
+    packages: [
+      { name: "server", docs: "/docs/go/#the-standalone-server", what: "This package is the standalone server, which runs Runlight at the root of a domain of its own behind a sign-in." },
+      { name: "mmdb", docs: "/docs/go/", what: "This package reads MaxMind DB files, the format of the GeoLite2 and DB-IP databases, with the standard library alone." },
+    ],
+  },
+  { path: "runlight.sh/go/chi", dir: "packages/go/chi", docs: "/docs/go/#chi", install: "go get runlight.sh/go/chi", what: "This module serves Runlight from a chi router, with the dashboard and API under the routes' base path." },
+  { path: "runlight.sh/go/echo", dir: "packages/go/echo", docs: "/docs/go/#echo", install: "go get runlight.sh/go/echo", what: "This module serves Runlight from an Echo app, with the dashboard and API under the routes' base path." },
+  { path: "runlight.sh/go/cmd/runlight", dir: "packages/go/cmd/runlight", docs: "/docs/go/#the-standalone-server", install: "go install runlight.sh/go/cmd/runlight@latest", what: "This module is the <code>runlight</code> command, which runs the standalone server on SQLite, Postgres, MySQL, or MariaDB." },
+];
+
+/** The go-import and go-source tags for a module. */
+function goMeta(mod) {
+  const src = `${GO_SRC}/${mod.dir}`;
+  return `<meta name="go-import" content="${mod.path} git ${GITHUB} ${mod.dir}">
+<meta name="go-source" content="${mod.path} ${src} ${src}{/dir} ${GITHUB}/blob/main/${mod.dir}{/dir}/{file}#L{line}">`;
+}
+
+/** One page per module and per package in it, under /go/. */
+function buildGoPages(assets) {
+  const route = (importPath) => `/${importPath.replace(/^runlight\.sh\//, "")}/`;
+  const write = (mod, importPath, page) => {
+    const dir = path.join(DIST, route(importPath));
+    mkdirSync(dir, { recursive: true });
+    const parent = importPath === mod.path ? "" : `\n<p>It is a package of the module <a href="${route(mod.path)}"><code>${mod.path}</code></a> and is released with it.</p>`;
+    const source = `${GO_SRC}/${mod.dir}${importPath === mod.path ? "" : `/${importPath.slice(mod.path.length + 1)}`}`;
+    // A break after each slash, so a long path wraps on a phone.
+    const inner = `<h1><code translate="no">${importPath.replace(/\//g, "/<wbr>")}</code></h1>
+<p>${page.what}</p>${parent}
+<div class="code"><pre><code translate="no">${page.install ?? mod.install}</code></pre></div>
+<p>The <a href="${page.docs}">Go guide</a> shows how to set it up, and the <a href="https://pkg.go.dev/${importPath}" rel="noopener">reference on pkg.go.dev</a> and <a href="${source}" rel="noopener">the source</a> have the rest.</p>`;
+    writeFileSync(
+      path.join(dir, "index.html"),
+      layout({ title: importPath, description: `The Go import path ${importPath}, for go get.`, body: solo("Go", inner), pagePath: route(importPath), assets, noindex: true, head: goMeta(mod) }),
+    );
+  };
+  for (const mod of GO_MODULES) {
+    write(mod, mod.path, mod);
+    for (const p of mod.packages ?? []) write(mod, `${mod.path}/${p.name}`, p);
+  }
+}
+
 function build() {
   rmSync(DIST, { recursive: true, force: true });
   mkdirSync(path.join(DIST, "assets"), { recursive: true });
@@ -296,6 +364,7 @@ function build() {
   );
 
   const pages = buildPages(assets);
+  buildGoPages(assets);
   const docs = readDocs();
   for (const doc of docs) {
     const dir = path.join(DIST, doc.path);
