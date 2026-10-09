@@ -107,23 +107,6 @@ type SiteIcon struct {
 // FetchIcon is a site's icon, nil when it has none.
 func FetchIcon(ctx context.Context, fetcher Fetcher, origin string, now int64) *SiteIcon { return nil }
 
-// Period is one report period.
-type Period struct {
-	Key   string
-	DueAt int64
-}
-
-// LastPeriod is the last full period of a frequency.
-func LastPeriod(frequency string, now int64, timezone string) Period { return Period{} }
-
-// DeliverReport builds and sends one report.
-func (r *Runlight) DeliverReport(ctx context.Context, report ReportRow, site SiteRow, period *Period) error {
-	return errPending
-}
-
-// SendReports sends every report that is due.
-func (r *Runlight) SendReports(ctx context.Context) (ReportsCount, error) { return ReportsCount{}, nil }
-
 func (rt *Routes) assistantAPI(c *call, path string, u *whatwg.URL) (*Response, error) {
 	return nil, nil
 }
