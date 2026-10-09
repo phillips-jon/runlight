@@ -12,18 +12,6 @@ import (
 
 var errPending = errors.New("not ported yet")
 
-type oauthHost struct {
-	r         *Runlight
-	base      string
-	isOwner   func(ctx context.Context, request *Request) bool
-	isReader  func(ctx context.Context, request *Request) bool
-	signIn    string
-	accountOf func(ctx context.Context, request *Request) string
-	tokenMade func(ctx context.Context, token TokenRow, by string) bool
-}
-
-func (o *oauthHost) respond(c *call, path string, u *whatwg.URL) (*Response, error) { return nil, nil }
-
 // ConnectError is why connecting another install failed.
 type ConnectError struct{ CodedError }
 
