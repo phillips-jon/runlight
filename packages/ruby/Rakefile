@@ -1,0 +1,27 @@
+# frozen_string_literal: true
+
+require "rake/testtask"
+
+# The Rails engine boots a Rails app, and the conformance replay runs every
+# scenario on every database, so each runs in a process of its own, away from
+# the core tests.
+INTEGRATIONS = %w[rails conformance].freeze
+
+Rake::TestTask.new("test:core") do |t|
+  t.libs << "lib" << "test"
+  t.test_files = FileList["test/**/*_test.rb"].exclude(*INTEGRATIONS.map { |dir| "test/#{dir}/**/*" })
+  t.warning = false
+end
+
+INTEGRATIONS.each do |dir|
+  Rake::TestTask.new("test:#{dir}") do |t|
+    t.libs << "lib" << "test"
+    t.test_files = FileList["test/#{dir}/**/*_test.rb"]
+    t.warning = false # Rails' own warnings would drown the output
+  end
+end
+
+desc "Run every test: core (Postgres when RUNLIGHT_TEST_PG is set, MySQL when RUNLIGHT_TEST_MYSQL is), the conformance replay, then Rails"
+task test: ["test:core", *INTEGRATIONS.map { |dir| "test:#{dir}" }]
+
+task default: :test
