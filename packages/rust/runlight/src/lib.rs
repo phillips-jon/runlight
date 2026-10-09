@@ -9,9 +9,10 @@
 use std::future::Future;
 use std::pin::Pin;
 
+pub mod accounts;
 pub mod assets;
-pub mod brand;
 pub mod assistant;
+pub mod brand;
 pub mod data;
 mod error;
 pub use error::Error;
