@@ -52,6 +52,7 @@ jobs:
       contents: read
     with:
       tag: ${{ inputs.tag }}
+      workflows: ci.yml elixir.yml
 
   build:
     needs: ci

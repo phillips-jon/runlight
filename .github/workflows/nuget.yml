@@ -54,6 +54,7 @@ jobs:
       contents: read
     with:
       tag: ${{ inputs.tag }}
+      workflows: ci.yml dotnet.yml
 
   pack:
     needs: ci
