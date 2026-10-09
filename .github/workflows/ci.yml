@@ -1,6 +1,6 @@
 # Every push and pull request: the dash check (files and commit messages),
-# typecheck, the tests against SQLite and Postgres, and a build, on the two
-# Node majors better-sqlite3 13 supports.
+# typecheck, the tests against SQLite, Postgres, and MySQL or MariaDB, and a
+# build, on the two Node majors better-sqlite3 13 supports.
 name: CI
 
 on:
@@ -39,7 +39,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [22, 24]
+        # Each Node major also runs against one of MySQL and MariaDB.
+        include:
+          - node: 22
+            mysql: mysql:8.4
+            mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
+          - node: 24
+            mysql: mariadb:11.4
+            mysql-health: healthcheck.sh --connect --innodb_initialized
     services:
       postgres:
         image: postgres:16-alpine
@@ -49,8 +56,18 @@ jobs:
         ports: ["5432:5432"]
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: ${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: pw
+          MARIADB_ROOT_PASSWORD: pw
+          MYSQL_DATABASE: runlight
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "${{ matrix.mysql-health }}" --health-interval 5s --health-timeout 5s --health-retries 20
     env:
       RUNLIGHT_TEST_PG: postgres://postgres:pw@127.0.0.1:5432/runlight
+      RUNLIGHT_TEST_MYSQL: mysql://root:pw@127.0.0.1:3306/runlight
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

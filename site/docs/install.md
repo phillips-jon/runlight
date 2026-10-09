@@ -27,7 +27,7 @@ Add the script to your root layout.
 </head>
 ```
 
-Runlight needs the Node runtime (it uses SQLite or Postgres), which is the default for route handlers.
+Runlight needs the Node runtime (it uses SQLite, Postgres, or MySQL), which is the default for route handlers.
 
 ## Express and plain Node
 

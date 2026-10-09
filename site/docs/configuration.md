@@ -36,6 +36,18 @@ postgres({ url: process.env.DATABASE_URL });
 
 Postgres needs `pg`. Pass `url`, or pass `pool` to share a pool your app already has (Runlight never ends a pool it did not make). A pool needs at least 2 connections. When Runlight makes the pool, `max` sets its connections and defaults to 10, a request waits at most 10 seconds for a free one (a tracker hit tries twice more before it is let go), and `statementTimeout` stops any one query after that many milliseconds, 120000 by default (0 turns it off). If several processes start at once, the tables are still created only once.
 
+### MySQL and MariaDB
+
+```ts
+import { mysql } from "@runlight/sdk/mysql";
+
+mysql({ url: process.env.DATABASE_URL });
+```
+
+This store needs `mysql2` and works with MySQL 8.4 or later and MariaDB 11.4 or later. Pass a `mysql://` or `mariadb://` URL as `url`, or pass `pool` to share a pool from `mysql2/promise` your app already has (Runlight never ends a pool it did not make). A pool needs at least 2 connections. When Runlight makes the pool, `max` sets its connections and defaults to 10, a request waits at most 10 seconds for a free one (a tracker hit tries twice more before it is let go), and `statementTimeout` stops any one query after that many milliseconds, 120000 by default (0 turns it off). On MySQL that limit covers reads, and on MariaDB it covers every statement. If several processes start at once, the tables are still created only once.
+
+The tables use `utf8mb4` with the `utf8mb4_0900_bin` collation. Text is compared and sorted by code point, with case and trailing spaces kept, so every report reads the same as it would on SQLite or Postgres.
+
 ### libSQL and Turso
 
 ```ts
@@ -71,7 +83,7 @@ This store uses Bun’s built-in SQLite, for apps on Bun, where `better-sqlite3`
 
 | Option | Default | What it does |
 | --- | --- | --- |
-| `store` | (required) | Where the numbers live, one of `sqlite`, `postgres`, `libsql`, `d1`, or `bunSqlite`. |
+| `store` | (required) | Where the numbers live, one of `sqlite`, `postgres`, `mysql`, `libsql`, `d1`, or `bunSqlite`. |
 | `site` | `{}` | The site this install counts. |
 | `sites` | | Several sites in one install, each with its hostnames, used in place of `site`. |
 | `geo` | | Your own location lookup, for hosts that send no location headers. |

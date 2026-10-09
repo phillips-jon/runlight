@@ -131,7 +131,7 @@ The server reads its settings from environment variables.
 | `PORT` | The port to listen on. The default is 3000. |
 | `HOST` | The address to listen on. The default is `0.0.0.0`. |
 | `DATA_DIR` | The folder for the SQLite file, the secret, and the location data. The default is `./runlight-data`, or `/data` in Docker. |
-| `DATABASE_URL` | A `postgres://` address, to keep the data in Postgres instead of SQLite. |
+| `DATABASE_URL` | A `postgres://` address keeps the data in Postgres instead of SQLite, and a `mysql://` or `mariadb://` address keeps it in MySQL or MariaDB. |
 | `RUNLIGHT_SECRET` | The key that signs sign-ins and encrypts saved keys, for mail, the AI Assistant, connected installs, and two-factor sign-in. Without it, the server makes one and keeps it in `DATA_DIR`. |
 | `RUNLIGHT_URL` | The server’s public address, such as `https://stats.example.com`, which can never become a link domain. Invite and report emails link to it. |
 | `RUNLIGHT_TOKEN` | A token that scripts can send as a bearer, in addition to the [API tokens](/docs/mcp/) made in the dashboard. |
@@ -149,7 +149,7 @@ Back up the data folder. It holds the SQLite file and the `secret` file, and wit
 
 ## Running more than one copy
 
-Several copies of the server can share one Postgres database, for example behind a load balancer. Each copy rereads the list of sites and connected installs every five minutes, so one added on any copy appears on the others within five minutes. Everything else, from visits to goals and links, is shared at once.
+Several copies of the server can share one Postgres, MySQL, or MariaDB database, for example behind a load balancer. Each copy rereads the list of sites and connected installs every five minutes, so one added on any copy appears on the others within five minutes. Everything else, from visits to goals and links, is shared at once.
 
 ## AI agents from a log
 
