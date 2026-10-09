@@ -66,6 +66,13 @@ abstract class StoreTestCase {
     return q(NOW - 12 * HOUR, NOW + 12 * HOUR, filters);
   }
 
+  /** A UTC time in milliseconds, as gmmktime(hour, 0, 0, month, day, year) * 1000. */
+  static long utc(int year, int month, int day, int hour) {
+    return java.time.LocalDateTime.of(year, month, day, hour, 0)
+        .toInstant(java.time.ZoneOffset.UTC)
+        .toEpochMilli();
+  }
+
   /** One filter for q() and today(). */
   static String[] w(String dimension, String op, String value) {
     return new String[] {dimension, op, value};
