@@ -41,9 +41,9 @@ type Pending = Arc<OnceCell<Option<Icon>>>;
 /// Lookups under way, so many dashboards opening at once share one.
 static PENDING: LazyLock<Mutex<HashMap<String, Pending>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// `match` of `name\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))` at byte `at` (the
-/// name already matched), as the value's text.
-fn value_at(tag: &str, mut at: usize) -> Option<&str> {
+/// The value after a name at byte `at`, as
+/// `(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?` reads it, and where it ends.
+fn value_at(tag: &str, mut at: usize) -> Option<(&str, usize)> {
     let skip = |at: usize| at + tag[at..].chars().take_while(|c| js::is_space(*c)).map(char::len_utf8).sum::<usize>();
     at = skip(at);
     if !tag[at..].starts_with('=') {
@@ -55,30 +55,48 @@ fn value_at(tag: &str, mut at: usize) -> Option<&str> {
         if let Some(inner) = rest.strip_prefix(quote)
             && let Some(end) = inner.find(quote)
         {
-            return Some(&inner[..end]);
+            return Some((&inner[..end], at + end + 2));
         }
     }
     let len: usize = rest.chars().take_while(|c| !js::is_space(*c) && *c != '>').map(char::len_utf8).sum();
-    if len == 0 { None } else { Some(&rest[..len]) }
+    if len == 0 { None } else { Some((&rest[..len], at + len)) }
 }
 
 fn word(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
 }
 
-/// `new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag)`, its value trimmed.
-fn attr(tag: &str, name: &str) -> String {
-    let b = tag.as_bytes();
-    let n = name.len();
-    for i in 0..b.len() {
-        if i + n > b.len() || (i > 0 && word(b[i - 1])) || !b[i..i + n].eq_ignore_ascii_case(name.as_bytes()) {
+/// A character that cannot be in an attribute's name: `[\s"'>/=]`.
+fn not_name(c: char) -> bool {
+    js::is_space(c) || matches!(c, '"' | '\'' | '>' | '/' | '=')
+}
+
+/// A tag's attributes, read one after another so a name inside another
+/// (data-rel) or inside a value (title="rel=icon") is never taken for one.
+/// The first of a repeated name counts, as in a browser. Each match of
+/// `/([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g` after `<link`.
+fn attrs(tag: &str) -> HashMap<String, String> {
+    let mut out = HashMap::new();
+    let mut at = "<link".len();
+    while at < tag.len() {
+        let c = tag[at..].chars().next().unwrap_or(' ');
+        if not_name(c) {
+            at += c.len_utf8();
             continue;
         }
-        if let Some(value) = value_at(tag, i + n) {
-            return js::trim(value).to_string();
-        }
+        let len: usize = tag[at..].chars().take_while(|c| !not_name(*c)).map(char::len_utf8).sum();
+        let name = tag[at..at + len].to_lowercase();
+        at += len;
+        let value = match value_at(tag, at) {
+            Some((value, end)) => {
+                at = end;
+                js::trim(value).to_string()
+            }
+            None => String::new(),
+        };
+        out.entry(name).or_insert(value);
     }
-    String::new()
+    out
 }
 
 /// Every match of `/<link\b[^>]*>/gi`.
@@ -106,13 +124,15 @@ fn link_tags(html: &str) -> Vec<&str> {
 pub fn icon_links(html: &str, base: &str) -> Vec<String> {
     let mut found: Vec<(String, u8)> = Vec::new();
     for tag in link_tags(html) {
-        let rel_text = attr(tag, "rel").to_lowercase();
+        let attributes = attrs(tag);
+        let get = |name: &str| attributes.get(name).map_or("", String::as_str);
+        let rel_text = get("rel").to_lowercase();
         let rel: Vec<&str> = rel_text.split(js::is_space).collect();
-        let href = attr(tag, "href");
+        let href = get("href");
         if href.is_empty() || !(rel.contains(&"icon") || rel.contains(&"apple-touch-icon")) {
             continue;
         }
-        let Some(url) = Url::parse_with_base(&href, base) else {
+        let Some(url) = Url::parse_with_base(href, base) else {
             continue;
         };
         let url = url.href();
@@ -120,7 +140,7 @@ pub fn icon_links(html: &str, base: &str) -> Vec<String> {
         if !url.starts_with("https://") {
             continue;
         }
-        let kind = attr(tag, "type").to_lowercase();
+        let kind = get("type").to_lowercase();
         let score = if rel.contains(&"apple-touch-icon") {
             3
         } else if kind.contains("svg") || url.ends_with(".svg") {

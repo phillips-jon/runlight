@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Mutex};
 
 use runlight::BoxFuture;
-use runlight::connect::{ConnectError, ConnectFailure, finish_connect, start_connect};
+use runlight::connect::{ConnectError, ConnectFailure, finish_connect, install_url, start_connect};
 use runlight::http::{FetchError, FetchInit, Fetcher, Headers, Response, SearchParams, Url};
 use runlight::js::{self, Value};
 use runlight::{Runlight, RunlightOptions};
@@ -282,4 +282,42 @@ async fn an_install_that_cannot_connect_says_why() {
         "register",
     );
     assert_eq!(e.message, format!("{APP} would not let this server connect. It answered 500."));
+}
+
+#[test]
+fn an_address_the_url_parser_refuses_is_the_address_error() {
+    for url in ["https://[", "https://[::1", "https://a b"] {
+        assert_eq!(install_url(Some(&Value::from(url))).unwrap_err().code, "url", "{url}");
+    }
+    assert_eq!(
+        install_url(Some(&Value::from("https://example.com/runlight/"))).unwrap(),
+        "https://example.com/runlight"
+    );
+}
+
+#[tokio::test]
+async fn an_attempt_saved_without_an_expiry_has_expired() {
+    let router = default_install();
+    let hub = hub(router.clone(), Arc::new(AtomicI64::new(START)), true).await;
+    let state = "a".repeat(32);
+    let key = format!("connect:{state}");
+    let no_expiry = format!(
+        "{{\"url\":\"{APP}\",\"client\":\"c\",\"verifier\":\"v\",\"redirect\":\"https://hub.example/done\",\"token\":\"{APP}/oauth/token\"}}"
+    );
+    for stored in [no_expiry.as_str(), "null", "5", "{\"expires\":\"9999999999999\"}", "not json"] {
+        hub.store().set_setting(&key, Some(stored)).await.unwrap();
+        refused(finish_connect(&hub, &params(&[("state", &state), ("code", "c")])).await, "expired");
+    }
+    assert!(router.requests.lock().unwrap().is_empty(), "nothing was fetched");
+    // Starting clears every attempt that cannot be read or has no expiry.
+    let fresh = hub_with(default_install()).await;
+    for (letter, value) in [('b', "null"), ('c', "5"), ('d', "not json"), ('e', "{\"url\":\"x\"}")] {
+        fresh.store().set_setting(&format!("connect:{}", letter.to_string().repeat(32)), Some(value)).await.unwrap();
+    }
+    start_connect(&fresh, Some(&Value::from(APP)), "https://hub.example/done", "").await.unwrap();
+    assert_eq!(fresh.store().settings_starting_with("connect:").await.unwrap().len(), 1);
+}
+
+async fn hub_with(router: Arc<Router>) -> Runlight {
+    hub(router, Arc::new(AtomicI64::new(START)), true).await
 }

@@ -457,29 +457,35 @@ pub async fn call_tool(params: &Value, read_api: &dyn ApiRead) -> Result<Value, 
     let ToolRequest { path, params: query } = tool.request(&args);
     let answer = read_api.read(&path, &query).await.map_err(|e| McpError::thrown(e.to_string()))?;
     let body = answer.json_body().unwrap_or_else(|_| obj! {});
+    // Any body that is not an object (null included) carries no words of its own.
+    let object = matches!(body, Value::Object(_));
     if !answer.ok() {
-        let text = match member(&body, "error")? {
+        let text = match body.get("error").filter(|_| object) {
             None | Some(Value::Null) => format!("Runlight answered {}", answer.status),
             Some(error) => js::js_string(error),
         };
         return Ok(obj! { "content" => arr![obj! { "type" => "text", "text" => text }], "isError" => true });
     }
-    let shaped = tool.shape(&body)?;
+    let shaped = if object { tool.shape(&body)? } else { body };
     Ok(obj! { "content" => arr![obj! { "type" => "text", "text" => js::stringify(&shaped) }] })
 }
 
-/// One message's answer, or `None` for a notification. `Err` is the
-/// TypeError JavaScript throws for a message of `null`.
-async fn answer(message: &Value, read_api: &dyn ApiRead) -> Result<Option<Value>, BoxError> {
-    if message.is_null() {
-        return Err("Cannot read properties of null (reading 'id')".into());
+/// One message's answer, or `None` for a notification.
+async fn answer(message: &Value, read_api: &dyn ApiRead) -> Option<Value> {
+    // A batch element that is not an object is an invalid request, answered with a null id.
+    if !matches!(message, Value::Object(_)) {
+        return Some(rpc_error(None, -32600, "Invalid request"));
     }
     let id = message.get("id");
     let is_notification = id.is_none();
     let method = match message.get("method") {
         Some(Value::String(m)) if message.get("jsonrpc").and_then(Value::as_str) == Some("2.0") => m.as_str(),
-        _ => return Ok(if is_notification { None } else { Some(rpc_error(id, -32600, "Invalid request")) }),
+        _ => return if is_notification { None } else { Some(rpc_error(id, -32600, "Invalid request")) },
     };
+    // A notification is never answered, so it never runs anything either.
+    if is_notification {
+        return None;
+    }
     let params = object_or_empty(message.get("params"));
     let result = match method {
         "initialize" => {
@@ -511,30 +517,20 @@ async fn answer(message: &Value, read_api: &dyn ApiRead) -> Result<Option<Value>
             ),
         }),
         "tools/call" => call_tool(&params, read_api).await,
-        _ => {
-            if is_notification {
-                return Ok(None);
-            }
-            return Ok(Some(rpc_error(id, -32601, &format!("Unknown method \"{method}\""))));
-        }
+        _ => return Some(rpc_error(id, -32601, &format!("Unknown method \"{method}\""))),
     };
-    if is_notification {
-        return Ok(None);
-    }
-    Ok(Some(match result {
+    Some(match result {
         Ok(result) => obj! { "jsonrpc" => "2.0", "id" => id.cloned().unwrap_or(Value::Null), "result" => result },
         Err(McpError { message, code: Some(code) }) if code != 0 => rpc_error(id, code, &message),
         Err(McpError { code, .. }) => rpc_error(id, code.unwrap_or(-32603), "Internal error"),
-    }))
+    })
 }
 
 fn json_headers() -> Headers {
     Headers::new().with("content-type", "application/json; charset=utf-8").with("cache-control", "no-store")
 }
 
-/// Answers one POST to the MCP endpoint, already authorised. `Err` is what
-/// the TypeScript throws rather than answers (a batch holding `null`), for
-/// the routes to treat as any error they did not expect.
+/// Answers one POST to the MCP endpoint, already authorised.
 pub async fn mcp_response(request: &Request, read_api: &dyn ApiRead) -> Result<Response, BoxError> {
     let body = match request.json() {
         Ok(body @ (Value::Object(_) | Value::Array(_))) => body,
@@ -545,20 +541,9 @@ pub async fn mcp_response(request: &Request, read_api: &dyn ApiRead) -> Result<R
     };
     // Batches were in the 2025-03-26 protocol; answering them costs nothing.
     if let Value::Array(messages) = &body {
-        // Every message is answered, as Promise.all starts them all, before a failure is thrown.
         let mut answers = Vec::new();
-        let mut failure = None;
         for message in messages {
-            match answer(message, read_api).await {
-                Ok(Some(one)) => answers.push(one),
-                Ok(None) => {}
-                Err(e) => {
-                    failure.get_or_insert(e);
-                }
-            }
-        }
-        if let Some(e) = failure {
-            return Err(e);
+            answers.extend(answer(message, read_api).await);
         }
         return Ok(if answers.is_empty() {
             Response::status(202)
@@ -566,7 +551,7 @@ pub async fn mcp_response(request: &Request, read_api: &dyn ApiRead) -> Result<R
             Response::new(js::stringify(&Value::Array(answers)), 200, json_headers())
         });
     }
-    Ok(match answer(&body, read_api).await? {
+    Ok(match answer(&body, read_api).await {
         Some(one) => Response::new(js::stringify(&one), 200, json_headers()),
         None => Response::status(202),
     })
