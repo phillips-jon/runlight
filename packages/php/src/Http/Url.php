@@ -22,6 +22,9 @@ final class Url
     public string $search;
     public string $hash;
 
+    /** A URL of another scheme written with an authority, such as android-app://com.google.android.gm/. */
+    private bool $hasAuthority = false;
+
     private const DEFAULT_PORTS = ['http:' => '80', 'https:' => '443', 'ws:' => '80', 'wss:' => '443', 'ftp:' => '21'];
 
     /** Throws \InvalidArgumentException when `$input` is not a URL, as `new URL()` throws a TypeError. */
@@ -42,6 +45,15 @@ final class Url
             // Not a special scheme (mailto:, data:, javascript:): kept as it came.
             $this->hostname = '';
             $this->port = '';
+            if (str_starts_with($rest, '//')) {
+                // An authority after the scheme (android-app://com.google.android.gm/) is an opaque host, kept in its case.
+                $rest = substr($rest, 2);
+                $end = strcspn($rest, '/?#');
+                $this->opaqueAuthority(substr($rest, 0, $end));
+                $this->hasAuthority = true;
+                $this->tail(substr($rest, $end), '');
+                return;
+            }
             [$rest, $this->hash] = self::cut($rest, '#');
             [$this->pathname, $this->search] = self::cut($rest, '?');
             return;
@@ -79,7 +91,7 @@ final class Url
 
     public function href(): string
     {
-        if (!isset(self::DEFAULT_PORTS[$this->protocol])) {
+        if (!isset(self::DEFAULT_PORTS[$this->protocol]) && !$this->hasAuthority) {
             return $this->protocol . $this->pathname . $this->search . $this->hash;
         }
         $auth = $this->username !== '' || $this->password !== '' ? $this->username . ($this->password !== '' ? ":$this->password" : '') . '@' : '';
@@ -113,7 +125,8 @@ final class Url
         $this->protocol = $base->protocol;
         $input = isset(self::DEFAULT_PORTS[$this->protocol]) ? str_replace('\\', '/', $input) : $input;
         if (str_starts_with($input, '//')) {
-            $rest = substr($input, 2);
+            // A special scheme skips any further slashes before the host: ///x is the host x.
+            $rest = isset(self::DEFAULT_PORTS[$this->protocol]) ? ltrim($input, '/') : substr($input, 2);
             $end = strcspn($rest, '/?#');
             $this->authority(substr($rest, 0, $end));
             $this->tail(substr($rest, $end), '/');
@@ -196,11 +209,30 @@ final class Url
         $this->port = $port;
     }
 
+    private function opaqueAuthority(string $authority): void
+    {
+        $at = strrpos($authority, '@');
+        if ($at !== false) {
+            [$name, $pass] = self::cut(substr($authority, 0, $at), ':');
+            $this->username = self::encode($name, self::USERINFO);
+            $this->password = $pass === '' ? '' : self::encode(substr($pass, 1), self::USERINFO);
+            $authority = substr($authority, $at + 1);
+        }
+        $colon = strrpos($authority, ':');
+        $host = $colon === false ? $authority : substr($authority, 0, $colon);
+        $port = $colon === false ? '' : substr($authority, $colon + 1);
+        if (preg_match('/[\x00 #\/:<>?@\[\\\\\]^|]/', $host) || ($port !== '' && (!ctype_digit($port) || (int) $port > 65535))) {
+            throw new \InvalidArgumentException('Invalid URL');
+        }
+        $this->hostname = self::encode($host, '');
+        $this->port = $port === '' ? '' : (string) (int) $port;
+    }
+
     private function tail(string $rest, string $empty): void
     {
         [$rest, $hash] = self::cut($rest, '#');
         [$path, $query] = self::cut($rest, '?');
-        $this->pathname = self::path($path === '' ? $empty : $path);
+        $this->pathname = $path === '' && $empty === '' ? '' : self::path($path === '' ? $empty : $path);
         $this->search = strlen($query) > 1 ? '?' . self::query(substr($query, 1)) : '';
         $this->hash = strlen($hash) > 1 ? '#' . self::fragment(substr($hash, 1)) : '';
     }

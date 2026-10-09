@@ -120,7 +120,8 @@ final class SearchParams implements \IteratorAggregate
     private static function decode(string $text): string
     {
         $text = rawurldecode(str_replace('+', ' ', $text));
-        return mb_check_encoding($text, 'UTF-8') ? $text : mb_convert_encoding($text, 'UTF-8', 'UTF-8');
+        // Bytes that are not UTF-8 become U+FFFD, as URLSearchParams decodes them.
+        return \Runlight\Js::scrub($text);
     }
 
     /** The form encoding: letters, digits, and *-._ as they are, spaces as +, the rest escaped. */
