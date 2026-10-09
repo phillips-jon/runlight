@@ -349,6 +349,9 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 @media (prefers-reduced-motion: reduce) {
   .floater, .dot.on, .wires path { animation: none; }
 }
+@media (min-width: 1360px) {
+  .floaters { right: -96px; }
+}
 @media (max-width: 1100px) {
   .floaters { display: none; }
   .opening .say { max-width: 21em; }
