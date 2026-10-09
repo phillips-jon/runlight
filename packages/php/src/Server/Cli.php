@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Runlight\Server;
 
 use Runlight\Accounts\Crypto;
+use Runlight\Http\Fetcher;
 use Runlight\Version;
 
 /**
  * The commands behind vendor/bin/runlight, the PHP counterpart of `npx runlight.sh`'s: the scheduled check for a
- * crontab, a new password for someone locked out, the tables, and the setup link.
+ * crontab, a new password for someone locked out, the tables, the setup link, and the access log reader for AI
+ * agents.
  */
 final class Cli
 {
@@ -17,11 +19,12 @@ final class Cli
         Runlight %s, privacy friendly web analytics for any number of sites.
 
         Usage:
-          vendor/bin/runlight cron              Run the scheduled check, and fetch this month's location data
-          vendor/bin/runlight password <email>  Make an account, or give one a new password
-          vendor/bin/runlight setup             Print the link that makes the first account
-          vendor/bin/runlight migrate           Create or update Runlight's tables
-          vendor/bin/runlight --version         Print the version
+          vendor/bin/runlight cron                 Run the scheduled check, and fetch this month's location data
+          vendor/bin/runlight password <email>     Make an account, or give one a new password
+          vendor/bin/runlight setup                Print the link that makes the first account
+          vendor/bin/runlight migrate              Create or update Runlight's tables
+          vendor/bin/runlight agents --log <file>  Count AI agents from a web server's access log
+          vendor/bin/runlight --version            Print the version
 
         Add --config <file> to read settings from a config.php other than the
         project folder's. Settings are the standalone drop-in's, read from the
@@ -36,6 +39,24 @@ final class Cli
 
         TEXT;
 
+    public const AGENTS_HELP = <<<'TEXT'
+        Count AI agents on a site that has only the script tag, from its web server's log.
+
+        Usage:
+          vendor/bin/runlight agents --log /var/log/nginx/access.log --to https://stats.example.com --key rlo_...
+
+          --log <file>    The access log, in nginx or Apache's combined format, or Caddy's JSON
+          --to <url>      Your Runlight, as its dashboard address (or RUNLIGHT_URL)
+          --key <key>     The site's key from Settings, Install, Key for CMS plugins (or RUNLIGHT_OBSERVE_KEY)
+          --site <url>    The site's address, such as https://example.com, when the log has no host in it
+          --follow        Keep running and send fetches as they happen
+          --state <file>  Remember where it stopped, so the next run, or a restarted --follow, starts there.
+                          Only one run at a time can use it.
+
+        Docs: https://runlight.sh/docs/php/#ai-agents-from-a-log
+
+        TEXT;
+
     /**
      * Runs one command and returns the exit code.
      *
@@ -43,8 +64,9 @@ final class Cli
      * @param string $root the project folder, which holds vendor/
      * @param resource|null $out
      * @param resource|null $err
+     * @param Fetcher|null $fetcher reaches Runlight for the agents command, CurlFetcher by default
      */
-    public static function run(array $args, string $root, $out = null, $err = null, ?callable $now = null): int
+    public static function run(array $args, string $root, $out = null, $err = null, ?callable $now = null, ?Fetcher $fetcher = null): int
     {
         $out ??= STDOUT;
         $err ??= STDERR;
@@ -78,6 +100,8 @@ final class Cli
                     return self::password(new Config($root, $file), $args[1] ?? null, $out, $err, $now);
                 case 'setup':
                     return self::setup(new Config($root, $file), $out);
+                case 'agents':
+                    return self::agents(array_slice($args, 1), $root, $file, $out, $err, $now, $fetcher);
                 case 'migrate':
                     $config = new Config($root, $file);
                     $rl = $config->standalone(['now' => $now], false)->runlight;
@@ -156,6 +180,84 @@ final class Cli
             . ($reset ? "Two-factor sign-in is now off for this account; turn it on again under Account.\n" : '')
             . "Sign in, and change it by running this again whenever you like.\n");
         return 0;
+    }
+
+    /**
+     * Reads a web server's access log and sends the AI agent fetches in it to a Runlight, as `npx runlight.sh
+     * agents` does. --to and --key default to RUNLIGHT_URL and RUNLIGHT_OBSERVE_KEY, from the environment or
+     * config.php. With --follow it runs until it is stopped, and a stop by SIGINT or SIGTERM releases the
+     * state file's lock on the way out.
+     *
+     * @param list<string> $args
+     * @param resource $out
+     * @param resource $err
+     */
+    private static function agents(array $args, string $root, ?string $file, $out, $err, callable $now, ?Fetcher $fetcher): int
+    {
+        $flag = static function (string $name) use ($args): ?string {
+            $at = array_search("--$name", $args, true);
+            return $at !== false ? ($args[$at + 1] ?? null) : null;
+        };
+        if (in_array('--help', $args, true) || in_array('-h', $args, true)) {
+            fwrite($out, self::AGENTS_HELP);
+            return 0;
+        }
+        $log = $flag('log');
+        $to = $flag('to');
+        $key = $flag('key');
+        if ($to === null || $key === null) {
+            $config = new Config($root, $file);
+            $to ??= $config->get('RUNLIGHT_URL');
+            $key ??= $config->get('RUNLIGHT_OBSERVE_KEY');
+        }
+        if ($log === null || $log === '' || $to === null || $to === '' || $key === null || $key === '') {
+            fwrite($err, self::AGENTS_HELP);
+            return 1;
+        }
+        $follow = in_array('--follow', $args, true);
+        $stopped = false;
+        if ($follow && function_exists('pcntl_signal')) {
+            pcntl_async_signals(true);
+            foreach ([SIGINT, SIGTERM] as $signal) {
+                pcntl_signal($signal, static function () use (&$stopped): void {
+                    $stopped = true;
+                });
+            }
+        }
+        $site = $flag('site');
+        $state = $flag('state');
+        Agents::run([
+            'log' => self::absolute($log),
+            'to' => $to,
+            'key' => $key,
+            'follow' => $follow,
+            'out' => static function (string $line) use ($out): void {
+                fwrite($out, "$line\n");
+            },
+            'stop' => static function () use (&$stopped): bool {
+                return $stopped;
+            },
+            'now' => $now,
+        ] + ($site !== null && $site !== '' ? ['site' => $site] : []) + ($state !== null && $state !== '' ? ['state' => self::absolute($state)] : []) + ($fetcher !== null ? ['fetcher' => $fetcher] : []));
+        return 0;
+    }
+
+    /** A path made absolute from the working folder, with . and .. resolved, as Node's path.resolve does. */
+    private static function absolute(string $path): string
+    {
+        $path = str_starts_with($path, '/') ? $path : (getcwd() ?: '.') . "/$path";
+        $parts = [];
+        foreach (explode('/', $path) as $part) {
+            if ($part === '' || $part === '.') {
+                continue;
+            }
+            if ($part === '..') {
+                array_pop($parts);
+            } else {
+                $parts[] = $part;
+            }
+        }
+        return '/' . implode('/', $parts);
     }
 
     /** @param resource $out */

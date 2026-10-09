@@ -1,0 +1,3148 @@
+{
+  "now": 1791471845678,
+  "cases": [
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /blog/post?x=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /blog/post?x=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/blog/post?x=1",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/blog/post?x=1",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /blog/post?x=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/blog/post?x=1",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/blog/post?x=1",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /blog/post?x=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/blog/post?x=1",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/blog/post?x=1",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /blog/post?x=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a b/x/../c#d?q=\"x\"&'y' HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a b/x/../c#d?q=\"x\"&'y' HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a b/x/../c#d?q=\"x\"&'y' HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a b/x/../c#d?q=\"x\"&'y' HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a b/x/../c#d?q=\"x\"&'y' HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a? HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a? HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/a?",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/a?",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a? HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/a?",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/a?",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a? HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/a?",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/a?",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a? HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a?b?c HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a?b?c HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/a?b?c",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/a?b?c",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a?b?c HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/a?b?c",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/a?b?c",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a?b?c HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/a?b?c",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/a?b?c",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /a?b?c HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /%2e%2e/secret HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /%2e%2e/secret HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/secret",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/secret",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /%2e%2e/secret HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/secret",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/secret",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /%2e%2e/secret HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/secret",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/secret",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /%2e%2e/secret HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /./a/./b/. HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /./a/./b/. HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/a/b/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/a/b/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /./a/./b/. HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/a/b/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/a/b/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /./a/./b/. HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/a/b/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/a/b/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /./a/./b/. HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /café/😀?q=é HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /café/😀?q=é HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/caf%C3%A9/%F0%9F%98%80?q=%C3%A9",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/caf%C3%A9/%F0%9F%98%80?q=%C3%A9",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /café/😀?q=é HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/caf%C3%A9/%F0%9F%98%80?q=%C3%A9",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/caf%C3%A9/%F0%9F%98%80?q=%C3%A9",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /café/😀?q=é HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/caf%C3%A9/%F0%9F%98%80?q=%C3%A9",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/caf%C3%A9/%F0%9F%98%80?q=%C3%A9",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /café/😀?q=é HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /\\evil.example/x?y=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /\\evil.example/x?y=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com//evil.example/x?y=1",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com//evil.example/x?y=1",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /\\evil.example/x?y=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com//evil.example/x?y=1",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com//evil.example/x?y=1",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /\\evil.example/x?y=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com//evil.example/x?y=1",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com//evil.example/x?y=1",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /\\evil.example/x?y=1 HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET //evil.example/x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET //evil.example/x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/evil.example/x",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/evil.example/x",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET //evil.example/x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/evil.example/x",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/evil.example/x",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET //evil.example/x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/evil.example/x",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/evil.example/x",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET //evil.example/x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET ///x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET ///x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/x",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/x",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET ///x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/x",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/x",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET ///x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/x",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/x",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET ///x HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /x\ty HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /x\ty HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/x",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/x",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /x\ty HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/x",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/x",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /x\ty HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/x",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/x",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /x\ty HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET http://evil.example/h HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET http://evil.example/h HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET http://evil.example/h HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET http://evil.example/h HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET http://evil.example/h HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET * HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET * HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET * HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET * HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET * HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 404 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 404 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 404,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 404 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 404,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 404 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 404,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 404 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 301 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 301 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 301,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 301 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 301,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 301 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 301,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 301 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 199 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 199 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 199,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 199 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 199,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 199 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 199,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 199 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 400 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 400 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 400,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 400 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 400,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 400 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 400,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 400 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"POST / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"POST / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "POST",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"POST / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "POST",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"POST / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "POST",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"POST / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"get / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"get / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "get",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"get / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "get",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"get / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "get",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"get / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"HEAD / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"HEAD / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "HEAD",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"HEAD / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "HEAD",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"HEAD / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "HEAD",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"HEAD / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 +0530] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 +0530] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791361536000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791361536000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 +0530] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791361536000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791361536000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 +0530] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791361536000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791361536000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 +0530] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [32/Oct/2026:00:00:00 -0100] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [32/Oct/2026:00:00:00 -0100] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1793494800000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1793494800000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [32/Oct/2026:00:00:00 -0100] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1793494800000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1793494800000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [32/Oct/2026:00:00:00 -0100] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1793494800000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1793494800000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [32/Oct/2026:00:00:00 -0100] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Okt/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Okt/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Okt/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Okt/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Okt/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/0099:13:55:36 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/0099:13:55:36 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 939304536000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 939304536000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/0099:13:55:36 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 939304536000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 939304536000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/0099:13:55:36 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 939304536000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 939304536000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/0099:13:55:36 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [29/Feb/2027:99:99:99 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [29/Feb/2027:99:99:99 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1804221639000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1804221639000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [29/Feb/2027:99:99:99 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1804221639000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1804221639000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [29/Feb/2027:99:99:99 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1804221639000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1804221639000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [29/Feb/2027:99:99:99 +0000] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "blog.example.com:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "blog.example.com:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "blog.example.com:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "blog.example.com:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "blog.example.com:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "Blog.Example.com 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "Blog.Example.com 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "Blog.Example.com 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "Blog.Example.com 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "Blog.Example.com 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://blog.example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://blog.example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "10.0.0.1:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "10.0.0.1:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "10.0.0.1:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "10.0.0.1:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "10.0.0.1:443 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "::1 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "::1 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "::1 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "::1 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "::1 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "bad host 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "bad host 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "bad host 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "bad host 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "bad host 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"GPTBot \\\"x\\\"\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"GPTBot \\\"x\\\"\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"GPTBot \\\"x\\\"\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"GPTBot \\\"x\\\"\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 5120 \"-\" \"GPTBot \\\"x\\\"\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"GPTBot \\\"x\\\"\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"GPTBot \\\"x\\\"\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"GPTBot \\\"x\\\"\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"GPTBot \\\"x\\\"\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "GPTBot \"x\"",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"GPTBot \\\"x\\\"\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET /\" 200 - \"https://ref.example/\\\"q\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET /\" 200 - \"https://ref.example/\\\"q\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET /\" 200 - \"https://ref.example/\\\"q\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET /\" 200 - \"https://ref.example/\\\"q\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET /\" 200 - \"https://ref.example/\\\"q\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "   203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /padded HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"   ",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "   203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /padded HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"   ",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/padded",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/padded",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "   203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /padded HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"   ",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/padded",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/padded",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "   203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /padded HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"   ",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/padded",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/padded",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": "   203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /padded HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"   ",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": " 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /nbsp HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"　",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": " 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /nbsp HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"　",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/nbsp",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/nbsp",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": " 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /nbsp HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"　",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/nbsp",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "http://example.com/nbsp",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": " 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /nbsp HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"　",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/nbsp",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      },
+      "fetched": {
+        "url": "https://example.com/nbsp",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791395736000
+      }
+    },
+    {
+      "line": " 203.0.113.9 - - [07/Oct/2026:13:55:36 -0400] \"GET /nbsp HTTP/1.1\" 200 5120 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"　",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" 200 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" ٢٠٠ 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" ٢٠٠ 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" ٢٠٠ 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" ٢٠٠ 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "1.2.3.4 - - [07/Oct/2026:13:55:36 -0400] \"GET / HTTP/1.1\" ٢٠٠ 1 \"-\" \"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "not a log line",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "not a log line",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "not a log line",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "not a log line",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "not a log line",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "   ",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "   ",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "   ",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "   ",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "   ",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1791399336.5,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/\",\"tls\":{},\"headers\":{\"User-Agent\":[\"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"]}}}",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/docs/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      },
+      "fetched": {
+        "url": "https://example.com/docs/",
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      }
+    },
+    {
+      "line": "{\"ts\":1791399336.5,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/\",\"tls\":{},\"headers\":{\"User-Agent\":[\"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"]}}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/docs/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      },
+      "fetched": {
+        "url": "https://example.com/docs/",
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      }
+    },
+    {
+      "line": "{\"ts\":1791399336.5,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/\",\"tls\":{},\"headers\":{\"User-Agent\":[\"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"]}}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/docs/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      },
+      "fetched": {
+        "url": "https://example.com/docs/",
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      }
+    },
+    {
+      "line": "{\"ts\":1791399336.5,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/\",\"tls\":{},\"headers\":{\"User-Agent\":[\"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"]}}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/docs/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      },
+      "fetched": {
+        "url": "https://example.com/docs/",
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      }
+    },
+    {
+      "line": "{\"ts\":1791399336.5,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/\",\"tls\":{},\"headers\":{\"User-Agent\":[\"Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)\"]}}}",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/docs/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      },
+      "fetched": {
+        "url": "https://example.com/docs/",
+        "userAgent": "Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)",
+        "at": 1791399336500
+      }
+    },
+    {
+      "line": "{\"ts\":1791399336,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/?a=1#frag\",\"headers\":{\"user-agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/docs/?a=1%23frag",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      },
+      "fetched": {
+        "url": "https://example.com/docs/?a=1%23frag",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      }
+    },
+    {
+      "line": "{\"ts\":1791399336,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/?a=1#frag\",\"headers\":{\"user-agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/docs/?a=1%23frag",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      },
+      "fetched": {
+        "url": "https://example.com/docs/?a=1%23frag",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      }
+    },
+    {
+      "line": "{\"ts\":1791399336,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/?a=1#frag\",\"headers\":{\"user-agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/docs/?a=1%23frag",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      },
+      "fetched": {
+        "url": "http://example.com/docs/?a=1%23frag",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      }
+    },
+    {
+      "line": "{\"ts\":1791399336,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/?a=1#frag\",\"headers\":{\"user-agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/docs/?a=1%23frag",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      },
+      "fetched": {
+        "url": "https://example.com/docs/?a=1%23frag",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      }
+    },
+    {
+      "line": "{\"ts\":1791399336,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/docs/?a=1#frag\",\"headers\":{\"user-agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/docs/?a=1%23frag",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      },
+      "fetched": {
+        "url": "https://example.com/docs/?a=1%23frag",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791399336000
+      }
+    },
+    {
+      "line": "{\"ts\":\"2026-10-07T12:00:00Z\",\"status\":\"200\",\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"user-agent\":[\"x\"]}}}",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "x",
+        "at": 1791374400000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":\"2026-10-07T12:00:00Z\",\"status\":\"200\",\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"user-agent\":[\"x\"]}}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "x",
+        "at": 1791374400000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":\"2026-10-07T12:00:00Z\",\"status\":\"200\",\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"user-agent\":[\"x\"]}}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "x",
+        "at": 1791374400000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":\"2026-10-07T12:00:00Z\",\"status\":\"200\",\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"user-agent\":[\"x\"]}}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "x",
+        "at": 1791374400000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":\"2026-10-07T12:00:00Z\",\"status\":\"200\",\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"user-agent\":[\"x\"]}}}",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "x",
+        "at": 1791374400000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":\"yesterday\",\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"ts\":\"yesterday\",\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"ts\":\"yesterday\",\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"ts\":\"yesterday\",\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"ts\":\"yesterday\",\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "http://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": "NaN"
+      },
+      "fetched": {
+        "url": "https://example.com/",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1791471845678
+      }
+    },
+    {
+      "line": "{\"ts\":1,\"status\":503,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 503,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":503,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 503,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":503,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 503,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":503,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 503,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":503,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 503,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 0,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 0,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/",
+        "status": 0,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 0,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"/\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/",
+        "status": 0,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com:8443\",\"uri\":\"/x\",\"tls\":[],\"headers\":{}}}",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com:8443/x",
+        "status": 200,
+        "userAgent": "",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com:8443\",\"uri\":\"/x\",\"tls\":[],\"headers\":{}}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com:8443/x",
+        "status": 200,
+        "userAgent": "",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com:8443\",\"uri\":\"/x\",\"tls\":[],\"headers\":{}}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com:8443/x",
+        "status": 200,
+        "userAgent": "",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com:8443\",\"uri\":\"/x\",\"tls\":[],\"headers\":{}}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com:8443/x",
+        "status": 200,
+        "userAgent": "",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com:8443\",\"uri\":\"/x\",\"tls\":[],\"headers\":{}}}",
+      "site": "not a url",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com:8443/x",
+        "status": 200,
+        "userAgent": "",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"uri\":\"/no-host\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"uri\":\"/no-host\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/no-host",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": {
+        "url": "https://example.com/no-host",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      }
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"uri\":\"/no-host\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/no-host",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": {
+        "url": "http://example.com/no-host",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      }
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"uri\":\"/no-host\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/no-host",
+        "status": 200,
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      },
+      "fetched": {
+        "url": "https://example.com/no-host",
+        "userAgent": "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)",
+        "at": 1000
+      }
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"uri\":\"/no-host\",\"headers\":{\"User-Agent\":[\"Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; GPTBot/1.2; +https://openai.com/gptbot)\"]}}}",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"\",\"uri\":\"/empty-host\"}}",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"\",\"uri\":\"/empty-host\"}}",
+      "site": "https://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/empty-host",
+        "status": 200,
+        "userAgent": "",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"\",\"uri\":\"/empty-host\"}}",
+      "site": "http://example.com",
+      "parsed": {
+        "method": "GET",
+        "url": "http://example.com/empty-host",
+        "status": 200,
+        "userAgent": "",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"\",\"uri\":\"/empty-host\"}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": {
+        "method": "GET",
+        "url": "https://example.com/empty-host",
+        "status": 200,
+        "userAgent": "",
+        "at": 1000
+      },
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"\",\"uri\":\"/empty-host\"}}",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"http://other/x\"}}",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"http://other/x\"}}",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"http://other/x\"}}",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"http://other/x\"}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":\"http://other/x\"}}",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":5}}",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":5}}",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":5}}",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":5}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"GET\",\"host\":\"example.com\",\"uri\":5}}",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"\",\"host\":\"example.com\",\"uri\":\"/\"}}",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"\",\"host\":\"example.com\",\"uri\":\"/\"}}",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"\",\"host\":\"example.com\",\"uri\":\"/\"}}",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"\",\"host\":\"example.com\",\"uri\":\"/\"}}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":{\"method\":\"\",\"host\":\"example.com\",\"uri\":\"/\"}}",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":null}",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":null}",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":null}",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":null}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200,\"request\":null}",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200}",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200}",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200}",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{\"ts\":1,\"status\":200}",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{not json",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{not json",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{not json",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{not json",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{not json",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{}",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{}",
+      "site": "https://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{}",
+      "site": "http://example.com",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{}",
+      "site": "https://example.com/base/?q#h",
+      "parsed": null,
+      "fetched": null
+    },
+    {
+      "line": "{}",
+      "site": "not a url",
+      "parsed": null,
+      "fetched": null
+    }
+  ]
+}
