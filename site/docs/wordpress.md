@@ -2,7 +2,7 @@
 title: WordPress
 description: Count a WordPress site with Runlight, and see when AI agents read it.
 group: Platforms
-order: 14
+order: 15
 ---
 
 The Runlight plugin connects a WordPress site to a Runlight you run elsewhere, either in an app with Runlight mounted or on the standalone server. The numbers live in your Runlight, and WordPress stores only the plugin’s one setting.

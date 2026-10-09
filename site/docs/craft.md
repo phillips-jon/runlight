@@ -2,7 +2,7 @@
 title: Craft CMS
 description: Count a Craft CMS site with Runlight, and see when AI agents read it.
 group: Platforms
-order: 16
+order: 17
 ---
 
 The Runlight plugin connects a Craft 5 site to a Runlight you run elsewhere, either in an app with Runlight mounted or on the standalone server. The numbers live in your Runlight, and Craft stores only the plugin’s settings.

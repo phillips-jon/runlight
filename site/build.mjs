@@ -45,14 +45,16 @@ function frontmatter(text) {
 /** Light syntax colour for the languages the docs use: strings, comments, and keywords. */
 function highlight(code, lang) {
   const esc = escape(code);
-  if (!["ts", "tsx", "js", "jsx", "json", "bash", "sh", "html"].includes(lang)) return esc;
+  if (!["ts", "tsx", "js", "jsx", "json", "bash", "sh", "html", "php", "nginx", "apache"].includes(lang)) return esc;
   const tokens = [];
   const stash = (html) => `\u0000${tokens.push(html) - 1}\u0000`;
-  const shell = lang === "bash" || lang === "sh";
+  const shell = lang === "bash" || lang === "sh" || lang === "nginx" || lang === "apache";
   const comment = lang === "html" ? /&lt;!--[\s\S]*?--&gt;/.source : shell ? /(?<=^|\s)#[^\n]*/.source : /(?<=^|\s)\/\/[^\n]*/.source;
   const string = /&quot;(?:[^&]|&(?!quot;))*?&quot;|'[^'\n]*'|`[^`]*`/.source;
   let out = esc.replace(new RegExp(`(${comment})|${string}`, "gm"), (m, c) => stash(`<span class="${c ? "c" : "s"}">${m}</span>`));
-  if (!shell && lang !== "html" && lang !== "json") {
+  if (lang === "php") {
+    out = out.replace(/\b(use|namespace|class|final|public|private|readonly|function|fn|return|new|if|true|false|null)\b/g, '<span class="k">$1</span>');
+  } else if (!shell && lang !== "html" && lang !== "json") {
     out = out.replace(/\b(import|export|from|const|let|async|await|return|function|new|if|else|type|interface|default|null|true|false)\b/g, '<span class="k">$1</span>');
   }
   return out.replace(/\u0000(\d+)\u0000/g, (m, i) => tokens[Number(i)]);

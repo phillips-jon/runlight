@@ -297,6 +297,7 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .tab-bun .logo { filter: grayscale(1); opacity: .7; }
 .tab-docker:hover .logo, .tab-docker[aria-selected="true"] .logo { fill: #2496ed; }
 .tab-npx:hover .logo, .tab-npx[aria-selected="true"] .logo { fill: #5fa04e; }
+.tab-php:hover .logo, .tab-php[aria-selected="true"] .logo { fill: #777bb4; }
 .tab-wordpress:hover .logo, .tab-wordpress[aria-selected="true"] .logo { fill: #21759b; }
 .tab-drupal:hover .logo, .tab-drupal[aria-selected="true"] .logo { fill: #0678be; }
 .tab-craft:hover .logo, .tab-craft[aria-selected="true"] .logo { fill: #e5422b; }

@@ -7,6 +7,8 @@ order: 13
 
 The standalone server is Runlight packaged as an app of its own. It suits sites that are not Node apps, and it gives several sites one dashboard. It runs the same code as the library, so reports, goals, short links, and email reports all work the same way.
 
+On hosting that runs PHP without Node, the [PHP drop-in](/docs/php/#the-standalone-drop-in) does the same job.
+
 ## Start it
 
 With Docker, run this.

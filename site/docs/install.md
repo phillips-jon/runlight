@@ -229,6 +229,10 @@ Route only `/runlight/*` to this Worker (or check the path first, as in the Bun 
 
 If your server gives you a web `Request`, pass it to `rl.routes().handler` and return the `Response`. If it gives you Node’s `req` and `res`, use `toNodeHandler` from `@runlight/sdk/node`.
 
+## PHP
+
+Laravel, Symfony, and plain PHP apps install Runlight with `composer require runlight/runlight`. [PHP](/docs/php/) has the routes for each, and the drop-in that runs Runlight on its own domain on PHP hosting.
+
 ## Behind a proxy
 
 Runlight reads the visitor’s address from the last entry in `X-Forwarded-For`, the one your proxy adds, then from `X-Real-IP` or `CF-Connecting-IP`. That is right behind Vercel, Netlify, Cloudflare, and most load balancers. When a request passes through two proxies, such as Cloudflare in front of nginx, name the header that holds the visitor’s own address, like `trustProxy: "cf-connecting-ip"`. The address is used for the [daily visitor hash](/docs/privacy/) and the location lookup, and the rate limit counts it hashed. It is never stored. If your app is exposed directly with no proxy, set `trustProxy: false`.
