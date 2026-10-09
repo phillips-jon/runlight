@@ -59,6 +59,11 @@ class _Undefined:
 UNDEFINED = _Undefined()
 
 
+class RangeError(ValueError):
+    """JavaScript's RangeError, which the SDK throws for a value out of bounds (an unknown site or link, a bad
+    setting). SettingsError, ConnectError, and Links' "Unknown link" are ones."""
+
+
 # Text
 
 
@@ -144,9 +149,8 @@ def compare(a: str, b: str) -> int:
 
 
 def order_key(text: str) -> Any:
-    """A sort key that orders text by UTF-16 code units, as JavaScript's default sort and `<` do."""
-    if text.isascii():
-        return text.encode("ascii")
+    """A sort key that orders text by UTF-16 code units, as JavaScript's default sort and `<` do. Every key is
+    UTF-16, so keys of ASCII and other text compare with each other."""
     return text.encode("utf-16-be", "surrogatepass")
 
 
