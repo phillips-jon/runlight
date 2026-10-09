@@ -84,12 +84,16 @@ defmodule Runlight.Importers.Shorteners do
     JS.obj(cursor: next, total: nil, links: links)
   end
 
+  # Whether Dub said the plan does not include what was asked (403, or 402). Any other failure (a server error
+  # that outlasts the retries, say) fails the step and leaves the history mode as it was.
+  defp plan_refused?(error), do: Http.http_error?(error) and error.status in [403, 402]
+
   defp dub_events(http, headers, l, history) do
     clicks = dub_pages(http, headers, l, 1, [])
     {clicks, "events"}
   rescue
     error in ImportError ->
-      if not Http.http_error?(error) or error.status == 401, do: reraise(error, __STACKTRACE__)
+      if not plan_refused?(error), do: reraise(error, __STACKTRACE__)
       _ = history
       {:undefined, "daily"}
   end
@@ -142,7 +146,7 @@ defmodule Runlight.Importers.Shorteners do
     {daily, "daily"}
   rescue
     error in ImportError ->
-      if not Http.http_error?(error) or error.status == 401, do: reraise(error, __STACKTRACE__)
+      if not plan_refused?(error), do: reraise(error, __STACKTRACE__)
       {:undefined, "none"}
   end
 
@@ -294,7 +298,7 @@ defmodule Runlight.Importers.Shorteners do
         JS.obj(
           link:
             link(
-              l["id"],
+              JS.string(l["id"]),
               l["slashtag"],
               domain,
               JS.or_else(get(l, "title"), ""),
@@ -305,7 +309,12 @@ defmodule Runlight.Importers.Shorteners do
       end)
 
     finish = List.last(list)
-    JS.obj(cursor: if(length(list) == @rebrandly_page and finish != nil, do: finish["id"]), total: nil, links: links)
+
+    JS.obj(
+      cursor: if(length(list) == @rebrandly_page and finish != nil, do: JS.string(finish["id"])),
+      total: nil,
+      links: links
+    )
   end
 
   ## Short.io
@@ -404,9 +413,13 @@ defmodule Runlight.Importers.Shorteners do
     raw = get(body, "clickStatistics")
     points = if is_list(raw), do: raw, else: JS.nullish(dig(raw, ["datasets", "0", "data"]), [])
 
-    for p <- points, JS.number(p["y"]) > 0 do
-      x = p["x"]
-      ts = if is_number(x), do: x, else: JS.date_parse(x)
+    for p <- points,
+        y = JS.number(p["y"]),
+        is_number(y) and y > 0,
+        x = p["x"],
+        ts = if(is_number(x), do: x, else: JS.date_parse(x)),
+        # A point whose date cannot be read is left out, not the link.
+        is_number(ts) and abs(ts) <= 8.64e15 do
       JS.obj(day: JS.iso_day(trunc(ts)), clicks: p["y"])
     end
   rescue
@@ -451,7 +464,13 @@ defmodule Runlight.Importers.Shorteners do
             body: JS.stringify(JS.obj(username: credentials["username"], password: credentials["password"]))
           )
 
-        {base, get(login, "token")}
+        token = get(login, "token")
+
+        # A sign-in that answers without a token was refused, whatever its status.
+        unless is_binary(token) and token != "",
+          do: raise(ImportError, message: "The key or sign-in was refused", code: "import_refused")
+
+        {base, token}
     end
   end
 
@@ -513,14 +532,18 @@ defmodule Runlight.Importers.Shorteners do
         end
       end)
 
-    more = page * @umami_page < list["count"] and list["data"] != []
+    # Without a count there is no total, and a full page may have more after it.
+    count = if is_number(get(list, "count")), do: list["count"], else: nil
+
+    more =
+      if count == nil, do: length(list["data"]) == @umami_page, else: page * @umami_page < count and list["data"] != []
 
     next =
       if more do
         JS.stringify(if key != "", do: JS.obj(page: page + 1), else: JS.obj(page: page + 1, token: token))
       end
 
-    JS.obj(cursor: next, total: list["count"], links: links)
+    JS.obj(cursor: next, total: count, links: links)
   end
 
   defp umami_all(http, base, headers, path, page \\ 1, out \\ []) do

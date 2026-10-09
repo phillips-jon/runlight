@@ -138,6 +138,8 @@ defmodule Runlight.Importers do
     end
 
     result = step(Http.new(rl), source, credentials, cursor, known, Runlight.now(rl))
+    # A total that is not a number is as good as none.
+    total = if is_number(result["total"]), do: result["total"], else: nil
 
     acc = %{done: done, links: 0, clicks: 0, skipped: 0, failed: []}
 
@@ -171,12 +173,12 @@ defmodule Runlight.Importers do
       end)
 
     # Links the source skipped (deleted ones) still count toward progress.
-    done = if result["cursor"] == nil and result["total"] != nil, do: max(acc.done, result["total"]), else: acc.done
+    done = if result["cursor"] == nil and total != nil, do: max(acc.done, total), else: acc.done
 
     JS.obj(
       cursor: result["cursor"],
       done: done,
-      total: result["total"],
+      total: total,
       links: acc.links,
       clicks: acc.clicks,
       skipped: acc.skipped,
