@@ -116,7 +116,8 @@ module Runlight
 
       # Percent-encodes C0 controls, DEL, bytes past ASCII, and `extra`; existing escapes stay as written.
       def self.encode(text, extra)
-        Js.scrub(text).b.gsub(/[^\x21-\x7e]|[#{Regexp.escape(extra)}]/n) { |c| format("%%%02X", c.ord) }.force_encoding(Encoding::UTF_8)
+        pattern = extra.empty? ? /[^\x21-\x7e]/n : /[^\x21-\x7e]|[#{Regexp.escape(extra)}]/n
+        Js.scrub(text).b.gsub(pattern) { |c| format("%%%02X", c.ord) }.force_encoding(Encoding::UTF_8)
       end
 
       def self.path(path)

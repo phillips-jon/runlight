@@ -33,9 +33,10 @@ module Runlight
       out
     end
 
-    # Parses JSON text. Raises Runlight::Json::ParseError when it is not JSON.
+    # Parses JSON text. Raises Runlight::Json::ParseError when it is not JSON. A key given twice keeps its
+    # last value, as JSON.parse keeps it.
     def decode(text)
-      value = ::JSON.parse(text.to_s, allow_nan: false, max_nesting: 512)
+      value = ::JSON.parse(text.to_s, allow_nan: false, max_nesting: 512, allow_duplicate_key: true)
       text.to_s.match?(/\d{16}/) ? unsafe_to_float(value) : value
     end
 

@@ -19,8 +19,8 @@ module Runlight
 
       # A request from a Rack env: the scheme and host Rack reports, the path and query as sent, headers from
       # the HTTP_ keys, and the body read once. The client's address is REMOTE_ADDR; proxy headers are read
-      # later, only when trusted.
-      def self.from_rack(env)
+      # later, only when trusted. With read_body false the body is left for whoever reads it next.
+      def self.from_rack(env, read_body: true)
         scheme = env["rack.url_scheme"] || "http"
         host = env["HTTP_HOST"]
         if host.nil? || host.empty?
@@ -44,7 +44,7 @@ module Runlight
         method = env["REQUEST_METHOD"].to_s.upcase
         body = +""
         input = env["rack.input"]
-        if !%w[GET HEAD].include?(method) && input
+        if read_body && !%w[GET HEAD].include?(method) && input
           input.rewind if input.respond_to?(:rewind)
           body = input.read.to_s
           input.rewind if input.respond_to?(:rewind)

@@ -56,14 +56,14 @@ module Runlight
 
       # The rows a statement returns, as Hashes with String keys. A statement that returns no rows gives none.
       def all(sql, params = [])
-        connection do |c|
+        statement do |c|
           result = c.exec_query(text(c, sql, params), "Runlight")
           result.columns.empty? ? [] : result.to_a
         end
       end
 
       def run(sql, params = [])
-        connection do |c|
+        statement do |c|
           result = c.execute(text(c, sql, params), "Runlight")
           result.clear if result.respond_to?(:clear) && result.class.name == "PG::Result"
         end
@@ -73,7 +73,7 @@ module Runlight
       # Runs an UPDATE or DELETE and says how many rows it matched. The store asks this of MySQL, which has no
       # RETURNING; ActiveRecord connects to MySQL with the found rows flag, so matched rows are counted.
       def affected(sql, params = [])
-        connection { |c| c.exec_update(text(c, sql, params), "Runlight").to_i }
+        statement { |c| c.exec_update(text(c, sql, params), "Runlight").to_i }
       end
 
       # Runs the block in one transaction, committed when it returns and rolled back when it raises. A
@@ -186,6 +186,21 @@ module Runlight
 
       def connection(&block)
         @connection_class.connection_pool.with_connection(&block)
+      end
+
+      # A statement on a connection. A connection the server dropped (a restart, a failover, an idle timeout)
+      # is replaced, as a pool replaces it, and the statement sent again: it never reached the server. Not
+      # inside a transaction or a lock, whose work went with the connection.
+      def statement(&block)
+        connection(&block)
+      rescue ::ActiveRecord::ConnectionFailed => e
+        raise if dialect == "sqlite" || @held.positive? || connection(&:transaction_open?)
+
+        warn "Runlight: a #{dialect == "mysql" ? "MySQL" : "Postgres"} connection was lost; it reconnects on the next query. #{e.message}"
+        connection do |c|
+          c.reconnect!
+          block.call(c)
+        end
       end
 
       def text(connection, sql, params)

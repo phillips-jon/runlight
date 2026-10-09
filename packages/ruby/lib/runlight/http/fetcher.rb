@@ -102,19 +102,23 @@ module Runlight
         status = 0
         answer_headers = {}
         begin
-          http.start do |connection|
-            connection.request(request) do |answer|
-              status = answer.code.to_i
-              answer.each_capitalized_name { |name| answer_headers[name.downcase] = answer.get_fields(name) }
-              answer.read_body do |chunk|
-                raise FetchError.new(TIMED_OUT, timed_out: true) if monotonic > deadline
+          # Past maxBytes the whole request is left by a throw, which closes the connection: a break would leave
+          # only read_body, and Net::HTTP would then read the rest of the body after all.
+          catch(:too_long) do
+            http.start do |connection|
+              connection.request(request) do |answer|
+                status = answer.code.to_i
+                answer.each_capitalized_name { |name| answer_headers[name.downcase] = answer.get_fields(name) }
+                answer.read_body do |chunk|
+                  raise FetchError.new(TIMED_OUT, timed_out: true) if monotonic > deadline
 
-                if max_bytes && received.bytesize + chunk.bytesize > max_bytes
-                  too_long = true
-                  received << chunk.byteslice(0, max_bytes - received.bytesize) if truncate
-                  break
+                  if max_bytes && received.bytesize + chunk.bytesize > max_bytes
+                    too_long = true
+                    received << chunk.byteslice(0, max_bytes - received.bytesize) if truncate
+                    throw :too_long
+                  end
+                  received << chunk
                 end
-                received << chunk
               end
             end
           end

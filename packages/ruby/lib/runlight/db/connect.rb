@@ -59,21 +59,23 @@ module Runlight
 
       # MySQL 8.4 or MariaDB 11.4 and later from a URL like mysql://user:pass@host:3306/db (or mariadb://),
       # through the trilogy gem when it is installed, else mysql2. The session is utf8mb4 with the server's own
-      # SQL mode, as mysql2 opens it for the TypeScript driver. Runlight's tables carry their own binary
-      # collation, so text compares and sorts by code point. statement_timeout is set per connection as
-      # stores/mysql.ts sets it; 0 turns it off.
+      # SQL mode plus IGNORE_SPACE, as mysql2 opens it for the TypeScript driver (its connect flags ask for
+      # that, which neither Ruby driver can, so it is set as the session's mode). Runlight's tables carry their
+      # own binary collation, so text compares and sorts by code point. statement_timeout is set per
+      # connection as stores/mysql.ts sets it; 0 turns it off.
       def mysql(url, statement_timeout: 120_000)
         parts = parts(url.to_s.sub(/\Amariadb:/i, "mysql:"))
         config = { adapter: mysql_adapter, host: parts[:host], port: parts[:port] || 3306, database: parts[:database],
                    username: parts[:user], password: parts[:password], encoding: "utf8mb4", strict: :default,
                    connect_timeout: 10 }
         db = Database.new(Pools.make(config.compact), owned: true, statement_timeout: statement_timeout.to_i, dialect: "mysql")
+        version, mode = db.connection_class.connection_pool.with_connection { |c| c.select_rows("SELECT VERSION(), @@GLOBAL.sql_mode")[0] }
+        db.connection_class.connection_pool.disconnect!
+        variables = { sql_mode: (mode.to_s.split(",") | ["IGNORE_SPACE"]).join(",") }
         if statement_timeout.to_i.positive?
-          mariadb = db.connection_class.connection_pool.with_connection { |c| c.select_value("SELECT VERSION()") }.to_s.match?(/mariadb/i)
-          db.connection_class.connection_pool.disconnect!
-          variables = mariadb ? { max_statement_time: statement_timeout.to_i / 1000.0 } : { max_execution_time: statement_timeout.to_i }
-          db.connection_class.establish_connection(config.compact.merge(variables: variables))
+          variables.merge!(version.to_s.match?(/mariadb/i) ? { max_statement_time: statement_timeout.to_i / 1000.0 } : { max_execution_time: statement_timeout.to_i })
         end
+        db.connection_class.establish_connection(config.compact.merge(variables: variables))
         db
       end
 
