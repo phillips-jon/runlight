@@ -162,6 +162,11 @@ func (rt *Routes) Middleware(next http.Handler) http.Handler {
 	})
 }
 
+// OAuthDocuments are the discovery documents OAuth clients read at the
+// site's root, which the routes answer when an app sends them there. Each is
+// also answered with a path after it.
+var OAuthDocuments = []string{"/.well-known/oauth-protected-resource", "/.well-known/oauth-authorization-server", "/.well-known/openid-configuration"}
+
 // LinksHTTP answers short links on the app's own domain, at {LinkPath}/{slug}.
 func (r *Runlight) LinksHTTP() http.Handler { return HTTPHandler(r.LinkHandler()) }
 
