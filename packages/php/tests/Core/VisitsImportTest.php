@@ -173,6 +173,14 @@ final class VisitsImportTest extends CoreTestCase
         self::assertSame(1, self::importAll($t)['pageviews'], 'only March 2nd comes in');
     }
 
+    public function testAnUnreadableSavedProgressSettingStartsAsIfThereWereNone(): void
+    {
+        $t = self::harness('sqlite', self::umami(self::fakeEvents(), self::SESSIONS), self::at('2026-03-04T00:00:00Z'));
+        $t->rl->init();
+        $t->rl->store->setSetting('import:umami-visits:default:w1', 'not a number');
+        self::assertSame(4, self::importAll($t)['pageviews'], "every day is read from the website's start");
+    }
+
     public function testAnImportedVisitAcrossUtcMidnightIsOneVisitOnTheSitesOwnDay(): void
     {
         $events = [

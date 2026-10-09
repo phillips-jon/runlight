@@ -120,7 +120,9 @@ final class Visits
             $created = Http::parseDate($info['createdAt'] ?? null);
             $created = Js::truthy($created) ? $created : $runlight->now();
             // Carry on where an earlier run stopped, and end where Runlight's own visits begin.
-            $resumed = Js::number($runlight->store->setting(self::progressKey($siteId, $website)) ?? 0);
+            // A saved place that does not read as a number is ignored, as if there were none.
+            $stored = Js::number($runlight->store->setting(self::progressKey($siteId, $website)) ?? 0);
+            $resumed = is_finite($stored) ? $stored : 0;
             // Never older than the site keeps, or the next scheduled check would delete it again.
             $cutoff = $runlight->retentionCutoff($siteId) ?? 0;
             $start = (int) max(floor($created / self::DAY) * self::DAY, $resumed, ceil($cutoff / self::DAY) * self::DAY);

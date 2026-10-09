@@ -2165,6 +2165,11 @@
    "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
    "secret": "long",
    "sealed": "v1:u/4/mHA4MSJQcqcm:pjJlnJ9pv1c94SXkqW48lpffPbHHyHoen+A41h7+4TICElCf6dsNiQ0tXtR76nqqmvu4YECQOTHyXKeFg7LM4oSBBRwinedIWCXHNSmNEDKntHmhwuOSAlxwbfisFNW/BapUKvAMH9EoW6W/F5xgUiDJdGb6vcLP4VRnS7hQW/xVOmshj/mefexsG2SxOgDwN0G7E2VfPsQIIqwRAILK6dsW4prBcnlMBKkQ5OGioNEy2wsLvQuQ8TwpZAywAtV0k2ZvA3Dr+r9HVwi1D4IoeAQYuP/dBGnaVd9Y01w45kqRy4DxNXHDbBOw676gn4e0GG8i3Mfq8+WA8129CSweNzacdRJuCSdTlJ8phdrXP7ENd2shu19/yVtpUGD+2EDu+o45Q3IuQbBPlrpOYoo7ZTTlYfpckX88bRnzpxGeoHiVwcLbh2daNAVi+l09JVoUzciuvOlAvqjMqvbt2IQFx/7dnWsju8ZHtgLjHzydi9YyZMRV72CEavKwZacBtXZW+vNi2nyv+LwDlCgeTi1vZCZ8JqmjEopT6tqNl+X9NBA38bYK8EHoiJsyWYkMbanKSfnPvHrT7g7i284iZorSk4onzvN5vy8/bMJMoT3yTutxanbx7lp1o9wSu4T1+6cVitSgbxF+gqLdLvy2lIo5dVZBZnNX2FZgneRyGeWd+LZUgEEkTGsiaDS+OktdFOsYtaXcJR6WthEbv8O2FlDGwjU2g1IpJ70wjC5qqsjURyEMzcD/IWdyYec6qox9V++rnMw6lpyfWyf0GhznBpmIfqhiUXnn5tE7L65CTDW5Yy1c5GpMQiwilCiwz/qyxOzQK3kFixxMhknMZMXPQOS1fkds4JMercKLzzrNrTtq+nPm2AmE5QCT9BPFrLnx5Lr18Dzfqy9x+U8N87/O0hOpXTTkDvPoByw2VkZId9f1W/74ZzgDoKyVZTzajfEJoHwZtN08OUx5c9KrDiulFRLj1byGyTINXhIb1dkKyjtPuWzeLxkVjO3tJy5aCDtKhiNMvWagimajPbEqOrLUg1aJ/iSRjPXMpbTtnY7J/b5FK9cKYZ2fZ0X49Nu1810+ybid3cY1v7BkzMKyFYjq9Pt1LgLaqdJk+/PZPTcggAqtZS5l16LTzSYIvoTYYcr3iC1zMvk/mBfQm6rUZC0WGTnexBaD4t0gp2fvI1Co4zY218Osxo3JpqhDW3jz/TVom4egccn5e+xXnFu+X4x5avaFlPLf6pu4FKPG8B6h6+xm/tHJqJARLQ337C8qQBgnUOjJk/TDwEpVJoYdqlsdNMP4SxIcErVXWhVk8ytK3Ark0wbIF61to30IZ7YCTDAnSEP9DJeS3F7kFQ8="
+  },
+  {
+   "value": null,
+   "secret": "s",
+   "sealed": "v1:BwcHBwcHBwcHBwc=:F6gCn8h761IAW9Zg7IoH3XvV0MxQubuj"
   }
  ],
  "ips": [
@@ -3350,6 +3355,224 @@
       "code": "import_refused",
       "params": {},
       "status": 401,
+      "name": "HttpError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "dub events fail",
+   "source": "dub",
+   "credentials": {
+    "apiKey": "dub_test"
+   },
+   "routes": [
+    {
+     "pattern": "api\\.dub\\.co\\/links\\?",
+     "body": [
+      {
+       "id": "l1",
+       "domain": "dub.sh",
+       "key": "launch",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l2",
+       "domain": "go.brand.com",
+       "key": "sale",
+       "url": "https://a.com/sale",
+       "title": null,
+       "createdAt": "2026-02-03T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "pattern": "\\/events\\?.*linkId=l1",
+     "status": 500,
+     "body": {}
+    },
+    {
+     "pattern": "\\/events\\?.*linkId=l2",
+     "body": []
+    },
+    {
+     "pattern": "\\/analytics\\?",
+     "body": [
+      {
+       "start": "2026-03-01T00:00:00.000Z",
+       "clicks": 3
+      }
+     ]
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/links?pageSize=10&showArchived=true",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [
+    800,
+    1600,
+    2400
+   ],
+   "knownCalls": [
+    [
+     "l1",
+     "launch",
+     "https://a.com/launch"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "api.dub.co answered 500",
+      "code": "import_status",
+      "params": {
+       "host": "api.dub.co",
+       "status": "500"
+      },
+      "status": 500,
+      "name": "HttpError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "dub analytics fail",
+   "source": "dub",
+   "credentials": {
+    "apiKey": "dub_test"
+   },
+   "routes": [
+    {
+     "pattern": "api\\.dub\\.co\\/links\\?",
+     "body": [
+      {
+       "id": "l1",
+       "domain": "dub.sh",
+       "key": "launch",
+       "url": "https://a.com/launch",
+       "title": "Launch",
+       "createdAt": "2026-01-02T00:00:00Z"
+      },
+      {
+       "id": "l2",
+       "domain": "go.brand.com",
+       "key": "sale",
+       "url": "https://a.com/sale",
+       "title": null,
+       "createdAt": "2026-02-03T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "pattern": "\\/events\\?",
+     "status": 403,
+     "body": {}
+    },
+    {
+     "pattern": "\\/analytics\\?",
+     "status": 404,
+     "body": {}
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/links?pageSize=10&showArchived=true",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/events?event=clicks&linkId=l1&interval=all&sortOrder=asc&limit=1000&page=1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.dub.co/analytics?event=clicks&groupBy=timeseries&interval=all&linkId=l1",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer dub_test"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "l1",
+     "launch",
+     "https://a.com/launch"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "api.dub.co answered 404",
+      "code": "import_status",
+      "params": {
+       "host": "api.dub.co",
+       "status": "404"
+      },
+      "status": 404,
       "name": "HttpError"
      }
     }
@@ -4816,6 +5039,138 @@
    ]
   },
   {
+   "name": "shortio unreadable dates",
+   "source": "shortio",
+   "credentials": {
+    "apiKey": "sk_test"
+   },
+   "routes": [
+    {
+     "pattern": "api\\.short\\.io\\/api\\/domains",
+     "body": [
+      {
+       "id": 7,
+       "hostname": "s.brand.com"
+      }
+     ]
+    },
+    {
+     "pattern": "api\\/links\\?domain_id=7",
+     "body": {
+      "links": [
+       {
+        "idString": "lnk1",
+        "id": 1,
+        "path": "one",
+        "originalURL": "https://a.com/1",
+        "createdAt": "2026-01-01T00:00:00Z"
+       }
+      ]
+     }
+    },
+    {
+     "pattern": "statistics\\/link\\/lnk1\\/by_interval",
+     "body": {
+      "clickStatistics": [
+       {
+        "x": "1772409600000",
+        "y": 1
+       },
+       {
+        "x": "2026-03-01T00:00:00Z",
+        "y": 4
+       },
+       {
+        "x": 9000000000000000,
+        "y": 2
+       },
+       {
+        "x": "nope",
+        "y": 3
+       },
+       {
+        "x": 1772409600000,
+        "y": 5
+       }
+      ]
+     }
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.short.io/api/domains?limit=300",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.short.io/api/links?domain_id=7&limit=8",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test"
+     },
+     "body": ""
+    },
+    {
+     "method": "POST",
+     "url": "https://statistics.short.io/statistics/link/lnk1/by_interval",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "sk_test",
+      "content-type": "application/json"
+     },
+     "body": "{\"period\":\"total\",\"clicksChartInterval\":\"day\",\"tz\":\"UTC\"}"
+    }
+   ],
+   "waits": [
+    1050
+   ],
+   "knownCalls": [
+    [
+     "lnk1",
+     "one",
+     "https://a.com/1"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "lnk1",
+         "slug": "one",
+         "domain": "s.brand.com",
+         "name": "",
+         "url": "https://a.com/1",
+         "createdAt": 1767225600000
+        },
+        "daily": [
+         {
+          "day": "2026-03-01",
+          "clicks": 4
+         },
+         {
+          "day": "2026-03-02",
+          "clicks": 5
+         }
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
    "name": "shortio no key",
    "source": "shortio",
    "credentials": {},
@@ -5549,6 +5904,562 @@
       "cursor": null,
       "total": null,
       "links": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "rebrandly negative retry-after",
+   "source": "rebrandly",
+   "credentials": {
+    "apiKey": "rb"
+   },
+   "routes": [
+    {
+     "pattern": "links",
+     "status": 429,
+     "headers": {
+      "retry-after": "-5"
+     },
+     "body": {},
+     "times": 1
+    },
+    {
+     "pattern": "links",
+     "status": 503,
+     "headers": {
+      "retry-after": "-0.5"
+     },
+     "body": {},
+     "times": 1
+    },
+    {
+     "pattern": "links",
+     "body": []
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [
+    800,
+    1600
+   ],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": []
+     }
+    }
+   ]
+  },
+  {
+   "name": "rebrandly numeric ids",
+   "source": "rebrandly",
+   "credentials": {
+    "apiKey": "rb"
+   },
+   "routes": [
+    {
+     "pattern": "last=24",
+     "body": [
+      {
+       "id": 25,
+       "slashtag": "s25",
+       "destination": "https://a.com/25",
+       "createdAt": "2026-01-01T00:00:00Z"
+      }
+     ]
+    },
+    {
+     "pattern": "rebrandly\\.com\\/v1\\/links\\?",
+     "body": [
+      {
+       "id": 0,
+       "slashtag": "s0",
+       "destination": "https://a.com/0",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 1,
+       "slashtag": "s1",
+       "destination": "https://a.com/1",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 2,
+       "slashtag": "s2",
+       "destination": "https://a.com/2",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 3,
+       "slashtag": "s3",
+       "destination": "https://a.com/3",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 4,
+       "slashtag": "s4",
+       "destination": "https://a.com/4",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 5,
+       "slashtag": "s5",
+       "destination": "https://a.com/5",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 6,
+       "slashtag": "s6",
+       "destination": "https://a.com/6",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 7,
+       "slashtag": "s7",
+       "destination": "https://a.com/7",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 8,
+       "slashtag": "s8",
+       "destination": "https://a.com/8",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 9,
+       "slashtag": "s9",
+       "destination": "https://a.com/9",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 10,
+       "slashtag": "s10",
+       "destination": "https://a.com/10",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 11,
+       "slashtag": "s11",
+       "destination": "https://a.com/11",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 12,
+       "slashtag": "s12",
+       "destination": "https://a.com/12",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 13,
+       "slashtag": "s13",
+       "destination": "https://a.com/13",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 14,
+       "slashtag": "s14",
+       "destination": "https://a.com/14",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 15,
+       "slashtag": "s15",
+       "destination": "https://a.com/15",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 16,
+       "slashtag": "s16",
+       "destination": "https://a.com/16",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 17,
+       "slashtag": "s17",
+       "destination": "https://a.com/17",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 18,
+       "slashtag": "s18",
+       "destination": "https://a.com/18",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 19,
+       "slashtag": "s19",
+       "destination": "https://a.com/19",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 20,
+       "slashtag": "s20",
+       "destination": "https://a.com/20",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 21,
+       "slashtag": "s21",
+       "destination": "https://a.com/21",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 22,
+       "slashtag": "s22",
+       "destination": "https://a.com/22",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 23,
+       "slashtag": "s23",
+       "destination": "https://a.com/23",
+       "createdAt": "2026-01-01T00:00:00Z"
+      },
+      {
+       "id": 24,
+       "slashtag": "s24",
+       "destination": "https://a.com/24",
+       "createdAt": "2026-01-01T00:00:00Z"
+      }
+     ]
+    }
+   ],
+   "known": [],
+   "ordered": true,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://api.rebrandly.com/v1/links?orderBy=createdAt&orderDir=desc&limit=25&last=24",
+     "headers": {
+      "accept": "application/json",
+      "apikey": "rb"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": "24",
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "0",
+         "slug": "s0",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/0",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "1",
+         "slug": "s1",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/1",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "2",
+         "slug": "s2",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/2",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "3",
+         "slug": "s3",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/3",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "4",
+         "slug": "s4",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/4",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "5",
+         "slug": "s5",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/5",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "6",
+         "slug": "s6",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/6",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "7",
+         "slug": "s7",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/7",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "8",
+         "slug": "s8",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/8",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "9",
+         "slug": "s9",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/9",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "10",
+         "slug": "s10",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/10",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "11",
+         "slug": "s11",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/11",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "12",
+         "slug": "s12",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/12",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "13",
+         "slug": "s13",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/13",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "14",
+         "slug": "s14",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/14",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "15",
+         "slug": "s15",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/15",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "16",
+         "slug": "s16",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/16",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "17",
+         "slug": "s17",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/17",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "18",
+         "slug": "s18",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/18",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "19",
+         "slug": "s19",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/19",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "20",
+         "slug": "s20",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/20",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "21",
+         "slug": "s21",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/21",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "22",
+         "slug": "s22",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/22",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "23",
+         "slug": "s23",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/23",
+         "createdAt": 1767225600000
+        }
+       },
+       {
+        "link": {
+         "sourceId": "24",
+         "slug": "s24",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/24",
+         "createdAt": 1767225600000
+        }
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "24",
+     "result": {
+      "cursor": null,
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "25",
+         "slug": "s25",
+         "domain": "",
+         "name": "",
+         "url": "https://a.com/25",
+         "createdAt": 1767225600000
+        }
+       }
+      ]
      }
     }
    ]
@@ -6510,15 +7421,6 @@
       "content-type": "application/json"
      },
      "body": "{\"username\":\"jon\",\"password\":\"bad\"}"
-    },
-    {
-     "method": "GET",
-     "url": "https://stats.example.com/api/links?page=1&pageSize=5",
-     "headers": {
-      "accept": "application/json",
-      "authorization": "Bearer undefined"
-     },
-     "body": ""
     }
    ],
    "waits": [],
@@ -6526,10 +7428,298 @@
    "steps": [
     {
      "cursor": null,
+     "error": {
+      "message": "The key or sign-in was refused",
+      "code": "import_refused",
+      "params": {},
+      "name": "ImportError"
+     }
+    }
+   ]
+  },
+  {
+   "name": "umami no count",
+   "source": "umami",
+   "credentials": {
+    "url": "https://stats.example.com",
+    "apiKey": "k"
+   },
+   "routes": [
+    {
+     "pattern": "\\/api\\/links\\?page=1&",
+     "body": {
+      "data": [
+       {
+        "id": "u0",
+        "name": "N0",
+        "url": "https://a.com/0",
+        "slug": "s0",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u1",
+        "name": "N1",
+        "url": "https://a.com/1",
+        "slug": "s1",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u2",
+        "name": "N2",
+        "url": "https://a.com/2",
+        "slug": "s2",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u3",
+        "name": "N3",
+        "url": "https://a.com/3",
+        "slug": "s3",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       },
+       {
+        "id": "u4",
+        "name": "N4",
+        "url": "https://a.com/4",
+        "slug": "s4",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       }
+      ]
+     }
+    },
+    {
+     "pattern": "\\/api\\/links\\?page=2&",
+     "body": {
+      "data": [
+       {
+        "id": "u5",
+        "name": "N5",
+        "url": "https://a.com/5",
+        "slug": "s5",
+        "createdAt": "2026-01-01T00:00:00Z",
+        "deletedAt": null
+       }
+      ],
+      "count": "six"
+     }
+    },
+    {
+     "pattern": "\\/websites\\/",
+     "body": {
+      "data": []
+     }
+    }
+   ],
+   "known": [
+    "u0",
+    "u1",
+    "u2",
+    "u3",
+    "u4"
+   ],
+   "ordered": false,
+   "requests": [
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/links?page=1&pageSize=5",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/links?page=2&pageSize=5",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/websites/u5/events?startAt=1767139200000&endAt=1791471905678&page=1&pageSize=1000",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    },
+    {
+     "method": "GET",
+     "url": "https://stats.example.com/api/websites/u5/sessions?startAt=1767139200000&endAt=1791471905678&page=1&pageSize=1000",
+     "headers": {
+      "accept": "application/json",
+      "authorization": "Bearer k"
+     },
+     "body": ""
+    }
+   ],
+   "waits": [],
+   "knownCalls": [
+    [
+     "u0",
+     "s0",
+     "https://a.com/0"
+    ],
+    [
+     "u1",
+     "s1",
+     "https://a.com/1"
+    ],
+    [
+     "u2",
+     "s2",
+     "https://a.com/2"
+    ],
+    [
+     "u3",
+     "s3",
+     "https://a.com/3"
+    ],
+    [
+     "u4",
+     "s4",
+     "https://a.com/4"
+    ],
+    [
+     "u5",
+     "s5",
+     "https://a.com/5"
+    ]
+   ],
+   "steps": [
+    {
+     "cursor": null,
+     "result": {
+      "cursor": "{\"page\":2}",
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "u0",
+         "slug": "s0",
+         "domain": "",
+         "name": "N0",
+         "url": "https://a.com/0",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u1",
+         "slug": "s1",
+         "domain": "",
+         "name": "N1",
+         "url": "https://a.com/1",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u2",
+         "slug": "s2",
+         "domain": "",
+         "name": "N2",
+         "url": "https://a.com/2",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u3",
+         "slug": "s3",
+         "domain": "",
+         "name": "N3",
+         "url": "https://a.com/3",
+         "createdAt": 0
+        },
+        "known": true
+       },
+       {
+        "link": {
+         "sourceId": "u4",
+         "slug": "s4",
+         "domain": "",
+         "name": "N4",
+         "url": "https://a.com/4",
+         "createdAt": 0
+        },
+        "known": true
+       }
+      ]
+     }
+    },
+    {
+     "cursor": "{\"page\":2}",
      "result": {
       "cursor": null,
-      "total": 0,
-      "links": []
+      "total": null,
+      "links": [
+       {
+        "link": {
+         "sourceId": "u5",
+         "slug": "s5",
+         "domain": "",
+         "name": "N5",
+         "url": "https://a.com/5",
+         "createdAt": 1767225600000
+        },
+        "clicks": []
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "name": "umami login token not text",
+   "source": "umami",
+   "credentials": {
+    "url": "https://stats.example.com",
+    "username": "jon",
+    "password": "pw"
+   },
+   "routes": [
+    {
+     "pattern": "\\/api\\/auth\\/login",
+     "body": {
+      "token": 42
+     }
+    }
+   ],
+   "known": [],
+   "ordered": false,
+   "requests": [
+    {
+     "method": "POST",
+     "url": "https://stats.example.com/api/auth/login",
+     "headers": {
+      "accept": "application/json",
+      "content-type": "application/json"
+     },
+     "body": "{\"username\":\"jon\",\"password\":\"pw\"}"
+    }
+   ],
+   "waits": [],
+   "knownCalls": [],
+   "steps": [
+    {
+     "cursor": null,
+     "error": {
+      "message": "The key or sign-in was refused",
+      "code": "import_refused",
+      "params": {},
+      "name": "ImportError"
      }
     }
    ]
