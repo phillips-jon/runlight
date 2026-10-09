@@ -161,7 +161,13 @@ defmodule Runlight.PureTest do
     end
 
     for c <- f["recordedPaths"], do: assert(Sources.recorded_path(c["input"]) == c["path"], inspect(c["input"]))
-    for c <- f["readablePaths"], do: assert(Sources.readable_path(c["input"]) == c["path"], inspect(c["input"]))
+    # \p{C} counts unassigned characters, so the answer follows the Unicode version of this OTP's PCRE: OTP 27's
+    # predates Unicode 15, and a character assigned since (U+31350) stays encoded there, as it would in an older
+    # Node. Those cases are left out, as the Python port leaves them out on Python 3.11.
+    for c <- f["readablePaths"], not Regex.match?(~r/\p{Cn}/u, c["path"]) do
+      assert Sources.readable_path(c["input"]) == c["path"], inspect(c["input"])
+    end
+
     for c <- f["stripWww"], do: assert(Sources.strip_www(c["input"]) == c["host"])
     _ = &source_obj/1
   end
