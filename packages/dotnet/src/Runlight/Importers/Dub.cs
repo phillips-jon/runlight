@@ -93,7 +93,7 @@ public sealed class Dub(Http? http = null, Func<long>? now = null) : IImporter
                 }
                 catch (HttpError error)
                 {
-                    if (error.Status == 401)
+                    if (!PlanRefused(error))
                     {
                         throw;
                     }
@@ -121,7 +121,7 @@ public sealed class Dub(Http? http = null, Func<long>? now = null) : IImporter
                 }
                 catch (HttpError error)
                 {
-                    if (error.Status == 401)
+                    if (!PlanRefused(error))
                     {
                         throw;
                     }
@@ -159,4 +159,11 @@ public sealed class Dub(Http? http = null, Func<long>? now = null) : IImporter
             ["links"] = links,
         };
     }
+
+    /// <summary>
+    /// Whether Dub said the plan does not include what was asked (403, or 402).
+    /// Any other failure (a server error that outlasts the retries, say) fails
+    /// the step and leaves the history mode as it was.
+    /// </summary>
+    private static bool PlanRefused(HttpError error) => error.Status is 403 or 402;
 }

@@ -67,11 +67,15 @@ public sealed class MailTests
     {
         foreach (JsObject c in Fixture.Arr("sealed")!)
         {
-            string value = c.Str("value")!;
+            string? value = c.Str("value");
             string secret = c.Str("secret")!;
             Assert.Equal(value, Secret.Unseal(c.Str("sealed")!, secret));
             Assert.Null(Secret.Unseal(c.Str("sealed")!, secret + "!"));
-            Assert.Equal(value, Secret.Unseal(Secret.Seal(value, secret), secret));
+            // A value of null is a sealed form TypeScript cannot open (an IV under 12 bytes), so there is nothing to seal again.
+            if (value != null)
+            {
+                Assert.Equal(value, Secret.Unseal(Secret.Seal(value, secret), secret));
+            }
         }
     }
 
@@ -276,6 +280,13 @@ public sealed class MailTests
         Assert.Equal("SMTP: 127.0.0.1:" + server.Port + " took longer than 1 s", error.Message);
         Assert.True(started.Elapsed.TotalSeconds < 2, "the send gives up at its deadline");
         Assert.True((await server.ConversationAsync(2))?.Bool("closed"), "the connection is closed");
+    }
+
+    [Fact]
+    public async Task Smtp_reply_just_before_the_server_closes_is_the_error_not_the_close()
+    {
+        await using var server = new SmtpServer("refuse");
+        await ThrowsMatching("^SMTP greeting: 535 no$", () => Smtp.SendAsync(new JsObject { ["service"] = "smtp", ["host"] = "127.0.0.1", ["port"] = Js.Str(server.Port), ["security"] = "none" }, Message(), "reports@example.com"));
     }
 
     [Fact]

@@ -30,7 +30,6 @@ public sealed partial class Umami(Http? http = null, Func<long>? now = null) : I
     /// <summary>
     /// Signs in to an Umami: an API key, or a username and password (stock
     /// self-hosted Umami has no API keys). A token from an earlier step is reused.
-    /// A token the sign-in did not give is Undefined, as TS's <c>login.token</c> is then.
     /// </summary>
     public static async Task<(string Base, object? Token)> UmamiSignInAsync(Http http, JsObject credentials, object? token = null, CancellationToken cancellationToken = default)
     {
@@ -56,7 +55,13 @@ public sealed partial class Umami(Http? http = null, Func<long>? now = null) : I
             "POST",
             Json.Stringify(new JsObject { ["username"] = credentials.Get("username"), ["password"] = credentials.Get("password") }),
             cancellationToken).ConfigureAwait(false);
-        return (baseUrl, Http.Field(login, "token"));
+        // A sign-in that answers without a token was refused, whatever its status.
+        object? signedIn = Http.Field(login, "token");
+        if (signedIn is not string { Length: > 0 })
+        {
+            throw new ImportError("The key or sign-in was refused", "import_refused");
+        }
+        return (baseUrl, signedIn);
     }
 
     public async Task<JsObject> StepAsync(JsObject credentials, string? cursor, Func<string, string?, string?, Task<bool>> known, CancellationToken cancellationToken = default)
@@ -154,8 +159,11 @@ public sealed partial class Umami(Http? http = null, Func<long>? now = null) : I
             });
         }
         double pageNumber = Js.Number(statePage);
-        bool more = pageNumber * Page < Js.Num(list.Get("count")) && listData.Count > 0;
+        // Without a count there is no total, and a full page may have more after it.
+        object? count = Http.Field(list, "count");
+        count = Json.TryNumberOf(count, out double total) && double.IsFinite(total) ? count : null;
+        bool more = count == null ? listData.Count == Page : pageNumber * Page < total && listData.Count > 0;
         var next = key.Length > 0 ? new JsObject { ["page"] = pageNumber + 1 } : new JsObject { ["page"] = pageNumber + 1, ["token"] = token };
-        return new JsObject { ["cursor"] = more ? Json.Stringify(next) : null, ["total"] = list.Get("count"), ["links"] = links };
+        return new JsObject { ["cursor"] = more ? Json.Stringify(next) : null, ["total"] = count, ["links"] = links };
     }
 }

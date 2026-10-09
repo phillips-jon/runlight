@@ -102,7 +102,17 @@ public sealed class Shortio(Http? http = null, Func<long>? now = null) : IImport
                     {
                         object? x = point!.Get("x");
                         double ms = Json.TryNumberOf(x, out double n) ? n : Http.ParseDate(x);
-                        daily.Add(new JsObject { ["day"] = Http.IsoString(ms)[..10], ["clicks"] = y });
+                        // A point whose date cannot be read is left out, not the link.
+                        string day;
+                        try
+                        {
+                            day = Http.IsoString(ms)[..10];
+                        }
+                        catch (ArgumentOutOfRangeException)
+                        {
+                            continue;
+                        }
+                        daily.Add(new JsObject { ["day"] = day, ["clicks"] = y });
                     }
                 }
             }
