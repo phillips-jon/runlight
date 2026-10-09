@@ -52,10 +52,19 @@ final class Json
         if (is_nan($n) || is_infinite($n)) {
             return 'null';
         }
-        if ($n == floor($n) && abs($n) < 1e21) {
-            return $n == 0 ? '0' : sprintf('%.0f', $n);
-        }
         $text = var_export($n, true);
+        if ($n == floor($n) && abs($n) < 1e21) {
+            if ($n == 0) {
+                return '0';
+            }
+            if (abs($n) < 2 ** 53 || !str_contains($text, 'E')) {
+                return sprintf('%.0f', $n);
+            }
+            // Past 2^53 JavaScript writes the shortest digits that read back, then zeros: 12345678901234567000, not ...168.
+            [$mantissa, $exponent] = explode('E', $text);
+            $digits = str_replace(['-', '.'], '', $mantissa);
+            return ($n < 0 ? '-' : '') . str_pad($digits, (int) $exponent + 1, '0');
+        }
         if (!str_contains($text, 'E')) {
             return $text;
         }
