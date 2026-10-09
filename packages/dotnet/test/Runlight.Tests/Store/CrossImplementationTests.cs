@@ -224,4 +224,46 @@ public sealed class CrossImplementationTests : IAsyncLifetime
         await AssertAnswersAsync(target, kind);
         await source.CloseAsync();
     }
+
+    [Fact]
+    public async Task The_TypeScript_SDK_reads_a_database_DotNet_wrote_and_answers_the_same()
+    {
+        string? node = Node.Binary();
+        if (node == null)
+        {
+            Assert.Skip("node 22 or later, with the repository installed, reads the .NET database; neither was found.");
+        }
+        string file = Path.Combine(Path.GetTempPath(), "rl-dotnet-" + Guid.NewGuid().ToString("N") + ".db");
+        _files.AddRange([file, file + "-wal", file + "-shm"]);
+        var store = Stores.Sqlite(SqliteFactory.Instance, file);
+        var calls = await Seed.EverythingAsync(store);
+        var mine = new List<string>();
+        foreach (var call in calls)
+        {
+            mine.Add(J(Wf(await AnswerAsync(store, call.Str("method")!, call.Arr("args")!))));
+        }
+        await store.Db.RunAsync("PRAGMA journal_mode = DELETE");
+        await store.CloseAsync();
+        SqliteConnection.ClearAllPools();
+
+        string callsFile = Path.Combine(Path.GetTempPath(), "rl-calls-" + Guid.NewGuid().ToString("N") + ".json");
+        _files.Add(callsFile);
+        await File.WriteAllTextAsync(callsFile, J(calls));
+        var (status, output, error) = await Node.StoreAsync(node, "read", file, callsFile);
+        Assert.True(status == 0, error);
+        Assert.True(Json.TryParse(output, out object? parsed) && parsed is List<object?>, output[..Math.Min(500, output.Length)] + "\n" + error);
+        var theirs = (List<object?>)parsed!;
+        Assert.Equal(calls.Count, theirs.Count);
+        var failures = new List<string>();
+        for (int i = 0; i < calls.Count; i++)
+        {
+            string b = J(theirs[i]);
+            if (mine[i] != b)
+            {
+                failures.Add("#" + i + " " + calls[i].Str("method") + "\n  dotnet " + mine[i] + "\n  ts     " + b);
+            }
+        }
+        NoFailures(failures, 15);
+        Assert.True(calls.Count > 100);
+    }
 }
