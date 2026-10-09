@@ -939,7 +939,7 @@ public sealed partial class Runlight
     public async Task<long?> RetentionAsync(string site, CancellationToken cancellationToken = default)
     {
         double value = Js.Number(await Store.SettingAsync("retention:" + site, cancellationToken).ConfigureAwait(false));
-        return RetentionMonths.Contains((long)value) && value == Math.Floor(value) ? (long)value : null;
+        return double.IsFinite(value) && value == Math.Floor(value) && RetentionMonths.Contains((long)value) ? (long)value : null;
     }
 
     /// <summary>
