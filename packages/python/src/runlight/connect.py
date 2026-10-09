@@ -86,7 +86,7 @@ def start_connect(runlight: Any, input: Any, back: str, site: str = "") -> str: 
     if not all(_same_origin(meta[name], origin) for name in ("authorization_endpoint", "token_endpoint", "registration_endpoint")):
         raise ConnectError(f"{url} named endpoints on another address", "endpoints", {"url": url})
     scopes = meta.get("scopes_supported")
-    if not (isinstance(scopes, (list, str)) and "manage" in scopes):
+    if not (isinstance(scopes, list) and "manage" in scopes):
         raise ConnectError(f"{url} runs an older Runlight. Update it, or connect it with an API token from its Settings.", "old", {"url": url})
 
     try:

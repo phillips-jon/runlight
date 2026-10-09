@@ -93,22 +93,31 @@ def hash_password(password: str) -> str:
 
 
 def check_password(password: str, stored: str) -> bool:
-    """Whether a password matches a hash, scrypt or PBKDF2. Raises ValueError when a part of the hash is not base64,
-    as the TypeScript rejects then."""
+    """Whether a password matches a hash, scrypt or PBKDF2. A hash whose salt or key is not base64url matches
+    nothing, as the TypeScript answers then."""
     parts = stored.split("$")
+
+    def decode(text: str) -> bytes | None:
+        try:
+            return from_base64url(text)
+        except ValueError:
+            return None
+
     if parts[0] == "scrypt" and len(parts) == 3:
-        expected = from_base64url(parts[2])
-        if len(expected) < MIN_KEY_BYTES:
+        expected = decode(parts[2])
+        salt = decode(parts[1])
+        if expected is None or salt is None or len(expected) < MIN_KEY_BYTES:
             return False
-        return _same_bytes(_run_scrypt(password, from_base64url(parts[1]), len(expected)), expected)
+        return _same_bytes(_run_scrypt(password, salt, len(expected)), expected)
     if parts[0] == "pbkdf2" and len(parts) == 4:
         rounds = _js.number(parts[1])
         if not _js.is_integer(rounds) or rounds < 1 or rounds > 10_000_000:
             return False
-        expected = from_base64url(parts[3])
-        if len(expected) < MIN_KEY_BYTES:
+        expected = decode(parts[3])
+        salt = decode(parts[2])
+        if expected is None or salt is None or len(expected) < MIN_KEY_BYTES:
             return False
-        return _same_bytes(_pbkdf2(password, from_base64url(parts[2]), int(rounds), len(expected)), expected)
+        return _same_bytes(_pbkdf2(password, salt, int(rounds), len(expected)), expected)
     return False
 
 
