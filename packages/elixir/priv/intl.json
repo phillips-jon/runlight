@@ -1,0 +1,6004 @@
+{
+ "note": "Written by scripts/elixir-intl.mts from Node's Intl. Do not edit.",
+ "icu": "78.2",
+ "en": {
+  "group": ",",
+  "decimal": ".",
+  "groupsFour": true,
+  "percent": {
+   "prefix": "",
+   "suffix": "%"
+  },
+  "currencies": {
+   "AED": {
+    "prefix": "AED ",
+    "suffix": "",
+    "digits": 2
+   },
+   "AFN": {
+    "prefix": "AFN ",
+    "suffix": "",
+    "digits": 0
+   },
+   "ALL": {
+    "prefix": "ALL ",
+    "suffix": "",
+    "digits": 0
+   },
+   "AMD": {
+    "prefix": "AMD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ANG": {
+    "prefix": "ANG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "AOA": {
+    "prefix": "AOA ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ARS": {
+    "prefix": "ARS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "AUD": {
+    "prefix": "A$",
+    "suffix": "",
+    "digits": 2
+   },
+   "AWG": {
+    "prefix": "AWG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "AZN": {
+    "prefix": "AZN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BAM": {
+    "prefix": "BAM ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BBD": {
+    "prefix": "BBD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BDT": {
+    "prefix": "BDT ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BGN": {
+    "prefix": "BGN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BHD": {
+    "prefix": "BHD ",
+    "suffix": "",
+    "digits": 3
+   },
+   "BIF": {
+    "prefix": "BIF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "BMD": {
+    "prefix": "BMD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BND": {
+    "prefix": "BND ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BOB": {
+    "prefix": "BOB ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BRL": {
+    "prefix": "R$",
+    "suffix": "",
+    "digits": 2
+   },
+   "BSD": {
+    "prefix": "BSD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BTN": {
+    "prefix": "BTN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BWP": {
+    "prefix": "BWP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BYN": {
+    "prefix": "BYN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BZD": {
+    "prefix": "BZD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CAD": {
+    "prefix": "CA$",
+    "suffix": "",
+    "digits": 2
+   },
+   "CDF": {
+    "prefix": "CDF ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CHF": {
+    "prefix": "CHF ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CLP": {
+    "prefix": "CLP ",
+    "suffix": "",
+    "digits": 0
+   },
+   "CNY": {
+    "prefix": "CN¥",
+    "suffix": "",
+    "digits": 2
+   },
+   "COP": {
+    "prefix": "COP ",
+    "suffix": "",
+    "digits": 0
+   },
+   "CRC": {
+    "prefix": "CRC ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CUC": {
+    "prefix": "CUC ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CUP": {
+    "prefix": "CUP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CVE": {
+    "prefix": "CVE ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CZK": {
+    "prefix": "CZK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "DJF": {
+    "prefix": "DJF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "DKK": {
+    "prefix": "DKK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "DOP": {
+    "prefix": "DOP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "DZD": {
+    "prefix": "DZD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "EGP": {
+    "prefix": "EGP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ERN": {
+    "prefix": "ERN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ETB": {
+    "prefix": "ETB ",
+    "suffix": "",
+    "digits": 2
+   },
+   "EUR": {
+    "prefix": "€",
+    "suffix": "",
+    "digits": 2
+   },
+   "FJD": {
+    "prefix": "FJD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "FKP": {
+    "prefix": "FKP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GBP": {
+    "prefix": "£",
+    "suffix": "",
+    "digits": 2
+   },
+   "GEL": {
+    "prefix": "GEL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GHS": {
+    "prefix": "GHS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GIP": {
+    "prefix": "GIP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GMD": {
+    "prefix": "GMD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GNF": {
+    "prefix": "GNF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "GTQ": {
+    "prefix": "GTQ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GYD": {
+    "prefix": "GYD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "HKD": {
+    "prefix": "HK$",
+    "suffix": "",
+    "digits": 2
+   },
+   "HNL": {
+    "prefix": "HNL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "HRK": {
+    "prefix": "HRK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "HTG": {
+    "prefix": "HTG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "HUF": {
+    "prefix": "HUF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "IDR": {
+    "prefix": "IDR ",
+    "suffix": "",
+    "digits": 0
+   },
+   "ILS": {
+    "prefix": "₪",
+    "suffix": "",
+    "digits": 2
+   },
+   "INR": {
+    "prefix": "₹",
+    "suffix": "",
+    "digits": 2
+   },
+   "IQD": {
+    "prefix": "IQD ",
+    "suffix": "",
+    "digits": 0
+   },
+   "IRR": {
+    "prefix": "IRR ",
+    "suffix": "",
+    "digits": 0
+   },
+   "ISK": {
+    "prefix": "ISK ",
+    "suffix": "",
+    "digits": 0
+   },
+   "JMD": {
+    "prefix": "JMD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "JOD": {
+    "prefix": "JOD ",
+    "suffix": "",
+    "digits": 3
+   },
+   "JPY": {
+    "prefix": "¥",
+    "suffix": "",
+    "digits": 0
+   },
+   "KES": {
+    "prefix": "KES ",
+    "suffix": "",
+    "digits": 2
+   },
+   "KGS": {
+    "prefix": "KGS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "KHR": {
+    "prefix": "KHR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "KMF": {
+    "prefix": "KMF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "KPW": {
+    "prefix": "KPW ",
+    "suffix": "",
+    "digits": 0
+   },
+   "KRW": {
+    "prefix": "₩",
+    "suffix": "",
+    "digits": 0
+   },
+   "KWD": {
+    "prefix": "KWD ",
+    "suffix": "",
+    "digits": 3
+   },
+   "KYD": {
+    "prefix": "KYD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "KZT": {
+    "prefix": "KZT ",
+    "suffix": "",
+    "digits": 2
+   },
+   "LAK": {
+    "prefix": "LAK ",
+    "suffix": "",
+    "digits": 0
+   },
+   "LBP": {
+    "prefix": "LBP ",
+    "suffix": "",
+    "digits": 0
+   },
+   "LKR": {
+    "prefix": "LKR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "LRD": {
+    "prefix": "LRD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "LSL": {
+    "prefix": "LSL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "LYD": {
+    "prefix": "LYD ",
+    "suffix": "",
+    "digits": 3
+   },
+   "MAD": {
+    "prefix": "MAD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MDL": {
+    "prefix": "MDL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MGA": {
+    "prefix": "MGA ",
+    "suffix": "",
+    "digits": 0
+   },
+   "MKD": {
+    "prefix": "MKD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MMK": {
+    "prefix": "MMK ",
+    "suffix": "",
+    "digits": 0
+   },
+   "MNT": {
+    "prefix": "MNT ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MOP": {
+    "prefix": "MOP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MRU": {
+    "prefix": "MRU ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MUR": {
+    "prefix": "MUR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MVR": {
+    "prefix": "MVR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MWK": {
+    "prefix": "MWK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MXN": {
+    "prefix": "MX$",
+    "suffix": "",
+    "digits": 2
+   },
+   "MYR": {
+    "prefix": "MYR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MZN": {
+    "prefix": "MZN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NAD": {
+    "prefix": "NAD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NGN": {
+    "prefix": "NGN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NIO": {
+    "prefix": "NIO ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NOK": {
+    "prefix": "NOK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NPR": {
+    "prefix": "NPR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NZD": {
+    "prefix": "NZ$",
+    "suffix": "",
+    "digits": 2
+   },
+   "OMR": {
+    "prefix": "OMR ",
+    "suffix": "",
+    "digits": 3
+   },
+   "PAB": {
+    "prefix": "PAB ",
+    "suffix": "",
+    "digits": 2
+   },
+   "PEN": {
+    "prefix": "PEN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "PGK": {
+    "prefix": "PGK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "PHP": {
+    "prefix": "₱",
+    "suffix": "",
+    "digits": 2
+   },
+   "PKR": {
+    "prefix": "PKR ",
+    "suffix": "",
+    "digits": 0
+   },
+   "PLN": {
+    "prefix": "PLN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "PYG": {
+    "prefix": "PYG ",
+    "suffix": "",
+    "digits": 0
+   },
+   "QAR": {
+    "prefix": "QAR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "RON": {
+    "prefix": "RON ",
+    "suffix": "",
+    "digits": 2
+   },
+   "RSD": {
+    "prefix": "RSD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "RUB": {
+    "prefix": "RUB ",
+    "suffix": "",
+    "digits": 2
+   },
+   "RWF": {
+    "prefix": "RWF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "SAR": {
+    "prefix": "SAR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SBD": {
+    "prefix": "SBD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SCR": {
+    "prefix": "SCR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SDG": {
+    "prefix": "SDG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SEK": {
+    "prefix": "SEK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SGD": {
+    "prefix": "SGD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SHP": {
+    "prefix": "SHP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SLE": {
+    "prefix": "SLE ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SLL": {
+    "prefix": "SLL ",
+    "suffix": "",
+    "digits": 0
+   },
+   "SOS": {
+    "prefix": "SOS ",
+    "suffix": "",
+    "digits": 0
+   },
+   "SRD": {
+    "prefix": "SRD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SSP": {
+    "prefix": "SSP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "STN": {
+    "prefix": "STN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SVC": {
+    "prefix": "SVC ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SYP": {
+    "prefix": "SYP ",
+    "suffix": "",
+    "digits": 0
+   },
+   "SZL": {
+    "prefix": "SZL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "THB": {
+    "prefix": "THB ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TJS": {
+    "prefix": "TJS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TMT": {
+    "prefix": "TMT ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TND": {
+    "prefix": "TND ",
+    "suffix": "",
+    "digits": 3
+   },
+   "TOP": {
+    "prefix": "TOP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TRY": {
+    "prefix": "TRY ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TTD": {
+    "prefix": "TTD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TWD": {
+    "prefix": "NT$",
+    "suffix": "",
+    "digits": 2
+   },
+   "TZS": {
+    "prefix": "TZS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "UAH": {
+    "prefix": "UAH ",
+    "suffix": "",
+    "digits": 2
+   },
+   "UGX": {
+    "prefix": "UGX ",
+    "suffix": "",
+    "digits": 0
+   },
+   "USD": {
+    "prefix": "$",
+    "suffix": "",
+    "digits": 2
+   },
+   "UYU": {
+    "prefix": "UYU ",
+    "suffix": "",
+    "digits": 2
+   },
+   "UZS": {
+    "prefix": "UZS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "VES": {
+    "prefix": "VES ",
+    "suffix": "",
+    "digits": 2
+   },
+   "VND": {
+    "prefix": "₫",
+    "suffix": "",
+    "digits": 0
+   },
+   "VUV": {
+    "prefix": "VUV ",
+    "suffix": "",
+    "digits": 0
+   },
+   "WST": {
+    "prefix": "WST ",
+    "suffix": "",
+    "digits": 2
+   },
+   "XAF": {
+    "prefix": "FCFA ",
+    "suffix": "",
+    "digits": 0
+   },
+   "XCD": {
+    "prefix": "EC$",
+    "suffix": "",
+    "digits": 2
+   },
+   "XCG": {
+    "prefix": "Cg. ",
+    "suffix": "",
+    "digits": 2
+   },
+   "XDR": {
+    "prefix": "XDR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "XOF": {
+    "prefix": "F CFA ",
+    "suffix": "",
+    "digits": 0
+   },
+   "XPF": {
+    "prefix": "CFPF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "XSU": {
+    "prefix": "XSU ",
+    "suffix": "",
+    "digits": 2
+   },
+   "YER": {
+    "prefix": "YER ",
+    "suffix": "",
+    "digits": 0
+   },
+   "ZAR": {
+    "prefix": "ZAR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ZMW": {
+    "prefix": "ZMW ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ZWG": {
+    "prefix": "ZWG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ZWL": {
+    "prefix": "ZWL ",
+    "suffix": "",
+    "digits": 2
+   }
+  },
+  "other": {
+   "prefix": "{c} ",
+   "suffix": ""
+  },
+  "months": [
+   [
+    "January {y}",
+    "Jan {d}",
+    "Jan {d}, {y}"
+   ],
+   [
+    "February {y}",
+    "Feb {d}",
+    "Feb {d}, {y}"
+   ],
+   [
+    "March {y}",
+    "Mar {d}",
+    "Mar {d}, {y}"
+   ],
+   [
+    "April {y}",
+    "Apr {d}",
+    "Apr {d}, {y}"
+   ],
+   [
+    "May {y}",
+    "May {d}",
+    "May {d}, {y}"
+   ],
+   [
+    "June {y}",
+    "Jun {d}",
+    "Jun {d}, {y}"
+   ],
+   [
+    "July {y}",
+    "Jul {d}",
+    "Jul {d}, {y}"
+   ],
+   [
+    "August {y}",
+    "Aug {d}",
+    "Aug {d}, {y}"
+   ],
+   [
+    "September {y}",
+    "Sep {d}",
+    "Sep {d}, {y}"
+   ],
+   [
+    "October {y}",
+    "Oct {d}",
+    "Oct {d}, {y}"
+   ],
+   [
+    "November {y}",
+    "Nov {d}",
+    "Nov {d}, {y}"
+   ],
+   [
+    "December {y}",
+    "Dec {d}",
+    "Dec {d}, {y}"
+   ]
+  ],
+  "regions": {
+   "142": "Asia",
+   "143": "Central Asia",
+   "145": "Western Asia",
+   "150": "Europe",
+   "151": "Eastern Europe",
+   "154": "Northern Europe",
+   "155": "Western Europe",
+   "202": "Sub-Saharan Africa",
+   "419": "Latin America",
+   "AC": "Ascension Island",
+   "AD": "Andorra",
+   "AE": "United Arab Emirates",
+   "AF": "Afghanistan",
+   "AG": "Antigua & Barbuda",
+   "AI": "Anguilla",
+   "AL": "Albania",
+   "AM": "Armenia",
+   "AN": "Curaçao",
+   "AO": "Angola",
+   "AQ": "Antarctica",
+   "AR": "Argentina",
+   "AS": "American Samoa",
+   "AT": "Austria",
+   "AU": "Australia",
+   "AW": "Aruba",
+   "AX": "Åland Islands",
+   "AZ": "Azerbaijan",
+   "BA": "Bosnia & Herzegovina",
+   "BB": "Barbados",
+   "BD": "Bangladesh",
+   "BE": "Belgium",
+   "BF": "Burkina Faso",
+   "BG": "Bulgaria",
+   "BH": "Bahrain",
+   "BI": "Burundi",
+   "BJ": "Benin",
+   "BL": "St. Barthélemy",
+   "BM": "Bermuda",
+   "BN": "Brunei",
+   "BO": "Bolivia",
+   "BQ": "Caribbean Netherlands",
+   "BR": "Brazil",
+   "BS": "Bahamas",
+   "BT": "Bhutan",
+   "BU": "Myanmar (Burma)",
+   "BV": "Bouvet Island",
+   "BW": "Botswana",
+   "BY": "Belarus",
+   "BZ": "Belize",
+   "CA": "Canada",
+   "CC": "Cocos (Keeling) Islands",
+   "CD": "Congo - Kinshasa",
+   "CF": "Central African Republic",
+   "CG": "Congo - Brazzaville",
+   "CH": "Switzerland",
+   "CI": "Côte d’Ivoire",
+   "CK": "Cook Islands",
+   "CL": "Chile",
+   "CM": "Cameroon",
+   "CN": "China",
+   "CO": "Colombia",
+   "CP": "Clipperton Island",
+   "CQ": "Sark",
+   "CR": "Costa Rica",
+   "CS": "Serbia",
+   "CU": "Cuba",
+   "CV": "Cape Verde",
+   "CW": "Curaçao",
+   "CX": "Christmas Island",
+   "CY": "Cyprus",
+   "CZ": "Czechia",
+   "DD": "Germany",
+   "DE": "Germany",
+   "DG": "Diego Garcia",
+   "DJ": "Djibouti",
+   "DK": "Denmark",
+   "DM": "Dominica",
+   "DO": "Dominican Republic",
+   "DY": "Benin",
+   "DZ": "Algeria",
+   "EA": "Ceuta & Melilla",
+   "EC": "Ecuador",
+   "EE": "Estonia",
+   "EG": "Egypt",
+   "EH": "Western Sahara",
+   "ER": "Eritrea",
+   "ES": "Spain",
+   "ET": "Ethiopia",
+   "EU": "European Union",
+   "EZ": "Eurozone",
+   "FI": "Finland",
+   "FJ": "Fiji",
+   "FK": "Falkland Islands",
+   "FM": "Micronesia",
+   "FO": "Faroe Islands",
+   "FR": "France",
+   "FX": "France",
+   "GA": "Gabon",
+   "GB": "United Kingdom",
+   "GD": "Grenada",
+   "GE": "Georgia",
+   "GF": "French Guiana",
+   "GG": "Guernsey",
+   "GH": "Ghana",
+   "GI": "Gibraltar",
+   "GL": "Greenland",
+   "GM": "Gambia",
+   "GN": "Guinea",
+   "GP": "Guadeloupe",
+   "GQ": "Equatorial Guinea",
+   "GR": "Greece",
+   "GS": "South Georgia & South Sandwich Islands",
+   "GT": "Guatemala",
+   "GU": "Guam",
+   "GW": "Guinea-Bissau",
+   "GY": "Guyana",
+   "HK": "Hong Kong SAR China",
+   "HM": "Heard & McDonald Islands",
+   "HN": "Honduras",
+   "HR": "Croatia",
+   "HT": "Haiti",
+   "HU": "Hungary",
+   "HV": "Burkina Faso",
+   "IC": "Canary Islands",
+   "ID": "Indonesia",
+   "IE": "Ireland",
+   "IL": "Israel",
+   "IM": "Isle of Man",
+   "IN": "India",
+   "IO": "British Indian Ocean Territory",
+   "IQ": "Iraq",
+   "IR": "Iran",
+   "IS": "Iceland",
+   "IT": "Italy",
+   "JE": "Jersey",
+   "JM": "Jamaica",
+   "JO": "Jordan",
+   "JP": "Japan",
+   "KE": "Kenya",
+   "KG": "Kyrgyzstan",
+   "KH": "Cambodia",
+   "KI": "Kiribati",
+   "KM": "Comoros",
+   "KN": "St. Kitts & Nevis",
+   "KP": "North Korea",
+   "KR": "South Korea",
+   "KW": "Kuwait",
+   "KY": "Cayman Islands",
+   "KZ": "Kazakhstan",
+   "LA": "Laos",
+   "LB": "Lebanon",
+   "LC": "St. Lucia",
+   "LI": "Liechtenstein",
+   "LK": "Sri Lanka",
+   "LR": "Liberia",
+   "LS": "Lesotho",
+   "LT": "Lithuania",
+   "LU": "Luxembourg",
+   "LV": "Latvia",
+   "LY": "Libya",
+   "MA": "Morocco",
+   "MC": "Monaco",
+   "MD": "Moldova",
+   "ME": "Montenegro",
+   "MF": "St. Martin",
+   "MG": "Madagascar",
+   "MH": "Marshall Islands",
+   "MK": "North Macedonia",
+   "ML": "Mali",
+   "MM": "Myanmar (Burma)",
+   "MN": "Mongolia",
+   "MO": "Macao SAR China",
+   "MP": "Northern Mariana Islands",
+   "MQ": "Martinique",
+   "MR": "Mauritania",
+   "MS": "Montserrat",
+   "MT": "Malta",
+   "MU": "Mauritius",
+   "MV": "Maldives",
+   "MW": "Malawi",
+   "MX": "Mexico",
+   "MY": "Malaysia",
+   "MZ": "Mozambique",
+   "NA": "Namibia",
+   "NC": "New Caledonia",
+   "NE": "Niger",
+   "NF": "Norfolk Island",
+   "NG": "Nigeria",
+   "NH": "Vanuatu",
+   "NI": "Nicaragua",
+   "NL": "Netherlands",
+   "NO": "Norway",
+   "NP": "Nepal",
+   "NR": "Nauru",
+   "NU": "Niue",
+   "NZ": "New Zealand",
+   "OM": "Oman",
+   "PA": "Panama",
+   "PE": "Peru",
+   "PF": "French Polynesia",
+   "PG": "Papua New Guinea",
+   "PH": "Philippines",
+   "PK": "Pakistan",
+   "PL": "Poland",
+   "PM": "St. Pierre & Miquelon",
+   "PN": "Pitcairn Islands",
+   "PR": "Puerto Rico",
+   "PS": "Palestinian Territories",
+   "PT": "Portugal",
+   "PW": "Palau",
+   "PY": "Paraguay",
+   "QA": "Qatar",
+   "QO": "Outlying Oceania",
+   "RE": "Réunion",
+   "RH": "Zimbabwe",
+   "RO": "Romania",
+   "RS": "Serbia",
+   "RU": "Russia",
+   "RW": "Rwanda",
+   "SA": "Saudi Arabia",
+   "SB": "Solomon Islands",
+   "SC": "Seychelles",
+   "SD": "Sudan",
+   "SE": "Sweden",
+   "SG": "Singapore",
+   "SH": "St. Helena",
+   "SI": "Slovenia",
+   "SJ": "Svalbard & Jan Mayen",
+   "SK": "Slovakia",
+   "SL": "Sierra Leone",
+   "SM": "San Marino",
+   "SN": "Senegal",
+   "SO": "Somalia",
+   "SR": "Suriname",
+   "SS": "South Sudan",
+   "ST": "São Tomé & Príncipe",
+   "SU": "Russia",
+   "SV": "El Salvador",
+   "SX": "Sint Maarten",
+   "SY": "Syria",
+   "SZ": "Eswatini",
+   "TA": "Tristan da Cunha",
+   "TC": "Turks & Caicos Islands",
+   "TD": "Chad",
+   "TF": "French Southern Territories",
+   "TG": "Togo",
+   "TH": "Thailand",
+   "TJ": "Tajikistan",
+   "TK": "Tokelau",
+   "TL": "Timor-Leste",
+   "TM": "Turkmenistan",
+   "TN": "Tunisia",
+   "TO": "Tonga",
+   "TP": "Timor-Leste",
+   "TR": "Türkiye",
+   "TT": "Trinidad & Tobago",
+   "TV": "Tuvalu",
+   "TW": "Taiwan",
+   "TZ": "Tanzania",
+   "UA": "Ukraine",
+   "UG": "Uganda",
+   "UK": "United Kingdom",
+   "UM": "U.S. Outlying Islands",
+   "UN": "United Nations",
+   "US": "United States",
+   "UY": "Uruguay",
+   "UZ": "Uzbekistan",
+   "VA": "Vatican City",
+   "VC": "St. Vincent & Grenadines",
+   "VD": "Vietnam",
+   "VE": "Venezuela",
+   "VG": "British Virgin Islands",
+   "VI": "U.S. Virgin Islands",
+   "VN": "Vietnam",
+   "VU": "Vanuatu",
+   "WF": "Wallis & Futuna",
+   "WS": "Samoa",
+   "XA": "Pseudo-Accents",
+   "XB": "Pseudo-Bidi",
+   "XK": "Kosovo",
+   "YD": "Yemen",
+   "YE": "Yemen",
+   "YT": "Mayotte",
+   "YU": "Serbia",
+   "ZA": "South Africa",
+   "ZM": "Zambia",
+   "ZR": "Congo - Kinshasa",
+   "ZW": "Zimbabwe",
+   "ZZ": "Unknown Region",
+   "001": "world",
+   "002": "Africa",
+   "003": "North America",
+   "005": "South America",
+   "009": "Oceania",
+   "011": "Western Africa",
+   "013": "Central America",
+   "014": "Eastern Africa",
+   "015": "Northern Africa",
+   "017": "Middle Africa",
+   "018": "Southern Africa",
+   "019": "Americas",
+   "021": "Northern America",
+   "029": "Caribbean",
+   "030": "Eastern Asia",
+   "034": "Southern Asia",
+   "035": "Southeast Asia",
+   "039": "Southern Europe",
+   "053": "Australasia",
+   "054": "Melanesia",
+   "057": "Micronesian Region",
+   "061": "Polynesia"
+  }
+ },
+ "de": {
+  "group": ".",
+  "decimal": ",",
+  "groupsFour": true,
+  "percent": {
+   "prefix": "",
+   "suffix": " %"
+  },
+  "currencies": {
+   "AED": {
+    "prefix": "",
+    "suffix": " AED",
+    "digits": 2
+   },
+   "AFN": {
+    "prefix": "",
+    "suffix": " AFN",
+    "digits": 0
+   },
+   "ALL": {
+    "prefix": "",
+    "suffix": " ALL",
+    "digits": 0
+   },
+   "AMD": {
+    "prefix": "",
+    "suffix": " AMD",
+    "digits": 2
+   },
+   "ANG": {
+    "prefix": "",
+    "suffix": " ANG",
+    "digits": 2
+   },
+   "AOA": {
+    "prefix": "",
+    "suffix": " AOA",
+    "digits": 2
+   },
+   "ARS": {
+    "prefix": "",
+    "suffix": " ARS",
+    "digits": 2
+   },
+   "AUD": {
+    "prefix": "",
+    "suffix": " AU$",
+    "digits": 2
+   },
+   "AWG": {
+    "prefix": "",
+    "suffix": " AWG",
+    "digits": 2
+   },
+   "AZN": {
+    "prefix": "",
+    "suffix": " AZN",
+    "digits": 2
+   },
+   "BAM": {
+    "prefix": "",
+    "suffix": " BAM",
+    "digits": 2
+   },
+   "BBD": {
+    "prefix": "",
+    "suffix": " BBD",
+    "digits": 2
+   },
+   "BDT": {
+    "prefix": "",
+    "suffix": " BDT",
+    "digits": 2
+   },
+   "BGN": {
+    "prefix": "",
+    "suffix": " BGN",
+    "digits": 2
+   },
+   "BHD": {
+    "prefix": "",
+    "suffix": " BHD",
+    "digits": 3
+   },
+   "BIF": {
+    "prefix": "",
+    "suffix": " BIF",
+    "digits": 0
+   },
+   "BMD": {
+    "prefix": "",
+    "suffix": " BMD",
+    "digits": 2
+   },
+   "BND": {
+    "prefix": "",
+    "suffix": " BND",
+    "digits": 2
+   },
+   "BOB": {
+    "prefix": "",
+    "suffix": " BOB",
+    "digits": 2
+   },
+   "BRL": {
+    "prefix": "",
+    "suffix": " R$",
+    "digits": 2
+   },
+   "BSD": {
+    "prefix": "",
+    "suffix": " BSD",
+    "digits": 2
+   },
+   "BTN": {
+    "prefix": "",
+    "suffix": " BTN",
+    "digits": 2
+   },
+   "BWP": {
+    "prefix": "",
+    "suffix": " BWP",
+    "digits": 2
+   },
+   "BYN": {
+    "prefix": "",
+    "suffix": " BYN",
+    "digits": 2
+   },
+   "BZD": {
+    "prefix": "",
+    "suffix": " BZD",
+    "digits": 2
+   },
+   "CAD": {
+    "prefix": "",
+    "suffix": " CA$",
+    "digits": 2
+   },
+   "CDF": {
+    "prefix": "",
+    "suffix": " CDF",
+    "digits": 2
+   },
+   "CHF": {
+    "prefix": "",
+    "suffix": " CHF",
+    "digits": 2
+   },
+   "CLP": {
+    "prefix": "",
+    "suffix": " CLP",
+    "digits": 0
+   },
+   "CNY": {
+    "prefix": "",
+    "suffix": " CN¥",
+    "digits": 2
+   },
+   "COP": {
+    "prefix": "",
+    "suffix": " COP",
+    "digits": 0
+   },
+   "CRC": {
+    "prefix": "",
+    "suffix": " CRC",
+    "digits": 2
+   },
+   "CUC": {
+    "prefix": "",
+    "suffix": " CUC",
+    "digits": 2
+   },
+   "CUP": {
+    "prefix": "",
+    "suffix": " CUP",
+    "digits": 2
+   },
+   "CVE": {
+    "prefix": "",
+    "suffix": " CVE",
+    "digits": 2
+   },
+   "CZK": {
+    "prefix": "",
+    "suffix": " CZK",
+    "digits": 2
+   },
+   "DJF": {
+    "prefix": "",
+    "suffix": " DJF",
+    "digits": 0
+   },
+   "DKK": {
+    "prefix": "",
+    "suffix": " DKK",
+    "digits": 2
+   },
+   "DOP": {
+    "prefix": "",
+    "suffix": " DOP",
+    "digits": 2
+   },
+   "DZD": {
+    "prefix": "",
+    "suffix": " DZD",
+    "digits": 2
+   },
+   "EGP": {
+    "prefix": "",
+    "suffix": " EGP",
+    "digits": 2
+   },
+   "ERN": {
+    "prefix": "",
+    "suffix": " ERN",
+    "digits": 2
+   },
+   "ETB": {
+    "prefix": "",
+    "suffix": " ETB",
+    "digits": 2
+   },
+   "EUR": {
+    "prefix": "",
+    "suffix": " €",
+    "digits": 2
+   },
+   "FJD": {
+    "prefix": "",
+    "suffix": " FJD",
+    "digits": 2
+   },
+   "FKP": {
+    "prefix": "",
+    "suffix": " FKP",
+    "digits": 2
+   },
+   "GBP": {
+    "prefix": "",
+    "suffix": " £",
+    "digits": 2
+   },
+   "GEL": {
+    "prefix": "",
+    "suffix": " GEL",
+    "digits": 2
+   },
+   "GHS": {
+    "prefix": "",
+    "suffix": " GHS",
+    "digits": 2
+   },
+   "GIP": {
+    "prefix": "",
+    "suffix": " GIP",
+    "digits": 2
+   },
+   "GMD": {
+    "prefix": "",
+    "suffix": " GMD",
+    "digits": 2
+   },
+   "GNF": {
+    "prefix": "",
+    "suffix": " GNF",
+    "digits": 0
+   },
+   "GTQ": {
+    "prefix": "",
+    "suffix": " GTQ",
+    "digits": 2
+   },
+   "GYD": {
+    "prefix": "",
+    "suffix": " GYD",
+    "digits": 2
+   },
+   "HKD": {
+    "prefix": "",
+    "suffix": " HK$",
+    "digits": 2
+   },
+   "HNL": {
+    "prefix": "",
+    "suffix": " HNL",
+    "digits": 2
+   },
+   "HRK": {
+    "prefix": "",
+    "suffix": " HRK",
+    "digits": 2
+   },
+   "HTG": {
+    "prefix": "",
+    "suffix": " HTG",
+    "digits": 2
+   },
+   "HUF": {
+    "prefix": "",
+    "suffix": " HUF",
+    "digits": 0
+   },
+   "IDR": {
+    "prefix": "",
+    "suffix": " IDR",
+    "digits": 0
+   },
+   "ILS": {
+    "prefix": "",
+    "suffix": " ₪",
+    "digits": 2
+   },
+   "INR": {
+    "prefix": "",
+    "suffix": " ₹",
+    "digits": 2
+   },
+   "IQD": {
+    "prefix": "",
+    "suffix": " IQD",
+    "digits": 0
+   },
+   "IRR": {
+    "prefix": "",
+    "suffix": " IRR",
+    "digits": 0
+   },
+   "ISK": {
+    "prefix": "",
+    "suffix": " ISK",
+    "digits": 0
+   },
+   "JMD": {
+    "prefix": "",
+    "suffix": " JMD",
+    "digits": 2
+   },
+   "JOD": {
+    "prefix": "",
+    "suffix": " JOD",
+    "digits": 3
+   },
+   "JPY": {
+    "prefix": "",
+    "suffix": " ¥",
+    "digits": 0
+   },
+   "KES": {
+    "prefix": "",
+    "suffix": " KES",
+    "digits": 2
+   },
+   "KGS": {
+    "prefix": "",
+    "suffix": " KGS",
+    "digits": 2
+   },
+   "KHR": {
+    "prefix": "",
+    "suffix": " KHR",
+    "digits": 2
+   },
+   "KMF": {
+    "prefix": "",
+    "suffix": " KMF",
+    "digits": 0
+   },
+   "KPW": {
+    "prefix": "",
+    "suffix": " KPW",
+    "digits": 0
+   },
+   "KRW": {
+    "prefix": "",
+    "suffix": " ₩",
+    "digits": 0
+   },
+   "KWD": {
+    "prefix": "",
+    "suffix": " KWD",
+    "digits": 3
+   },
+   "KYD": {
+    "prefix": "",
+    "suffix": " KYD",
+    "digits": 2
+   },
+   "KZT": {
+    "prefix": "",
+    "suffix": " KZT",
+    "digits": 2
+   },
+   "LAK": {
+    "prefix": "",
+    "suffix": " LAK",
+    "digits": 0
+   },
+   "LBP": {
+    "prefix": "",
+    "suffix": " LBP",
+    "digits": 0
+   },
+   "LKR": {
+    "prefix": "",
+    "suffix": " LKR",
+    "digits": 2
+   },
+   "LRD": {
+    "prefix": "",
+    "suffix": " LRD",
+    "digits": 2
+   },
+   "LSL": {
+    "prefix": "",
+    "suffix": " LSL",
+    "digits": 2
+   },
+   "LYD": {
+    "prefix": "",
+    "suffix": " LYD",
+    "digits": 3
+   },
+   "MAD": {
+    "prefix": "",
+    "suffix": " MAD",
+    "digits": 2
+   },
+   "MDL": {
+    "prefix": "",
+    "suffix": " MDL",
+    "digits": 2
+   },
+   "MGA": {
+    "prefix": "",
+    "suffix": " MGA",
+    "digits": 0
+   },
+   "MKD": {
+    "prefix": "",
+    "suffix": " MKD",
+    "digits": 2
+   },
+   "MMK": {
+    "prefix": "",
+    "suffix": " MMK",
+    "digits": 0
+   },
+   "MNT": {
+    "prefix": "",
+    "suffix": " MNT",
+    "digits": 2
+   },
+   "MOP": {
+    "prefix": "",
+    "suffix": " MOP",
+    "digits": 2
+   },
+   "MRU": {
+    "prefix": "",
+    "suffix": " MRU",
+    "digits": 2
+   },
+   "MUR": {
+    "prefix": "",
+    "suffix": " MUR",
+    "digits": 2
+   },
+   "MVR": {
+    "prefix": "",
+    "suffix": " MVR",
+    "digits": 2
+   },
+   "MWK": {
+    "prefix": "",
+    "suffix": " MWK",
+    "digits": 2
+   },
+   "MXN": {
+    "prefix": "",
+    "suffix": " MX$",
+    "digits": 2
+   },
+   "MYR": {
+    "prefix": "",
+    "suffix": " MYR",
+    "digits": 2
+   },
+   "MZN": {
+    "prefix": "",
+    "suffix": " MZN",
+    "digits": 2
+   },
+   "NAD": {
+    "prefix": "",
+    "suffix": " NAD",
+    "digits": 2
+   },
+   "NGN": {
+    "prefix": "",
+    "suffix": " NGN",
+    "digits": 2
+   },
+   "NIO": {
+    "prefix": "",
+    "suffix": " NIO",
+    "digits": 2
+   },
+   "NOK": {
+    "prefix": "",
+    "suffix": " NOK",
+    "digits": 2
+   },
+   "NPR": {
+    "prefix": "",
+    "suffix": " NPR",
+    "digits": 2
+   },
+   "NZD": {
+    "prefix": "",
+    "suffix": " NZ$",
+    "digits": 2
+   },
+   "OMR": {
+    "prefix": "",
+    "suffix": " OMR",
+    "digits": 3
+   },
+   "PAB": {
+    "prefix": "",
+    "suffix": " PAB",
+    "digits": 2
+   },
+   "PEN": {
+    "prefix": "",
+    "suffix": " PEN",
+    "digits": 2
+   },
+   "PGK": {
+    "prefix": "",
+    "suffix": " PGK",
+    "digits": 2
+   },
+   "PHP": {
+    "prefix": "",
+    "suffix": " PHP",
+    "digits": 2
+   },
+   "PKR": {
+    "prefix": "",
+    "suffix": " PKR",
+    "digits": 0
+   },
+   "PLN": {
+    "prefix": "",
+    "suffix": " PLN",
+    "digits": 2
+   },
+   "PYG": {
+    "prefix": "",
+    "suffix": " PYG",
+    "digits": 0
+   },
+   "QAR": {
+    "prefix": "",
+    "suffix": " QAR",
+    "digits": 2
+   },
+   "RON": {
+    "prefix": "",
+    "suffix": " RON",
+    "digits": 2
+   },
+   "RSD": {
+    "prefix": "",
+    "suffix": " RSD",
+    "digits": 2
+   },
+   "RUB": {
+    "prefix": "",
+    "suffix": " RUB",
+    "digits": 2
+   },
+   "RWF": {
+    "prefix": "",
+    "suffix": " RWF",
+    "digits": 0
+   },
+   "SAR": {
+    "prefix": "",
+    "suffix": " SAR",
+    "digits": 2
+   },
+   "SBD": {
+    "prefix": "",
+    "suffix": " SBD",
+    "digits": 2
+   },
+   "SCR": {
+    "prefix": "",
+    "suffix": " SCR",
+    "digits": 2
+   },
+   "SDG": {
+    "prefix": "",
+    "suffix": " SDG",
+    "digits": 2
+   },
+   "SEK": {
+    "prefix": "",
+    "suffix": " SEK",
+    "digits": 2
+   },
+   "SGD": {
+    "prefix": "",
+    "suffix": " SGD",
+    "digits": 2
+   },
+   "SHP": {
+    "prefix": "",
+    "suffix": " SHP",
+    "digits": 2
+   },
+   "SLE": {
+    "prefix": "",
+    "suffix": " SLE",
+    "digits": 2
+   },
+   "SLL": {
+    "prefix": "",
+    "suffix": " SLL",
+    "digits": 0
+   },
+   "SOS": {
+    "prefix": "",
+    "suffix": " SOS",
+    "digits": 0
+   },
+   "SRD": {
+    "prefix": "",
+    "suffix": " SRD",
+    "digits": 2
+   },
+   "SSP": {
+    "prefix": "",
+    "suffix": " SSP",
+    "digits": 2
+   },
+   "STN": {
+    "prefix": "",
+    "suffix": " STN",
+    "digits": 2
+   },
+   "SVC": {
+    "prefix": "",
+    "suffix": " SVC",
+    "digits": 2
+   },
+   "SYP": {
+    "prefix": "",
+    "suffix": " SYP",
+    "digits": 0
+   },
+   "SZL": {
+    "prefix": "",
+    "suffix": " SZL",
+    "digits": 2
+   },
+   "THB": {
+    "prefix": "",
+    "suffix": " ฿",
+    "digits": 2
+   },
+   "TJS": {
+    "prefix": "",
+    "suffix": " TJS",
+    "digits": 2
+   },
+   "TMT": {
+    "prefix": "",
+    "suffix": " TMT",
+    "digits": 2
+   },
+   "TND": {
+    "prefix": "",
+    "suffix": " TND",
+    "digits": 3
+   },
+   "TOP": {
+    "prefix": "",
+    "suffix": " TOP",
+    "digits": 2
+   },
+   "TRY": {
+    "prefix": "",
+    "suffix": " TRY",
+    "digits": 2
+   },
+   "TTD": {
+    "prefix": "",
+    "suffix": " TTD",
+    "digits": 2
+   },
+   "TWD": {
+    "prefix": "",
+    "suffix": " NT$",
+    "digits": 2
+   },
+   "TZS": {
+    "prefix": "",
+    "suffix": " TZS",
+    "digits": 2
+   },
+   "UAH": {
+    "prefix": "",
+    "suffix": " UAH",
+    "digits": 2
+   },
+   "UGX": {
+    "prefix": "",
+    "suffix": " UGX",
+    "digits": 0
+   },
+   "USD": {
+    "prefix": "",
+    "suffix": " $",
+    "digits": 2
+   },
+   "UYU": {
+    "prefix": "",
+    "suffix": " UYU",
+    "digits": 2
+   },
+   "UZS": {
+    "prefix": "",
+    "suffix": " UZS",
+    "digits": 2
+   },
+   "VES": {
+    "prefix": "",
+    "suffix": " VES",
+    "digits": 2
+   },
+   "VND": {
+    "prefix": "",
+    "suffix": " ₫",
+    "digits": 0
+   },
+   "VUV": {
+    "prefix": "",
+    "suffix": " VUV",
+    "digits": 0
+   },
+   "WST": {
+    "prefix": "",
+    "suffix": " WST",
+    "digits": 2
+   },
+   "XAF": {
+    "prefix": "",
+    "suffix": " FCFA",
+    "digits": 0
+   },
+   "XCD": {
+    "prefix": "",
+    "suffix": " EC$",
+    "digits": 2
+   },
+   "XCG": {
+    "prefix": "",
+    "suffix": " Cg.",
+    "digits": 2
+   },
+   "XDR": {
+    "prefix": "",
+    "suffix": " XDR",
+    "digits": 2
+   },
+   "XOF": {
+    "prefix": "",
+    "suffix": " F CFA",
+    "digits": 0
+   },
+   "XPF": {
+    "prefix": "",
+    "suffix": " CFPF",
+    "digits": 0
+   },
+   "XSU": {
+    "prefix": "",
+    "suffix": " XSU",
+    "digits": 2
+   },
+   "YER": {
+    "prefix": "",
+    "suffix": " YER",
+    "digits": 0
+   },
+   "ZAR": {
+    "prefix": "",
+    "suffix": " ZAR",
+    "digits": 2
+   },
+   "ZMW": {
+    "prefix": "",
+    "suffix": " ZMW",
+    "digits": 2
+   },
+   "ZWG": {
+    "prefix": "",
+    "suffix": " ZWG",
+    "digits": 2
+   },
+   "ZWL": {
+    "prefix": "",
+    "suffix": " ZWL",
+    "digits": 2
+   }
+  },
+  "other": {
+   "prefix": "",
+   "suffix": " {c}"
+  },
+  "months": [
+   [
+    "Januar {y}",
+    "{d}. Jan.",
+    "{d}. Jan. {y}"
+   ],
+   [
+    "Februar {y}",
+    "{d}. Feb.",
+    "{d}. Feb. {y}"
+   ],
+   [
+    "März {y}",
+    "{d}. März",
+    "{d}. März {y}"
+   ],
+   [
+    "April {y}",
+    "{d}. Apr.",
+    "{d}. Apr. {y}"
+   ],
+   [
+    "Mai {y}",
+    "{d}. Mai",
+    "{d}. Mai {y}"
+   ],
+   [
+    "Juni {y}",
+    "{d}. Juni",
+    "{d}. Juni {y}"
+   ],
+   [
+    "Juli {y}",
+    "{d}. Juli",
+    "{d}. Juli {y}"
+   ],
+   [
+    "August {y}",
+    "{d}. Aug.",
+    "{d}. Aug. {y}"
+   ],
+   [
+    "September {y}",
+    "{d}. Sept.",
+    "{d}. Sept. {y}"
+   ],
+   [
+    "Oktober {y}",
+    "{d}. Okt.",
+    "{d}. Okt. {y}"
+   ],
+   [
+    "November {y}",
+    "{d}. Nov.",
+    "{d}. Nov. {y}"
+   ],
+   [
+    "Dezember {y}",
+    "{d}. Dez.",
+    "{d}. Dez. {y}"
+   ]
+  ],
+  "regions": {
+   "142": "Asien",
+   "143": "Zentralasien",
+   "145": "Westasien",
+   "150": "Europa",
+   "151": "Osteuropa",
+   "154": "Nordeuropa",
+   "155": "Westeuropa",
+   "202": "Subsahara-Afrika",
+   "419": "Lateinamerika",
+   "AC": "Ascension",
+   "AD": "Andorra",
+   "AE": "Vereinigte Arabische Emirate",
+   "AF": "Afghanistan",
+   "AG": "Antigua und Barbuda",
+   "AI": "Anguilla",
+   "AL": "Albanien",
+   "AM": "Armenien",
+   "AN": "Curaçao",
+   "AO": "Angola",
+   "AQ": "Antarktis",
+   "AR": "Argentinien",
+   "AS": "Amerikanisch-Samoa",
+   "AT": "Österreich",
+   "AU": "Australien",
+   "AW": "Aruba",
+   "AX": "Ålandinseln",
+   "AZ": "Aserbaidschan",
+   "BA": "Bosnien und Herzegowina",
+   "BB": "Barbados",
+   "BD": "Bangladesch",
+   "BE": "Belgien",
+   "BF": "Burkina Faso",
+   "BG": "Bulgarien",
+   "BH": "Bahrain",
+   "BI": "Burundi",
+   "BJ": "Benin",
+   "BL": "St. Barthélemy",
+   "BM": "Bermuda",
+   "BN": "Brunei Darussalam",
+   "BO": "Bolivien",
+   "BQ": "Karibische Niederlande",
+   "BR": "Brasilien",
+   "BS": "Bahamas",
+   "BT": "Bhutan",
+   "BU": "Myanmar",
+   "BV": "Bouvetinsel",
+   "BW": "Botsuana",
+   "BY": "Belarus",
+   "BZ": "Belize",
+   "CA": "Kanada",
+   "CC": "Kokosinseln",
+   "CD": "Kongo-Kinshasa",
+   "CF": "Zentralafrikanische Republik",
+   "CG": "Kongo-Brazzaville",
+   "CH": "Schweiz",
+   "CI": "Côte d’Ivoire",
+   "CK": "Cookinseln",
+   "CL": "Chile",
+   "CM": "Kamerun",
+   "CN": "China",
+   "CO": "Kolumbien",
+   "CP": "Clipperton-Insel",
+   "CQ": "Sark",
+   "CR": "Costa Rica",
+   "CS": "Serbien",
+   "CU": "Kuba",
+   "CV": "Cabo Verde",
+   "CW": "Curaçao",
+   "CX": "Weihnachtsinsel",
+   "CY": "Zypern",
+   "CZ": "Tschechien",
+   "DD": "Deutschland",
+   "DE": "Deutschland",
+   "DG": "Diego Garcia",
+   "DJ": "Dschibuti",
+   "DK": "Dänemark",
+   "DM": "Dominica",
+   "DO": "Dominikanische Republik",
+   "DY": "Benin",
+   "DZ": "Algerien",
+   "EA": "Ceuta und Melilla",
+   "EC": "Ecuador",
+   "EE": "Estland",
+   "EG": "Ägypten",
+   "EH": "Westsahara",
+   "ER": "Eritrea",
+   "ES": "Spanien",
+   "ET": "Äthiopien",
+   "EU": "Europäische Union",
+   "EZ": "Eurozone",
+   "FI": "Finnland",
+   "FJ": "Fidschi",
+   "FK": "Falklandinseln",
+   "FM": "Mikronesien",
+   "FO": "Färöer",
+   "FR": "Frankreich",
+   "FX": "Frankreich",
+   "GA": "Gabun",
+   "GB": "Vereinigtes Königreich",
+   "GD": "Grenada",
+   "GE": "Georgien",
+   "GF": "Französisch-Guayana",
+   "GG": "Guernsey",
+   "GH": "Ghana",
+   "GI": "Gibraltar",
+   "GL": "Grönland",
+   "GM": "Gambia",
+   "GN": "Guinea",
+   "GP": "Guadeloupe",
+   "GQ": "Äquatorialguinea",
+   "GR": "Griechenland",
+   "GS": "Südgeorgien und die Südlichen Sandwichinseln",
+   "GT": "Guatemala",
+   "GU": "Guam",
+   "GW": "Guinea-Bissau",
+   "GY": "Guyana",
+   "HK": "Sonderverwaltungsregion Hongkong",
+   "HM": "Heard und McDonaldinseln",
+   "HN": "Honduras",
+   "HR": "Kroatien",
+   "HT": "Haiti",
+   "HU": "Ungarn",
+   "HV": "Burkina Faso",
+   "IC": "Kanarische Inseln",
+   "ID": "Indonesien",
+   "IE": "Irland",
+   "IL": "Israel",
+   "IM": "Isle of Man",
+   "IN": "Indien",
+   "IO": "Britisches Territorium im Indischen Ozean",
+   "IQ": "Irak",
+   "IR": "Iran",
+   "IS": "Island",
+   "IT": "Italien",
+   "JE": "Jersey",
+   "JM": "Jamaika",
+   "JO": "Jordanien",
+   "JP": "Japan",
+   "KE": "Kenia",
+   "KG": "Kirgisistan",
+   "KH": "Kambodscha",
+   "KI": "Kiribati",
+   "KM": "Komoren",
+   "KN": "St. Kitts und Nevis",
+   "KP": "Nordkorea",
+   "KR": "Südkorea",
+   "KW": "Kuwait",
+   "KY": "Kaimaninseln",
+   "KZ": "Kasachstan",
+   "LA": "Laos",
+   "LB": "Libanon",
+   "LC": "St. Lucia",
+   "LI": "Liechtenstein",
+   "LK": "Sri Lanka",
+   "LR": "Liberia",
+   "LS": "Lesotho",
+   "LT": "Litauen",
+   "LU": "Luxemburg",
+   "LV": "Lettland",
+   "LY": "Libyen",
+   "MA": "Marokko",
+   "MC": "Monaco",
+   "MD": "Republik Moldau",
+   "ME": "Montenegro",
+   "MF": "St. Martin",
+   "MG": "Madagaskar",
+   "MH": "Marshallinseln",
+   "MK": "Nordmazedonien",
+   "ML": "Mali",
+   "MM": "Myanmar",
+   "MN": "Mongolei",
+   "MO": "Sonderverwaltungsregion Macau",
+   "MP": "Nördliche Marianen",
+   "MQ": "Martinique",
+   "MR": "Mauretanien",
+   "MS": "Montserrat",
+   "MT": "Malta",
+   "MU": "Mauritius",
+   "MV": "Malediven",
+   "MW": "Malawi",
+   "MX": "Mexiko",
+   "MY": "Malaysia",
+   "MZ": "Mosambik",
+   "NA": "Namibia",
+   "NC": "Neukaledonien",
+   "NE": "Niger",
+   "NF": "Norfolkinsel",
+   "NG": "Nigeria",
+   "NH": "Vanuatu",
+   "NI": "Nicaragua",
+   "NL": "Niederlande",
+   "NO": "Norwegen",
+   "NP": "Nepal",
+   "NR": "Nauru",
+   "NU": "Niue",
+   "NZ": "Neuseeland",
+   "OM": "Oman",
+   "PA": "Panama",
+   "PE": "Peru",
+   "PF": "Französisch-Polynesien",
+   "PG": "Papua-Neuguinea",
+   "PH": "Philippinen",
+   "PK": "Pakistan",
+   "PL": "Polen",
+   "PM": "St. Pierre und Miquelon",
+   "PN": "Pitcairninseln",
+   "PR": "Puerto Rico",
+   "PS": "Palästinensische Autonomiegebiete",
+   "PT": "Portugal",
+   "PW": "Palau",
+   "PY": "Paraguay",
+   "QA": "Katar",
+   "QO": "Äußeres Ozeanien",
+   "RE": "Réunion",
+   "RH": "Simbabwe",
+   "RO": "Rumänien",
+   "RS": "Serbien",
+   "RU": "Russland",
+   "RW": "Ruanda",
+   "SA": "Saudi-Arabien",
+   "SB": "Salomonen",
+   "SC": "Seychellen",
+   "SD": "Sudan",
+   "SE": "Schweden",
+   "SG": "Singapur",
+   "SH": "St. Helena",
+   "SI": "Slowenien",
+   "SJ": "Spitzbergen und Jan Mayen",
+   "SK": "Slowakei",
+   "SL": "Sierra Leone",
+   "SM": "San Marino",
+   "SN": "Senegal",
+   "SO": "Somalia",
+   "SR": "Suriname",
+   "SS": "Südsudan",
+   "ST": "São Tomé und Príncipe",
+   "SU": "Russland",
+   "SV": "El Salvador",
+   "SX": "Sint Maarten",
+   "SY": "Syrien",
+   "SZ": "Eswatini",
+   "TA": "Tristan da Cunha",
+   "TC": "Turks- und Caicosinseln",
+   "TD": "Tschad",
+   "TF": "Französische Süd- und Antarktisgebiete",
+   "TG": "Togo",
+   "TH": "Thailand",
+   "TJ": "Tadschikistan",
+   "TK": "Tokelau",
+   "TL": "Timor-Leste",
+   "TM": "Turkmenistan",
+   "TN": "Tunesien",
+   "TO": "Tonga",
+   "TP": "Timor-Leste",
+   "TR": "Türkei",
+   "TT": "Trinidad und Tobago",
+   "TV": "Tuvalu",
+   "TW": "Taiwan",
+   "TZ": "Tansania",
+   "UA": "Ukraine",
+   "UG": "Uganda",
+   "UK": "Vereinigtes Königreich",
+   "UM": "Amerikanische Überseeinseln",
+   "UN": "Vereinte Nationen",
+   "US": "Vereinigte Staaten",
+   "UY": "Uruguay",
+   "UZ": "Usbekistan",
+   "VA": "Vatikanstadt",
+   "VC": "St. Vincent und die Grenadinen",
+   "VD": "Vietnam",
+   "VE": "Venezuela",
+   "VG": "Britische Jungferninseln",
+   "VI": "Amerikanische Jungferninseln",
+   "VN": "Vietnam",
+   "VU": "Vanuatu",
+   "WF": "Wallis und Futuna",
+   "WS": "Samoa",
+   "XA": "Pseudo-Akzente",
+   "XB": "Pseudo-Bidi",
+   "XK": "Kosovo",
+   "YD": "Jemen",
+   "YE": "Jemen",
+   "YT": "Mayotte",
+   "YU": "Serbien",
+   "ZA": "Südafrika",
+   "ZM": "Sambia",
+   "ZR": "Kongo-Kinshasa",
+   "ZW": "Simbabwe",
+   "ZZ": "Unbekannte Region",
+   "001": "Welt",
+   "002": "Afrika",
+   "003": "Nordamerika",
+   "005": "Südamerika",
+   "009": "Ozeanien",
+   "011": "Westafrika",
+   "013": "Mittelamerika",
+   "014": "Ostafrika",
+   "015": "Nordafrika",
+   "017": "Zentralafrika",
+   "018": "Südliches Afrika",
+   "019": "Amerika",
+   "021": "Nördliches Amerika",
+   "029": "Karibik",
+   "030": "Ostasien",
+   "034": "Südasien",
+   "035": "Südostasien",
+   "039": "Südeuropa",
+   "053": "Australasien",
+   "054": "Melanesien",
+   "057": "Mikronesisches Inselgebiet",
+   "061": "Polynesien"
+  }
+ },
+ "es": {
+  "group": ".",
+  "decimal": ",",
+  "groupsFour": false,
+  "percent": {
+   "prefix": "",
+   "suffix": " %"
+  },
+  "currencies": {
+   "AED": {
+    "prefix": "",
+    "suffix": " AED",
+    "digits": 2
+   },
+   "AFN": {
+    "prefix": "",
+    "suffix": " AFN",
+    "digits": 0
+   },
+   "ALL": {
+    "prefix": "",
+    "suffix": " ALL",
+    "digits": 0
+   },
+   "AMD": {
+    "prefix": "",
+    "suffix": " AMD",
+    "digits": 2
+   },
+   "ANG": {
+    "prefix": "",
+    "suffix": " ANG",
+    "digits": 2
+   },
+   "AOA": {
+    "prefix": "",
+    "suffix": " AOA",
+    "digits": 2
+   },
+   "ARS": {
+    "prefix": "",
+    "suffix": " ARS",
+    "digits": 2
+   },
+   "AUD": {
+    "prefix": "",
+    "suffix": " AUD",
+    "digits": 2
+   },
+   "AWG": {
+    "prefix": "",
+    "suffix": " AWG",
+    "digits": 2
+   },
+   "AZN": {
+    "prefix": "",
+    "suffix": " AZN",
+    "digits": 2
+   },
+   "BAM": {
+    "prefix": "",
+    "suffix": " BAM",
+    "digits": 2
+   },
+   "BBD": {
+    "prefix": "",
+    "suffix": " BBD",
+    "digits": 2
+   },
+   "BDT": {
+    "prefix": "",
+    "suffix": " BDT",
+    "digits": 2
+   },
+   "BGN": {
+    "prefix": "",
+    "suffix": " BGN",
+    "digits": 2
+   },
+   "BHD": {
+    "prefix": "",
+    "suffix": " BHD",
+    "digits": 3
+   },
+   "BIF": {
+    "prefix": "",
+    "suffix": " BIF",
+    "digits": 0
+   },
+   "BMD": {
+    "prefix": "",
+    "suffix": " BMD",
+    "digits": 2
+   },
+   "BND": {
+    "prefix": "",
+    "suffix": " BND",
+    "digits": 2
+   },
+   "BOB": {
+    "prefix": "",
+    "suffix": " BOB",
+    "digits": 2
+   },
+   "BRL": {
+    "prefix": "",
+    "suffix": " BRL",
+    "digits": 2
+   },
+   "BSD": {
+    "prefix": "",
+    "suffix": " BSD",
+    "digits": 2
+   },
+   "BTN": {
+    "prefix": "",
+    "suffix": " BTN",
+    "digits": 2
+   },
+   "BWP": {
+    "prefix": "",
+    "suffix": " BWP",
+    "digits": 2
+   },
+   "BYN": {
+    "prefix": "",
+    "suffix": " BYN",
+    "digits": 2
+   },
+   "BZD": {
+    "prefix": "",
+    "suffix": " BZD",
+    "digits": 2
+   },
+   "CAD": {
+    "prefix": "",
+    "suffix": " CAD",
+    "digits": 2
+   },
+   "CDF": {
+    "prefix": "",
+    "suffix": " CDF",
+    "digits": 2
+   },
+   "CHF": {
+    "prefix": "",
+    "suffix": " CHF",
+    "digits": 2
+   },
+   "CLP": {
+    "prefix": "",
+    "suffix": " CLP",
+    "digits": 0
+   },
+   "CNY": {
+    "prefix": "",
+    "suffix": " CNY",
+    "digits": 2
+   },
+   "COP": {
+    "prefix": "",
+    "suffix": " COP",
+    "digits": 0
+   },
+   "CRC": {
+    "prefix": "",
+    "suffix": " CRC",
+    "digits": 2
+   },
+   "CUC": {
+    "prefix": "",
+    "suffix": " CUC",
+    "digits": 2
+   },
+   "CUP": {
+    "prefix": "",
+    "suffix": " CUP",
+    "digits": 2
+   },
+   "CVE": {
+    "prefix": "",
+    "suffix": " CVE",
+    "digits": 2
+   },
+   "CZK": {
+    "prefix": "",
+    "suffix": " CZK",
+    "digits": 2
+   },
+   "DJF": {
+    "prefix": "",
+    "suffix": " DJF",
+    "digits": 0
+   },
+   "DKK": {
+    "prefix": "",
+    "suffix": " DKK",
+    "digits": 2
+   },
+   "DOP": {
+    "prefix": "",
+    "suffix": " DOP",
+    "digits": 2
+   },
+   "DZD": {
+    "prefix": "",
+    "suffix": " DZD",
+    "digits": 2
+   },
+   "EGP": {
+    "prefix": "",
+    "suffix": " EGP",
+    "digits": 2
+   },
+   "ERN": {
+    "prefix": "",
+    "suffix": " ERN",
+    "digits": 2
+   },
+   "ETB": {
+    "prefix": "",
+    "suffix": " ETB",
+    "digits": 2
+   },
+   "EUR": {
+    "prefix": "",
+    "suffix": " €",
+    "digits": 2
+   },
+   "FJD": {
+    "prefix": "",
+    "suffix": " FJD",
+    "digits": 2
+   },
+   "FKP": {
+    "prefix": "",
+    "suffix": " FKP",
+    "digits": 2
+   },
+   "GBP": {
+    "prefix": "",
+    "suffix": " GBP",
+    "digits": 2
+   },
+   "GEL": {
+    "prefix": "",
+    "suffix": " GEL",
+    "digits": 2
+   },
+   "GHS": {
+    "prefix": "",
+    "suffix": " GHS",
+    "digits": 2
+   },
+   "GIP": {
+    "prefix": "",
+    "suffix": " GIP",
+    "digits": 2
+   },
+   "GMD": {
+    "prefix": "",
+    "suffix": " GMD",
+    "digits": 2
+   },
+   "GNF": {
+    "prefix": "",
+    "suffix": " GNF",
+    "digits": 0
+   },
+   "GTQ": {
+    "prefix": "",
+    "suffix": " GTQ",
+    "digits": 2
+   },
+   "GYD": {
+    "prefix": "",
+    "suffix": " GYD",
+    "digits": 2
+   },
+   "HKD": {
+    "prefix": "",
+    "suffix": " HKD",
+    "digits": 2
+   },
+   "HNL": {
+    "prefix": "",
+    "suffix": " HNL",
+    "digits": 2
+   },
+   "HRK": {
+    "prefix": "",
+    "suffix": " HRK",
+    "digits": 2
+   },
+   "HTG": {
+    "prefix": "",
+    "suffix": " HTG",
+    "digits": 2
+   },
+   "HUF": {
+    "prefix": "",
+    "suffix": " HUF",
+    "digits": 0
+   },
+   "IDR": {
+    "prefix": "",
+    "suffix": " IDR",
+    "digits": 0
+   },
+   "ILS": {
+    "prefix": "",
+    "suffix": " ILS",
+    "digits": 2
+   },
+   "INR": {
+    "prefix": "",
+    "suffix": " INR",
+    "digits": 2
+   },
+   "IQD": {
+    "prefix": "",
+    "suffix": " IQD",
+    "digits": 0
+   },
+   "IRR": {
+    "prefix": "",
+    "suffix": " IRR",
+    "digits": 0
+   },
+   "ISK": {
+    "prefix": "",
+    "suffix": " ISK",
+    "digits": 0
+   },
+   "JMD": {
+    "prefix": "",
+    "suffix": " JMD",
+    "digits": 2
+   },
+   "JOD": {
+    "prefix": "",
+    "suffix": " JOD",
+    "digits": 3
+   },
+   "JPY": {
+    "prefix": "",
+    "suffix": " JPY",
+    "digits": 0
+   },
+   "KES": {
+    "prefix": "",
+    "suffix": " KES",
+    "digits": 2
+   },
+   "KGS": {
+    "prefix": "",
+    "suffix": " KGS",
+    "digits": 2
+   },
+   "KHR": {
+    "prefix": "",
+    "suffix": " KHR",
+    "digits": 2
+   },
+   "KMF": {
+    "prefix": "",
+    "suffix": " KMF",
+    "digits": 0
+   },
+   "KPW": {
+    "prefix": "",
+    "suffix": " KPW",
+    "digits": 0
+   },
+   "KRW": {
+    "prefix": "",
+    "suffix": " KRW",
+    "digits": 0
+   },
+   "KWD": {
+    "prefix": "",
+    "suffix": " KWD",
+    "digits": 3
+   },
+   "KYD": {
+    "prefix": "",
+    "suffix": " KYD",
+    "digits": 2
+   },
+   "KZT": {
+    "prefix": "",
+    "suffix": " KZT",
+    "digits": 2
+   },
+   "LAK": {
+    "prefix": "",
+    "suffix": " LAK",
+    "digits": 0
+   },
+   "LBP": {
+    "prefix": "",
+    "suffix": " LBP",
+    "digits": 0
+   },
+   "LKR": {
+    "prefix": "",
+    "suffix": " LKR",
+    "digits": 2
+   },
+   "LRD": {
+    "prefix": "",
+    "suffix": " LRD",
+    "digits": 2
+   },
+   "LSL": {
+    "prefix": "",
+    "suffix": " LSL",
+    "digits": 2
+   },
+   "LYD": {
+    "prefix": "",
+    "suffix": " LYD",
+    "digits": 3
+   },
+   "MAD": {
+    "prefix": "",
+    "suffix": " MAD",
+    "digits": 2
+   },
+   "MDL": {
+    "prefix": "",
+    "suffix": " MDL",
+    "digits": 2
+   },
+   "MGA": {
+    "prefix": "",
+    "suffix": " MGA",
+    "digits": 0
+   },
+   "MKD": {
+    "prefix": "",
+    "suffix": " MKD",
+    "digits": 2
+   },
+   "MMK": {
+    "prefix": "",
+    "suffix": " MMK",
+    "digits": 0
+   },
+   "MNT": {
+    "prefix": "",
+    "suffix": " MNT",
+    "digits": 2
+   },
+   "MOP": {
+    "prefix": "",
+    "suffix": " MOP",
+    "digits": 2
+   },
+   "MRU": {
+    "prefix": "",
+    "suffix": " MRU",
+    "digits": 2
+   },
+   "MUR": {
+    "prefix": "",
+    "suffix": " MUR",
+    "digits": 2
+   },
+   "MVR": {
+    "prefix": "",
+    "suffix": " MVR",
+    "digits": 2
+   },
+   "MWK": {
+    "prefix": "",
+    "suffix": " MWK",
+    "digits": 2
+   },
+   "MXN": {
+    "prefix": "",
+    "suffix": " MXN",
+    "digits": 2
+   },
+   "MYR": {
+    "prefix": "",
+    "suffix": " MYR",
+    "digits": 2
+   },
+   "MZN": {
+    "prefix": "",
+    "suffix": " MZN",
+    "digits": 2
+   },
+   "NAD": {
+    "prefix": "",
+    "suffix": " NAD",
+    "digits": 2
+   },
+   "NGN": {
+    "prefix": "",
+    "suffix": " NGN",
+    "digits": 2
+   },
+   "NIO": {
+    "prefix": "",
+    "suffix": " NIO",
+    "digits": 2
+   },
+   "NOK": {
+    "prefix": "",
+    "suffix": " NOK",
+    "digits": 2
+   },
+   "NPR": {
+    "prefix": "",
+    "suffix": " NPR",
+    "digits": 2
+   },
+   "NZD": {
+    "prefix": "",
+    "suffix": " NZD",
+    "digits": 2
+   },
+   "OMR": {
+    "prefix": "",
+    "suffix": " OMR",
+    "digits": 3
+   },
+   "PAB": {
+    "prefix": "",
+    "suffix": " PAB",
+    "digits": 2
+   },
+   "PEN": {
+    "prefix": "",
+    "suffix": " PEN",
+    "digits": 2
+   },
+   "PGK": {
+    "prefix": "",
+    "suffix": " PGK",
+    "digits": 2
+   },
+   "PHP": {
+    "prefix": "",
+    "suffix": " PHP",
+    "digits": 2
+   },
+   "PKR": {
+    "prefix": "",
+    "suffix": " PKR",
+    "digits": 0
+   },
+   "PLN": {
+    "prefix": "",
+    "suffix": " PLN",
+    "digits": 2
+   },
+   "PYG": {
+    "prefix": "",
+    "suffix": " PYG",
+    "digits": 0
+   },
+   "QAR": {
+    "prefix": "",
+    "suffix": " QAR",
+    "digits": 2
+   },
+   "RON": {
+    "prefix": "",
+    "suffix": " RON",
+    "digits": 2
+   },
+   "RSD": {
+    "prefix": "",
+    "suffix": " RSD",
+    "digits": 2
+   },
+   "RUB": {
+    "prefix": "",
+    "suffix": " RUB",
+    "digits": 2
+   },
+   "RWF": {
+    "prefix": "",
+    "suffix": " RWF",
+    "digits": 0
+   },
+   "SAR": {
+    "prefix": "",
+    "suffix": " SAR",
+    "digits": 2
+   },
+   "SBD": {
+    "prefix": "",
+    "suffix": " SBD",
+    "digits": 2
+   },
+   "SCR": {
+    "prefix": "",
+    "suffix": " SCR",
+    "digits": 2
+   },
+   "SDG": {
+    "prefix": "",
+    "suffix": " SDG",
+    "digits": 2
+   },
+   "SEK": {
+    "prefix": "",
+    "suffix": " SEK",
+    "digits": 2
+   },
+   "SGD": {
+    "prefix": "",
+    "suffix": " SGD",
+    "digits": 2
+   },
+   "SHP": {
+    "prefix": "",
+    "suffix": " SHP",
+    "digits": 2
+   },
+   "SLE": {
+    "prefix": "",
+    "suffix": " SLE",
+    "digits": 2
+   },
+   "SLL": {
+    "prefix": "",
+    "suffix": " SLL",
+    "digits": 0
+   },
+   "SOS": {
+    "prefix": "",
+    "suffix": " SOS",
+    "digits": 0
+   },
+   "SRD": {
+    "prefix": "",
+    "suffix": " SRD",
+    "digits": 2
+   },
+   "SSP": {
+    "prefix": "",
+    "suffix": " SSP",
+    "digits": 2
+   },
+   "STN": {
+    "prefix": "",
+    "suffix": " STN",
+    "digits": 2
+   },
+   "SVC": {
+    "prefix": "",
+    "suffix": " SVC",
+    "digits": 2
+   },
+   "SYP": {
+    "prefix": "",
+    "suffix": " SYP",
+    "digits": 0
+   },
+   "SZL": {
+    "prefix": "",
+    "suffix": " SZL",
+    "digits": 2
+   },
+   "THB": {
+    "prefix": "",
+    "suffix": " ฿",
+    "digits": 2
+   },
+   "TJS": {
+    "prefix": "",
+    "suffix": " TJS",
+    "digits": 2
+   },
+   "TMT": {
+    "prefix": "",
+    "suffix": " TMT",
+    "digits": 2
+   },
+   "TND": {
+    "prefix": "",
+    "suffix": " TND",
+    "digits": 3
+   },
+   "TOP": {
+    "prefix": "",
+    "suffix": " TOP",
+    "digits": 2
+   },
+   "TRY": {
+    "prefix": "",
+    "suffix": " TRY",
+    "digits": 2
+   },
+   "TTD": {
+    "prefix": "",
+    "suffix": " TTD",
+    "digits": 2
+   },
+   "TWD": {
+    "prefix": "",
+    "suffix": " TWD",
+    "digits": 2
+   },
+   "TZS": {
+    "prefix": "",
+    "suffix": " TZS",
+    "digits": 2
+   },
+   "UAH": {
+    "prefix": "",
+    "suffix": " UAH",
+    "digits": 2
+   },
+   "UGX": {
+    "prefix": "",
+    "suffix": " UGX",
+    "digits": 0
+   },
+   "USD": {
+    "prefix": "",
+    "suffix": " US$",
+    "digits": 2
+   },
+   "UYU": {
+    "prefix": "",
+    "suffix": " UYU",
+    "digits": 2
+   },
+   "UZS": {
+    "prefix": "",
+    "suffix": " UZS",
+    "digits": 2
+   },
+   "VES": {
+    "prefix": "",
+    "suffix": " VES",
+    "digits": 2
+   },
+   "VND": {
+    "prefix": "",
+    "suffix": " ₫",
+    "digits": 0
+   },
+   "VUV": {
+    "prefix": "",
+    "suffix": " VUV",
+    "digits": 0
+   },
+   "WST": {
+    "prefix": "",
+    "suffix": " WST",
+    "digits": 2
+   },
+   "XAF": {
+    "prefix": "",
+    "suffix": " XAF",
+    "digits": 0
+   },
+   "XCD": {
+    "prefix": "",
+    "suffix": " XCD",
+    "digits": 2
+   },
+   "XCG": {
+    "prefix": "",
+    "suffix": " Cg.",
+    "digits": 2
+   },
+   "XDR": {
+    "prefix": "",
+    "suffix": " XDR",
+    "digits": 2
+   },
+   "XOF": {
+    "prefix": "",
+    "suffix": " XOF",
+    "digits": 0
+   },
+   "XPF": {
+    "prefix": "",
+    "suffix": " CFPF",
+    "digits": 0
+   },
+   "XSU": {
+    "prefix": "",
+    "suffix": " XSU",
+    "digits": 2
+   },
+   "YER": {
+    "prefix": "",
+    "suffix": " YER",
+    "digits": 0
+   },
+   "ZAR": {
+    "prefix": "",
+    "suffix": " ZAR",
+    "digits": 2
+   },
+   "ZMW": {
+    "prefix": "",
+    "suffix": " ZMW",
+    "digits": 2
+   },
+   "ZWG": {
+    "prefix": "",
+    "suffix": " ZWG",
+    "digits": 2
+   },
+   "ZWL": {
+    "prefix": "",
+    "suffix": " ZWL",
+    "digits": 2
+   }
+  },
+  "other": {
+   "prefix": "",
+   "suffix": " {c}"
+  },
+  "months": [
+   [
+    "enero de {y}",
+    "{d} ene",
+    "{d} ene {y}"
+   ],
+   [
+    "febrero de {y}",
+    "{d} feb",
+    "{d} feb {y}"
+   ],
+   [
+    "marzo de {y}",
+    "{d} mar",
+    "{d} mar {y}"
+   ],
+   [
+    "abril de {y}",
+    "{d} abr",
+    "{d} abr {y}"
+   ],
+   [
+    "mayo de {y}",
+    "{d} may",
+    "{d} may {y}"
+   ],
+   [
+    "junio de {y}",
+    "{d} jun",
+    "{d} jun {y}"
+   ],
+   [
+    "julio de {y}",
+    "{d} jul",
+    "{d} jul {y}"
+   ],
+   [
+    "agosto de {y}",
+    "{d} ago",
+    "{d} ago {y}"
+   ],
+   [
+    "septiembre de {y}",
+    "{d} sept",
+    "{d} sept {y}"
+   ],
+   [
+    "octubre de {y}",
+    "{d} oct",
+    "{d} oct {y}"
+   ],
+   [
+    "noviembre de {y}",
+    "{d} nov",
+    "{d} nov {y}"
+   ],
+   [
+    "diciembre de {y}",
+    "{d} dic",
+    "{d} dic {y}"
+   ]
+  ],
+  "regions": {
+   "142": "Asia",
+   "143": "Asia central",
+   "145": "Asia occidental",
+   "150": "Europa",
+   "151": "Europa oriental",
+   "154": "Europa septentrional",
+   "155": "Europa occidental",
+   "202": "África subsahariana",
+   "419": "Latinoamérica",
+   "AC": "Isla de la Ascensión",
+   "AD": "Andorra",
+   "AE": "Emiratos Árabes Unidos",
+   "AF": "Afganistán",
+   "AG": "Antigua y Barbuda",
+   "AI": "Anguila",
+   "AL": "Albania",
+   "AM": "Armenia",
+   "AN": "Curazao",
+   "AO": "Angola",
+   "AQ": "Antártida",
+   "AR": "Argentina",
+   "AS": "Samoa Americana",
+   "AT": "Austria",
+   "AU": "Australia",
+   "AW": "Aruba",
+   "AX": "Islas Aland",
+   "AZ": "Azerbaiyán",
+   "BA": "Bosnia y Herzegovina",
+   "BB": "Barbados",
+   "BD": "Bangladés",
+   "BE": "Bélgica",
+   "BF": "Burkina Faso",
+   "BG": "Bulgaria",
+   "BH": "Baréin",
+   "BI": "Burundi",
+   "BJ": "Benín",
+   "BL": "San Bartolomé",
+   "BM": "Bermudas",
+   "BN": "Brunéi",
+   "BO": "Bolivia",
+   "BQ": "Caribe neerlandés",
+   "BR": "Brasil",
+   "BS": "Bahamas",
+   "BT": "Bután",
+   "BU": "Myanmar (Birmania)",
+   "BV": "Isla Bouvet",
+   "BW": "Botsuana",
+   "BY": "Bielorrusia",
+   "BZ": "Belice",
+   "CA": "Canadá",
+   "CC": "Islas Cocos",
+   "CD": "República Democrática del Congo",
+   "CF": "República Centroafricana",
+   "CG": "Congo",
+   "CH": "Suiza",
+   "CI": "Côte d’Ivoire",
+   "CK": "Islas Cook",
+   "CL": "Chile",
+   "CM": "Camerún",
+   "CN": "China",
+   "CO": "Colombia",
+   "CP": "Isla Clipperton",
+   "CQ": "Sark",
+   "CR": "Costa Rica",
+   "CS": "Serbia",
+   "CU": "Cuba",
+   "CV": "Cabo Verde",
+   "CW": "Curazao",
+   "CX": "Isla de Navidad",
+   "CY": "Chipre",
+   "CZ": "Chequia",
+   "DD": "Alemania",
+   "DE": "Alemania",
+   "DG": "Diego García",
+   "DJ": "Yibuti",
+   "DK": "Dinamarca",
+   "DM": "Dominica",
+   "DO": "República Dominicana",
+   "DY": "Benín",
+   "DZ": "Argelia",
+   "EA": "Ceuta y Melilla",
+   "EC": "Ecuador",
+   "EE": "Estonia",
+   "EG": "Egipto",
+   "EH": "Sáhara Occidental",
+   "ER": "Eritrea",
+   "ES": "España",
+   "ET": "Etiopía",
+   "EU": "Unión Europea",
+   "EZ": "zona del euro",
+   "FI": "Finlandia",
+   "FJ": "Fiyi",
+   "FK": "Islas Malvinas",
+   "FM": "Micronesia",
+   "FO": "Islas Feroe",
+   "FR": "Francia",
+   "FX": "Francia",
+   "GA": "Gabón",
+   "GB": "Reino Unido",
+   "GD": "Granada",
+   "GE": "Georgia",
+   "GF": "Guayana Francesa",
+   "GG": "Guernesey",
+   "GH": "Ghana",
+   "GI": "Gibraltar",
+   "GL": "Groenlandia",
+   "GM": "Gambia",
+   "GN": "Guinea",
+   "GP": "Guadalupe",
+   "GQ": "Guinea Ecuatorial",
+   "GR": "Grecia",
+   "GS": "Islas Georgia del Sur y Sandwich del Sur",
+   "GT": "Guatemala",
+   "GU": "Guam",
+   "GW": "Guinea-Bisáu",
+   "GY": "Guyana",
+   "HK": "RAE de Hong Kong (China)",
+   "HM": "Islas Heard y McDonald",
+   "HN": "Honduras",
+   "HR": "Croacia",
+   "HT": "Haití",
+   "HU": "Hungría",
+   "HV": "Burkina Faso",
+   "IC": "Canarias",
+   "ID": "Indonesia",
+   "IE": "Irlanda",
+   "IL": "Israel",
+   "IM": "Isla de Man",
+   "IN": "India",
+   "IO": "Territorio Británico del Océano Índico",
+   "IQ": "Irak",
+   "IR": "Irán",
+   "IS": "Islandia",
+   "IT": "Italia",
+   "JE": "Jersey",
+   "JM": "Jamaica",
+   "JO": "Jordania",
+   "JP": "Japón",
+   "KE": "Kenia",
+   "KG": "Kirguistán",
+   "KH": "Camboya",
+   "KI": "Kiribati",
+   "KM": "Comoras",
+   "KN": "San Cristóbal y Nieves",
+   "KP": "Corea del Norte",
+   "KR": "Corea del Sur",
+   "KW": "Kuwait",
+   "KY": "Islas Caimán",
+   "KZ": "Kazajistán",
+   "LA": "Laos",
+   "LB": "Líbano",
+   "LC": "Santa Lucía",
+   "LI": "Liechtenstein",
+   "LK": "Sri Lanka",
+   "LR": "Liberia",
+   "LS": "Lesoto",
+   "LT": "Lituania",
+   "LU": "Luxemburgo",
+   "LV": "Letonia",
+   "LY": "Libia",
+   "MA": "Marruecos",
+   "MC": "Mónaco",
+   "MD": "Moldavia",
+   "ME": "Montenegro",
+   "MF": "San Martín",
+   "MG": "Madagascar",
+   "MH": "Islas Marshall",
+   "MK": "Macedonia del Norte",
+   "ML": "Mali",
+   "MM": "Myanmar (Birmania)",
+   "MN": "Mongolia",
+   "MO": "RAE de Macao (China)",
+   "MP": "Islas Marianas del Norte",
+   "MQ": "Martinica",
+   "MR": "Mauritania",
+   "MS": "Montserrat",
+   "MT": "Malta",
+   "MU": "Mauricio",
+   "MV": "Maldivas",
+   "MW": "Malaui",
+   "MX": "México",
+   "MY": "Malasia",
+   "MZ": "Mozambique",
+   "NA": "Namibia",
+   "NC": "Nueva Caledonia",
+   "NE": "Níger",
+   "NF": "Isla Norfolk",
+   "NG": "Nigeria",
+   "NH": "Vanuatu",
+   "NI": "Nicaragua",
+   "NL": "Países Bajos",
+   "NO": "Noruega",
+   "NP": "Nepal",
+   "NR": "Nauru",
+   "NU": "Niue",
+   "NZ": "Nueva Zelanda",
+   "OM": "Omán",
+   "PA": "Panamá",
+   "PE": "Perú",
+   "PF": "Polinesia Francesa",
+   "PG": "Papúa Nueva Guinea",
+   "PH": "Filipinas",
+   "PK": "Pakistán",
+   "PL": "Polonia",
+   "PM": "San Pedro y Miquelón",
+   "PN": "Islas Pitcairn",
+   "PR": "Puerto Rico",
+   "PS": "Territorios Palestinos",
+   "PT": "Portugal",
+   "PW": "Palaos",
+   "PY": "Paraguay",
+   "QA": "Catar",
+   "QO": "Territorios alejados de Oceanía",
+   "RE": "Reunión",
+   "RH": "Zimbabue",
+   "RO": "Rumanía",
+   "RS": "Serbia",
+   "RU": "Rusia",
+   "RW": "Ruanda",
+   "SA": "Arabia Saudí",
+   "SB": "Islas Salomón",
+   "SC": "Seychelles",
+   "SD": "Sudán",
+   "SE": "Suecia",
+   "SG": "Singapur",
+   "SH": "Santa Elena",
+   "SI": "Eslovenia",
+   "SJ": "Svalbard y Jan Mayen",
+   "SK": "Eslovaquia",
+   "SL": "Sierra Leona",
+   "SM": "San Marino",
+   "SN": "Senegal",
+   "SO": "Somalia",
+   "SR": "Surinam",
+   "SS": "Sudán del Sur",
+   "ST": "Santo Tomé y Príncipe",
+   "SU": "Rusia",
+   "SV": "El Salvador",
+   "SX": "Sint Maarten",
+   "SY": "Siria",
+   "SZ": "Esuatini",
+   "TA": "Tristán de Acuña",
+   "TC": "Islas Turcas y Caicos",
+   "TD": "Chad",
+   "TF": "Territorios Australes Franceses",
+   "TG": "Togo",
+   "TH": "Tailandia",
+   "TJ": "Tayikistán",
+   "TK": "Tokelau",
+   "TL": "Timor-Leste",
+   "TM": "Turkmenistán",
+   "TN": "Túnez",
+   "TO": "Tonga",
+   "TP": "Timor-Leste",
+   "TR": "Turquía",
+   "TT": "Trinidad y Tobago",
+   "TV": "Tuvalu",
+   "TW": "Taiwán",
+   "TZ": "Tanzania",
+   "UA": "Ucrania",
+   "UG": "Uganda",
+   "UK": "Reino Unido",
+   "UM": "Islas menores alejadas de EE. UU.",
+   "UN": "Naciones Unidas",
+   "US": "Estados Unidos",
+   "UY": "Uruguay",
+   "UZ": "Uzbekistán",
+   "VA": "Ciudad del Vaticano",
+   "VC": "San Vicente y las Granadinas",
+   "VD": "Vietnam",
+   "VE": "Venezuela",
+   "VG": "Islas Vírgenes Británicas",
+   "VI": "Islas Vírgenes de EE. UU.",
+   "VN": "Vietnam",
+   "VU": "Vanuatu",
+   "WF": "Wallis y Futuna",
+   "WS": "Samoa",
+   "XA": "Pseudoacentos",
+   "XB": "Pseudobidi",
+   "XK": "Kosovo",
+   "YD": "Yemen",
+   "YE": "Yemen",
+   "YT": "Mayotte",
+   "YU": "Serbia",
+   "ZA": "Sudáfrica",
+   "ZM": "Zambia",
+   "ZR": "República Democrática del Congo",
+   "ZW": "Zimbabue",
+   "ZZ": "Región desconocida",
+   "001": "Mundo",
+   "002": "África",
+   "003": "América del Norte",
+   "005": "Sudamérica",
+   "009": "Oceanía",
+   "011": "África occidental",
+   "013": "Centroamérica",
+   "014": "África oriental",
+   "015": "África septentrional",
+   "017": "África central",
+   "018": "África meridional",
+   "019": "América",
+   "021": "Norteamérica",
+   "029": "Caribe",
+   "030": "Asia oriental",
+   "034": "Asia meridional",
+   "035": "Sudeste asiático",
+   "039": "Europa meridional",
+   "053": "Australasia",
+   "054": "Melanesia",
+   "057": "Región de Micronesia",
+   "061": "Polinesia"
+  }
+ },
+ "fr": {
+  "group": " ",
+  "decimal": ",",
+  "groupsFour": true,
+  "percent": {
+   "prefix": "",
+   "suffix": " %"
+  },
+  "currencies": {
+   "AED": {
+    "prefix": "",
+    "suffix": " AED",
+    "digits": 2
+   },
+   "AFN": {
+    "prefix": "",
+    "suffix": " AFN",
+    "digits": 0
+   },
+   "ALL": {
+    "prefix": "",
+    "suffix": " ALL",
+    "digits": 0
+   },
+   "AMD": {
+    "prefix": "",
+    "suffix": " AMD",
+    "digits": 2
+   },
+   "ANG": {
+    "prefix": "",
+    "suffix": " ANG",
+    "digits": 2
+   },
+   "AOA": {
+    "prefix": "",
+    "suffix": " AOA",
+    "digits": 2
+   },
+   "ARS": {
+    "prefix": "",
+    "suffix": " $AR",
+    "digits": 2
+   },
+   "AUD": {
+    "prefix": "",
+    "suffix": " $AU",
+    "digits": 2
+   },
+   "AWG": {
+    "prefix": "",
+    "suffix": " AWG",
+    "digits": 2
+   },
+   "AZN": {
+    "prefix": "",
+    "suffix": " AZN",
+    "digits": 2
+   },
+   "BAM": {
+    "prefix": "",
+    "suffix": " BAM",
+    "digits": 2
+   },
+   "BBD": {
+    "prefix": "",
+    "suffix": " BBD",
+    "digits": 2
+   },
+   "BDT": {
+    "prefix": "",
+    "suffix": " BDT",
+    "digits": 2
+   },
+   "BGN": {
+    "prefix": "",
+    "suffix": " BGN",
+    "digits": 2
+   },
+   "BHD": {
+    "prefix": "",
+    "suffix": " BHD",
+    "digits": 3
+   },
+   "BIF": {
+    "prefix": "",
+    "suffix": " BIF",
+    "digits": 0
+   },
+   "BMD": {
+    "prefix": "",
+    "suffix": " $BM",
+    "digits": 2
+   },
+   "BND": {
+    "prefix": "",
+    "suffix": " $BN",
+    "digits": 2
+   },
+   "BOB": {
+    "prefix": "",
+    "suffix": " BOB",
+    "digits": 2
+   },
+   "BRL": {
+    "prefix": "",
+    "suffix": " R$",
+    "digits": 2
+   },
+   "BSD": {
+    "prefix": "",
+    "suffix": " BSD",
+    "digits": 2
+   },
+   "BTN": {
+    "prefix": "",
+    "suffix": " BTN",
+    "digits": 2
+   },
+   "BWP": {
+    "prefix": "",
+    "suffix": " BWP",
+    "digits": 2
+   },
+   "BYN": {
+    "prefix": "",
+    "suffix": " BYN",
+    "digits": 2
+   },
+   "BZD": {
+    "prefix": "",
+    "suffix": " $BZ",
+    "digits": 2
+   },
+   "CAD": {
+    "prefix": "",
+    "suffix": " $CA",
+    "digits": 2
+   },
+   "CDF": {
+    "prefix": "",
+    "suffix": " CDF",
+    "digits": 2
+   },
+   "CHF": {
+    "prefix": "",
+    "suffix": " CHF",
+    "digits": 2
+   },
+   "CLP": {
+    "prefix": "",
+    "suffix": " $CL",
+    "digits": 0
+   },
+   "CNY": {
+    "prefix": "",
+    "suffix": " CNY",
+    "digits": 2
+   },
+   "COP": {
+    "prefix": "",
+    "suffix": " $CO",
+    "digits": 0
+   },
+   "CRC": {
+    "prefix": "",
+    "suffix": " CRC",
+    "digits": 2
+   },
+   "CUC": {
+    "prefix": "",
+    "suffix": " CUC",
+    "digits": 2
+   },
+   "CUP": {
+    "prefix": "",
+    "suffix": " CUP",
+    "digits": 2
+   },
+   "CVE": {
+    "prefix": "",
+    "suffix": " CVE",
+    "digits": 2
+   },
+   "CZK": {
+    "prefix": "",
+    "suffix": " CZK",
+    "digits": 2
+   },
+   "DJF": {
+    "prefix": "",
+    "suffix": " DJF",
+    "digits": 0
+   },
+   "DKK": {
+    "prefix": "",
+    "suffix": " DKK",
+    "digits": 2
+   },
+   "DOP": {
+    "prefix": "",
+    "suffix": " DOP",
+    "digits": 2
+   },
+   "DZD": {
+    "prefix": "",
+    "suffix": " DZD",
+    "digits": 2
+   },
+   "EGP": {
+    "prefix": "",
+    "suffix": " EGP",
+    "digits": 2
+   },
+   "ERN": {
+    "prefix": "",
+    "suffix": " ERN",
+    "digits": 2
+   },
+   "ETB": {
+    "prefix": "",
+    "suffix": " ETB",
+    "digits": 2
+   },
+   "EUR": {
+    "prefix": "",
+    "suffix": " €",
+    "digits": 2
+   },
+   "FJD": {
+    "prefix": "",
+    "suffix": " $FJ",
+    "digits": 2
+   },
+   "FKP": {
+    "prefix": "",
+    "suffix": " £FK",
+    "digits": 2
+   },
+   "GBP": {
+    "prefix": "",
+    "suffix": " £GB",
+    "digits": 2
+   },
+   "GEL": {
+    "prefix": "",
+    "suffix": " GEL",
+    "digits": 2
+   },
+   "GHS": {
+    "prefix": "",
+    "suffix": " GHS",
+    "digits": 2
+   },
+   "GIP": {
+    "prefix": "",
+    "suffix": " £GI",
+    "digits": 2
+   },
+   "GMD": {
+    "prefix": "",
+    "suffix": " GMD",
+    "digits": 2
+   },
+   "GNF": {
+    "prefix": "",
+    "suffix": " GNF",
+    "digits": 0
+   },
+   "GTQ": {
+    "prefix": "",
+    "suffix": " GTQ",
+    "digits": 2
+   },
+   "GYD": {
+    "prefix": "",
+    "suffix": " GYD",
+    "digits": 2
+   },
+   "HKD": {
+    "prefix": "",
+    "suffix": " HKD",
+    "digits": 2
+   },
+   "HNL": {
+    "prefix": "",
+    "suffix": " HNL",
+    "digits": 2
+   },
+   "HRK": {
+    "prefix": "",
+    "suffix": " HRK",
+    "digits": 2
+   },
+   "HTG": {
+    "prefix": "",
+    "suffix": " HTG",
+    "digits": 2
+   },
+   "HUF": {
+    "prefix": "",
+    "suffix": " HUF",
+    "digits": 0
+   },
+   "IDR": {
+    "prefix": "",
+    "suffix": " IDR",
+    "digits": 0
+   },
+   "ILS": {
+    "prefix": "",
+    "suffix": " ₪",
+    "digits": 2
+   },
+   "INR": {
+    "prefix": "",
+    "suffix": " ₹",
+    "digits": 2
+   },
+   "IQD": {
+    "prefix": "",
+    "suffix": " IQD",
+    "digits": 0
+   },
+   "IRR": {
+    "prefix": "",
+    "suffix": " IRR",
+    "digits": 0
+   },
+   "ISK": {
+    "prefix": "",
+    "suffix": " ISK",
+    "digits": 0
+   },
+   "JMD": {
+    "prefix": "",
+    "suffix": " JMD",
+    "digits": 2
+   },
+   "JOD": {
+    "prefix": "",
+    "suffix": " JOD",
+    "digits": 3
+   },
+   "JPY": {
+    "prefix": "",
+    "suffix": " JPY",
+    "digits": 0
+   },
+   "KES": {
+    "prefix": "",
+    "suffix": " KES",
+    "digits": 2
+   },
+   "KGS": {
+    "prefix": "",
+    "suffix": " KGS",
+    "digits": 2
+   },
+   "KHR": {
+    "prefix": "",
+    "suffix": " KHR",
+    "digits": 2
+   },
+   "KMF": {
+    "prefix": "",
+    "suffix": " KMF",
+    "digits": 0
+   },
+   "KPW": {
+    "prefix": "",
+    "suffix": " KPW",
+    "digits": 0
+   },
+   "KRW": {
+    "prefix": "",
+    "suffix": " ₩",
+    "digits": 0
+   },
+   "KWD": {
+    "prefix": "",
+    "suffix": " KWD",
+    "digits": 3
+   },
+   "KYD": {
+    "prefix": "",
+    "suffix": " KYD",
+    "digits": 2
+   },
+   "KZT": {
+    "prefix": "",
+    "suffix": " KZT",
+    "digits": 2
+   },
+   "LAK": {
+    "prefix": "",
+    "suffix": " LAK",
+    "digits": 0
+   },
+   "LBP": {
+    "prefix": "",
+    "suffix": " £LB",
+    "digits": 0
+   },
+   "LKR": {
+    "prefix": "",
+    "suffix": " LKR",
+    "digits": 2
+   },
+   "LRD": {
+    "prefix": "",
+    "suffix": " LRD",
+    "digits": 2
+   },
+   "LSL": {
+    "prefix": "",
+    "suffix": " LSL",
+    "digits": 2
+   },
+   "LYD": {
+    "prefix": "",
+    "suffix": " LYD",
+    "digits": 3
+   },
+   "MAD": {
+    "prefix": "",
+    "suffix": " MAD",
+    "digits": 2
+   },
+   "MDL": {
+    "prefix": "",
+    "suffix": " MDL",
+    "digits": 2
+   },
+   "MGA": {
+    "prefix": "",
+    "suffix": " MGA",
+    "digits": 0
+   },
+   "MKD": {
+    "prefix": "",
+    "suffix": " MKD",
+    "digits": 2
+   },
+   "MMK": {
+    "prefix": "",
+    "suffix": " MMK",
+    "digits": 0
+   },
+   "MNT": {
+    "prefix": "",
+    "suffix": " MNT",
+    "digits": 2
+   },
+   "MOP": {
+    "prefix": "",
+    "suffix": " MOP",
+    "digits": 2
+   },
+   "MRU": {
+    "prefix": "",
+    "suffix": " MRU",
+    "digits": 2
+   },
+   "MUR": {
+    "prefix": "",
+    "suffix": " MUR",
+    "digits": 2
+   },
+   "MVR": {
+    "prefix": "",
+    "suffix": " MVR",
+    "digits": 2
+   },
+   "MWK": {
+    "prefix": "",
+    "suffix": " MWK",
+    "digits": 2
+   },
+   "MXN": {
+    "prefix": "",
+    "suffix": " $MX",
+    "digits": 2
+   },
+   "MYR": {
+    "prefix": "",
+    "suffix": " MYR",
+    "digits": 2
+   },
+   "MZN": {
+    "prefix": "",
+    "suffix": " MZN",
+    "digits": 2
+   },
+   "NAD": {
+    "prefix": "",
+    "suffix": " $NA",
+    "digits": 2
+   },
+   "NGN": {
+    "prefix": "",
+    "suffix": " NGN",
+    "digits": 2
+   },
+   "NIO": {
+    "prefix": "",
+    "suffix": " NIO",
+    "digits": 2
+   },
+   "NOK": {
+    "prefix": "",
+    "suffix": " NOK",
+    "digits": 2
+   },
+   "NPR": {
+    "prefix": "",
+    "suffix": " NPR",
+    "digits": 2
+   },
+   "NZD": {
+    "prefix": "",
+    "suffix": " $NZ",
+    "digits": 2
+   },
+   "OMR": {
+    "prefix": "",
+    "suffix": " OMR",
+    "digits": 3
+   },
+   "PAB": {
+    "prefix": "",
+    "suffix": " PAB",
+    "digits": 2
+   },
+   "PEN": {
+    "prefix": "",
+    "suffix": " PEN",
+    "digits": 2
+   },
+   "PGK": {
+    "prefix": "",
+    "suffix": " PGK",
+    "digits": 2
+   },
+   "PHP": {
+    "prefix": "",
+    "suffix": " PHP",
+    "digits": 2
+   },
+   "PKR": {
+    "prefix": "",
+    "suffix": " PKR",
+    "digits": 0
+   },
+   "PLN": {
+    "prefix": "",
+    "suffix": " PLN",
+    "digits": 2
+   },
+   "PYG": {
+    "prefix": "",
+    "suffix": " PYG",
+    "digits": 0
+   },
+   "QAR": {
+    "prefix": "",
+    "suffix": " QAR",
+    "digits": 2
+   },
+   "RON": {
+    "prefix": "",
+    "suffix": " RON",
+    "digits": 2
+   },
+   "RSD": {
+    "prefix": "",
+    "suffix": " RSD",
+    "digits": 2
+   },
+   "RUB": {
+    "prefix": "",
+    "suffix": " RUB",
+    "digits": 2
+   },
+   "RWF": {
+    "prefix": "",
+    "suffix": " RWF",
+    "digits": 0
+   },
+   "SAR": {
+    "prefix": "",
+    "suffix": " SAR",
+    "digits": 2
+   },
+   "SBD": {
+    "prefix": "",
+    "suffix": " $SB",
+    "digits": 2
+   },
+   "SCR": {
+    "prefix": "",
+    "suffix": " SCR",
+    "digits": 2
+   },
+   "SDG": {
+    "prefix": "",
+    "suffix": " SDG",
+    "digits": 2
+   },
+   "SEK": {
+    "prefix": "",
+    "suffix": " SEK",
+    "digits": 2
+   },
+   "SGD": {
+    "prefix": "",
+    "suffix": " $SG",
+    "digits": 2
+   },
+   "SHP": {
+    "prefix": "",
+    "suffix": " SHP",
+    "digits": 2
+   },
+   "SLE": {
+    "prefix": "",
+    "suffix": " SLE",
+    "digits": 2
+   },
+   "SLL": {
+    "prefix": "",
+    "suffix": " SLL",
+    "digits": 0
+   },
+   "SOS": {
+    "prefix": "",
+    "suffix": " SOS",
+    "digits": 0
+   },
+   "SRD": {
+    "prefix": "",
+    "suffix": " $SR",
+    "digits": 2
+   },
+   "SSP": {
+    "prefix": "",
+    "suffix": " SSP",
+    "digits": 2
+   },
+   "STN": {
+    "prefix": "",
+    "suffix": " STN",
+    "digits": 2
+   },
+   "SVC": {
+    "prefix": "",
+    "suffix": " SVC",
+    "digits": 2
+   },
+   "SYP": {
+    "prefix": "",
+    "suffix": " SYP",
+    "digits": 0
+   },
+   "SZL": {
+    "prefix": "",
+    "suffix": " SZL",
+    "digits": 2
+   },
+   "THB": {
+    "prefix": "",
+    "suffix": " THB",
+    "digits": 2
+   },
+   "TJS": {
+    "prefix": "",
+    "suffix": " TJS",
+    "digits": 2
+   },
+   "TMT": {
+    "prefix": "",
+    "suffix": " TMT",
+    "digits": 2
+   },
+   "TND": {
+    "prefix": "",
+    "suffix": " TND",
+    "digits": 3
+   },
+   "TOP": {
+    "prefix": "",
+    "suffix": " TOP",
+    "digits": 2
+   },
+   "TRY": {
+    "prefix": "",
+    "suffix": " TRY",
+    "digits": 2
+   },
+   "TTD": {
+    "prefix": "",
+    "suffix": " $TT",
+    "digits": 2
+   },
+   "TWD": {
+    "prefix": "",
+    "suffix": " TWD",
+    "digits": 2
+   },
+   "TZS": {
+    "prefix": "",
+    "suffix": " TZS",
+    "digits": 2
+   },
+   "UAH": {
+    "prefix": "",
+    "suffix": " UAH",
+    "digits": 2
+   },
+   "UGX": {
+    "prefix": "",
+    "suffix": " UGX",
+    "digits": 0
+   },
+   "USD": {
+    "prefix": "",
+    "suffix": " $US",
+    "digits": 2
+   },
+   "UYU": {
+    "prefix": "",
+    "suffix": " $UY",
+    "digits": 2
+   },
+   "UZS": {
+    "prefix": "",
+    "suffix": " UZS",
+    "digits": 2
+   },
+   "VES": {
+    "prefix": "",
+    "suffix": " VES",
+    "digits": 2
+   },
+   "VND": {
+    "prefix": "",
+    "suffix": " ₫",
+    "digits": 0
+   },
+   "VUV": {
+    "prefix": "",
+    "suffix": " VUV",
+    "digits": 0
+   },
+   "WST": {
+    "prefix": "",
+    "suffix": " $WS",
+    "digits": 2
+   },
+   "XAF": {
+    "prefix": "",
+    "suffix": " FCFA",
+    "digits": 0
+   },
+   "XCD": {
+    "prefix": "",
+    "suffix": " XCD",
+    "digits": 2
+   },
+   "XCG": {
+    "prefix": "",
+    "suffix": " Cg.",
+    "digits": 2
+   },
+   "XDR": {
+    "prefix": "",
+    "suffix": " XDR",
+    "digits": 2
+   },
+   "XOF": {
+    "prefix": "",
+    "suffix": " F CFA",
+    "digits": 0
+   },
+   "XPF": {
+    "prefix": "",
+    "suffix": " FCFP",
+    "digits": 0
+   },
+   "XSU": {
+    "prefix": "",
+    "suffix": " XSU",
+    "digits": 2
+   },
+   "YER": {
+    "prefix": "",
+    "suffix": " YER",
+    "digits": 0
+   },
+   "ZAR": {
+    "prefix": "",
+    "suffix": " ZAR",
+    "digits": 2
+   },
+   "ZMW": {
+    "prefix": "",
+    "suffix": " ZMW",
+    "digits": 2
+   },
+   "ZWG": {
+    "prefix": "",
+    "suffix": " ZWG",
+    "digits": 2
+   },
+   "ZWL": {
+    "prefix": "",
+    "suffix": " ZWL",
+    "digits": 2
+   }
+  },
+  "other": {
+   "prefix": "",
+   "suffix": " {c}"
+  },
+  "months": [
+   [
+    "janvier {y}",
+    "{d} janv.",
+    "{d} janv. {y}"
+   ],
+   [
+    "février {y}",
+    "{d} févr.",
+    "{d} févr. {y}"
+   ],
+   [
+    "mars {y}",
+    "{d} mars",
+    "{d} mars {y}"
+   ],
+   [
+    "avril {y}",
+    "{d} avr.",
+    "{d} avr. {y}"
+   ],
+   [
+    "mai {y}",
+    "{d} mai",
+    "{d} mai {y}"
+   ],
+   [
+    "juin {y}",
+    "{d} juin",
+    "{d} juin {y}"
+   ],
+   [
+    "juillet {y}",
+    "{d} juil.",
+    "{d} juil. {y}"
+   ],
+   [
+    "août {y}",
+    "{d} août",
+    "{d} août {y}"
+   ],
+   [
+    "septembre {y}",
+    "{d} sept.",
+    "{d} sept. {y}"
+   ],
+   [
+    "octobre {y}",
+    "{d} oct.",
+    "{d} oct. {y}"
+   ],
+   [
+    "novembre {y}",
+    "{d} nov.",
+    "{d} nov. {y}"
+   ],
+   [
+    "décembre {y}",
+    "{d} déc.",
+    "{d} déc. {y}"
+   ]
+  ],
+  "regions": {
+   "142": "Asie",
+   "143": "Asie centrale",
+   "145": "Asie de l’Ouest",
+   "150": "Europe",
+   "151": "Europe de l’Est",
+   "154": "Europe du Nord",
+   "155": "Europe de l’Ouest",
+   "202": "Afrique subsaharienne",
+   "419": "Amérique latine",
+   "AC": "Île de l’Ascension",
+   "AD": "Andorre",
+   "AE": "Émirats arabes unis",
+   "AF": "Afghanistan",
+   "AG": "Antigua-et-Barbuda",
+   "AI": "Anguilla",
+   "AL": "Albanie",
+   "AM": "Arménie",
+   "AN": "Curaçao",
+   "AO": "Angola",
+   "AQ": "Antarctique",
+   "AR": "Argentine",
+   "AS": "Samoa américaines",
+   "AT": "Autriche",
+   "AU": "Australie",
+   "AW": "Aruba",
+   "AX": "Îles Åland",
+   "AZ": "Azerbaïdjan",
+   "BA": "Bosnie-Herzégovine",
+   "BB": "Barbade",
+   "BD": "Bangladesh",
+   "BE": "Belgique",
+   "BF": "Burkina Faso",
+   "BG": "Bulgarie",
+   "BH": "Bahreïn",
+   "BI": "Burundi",
+   "BJ": "Bénin",
+   "BL": "Saint-Barthélemy",
+   "BM": "Bermudes",
+   "BN": "Brunei",
+   "BO": "Bolivie",
+   "BQ": "Pays-Bas caribéens",
+   "BR": "Brésil",
+   "BS": "Bahamas",
+   "BT": "Bhoutan",
+   "BU": "Myanmar (Birmanie)",
+   "BV": "Île Bouvet",
+   "BW": "Botswana",
+   "BY": "Biélorussie",
+   "BZ": "Belize",
+   "CA": "Canada",
+   "CC": "Îles Cocos",
+   "CD": "Congo-Kinshasa",
+   "CF": "République centrafricaine",
+   "CG": "Congo-Brazzaville",
+   "CH": "Suisse",
+   "CI": "Côte d’Ivoire",
+   "CK": "Îles Cook",
+   "CL": "Chili",
+   "CM": "Cameroun",
+   "CN": "Chine",
+   "CO": "Colombie",
+   "CP": "Île Clipperton",
+   "CQ": "Sercq",
+   "CR": "Costa Rica",
+   "CS": "Serbie",
+   "CU": "Cuba",
+   "CV": "Cap-Vert",
+   "CW": "Curaçao",
+   "CX": "Île Christmas",
+   "CY": "Chypre",
+   "CZ": "Tchéquie",
+   "DD": "Allemagne",
+   "DE": "Allemagne",
+   "DG": "Diego Garcia",
+   "DJ": "Djibouti",
+   "DK": "Danemark",
+   "DM": "Dominique",
+   "DO": "République dominicaine",
+   "DY": "Bénin",
+   "DZ": "Algérie",
+   "EA": "Ceuta et Melilla",
+   "EC": "Équateur",
+   "EE": "Estonie",
+   "EG": "Égypte",
+   "EH": "Sahara occidental",
+   "ER": "Érythrée",
+   "ES": "Espagne",
+   "ET": "Éthiopie",
+   "EU": "Union européenne",
+   "EZ": "zone euro",
+   "FI": "Finlande",
+   "FJ": "Fidji",
+   "FK": "Îles Malouines",
+   "FM": "Micronésie",
+   "FO": "Îles Féroé",
+   "FR": "France",
+   "FX": "France",
+   "GA": "Gabon",
+   "GB": "Royaume-Uni",
+   "GD": "Grenade",
+   "GE": "Géorgie",
+   "GF": "Guyane française",
+   "GG": "Guernesey",
+   "GH": "Ghana",
+   "GI": "Gibraltar",
+   "GL": "Groenland",
+   "GM": "Gambie",
+   "GN": "Guinée",
+   "GP": "Guadeloupe",
+   "GQ": "Guinée équatoriale",
+   "GR": "Grèce",
+   "GS": "Géorgie du Sud-et-les Îles Sandwich du Sud",
+   "GT": "Guatemala",
+   "GU": "Guam",
+   "GW": "Guinée-Bissau",
+   "GY": "Guyana",
+   "HK": "R.A.S. chinoise de Hong Kong",
+   "HM": "Îles Heard-et-MacDonald",
+   "HN": "Honduras",
+   "HR": "Croatie",
+   "HT": "Haïti",
+   "HU": "Hongrie",
+   "HV": "Burkina Faso",
+   "IC": "Îles Canaries",
+   "ID": "Indonésie",
+   "IE": "Irlande",
+   "IL": "Israël",
+   "IM": "Île de Man",
+   "IN": "Inde",
+   "IO": "Territoire britannique de l’océan Indien",
+   "IQ": "Irak",
+   "IR": "Iran",
+   "IS": "Islande",
+   "IT": "Italie",
+   "JE": "Jersey",
+   "JM": "Jamaïque",
+   "JO": "Jordanie",
+   "JP": "Japon",
+   "KE": "Kenya",
+   "KG": "Kirghizstan",
+   "KH": "Cambodge",
+   "KI": "Kiribati",
+   "KM": "Comores",
+   "KN": "Saint-Christophe-et-Niévès",
+   "KP": "Corée du Nord",
+   "KR": "Corée du Sud",
+   "KW": "Koweït",
+   "KY": "Îles Caïmans",
+   "KZ": "Kazakhstan",
+   "LA": "Laos",
+   "LB": "Liban",
+   "LC": "Sainte-Lucie",
+   "LI": "Liechtenstein",
+   "LK": "Sri Lanka",
+   "LR": "Liberia",
+   "LS": "Lesotho",
+   "LT": "Lituanie",
+   "LU": "Luxembourg",
+   "LV": "Lettonie",
+   "LY": "Libye",
+   "MA": "Maroc",
+   "MC": "Monaco",
+   "MD": "Moldavie",
+   "ME": "Monténégro",
+   "MF": "Saint-Martin",
+   "MG": "Madagascar",
+   "MH": "Îles Marshall",
+   "MK": "Macédoine du Nord",
+   "ML": "Mali",
+   "MM": "Myanmar (Birmanie)",
+   "MN": "Mongolie",
+   "MO": "R.A.S. chinoise de Macao",
+   "MP": "Îles Mariannes du Nord",
+   "MQ": "Martinique",
+   "MR": "Mauritanie",
+   "MS": "Montserrat",
+   "MT": "Malte",
+   "MU": "Maurice",
+   "MV": "Maldives",
+   "MW": "Malawi",
+   "MX": "Mexique",
+   "MY": "Malaisie",
+   "MZ": "Mozambique",
+   "NA": "Namibie",
+   "NC": "Nouvelle-Calédonie",
+   "NE": "Niger",
+   "NF": "Île Norfolk",
+   "NG": "Nigeria",
+   "NH": "Vanuatu",
+   "NI": "Nicaragua",
+   "NL": "Pays-Bas",
+   "NO": "Norvège",
+   "NP": "Népal",
+   "NR": "Nauru",
+   "NU": "Niue",
+   "NZ": "Nouvelle-Zélande",
+   "OM": "Oman",
+   "PA": "Panama",
+   "PE": "Pérou",
+   "PF": "Polynésie française",
+   "PG": "Papouasie-Nouvelle-Guinée",
+   "PH": "Philippines",
+   "PK": "Pakistan",
+   "PL": "Pologne",
+   "PM": "Saint-Pierre-et-Miquelon",
+   "PN": "Îles Pitcairn",
+   "PR": "Porto Rico",
+   "PS": "Territoires palestiniens",
+   "PT": "Portugal",
+   "PW": "Palaos",
+   "PY": "Paraguay",
+   "QA": "Qatar",
+   "QO": "régions éloignées de l’Océanie",
+   "RE": "La Réunion",
+   "RH": "Zimbabwe",
+   "RO": "Roumanie",
+   "RS": "Serbie",
+   "RU": "Russie",
+   "RW": "Rwanda",
+   "SA": "Arabie saoudite",
+   "SB": "Îles Salomon",
+   "SC": "Seychelles",
+   "SD": "Soudan",
+   "SE": "Suède",
+   "SG": "Singapour",
+   "SH": "Sainte-Hélène",
+   "SI": "Slovénie",
+   "SJ": "Svalbard et Jan Mayen",
+   "SK": "Slovaquie",
+   "SL": "Sierra Leone",
+   "SM": "Saint-Marin",
+   "SN": "Sénégal",
+   "SO": "Somalie",
+   "SR": "Suriname",
+   "SS": "Soudan du Sud",
+   "ST": "Sao Tomé-et-Principe",
+   "SU": "Russie",
+   "SV": "Salvador",
+   "SX": "Saint-Martin (partie néerlandaise)",
+   "SY": "Syrie",
+   "SZ": "Eswatini",
+   "TA": "Tristan da Cunha",
+   "TC": "Îles Turques-et-Caïques",
+   "TD": "Tchad",
+   "TF": "Terres australes françaises",
+   "TG": "Togo",
+   "TH": "Thaïlande",
+   "TJ": "Tadjikistan",
+   "TK": "Tokelau",
+   "TL": "Timor oriental",
+   "TM": "Turkménistan",
+   "TN": "Tunisie",
+   "TO": "Tonga",
+   "TP": "Timor oriental",
+   "TR": "Turquie",
+   "TT": "Trinité-et-Tobago",
+   "TV": "Tuvalu",
+   "TW": "Taïwan",
+   "TZ": "Tanzanie",
+   "UA": "Ukraine",
+   "UG": "Ouganda",
+   "UK": "Royaume-Uni",
+   "UM": "Îles mineures éloignées des États-Unis",
+   "UN": "Nations Unies",
+   "US": "États-Unis",
+   "UY": "Uruguay",
+   "UZ": "Ouzbékistan",
+   "VA": "État de la Cité du Vatican",
+   "VC": "Saint-Vincent-et-les Grenadines",
+   "VD": "Viêt Nam",
+   "VE": "Venezuela",
+   "VG": "Îles Vierges britanniques",
+   "VI": "Îles Vierges des États-Unis",
+   "VN": "Viêt Nam",
+   "VU": "Vanuatu",
+   "WF": "Wallis-et-Futuna",
+   "WS": "Samoa",
+   "XA": "pseudo-accents",
+   "XB": "pseudo-bidi",
+   "XK": "Kosovo",
+   "YD": "Yémen",
+   "YE": "Yémen",
+   "YT": "Mayotte",
+   "YU": "Serbie",
+   "ZA": "Afrique du Sud",
+   "ZM": "Zambie",
+   "ZR": "Congo-Kinshasa",
+   "ZW": "Zimbabwe",
+   "ZZ": "région inconnue",
+   "001": "Monde",
+   "002": "Afrique",
+   "003": "Amérique du Nord",
+   "005": "Amérique du Sud",
+   "009": "Océanie",
+   "011": "Afrique occidentale",
+   "013": "Amérique centrale",
+   "014": "Afrique orientale",
+   "015": "Afrique septentrionale",
+   "017": "Afrique centrale",
+   "018": "Afrique australe",
+   "019": "Amériques",
+   "021": "Amérique septentrionale",
+   "029": "Caraïbes",
+   "030": "Asie de l’Est",
+   "034": "Asie du Sud",
+   "035": "Asie du Sud-Est",
+   "039": "Europe du Sud",
+   "053": "Australasie",
+   "054": "Mélanésie",
+   "057": "région micronésienne",
+   "061": "Polynésie"
+  }
+ },
+ "pt": {
+  "group": ".",
+  "decimal": ",",
+  "groupsFour": true,
+  "percent": {
+   "prefix": "",
+   "suffix": "%"
+  },
+  "currencies": {
+   "AED": {
+    "prefix": "AED ",
+    "suffix": "",
+    "digits": 2
+   },
+   "AFN": {
+    "prefix": "AFN ",
+    "suffix": "",
+    "digits": 0
+   },
+   "ALL": {
+    "prefix": "ALL ",
+    "suffix": "",
+    "digits": 0
+   },
+   "AMD": {
+    "prefix": "AMD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ANG": {
+    "prefix": "ANG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "AOA": {
+    "prefix": "AOA ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ARS": {
+    "prefix": "ARS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "AUD": {
+    "prefix": "AU$ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "AWG": {
+    "prefix": "AWG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "AZN": {
+    "prefix": "AZN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BAM": {
+    "prefix": "BAM ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BBD": {
+    "prefix": "BBD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BDT": {
+    "prefix": "BDT ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BGN": {
+    "prefix": "BGN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BHD": {
+    "prefix": "BHD ",
+    "suffix": "",
+    "digits": 3
+   },
+   "BIF": {
+    "prefix": "BIF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "BMD": {
+    "prefix": "BMD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BND": {
+    "prefix": "BND ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BOB": {
+    "prefix": "BOB ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BRL": {
+    "prefix": "R$ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BSD": {
+    "prefix": "BSD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BTN": {
+    "prefix": "BTN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BWP": {
+    "prefix": "BWP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BYN": {
+    "prefix": "BYN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "BZD": {
+    "prefix": "BZD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CAD": {
+    "prefix": "CA$ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CDF": {
+    "prefix": "CDF ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CHF": {
+    "prefix": "CHF ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CLP": {
+    "prefix": "CLP ",
+    "suffix": "",
+    "digits": 0
+   },
+   "CNY": {
+    "prefix": "CN¥ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "COP": {
+    "prefix": "COP ",
+    "suffix": "",
+    "digits": 0
+   },
+   "CRC": {
+    "prefix": "CRC ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CUC": {
+    "prefix": "CUC ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CUP": {
+    "prefix": "CUP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CVE": {
+    "prefix": "CVE ",
+    "suffix": "",
+    "digits": 2
+   },
+   "CZK": {
+    "prefix": "CZK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "DJF": {
+    "prefix": "DJF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "DKK": {
+    "prefix": "DKK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "DOP": {
+    "prefix": "DOP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "DZD": {
+    "prefix": "DZD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "EGP": {
+    "prefix": "EGP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ERN": {
+    "prefix": "ERN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ETB": {
+    "prefix": "ETB ",
+    "suffix": "",
+    "digits": 2
+   },
+   "EUR": {
+    "prefix": "€ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "FJD": {
+    "prefix": "FJD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "FKP": {
+    "prefix": "FKP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GBP": {
+    "prefix": "£ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GEL": {
+    "prefix": "GEL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GHS": {
+    "prefix": "GHS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GIP": {
+    "prefix": "GIP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GMD": {
+    "prefix": "GMD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GNF": {
+    "prefix": "GNF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "GTQ": {
+    "prefix": "GTQ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "GYD": {
+    "prefix": "GYD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "HKD": {
+    "prefix": "HK$ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "HNL": {
+    "prefix": "HNL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "HRK": {
+    "prefix": "HRK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "HTG": {
+    "prefix": "HTG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "HUF": {
+    "prefix": "HUF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "IDR": {
+    "prefix": "IDR ",
+    "suffix": "",
+    "digits": 0
+   },
+   "ILS": {
+    "prefix": "₪ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "INR": {
+    "prefix": "₹ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "IQD": {
+    "prefix": "IQD ",
+    "suffix": "",
+    "digits": 0
+   },
+   "IRR": {
+    "prefix": "IRR ",
+    "suffix": "",
+    "digits": 0
+   },
+   "ISK": {
+    "prefix": "ISK ",
+    "suffix": "",
+    "digits": 0
+   },
+   "JMD": {
+    "prefix": "JMD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "JOD": {
+    "prefix": "JOD ",
+    "suffix": "",
+    "digits": 3
+   },
+   "JPY": {
+    "prefix": "JP¥ ",
+    "suffix": "",
+    "digits": 0
+   },
+   "KES": {
+    "prefix": "KES ",
+    "suffix": "",
+    "digits": 2
+   },
+   "KGS": {
+    "prefix": "KGS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "KHR": {
+    "prefix": "KHR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "KMF": {
+    "prefix": "KMF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "KPW": {
+    "prefix": "KPW ",
+    "suffix": "",
+    "digits": 0
+   },
+   "KRW": {
+    "prefix": "₩ ",
+    "suffix": "",
+    "digits": 0
+   },
+   "KWD": {
+    "prefix": "KWD ",
+    "suffix": "",
+    "digits": 3
+   },
+   "KYD": {
+    "prefix": "KYD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "KZT": {
+    "prefix": "KZT ",
+    "suffix": "",
+    "digits": 2
+   },
+   "LAK": {
+    "prefix": "LAK ",
+    "suffix": "",
+    "digits": 0
+   },
+   "LBP": {
+    "prefix": "LBP ",
+    "suffix": "",
+    "digits": 0
+   },
+   "LKR": {
+    "prefix": "LKR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "LRD": {
+    "prefix": "LRD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "LSL": {
+    "prefix": "LSL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "LYD": {
+    "prefix": "LYD ",
+    "suffix": "",
+    "digits": 3
+   },
+   "MAD": {
+    "prefix": "MAD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MDL": {
+    "prefix": "MDL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MGA": {
+    "prefix": "MGA ",
+    "suffix": "",
+    "digits": 0
+   },
+   "MKD": {
+    "prefix": "MKD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MMK": {
+    "prefix": "MMK ",
+    "suffix": "",
+    "digits": 0
+   },
+   "MNT": {
+    "prefix": "MNT ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MOP": {
+    "prefix": "MOP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MRU": {
+    "prefix": "MRU ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MUR": {
+    "prefix": "MUR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MVR": {
+    "prefix": "MVR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MWK": {
+    "prefix": "MWK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MXN": {
+    "prefix": "MX$ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MYR": {
+    "prefix": "MYR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "MZN": {
+    "prefix": "MZN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NAD": {
+    "prefix": "NAD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NGN": {
+    "prefix": "NGN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NIO": {
+    "prefix": "NIO ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NOK": {
+    "prefix": "NOK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NPR": {
+    "prefix": "NPR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "NZD": {
+    "prefix": "NZ$ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "OMR": {
+    "prefix": "OMR ",
+    "suffix": "",
+    "digits": 3
+   },
+   "PAB": {
+    "prefix": "PAB ",
+    "suffix": "",
+    "digits": 2
+   },
+   "PEN": {
+    "prefix": "PEN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "PGK": {
+    "prefix": "PGK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "PHP": {
+    "prefix": "PHP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "PKR": {
+    "prefix": "PKR ",
+    "suffix": "",
+    "digits": 0
+   },
+   "PLN": {
+    "prefix": "PLN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "PYG": {
+    "prefix": "PYG ",
+    "suffix": "",
+    "digits": 0
+   },
+   "QAR": {
+    "prefix": "QAR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "RON": {
+    "prefix": "RON ",
+    "suffix": "",
+    "digits": 2
+   },
+   "RSD": {
+    "prefix": "RSD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "RUB": {
+    "prefix": "RUB ",
+    "suffix": "",
+    "digits": 2
+   },
+   "RWF": {
+    "prefix": "RWF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "SAR": {
+    "prefix": "SAR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SBD": {
+    "prefix": "SBD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SCR": {
+    "prefix": "SCR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SDG": {
+    "prefix": "SDG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SEK": {
+    "prefix": "SEK ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SGD": {
+    "prefix": "SGD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SHP": {
+    "prefix": "SHP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SLE": {
+    "prefix": "SLE ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SLL": {
+    "prefix": "SLL ",
+    "suffix": "",
+    "digits": 0
+   },
+   "SOS": {
+    "prefix": "SOS ",
+    "suffix": "",
+    "digits": 0
+   },
+   "SRD": {
+    "prefix": "SRD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SSP": {
+    "prefix": "SSP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "STN": {
+    "prefix": "STN ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SVC": {
+    "prefix": "SVC ",
+    "suffix": "",
+    "digits": 2
+   },
+   "SYP": {
+    "prefix": "SYP ",
+    "suffix": "",
+    "digits": 0
+   },
+   "SZL": {
+    "prefix": "SZL ",
+    "suffix": "",
+    "digits": 2
+   },
+   "THB": {
+    "prefix": "฿ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TJS": {
+    "prefix": "TJS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TMT": {
+    "prefix": "TMT ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TND": {
+    "prefix": "TND ",
+    "suffix": "",
+    "digits": 3
+   },
+   "TOP": {
+    "prefix": "TOP ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TRY": {
+    "prefix": "TRY ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TTD": {
+    "prefix": "TTD ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TWD": {
+    "prefix": "NT$ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "TZS": {
+    "prefix": "TZS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "UAH": {
+    "prefix": "UAH ",
+    "suffix": "",
+    "digits": 2
+   },
+   "UGX": {
+    "prefix": "UGX ",
+    "suffix": "",
+    "digits": 0
+   },
+   "USD": {
+    "prefix": "US$ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "UYU": {
+    "prefix": "UYU ",
+    "suffix": "",
+    "digits": 2
+   },
+   "UZS": {
+    "prefix": "UZS ",
+    "suffix": "",
+    "digits": 2
+   },
+   "VES": {
+    "prefix": "VES ",
+    "suffix": "",
+    "digits": 2
+   },
+   "VND": {
+    "prefix": "₫ ",
+    "suffix": "",
+    "digits": 0
+   },
+   "VUV": {
+    "prefix": "VUV ",
+    "suffix": "",
+    "digits": 0
+   },
+   "WST": {
+    "prefix": "WST ",
+    "suffix": "",
+    "digits": 2
+   },
+   "XAF": {
+    "prefix": "FCFA ",
+    "suffix": "",
+    "digits": 0
+   },
+   "XCD": {
+    "prefix": "EC$ ",
+    "suffix": "",
+    "digits": 2
+   },
+   "XCG": {
+    "prefix": "Cg. ",
+    "suffix": "",
+    "digits": 2
+   },
+   "XDR": {
+    "prefix": "XDR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "XOF": {
+    "prefix": "F CFA ",
+    "suffix": "",
+    "digits": 0
+   },
+   "XPF": {
+    "prefix": "CFPF ",
+    "suffix": "",
+    "digits": 0
+   },
+   "XSU": {
+    "prefix": "XSU ",
+    "suffix": "",
+    "digits": 2
+   },
+   "YER": {
+    "prefix": "YER ",
+    "suffix": "",
+    "digits": 0
+   },
+   "ZAR": {
+    "prefix": "ZAR ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ZMW": {
+    "prefix": "ZMW ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ZWG": {
+    "prefix": "ZWG ",
+    "suffix": "",
+    "digits": 2
+   },
+   "ZWL": {
+    "prefix": "ZWL ",
+    "suffix": "",
+    "digits": 2
+   }
+  },
+  "other": {
+   "prefix": "{c} ",
+   "suffix": ""
+  },
+  "months": [
+   [
+    "janeiro de {y}",
+    "{d} de jan.",
+    "{d} de jan. de {y}"
+   ],
+   [
+    "fevereiro de {y}",
+    "{d} de fev.",
+    "{d} de fev. de {y}"
+   ],
+   [
+    "março de {y}",
+    "{d} de mar.",
+    "{d} de mar. de {y}"
+   ],
+   [
+    "abril de {y}",
+    "{d} de abr.",
+    "{d} de abr. de {y}"
+   ],
+   [
+    "maio de {y}",
+    "{d} de mai.",
+    "{d} de mai. de {y}"
+   ],
+   [
+    "junho de {y}",
+    "{d} de jun.",
+    "{d} de jun. de {y}"
+   ],
+   [
+    "julho de {y}",
+    "{d} de jul.",
+    "{d} de jul. de {y}"
+   ],
+   [
+    "agosto de {y}",
+    "{d} de ago.",
+    "{d} de ago. de {y}"
+   ],
+   [
+    "setembro de {y}",
+    "{d} de set.",
+    "{d} de set. de {y}"
+   ],
+   [
+    "outubro de {y}",
+    "{d} de out.",
+    "{d} de out. de {y}"
+   ],
+   [
+    "novembro de {y}",
+    "{d} de nov.",
+    "{d} de nov. de {y}"
+   ],
+   [
+    "dezembro de {y}",
+    "{d} de dez.",
+    "{d} de dez. de {y}"
+   ]
+  ],
+  "regions": {
+   "142": "Ásia",
+   "143": "Ásia Central",
+   "145": "Ásia Ocidental",
+   "150": "Europa",
+   "151": "Europa Oriental",
+   "154": "Europa Setentrional",
+   "155": "Europa Ocidental",
+   "202": "África Subsaariana",
+   "419": "América Latina",
+   "AC": "Ilha de Ascensão",
+   "AD": "Andorra",
+   "AE": "Emirados Árabes Unidos",
+   "AF": "Afeganistão",
+   "AG": "Antígua e Barbuda",
+   "AI": "Anguila",
+   "AL": "Albânia",
+   "AM": "Armênia",
+   "AN": "Curaçao",
+   "AO": "Angola",
+   "AQ": "Antártida",
+   "AR": "Argentina",
+   "AS": "Samoa Americana",
+   "AT": "Áustria",
+   "AU": "Austrália",
+   "AW": "Aruba",
+   "AX": "Ilhas Aland",
+   "AZ": "Azerbaijão",
+   "BA": "Bósnia e Herzegovina",
+   "BB": "Barbados",
+   "BD": "Bangladesh",
+   "BE": "Bélgica",
+   "BF": "Burquina Faso",
+   "BG": "Bulgária",
+   "BH": "Barein",
+   "BI": "Burundi",
+   "BJ": "Benin",
+   "BL": "São Bartolomeu",
+   "BM": "Bermudas",
+   "BN": "Brunei",
+   "BO": "Bolívia",
+   "BQ": "Países Baixos Caribenhos",
+   "BR": "Brasil",
+   "BS": "Bahamas",
+   "BT": "Butão",
+   "BU": "Mianmar (Birmânia)",
+   "BV": "Ilha Bouvet",
+   "BW": "Botsuana",
+   "BY": "Bielorrússia",
+   "BZ": "Belize",
+   "CA": "Canadá",
+   "CC": "Ilhas Cocos (Keeling)",
+   "CD": "Congo - Kinshasa",
+   "CF": "República Centro-Africana",
+   "CG": "República do Congo",
+   "CH": "Suíça",
+   "CI": "Costa do Marfim",
+   "CK": "Ilhas Cook",
+   "CL": "Chile",
+   "CM": "Camarões",
+   "CN": "China",
+   "CO": "Colômbia",
+   "CP": "Ilha de Clipperton",
+   "CQ": "Sark",
+   "CR": "Costa Rica",
+   "CS": "Sérvia",
+   "CU": "Cuba",
+   "CV": "Cabo Verde",
+   "CW": "Curaçao",
+   "CX": "Ilha Christmas",
+   "CY": "Chipre",
+   "CZ": "Tchéquia",
+   "DD": "Alemanha",
+   "DE": "Alemanha",
+   "DG": "Diego Garcia",
+   "DJ": "Djibuti",
+   "DK": "Dinamarca",
+   "DM": "Dominica",
+   "DO": "República Dominicana",
+   "DY": "Benin",
+   "DZ": "Argélia",
+   "EA": "Ceuta e Melilla",
+   "EC": "Equador",
+   "EE": "Estônia",
+   "EG": "Egito",
+   "EH": "Saara Ocidental",
+   "ER": "Eritreia",
+   "ES": "Espanha",
+   "ET": "Etiópia",
+   "EU": "União Europeia",
+   "EZ": "zona do euro",
+   "FI": "Finlândia",
+   "FJ": "Fiji",
+   "FK": "Ilhas Malvinas",
+   "FM": "Micronésia",
+   "FO": "Ilhas Faroé",
+   "FR": "França",
+   "FX": "França",
+   "GA": "Gabão",
+   "GB": "Reino Unido",
+   "GD": "Granada",
+   "GE": "Geórgia",
+   "GF": "Guiana Francesa",
+   "GG": "Guernsey",
+   "GH": "Gana",
+   "GI": "Gibraltar",
+   "GL": "Groenlândia",
+   "GM": "Gâmbia",
+   "GN": "Guiné",
+   "GP": "Guadalupe",
+   "GQ": "Guiné Equatorial",
+   "GR": "Grécia",
+   "GS": "Ilhas Geórgia do Sul e Sandwich do Sul",
+   "GT": "Guatemala",
+   "GU": "Guam",
+   "GW": "Guiné-Bissau",
+   "GY": "Guiana",
+   "HK": "Hong Kong, RAE da China",
+   "HM": "Ilhas Heard e McDonald",
+   "HN": "Honduras",
+   "HR": "Croácia",
+   "HT": "Haiti",
+   "HU": "Hungria",
+   "HV": "Burquina Faso",
+   "IC": "Ilhas Canárias",
+   "ID": "Indonésia",
+   "IE": "Irlanda",
+   "IL": "Israel",
+   "IM": "Ilha de Man",
+   "IN": "Índia",
+   "IO": "Território Britânico do Oceano Índico",
+   "IQ": "Iraque",
+   "IR": "Irã",
+   "IS": "Islândia",
+   "IT": "Itália",
+   "JE": "Jersey",
+   "JM": "Jamaica",
+   "JO": "Jordânia",
+   "JP": "Japão",
+   "KE": "Quênia",
+   "KG": "Quirguistão",
+   "KH": "Camboja",
+   "KI": "Quiribati",
+   "KM": "Comores",
+   "KN": "São Cristóvão e Névis",
+   "KP": "Coreia do Norte",
+   "KR": "Coreia do Sul",
+   "KW": "Kuwait",
+   "KY": "Ilhas Cayman",
+   "KZ": "Cazaquistão",
+   "LA": "Laos",
+   "LB": "Líbano",
+   "LC": "Santa Lúcia",
+   "LI": "Liechtenstein",
+   "LK": "Sri Lanka",
+   "LR": "Libéria",
+   "LS": "Lesoto",
+   "LT": "Lituânia",
+   "LU": "Luxemburgo",
+   "LV": "Letônia",
+   "LY": "Líbia",
+   "MA": "Marrocos",
+   "MC": "Mônaco",
+   "MD": "Moldávia",
+   "ME": "Montenegro",
+   "MF": "São Martinho",
+   "MG": "Madagascar",
+   "MH": "Ilhas Marshall",
+   "MK": "Macedônia do Norte",
+   "ML": "Mali",
+   "MM": "Mianmar (Birmânia)",
+   "MN": "Mongólia",
+   "MO": "Macau, RAE da China",
+   "MP": "Ilhas Marianas do Norte",
+   "MQ": "Martinica",
+   "MR": "Mauritânia",
+   "MS": "Montserrat",
+   "MT": "Malta",
+   "MU": "Maurício",
+   "MV": "Maldivas",
+   "MW": "Malaui",
+   "MX": "México",
+   "MY": "Malásia",
+   "MZ": "Moçambique",
+   "NA": "Namíbia",
+   "NC": "Nova Caledônia",
+   "NE": "Níger",
+   "NF": "Ilha Norfolk",
+   "NG": "Nigéria",
+   "NH": "Vanuatu",
+   "NI": "Nicarágua",
+   "NL": "Países Baixos",
+   "NO": "Noruega",
+   "NP": "Nepal",
+   "NR": "Nauru",
+   "NU": "Niue",
+   "NZ": "Nova Zelândia",
+   "OM": "Omã",
+   "PA": "Panamá",
+   "PE": "Peru",
+   "PF": "Polinésia Francesa",
+   "PG": "Papua-Nova Guiné",
+   "PH": "Filipinas",
+   "PK": "Paquistão",
+   "PL": "Polônia",
+   "PM": "São Pedro e Miquelão",
+   "PN": "Ilhas Pitcairn",
+   "PR": "Porto Rico",
+   "PS": "Territórios palestinos",
+   "PT": "Portugal",
+   "PW": "Palau",
+   "PY": "Paraguai",
+   "QA": "Catar",
+   "QO": "Oceania Remota",
+   "RE": "Reunião",
+   "RH": "Zimbábue",
+   "RO": "Romênia",
+   "RS": "Sérvia",
+   "RU": "Rússia",
+   "RW": "Ruanda",
+   "SA": "Arábia Saudita",
+   "SB": "Ilhas Salomão",
+   "SC": "Seicheles",
+   "SD": "Sudão",
+   "SE": "Suécia",
+   "SG": "Singapura",
+   "SH": "Santa Helena",
+   "SI": "Eslovênia",
+   "SJ": "Svalbard e Jan Mayen",
+   "SK": "Eslováquia",
+   "SL": "Serra Leoa",
+   "SM": "San Marino",
+   "SN": "Senegal",
+   "SO": "Somália",
+   "SR": "Suriname",
+   "SS": "Sudão do Sul",
+   "ST": "São Tomé e Príncipe",
+   "SU": "Rússia",
+   "SV": "El Salvador",
+   "SX": "Sint Maarten",
+   "SY": "Síria",
+   "SZ": "Essuatíni",
+   "TA": "Tristão da Cunha",
+   "TC": "Ilhas Turcas e Caicos",
+   "TD": "Chade",
+   "TF": "Territórios Franceses do Sul",
+   "TG": "Togo",
+   "TH": "Tailândia",
+   "TJ": "Tadjiquistão",
+   "TK": "Tokelau",
+   "TL": "Timor-Leste",
+   "TM": "Turcomenistão",
+   "TN": "Tunísia",
+   "TO": "Tonga",
+   "TP": "Timor-Leste",
+   "TR": "Turquia",
+   "TT": "Trinidad e Tobago",
+   "TV": "Tuvalu",
+   "TW": "Taiwan",
+   "TZ": "Tanzânia",
+   "UA": "Ucrânia",
+   "UG": "Uganda",
+   "UK": "Reino Unido",
+   "UM": "Ilhas Menores Distantes dos EUA",
+   "UN": "Nações Unidas",
+   "US": "Estados Unidos",
+   "UY": "Uruguai",
+   "UZ": "Uzbequistão",
+   "VA": "Cidade do Vaticano",
+   "VC": "São Vicente e Granadinas",
+   "VD": "Vietnã",
+   "VE": "Venezuela",
+   "VG": "Ilhas Virgens Britânicas",
+   "VI": "Ilhas Virgens Americanas",
+   "VN": "Vietnã",
+   "VU": "Vanuatu",
+   "WF": "Wallis e Futuna",
+   "WS": "Samoa",
+   "XA": "Pseudossotaques",
+   "XB": "Pseudobidirecional",
+   "XK": "Kosovo",
+   "YD": "Iêmen",
+   "YE": "Iêmen",
+   "YT": "Mayotte",
+   "YU": "Sérvia",
+   "ZA": "África do Sul",
+   "ZM": "Zâmbia",
+   "ZR": "Congo - Kinshasa",
+   "ZW": "Zimbábue",
+   "ZZ": "Região desconhecida",
+   "001": "Mundo",
+   "002": "África",
+   "003": "América do Norte",
+   "005": "América do Sul",
+   "009": "Oceania",
+   "011": "África Ocidental",
+   "013": "América Central",
+   "014": "África Oriental",
+   "015": "África Setentrional",
+   "017": "África Central",
+   "018": "África Meridional",
+   "019": "Américas",
+   "021": "América Setentrional",
+   "029": "Caribe",
+   "030": "Ásia Oriental",
+   "034": "Ásia Meridional",
+   "035": "Sudeste Asiático",
+   "039": "Europa Meridional",
+   "053": "Australásia",
+   "054": "Melanésia",
+   "057": "Região da Micronésia",
+   "061": "Polinésia"
+  }
+ }
+}
