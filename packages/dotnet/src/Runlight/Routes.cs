@@ -96,7 +96,7 @@ public sealed class Routes
     private static readonly Regex ManageAreas = R("^/api/(links|link-domains|reports|goals|funnels|shares)(/|\\z)");
     private static readonly Regex SitePath = R("^/api/sites/([^/]+)\\z");
     private static readonly Regex HttpPrefix = R("^https?://");
-    private static readonly Regex PathAfter = R("/[\\s\\S]*\\z");
+    private static readonly Regex PathAfter = R("/[^\\n\\r\\u2028\\u2029]*\\z");
     private static readonly Regex CheckPath = R("^/api/link-domains/([^/]+)/check\\z");
     private static readonly Regex DomainPath = R("^/api/link-domains/([^/]+)\\z");
     private static readonly Regex ImportPath = R("^/api/links/import/([a-z]+)\\z");
@@ -281,8 +281,8 @@ public sealed class Routes
         return Coded(error.Message, fallback, status, new JsObject { ["detail"] = error.Message });
     }
 
-    /// <summary>The errors TypeScript throws as a RangeError: a refused setting, connection, or account, or an unknown link.</summary>
-    private static bool IsRange(Exception error) => error is SettingsError or ConnectError or AccountError or ArgumentOutOfRangeException;
+    /// <summary>The errors TypeScript throws as a RangeError: a refused setting, connection, or account.</summary>
+    private static bool IsRange(Exception error) => error is SettingsError or ConnectError or AccountError;
 
     /// <summary>JSON, never cached or sniffed.</summary>
     public static Response JsonResponse(object? body, int status = 200, Headers? headers = null)
@@ -434,9 +434,11 @@ public sealed class Routes
             object? Read(string key) => body == null ? null : body.Prop(key);
             var parameters = new List<KeyValuePair<string, object?>>();
             object? given = Read("params");
-            if (given is JsObject givenObject)
+            if (given is JsObject or List<object?>)
             {
-                foreach (var (k, v) in givenObject)
+                // Object.entries: an array's are its indexes.
+                var entries = given is JsObject givenObject ? givenObject.Select(e => (e.Key, e.Value)) : ((List<object?>)given).Select((v, i) => (Js.Str(i), v));
+                foreach (var (k, v) in entries)
                 {
                     if (v is string s)
                     {
