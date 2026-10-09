@@ -133,7 +133,7 @@ public static class Databases
         return b.ConnectionString;
     }
 
-    private static readonly string[] Tables = ["rl_meta", "rl_sites", "rl_salts", "rl_sessions", "rl_events", "rl_links", "rl_link_domains", "rl_shares", "rl_goals", "rl_settings", "rl_reports", "rl_tokens", "rl_funnels", "rl_rollup_days", "rl_rollups"];
+    private static readonly string[] Tables = ["rl_meta", "rl_sites", "rl_salts", "rl_sessions", "rl_events", "rl_links", "rl_link_domains", "rl_shares", "rl_goals", "rl_settings", "rl_reports", "rl_tokens", "rl_funnels", "rl_rollup_days", "rl_rollups", "rl_users", "rl_invites"];
 
     /// <summary>
     /// A fresh, empty store of a kind, dropped by <see cref="CleanupAsync"/>. <paramref name="statementTimeout"/>
