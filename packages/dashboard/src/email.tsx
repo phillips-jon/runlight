@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { api, base, type MailState, type Report, type Site } from "./api.js";
 import { LANGUAGES, currentLocale, t, type Key } from "./i18n.js";
 import { Secret } from "./secret.js";
+import { Callout } from "./callout.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
 import { Empty } from "./empty.js";
@@ -13,7 +14,7 @@ const fieldLabel = (name: string, fallback: string) => {
 };
 
 /** The install-wide mail service: shown, changed, tested. A connected site's is its own install's, shown here only. */
-function MailService({ onChange, site, admin }: { onChange: (ready: boolean) => void; site: Site; admin: boolean }) {
+function MailService({ site, admin }: { site: Site; admin: boolean }) {
   const [state, setState] = useState<MailState | null>(null);
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -27,7 +28,6 @@ function MailService({ onChange, site, admin }: { onChange: (ready: boolean) => 
       .mail(site.remote ? site.id : undefined)
       .then((m) => {
         setState(m);
-        onChange(Boolean(m.source));
         setForm({ service: m.service || "ses", from: m.from, fromName: m.fromName, ...m.fields });
       })
       .catch((e: Error) => setError(e.message));
@@ -91,7 +91,11 @@ function MailService({ onChange, site, admin }: { onChange: (ready: boolean) => 
   if (editing || !state.source) {
     return (
       <form class="goal-form" onSubmit={save}>
-        {!state.encrypted ? <p class="settings-note">{t("mail.notEncrypted")}</p> : null}
+        {!state.encrypted ? (
+          <Callout icon="key" tone="warn" title={t("mail.notEncryptedTitle")}>
+            {t("mail.notEncrypted")}
+          </Callout>
+        ) : null}
         <label class="field-row">
           <span class="field-label">{t("mail.service")}</span>
           <select class="value" value={form.service} onChange={(e) => setForm({ ...form, service: (e.target as HTMLSelectElement).value })}>
@@ -206,9 +210,20 @@ function ago(ms: number | null): string {
   return new Intl.DateTimeFormat(currentLocale(), { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(ms);
 }
 
-/** Settings, Email reports: the mail service, then who gets this site's reports. */
-export function EmailReports({ site, admin }: { site: Site; admin: boolean }) {
-  const [ready, setReady] = useState(false);
+/** Settings, Email service: how reports and invites are sent, set up once for every site. */
+export function EmailService({ site, admin }: { site: Site; admin: boolean }) {
+  return (
+    <div class="settings-group">
+      <p class="settings-text">{site.remote ? t("mail.introRemote", { host: new URL(site.remote).host }) : t("mail.intro")}</p>
+      <MailService site={site} admin={admin} />
+    </div>
+  );
+}
+
+/** Settings, Email reports: who gets this site's reports, once there is a mail service to send them. */
+export function EmailReports({ site, onSetUp }: { site: Site; onSetUp: () => void }) {
+  // Unknown until the mail service has answered, so the callout does not flash in.
+  const [ready, setReady] = useState<boolean | null>(null);
   const [reports, setReports] = useState<Report[] | null>(null);
   const [email, setEmail] = useState("");
   const [frequency, setFrequency] = useState<"weekly" | "monthly">("weekly");
@@ -223,6 +238,10 @@ export function EmailReports({ site, admin }: { site: Site; admin: boolean }) {
       .catch((e: Error) => setError(e.message));
   useEffect(() => {
     void load();
+    api
+      .mail(site.remote ? site.id : undefined)
+      .then((m) => setReady(Boolean(m.source)))
+      .catch(() => setReady(false));
   }, [site.id]);
 
   const add = (e: Event) => {
@@ -250,13 +269,25 @@ export function EmailReports({ site, admin }: { site: Site; admin: boolean }) {
 
   return (
     <>
-      <div class="settings-group">
-        <div class="field-row">
-          <span class="field-label">{t("mail.title")}</span>
-          <span class="settings-text">{site.remote ? t("mail.introRemote", { host: new URL(site.remote).host }) : t("mail.intro")}</span>
+      {ready === false ? (
+        <div class="settings-group">
+          <Callout
+            icon="send"
+            tone="warn"
+            title={t("reports.needsMailTitle")}
+            action={
+              site.remote ? null : (
+                <button type="button" class="ghost" onClick={onSetUp}>
+                  <Icon name="send" />
+                  {t("reports.setUpMail")}
+                </button>
+              )
+            }
+          >
+            {site.remote ? t("mail.noneRemote", { host: new URL(site.remote).host }) : t("reports.needsMail")}
+          </Callout>
         </div>
-        <MailService onChange={setReady} site={site} admin={admin} />
-      </div>
+      ) : null}
       <div class="settings-group">
         <div class="field-row">
           <span class="field-label">{t("reports.title")}</span>
@@ -308,7 +339,7 @@ export function EmailReports({ site, admin }: { site: Site; admin: boolean }) {
           </button>
         </form>
         {error ? <p class="settings-error">{error}</p> : null}
-        <p class="field-hint">{t(ready ? "reports.when" : "reports.needsMail")}</p>
+        <p class="field-hint">{t("reports.when")}</p>
       </div>
     </>
   );

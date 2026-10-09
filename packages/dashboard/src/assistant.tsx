@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { api, type AssistantProvider, type AssistantState, type Site, type View } from "./api.js";
 import { currentLocale, t, tn } from "./i18n.js";
 import { Secret } from "./secret.js";
+import { Callout } from "./callout.js";
 import { Icon } from "./icons.js";
 import { DeleteButton } from "./links.js";
 import { useDialogFocus } from "./focus.js";
@@ -309,8 +310,14 @@ export function AssistantSettings({ owner }: { owner: boolean }) {
     <>
       <div class="settings-group">
         <p class="settings-text">{t("assistant.settingsIntro")}</p>
-        <p class="settings-note">{t("assistant.privacy")}</p>
-        {!state.encrypted ? <p class="settings-note">{t("assistant.notEncrypted")}</p> : null}
+        <Callout icon="eye" title={t("assistant.privacyTitle")}>
+          {t("assistant.privacy")}
+        </Callout>
+        {!state.encrypted ? (
+          <Callout icon="key" tone="warn" title={t("assistant.notEncryptedTitle")}>
+            {t("assistant.notEncrypted")}
+          </Callout>
+        ) : null}
       </div>
       <form class="settings-group" onSubmit={save}>
         <label class="field-row">

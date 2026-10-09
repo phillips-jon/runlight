@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { accounts, api, base, download, install, type Person, type Site, type View } from "./api.js";
 import { People } from "./account.js";
 import { AssistantSettings } from "./assistant.js";
-import { EmailReports } from "./email.js";
+import { EmailReports, EmailService } from "./email.js";
 import { Funnels } from "./funnels.js";
 import { Goals } from "./goals.js";
 import { LANGUAGES, currentLocale, errorText, rich, t, type Key } from "./i18n.js";
@@ -17,13 +17,14 @@ import { Tokens } from "./tokens.js";
 import { setTheme, themeChoice, type ThemeChoice } from "./theme.js";
 import { useDialogFocus } from "./focus.js";
 
-export type Section = "general" | "install" | "goals" | "funnels" | "email" | "sharing" | "api" | "links" | "import" | "people" | "data" | "assistant";
+export type Section = "general" | "install" | "goals" | "funnels" | "email" | "mail" | "sharing" | "api" | "links" | "import" | "people" | "data" | "assistant";
 const SECTIONS: Array<[Section, Key]> = [
   ["general", "settings.general"],
   ["install", "settings.install"],
   ["goals", "settings.goals"],
   ["funnels", "settings.funnels"],
   ["email", "settings.email"],
+  ["mail", "settings.mail"],
   ["sharing", "settings.sharing"],
   ["api", "settings.api"],
   ["links", "settings.links"],
@@ -732,7 +733,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   // People are this server's, whichever site is open, so they show for a connected site too.
   const own: Array<[Section, Key]> = site.remote
     ? site.manage
-      ? SECTIONS.filter(([id]) => ["general", "goals", "funnels", "email", "sharing", "links", "data", "assistant"].includes(id))
+      ? SECTIONS.filter(([id]) => ["general", "goals", "funnels", "email", "mail", "sharing", "links", "data", "assistant"].includes(id))
       : [["general", "settings.general"], ["assistant", "settings.assistant"]]
     : SECTIONS;
   const sections: Array<[Section, Key]> = me && admin ? [...own, ["people", "settings.people"]] : own;
@@ -782,7 +783,9 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
             ) : section === "funnels" ? (
               <Funnels site={site} view={view} />
             ) : section === "email" ? (
-              <EmailReports site={site} admin={admin} />
+              <EmailReports site={site} onSetUp={() => setSection("mail")} />
+            ) : section === "mail" ? (
+              <EmailService site={site} admin={admin} />
             ) : section === "sharing" ? (
               <Sharing site={site} />
             ) : section === "people" && me ? (

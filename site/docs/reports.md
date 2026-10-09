@@ -9,7 +9,7 @@ Runlight can email a summary of a site every week or month. Each summary has the
 
 ## 1. Set up the mail service
 
-In Settings, Email reports, pick a service and enter its keys along with the address reports come from. **Send test** checks that it works. One mail service serves every site in the install.
+In **Settings**, **Email service**, pick a service and enter its keys along with the address reports come from. **Send test** checks that it works. One mail service serves every site in the install.
 
 | Service | What it needs |
 | --- | --- |
@@ -44,7 +44,7 @@ The webhook gets a POST whose JSON body has `to`, `from`, `fromName`, `subject`,
 
 ## 2. Add who gets reports
 
-Under **Who gets reports**, add an address with its schedule (weekly or monthly) and the language the email should be in. **Send a sample now** sends the latest report straight away, once a minute for each address. From a connected [standalone server](/docs/server/#connect-sites-that-count-themselves), samples go out once every ten minutes for the whole site.
+In **Settings**, **Email reports**, add an address with its schedule (weekly or monthly) and the language the email should be in. **Send a sample now** sends the latest report straight away, once a minute for each address. From a connected [standalone server](/docs/server/#connect-sites-that-count-themselves), samples go out once every ten minutes for the whole site.
 
 - Weekly reports cover Monday to Sunday and go out from 8am on Monday.
 - Monthly reports cover the calendar month and go out from 8am on the 1st.

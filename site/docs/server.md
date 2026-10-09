@@ -46,7 +46,7 @@ The person who sets up the server is its owner. The owner and admins invite peop
 | Member | Change the settings of every site, such as goals, funnels, short links, link domains, share links, email reports, and imports, and make API tokens. Members cannot manage people, set up the mail service or the assistant, or delete a site. |
 | Viewer | Read every site’s stats without changing anything. |
 
-The owner can hand ownership to an admin with **Make owner** in **Settings**, **People**, after entering their password, and becomes an admin. The invite goes out by email when the server has a mail service (set in **Settings**, **Email reports**), and the dashboard always shows the link too, so you can send it another way. The person opens it, chooses a password, and is signed in. A link works once, for seven days, and **Send again** makes a new one. Everyone can change their password later under **Account** at the bottom of the dashboard. A server from before these roles keeps its first owner as the owner, and any other owners become admins. Removing someone, or making them a viewer, also deletes the API tokens they made and the apps they connected, such as Claude or a hub. Tokens made with `RUNLIGHT_TOKEN`, or before this version, have no maker on record, so after removing someone, check **Settings**, **API and AI** for those.
+The owner can hand ownership to an admin with **Make owner** in **Settings**, **People**, after entering their password, and becomes an admin. The invite goes out by email when the server has a mail service (set in **Settings**, **Email service**), and the dashboard always shows the link too, so you can send it another way. The person opens it, chooses a password, and is signed in. A link works once, for seven days, and **Send again** makes a new one. Everyone can change their password later under **Account** at the bottom of the dashboard. A server from before these roles keeps its first owner as the owner, and any other owners become admins. Removing someone, or making them a viewer, also deletes the API tokens they made and the apps they connected, such as Claude or a hub. Tokens made with `RUNLIGHT_TOKEN`, or before this version, have no maker on record, so after removing someone, check **Settings**, **API and AI** for those.
 
 ### Two-factor sign-in
 
@@ -141,7 +141,7 @@ The server reads its settings from environment variables.
 
 ## Email reports and the scheduled check
 
-The server runs Runlight’s [scheduled check](/docs/cron/) itself every five minutes, so it needs no cron. Set up a mail service in **Settings**, **Email reports**, and reports go out on their own.
+The server runs Runlight’s [scheduled check](/docs/cron/) itself every five minutes, so it needs no cron. Set up a mail service in **Settings**, **Email service**, add who gets reports in **Settings**, **Email reports**, and reports go out on their own.
 
 ## Backups and upgrades
 

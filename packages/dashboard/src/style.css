@@ -14,6 +14,7 @@
   --bar-hover: #e7e7ea;
   --up: #15803d;
   --down: #b91c1c;
+  --warn: #b45309;
   --s1: #2a78d6;
   --s2: #eb6834;
   --s3: #1baf7a;
@@ -48,6 +49,7 @@
     --bar-hover: #29292e;
     --up: #4ade80;
     --down: #f87171;
+  --warn: #fbbf24;
     --s1: #3987e5;
     --s2: #d95926;
     --s3: #199e70;
@@ -80,6 +82,7 @@
   --bar-hover: #29292e;
   --up: #4ade80;
   --down: #f87171;
+  --warn: #fbbf24;
   --s1: #3987e5;
   --s2: #d95926;
   --s3: #199e70;
@@ -3790,6 +3793,70 @@ button.live:hover {
 .optional {
   font-weight: 400;
   color: var(--muted);
+}
+
+.callout-box {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--sunk);
+}
+
+.callout-box-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.callout-box-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.callout-box-text strong {
+  display: block;
+  margin: 4px 0 2px;
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.callout-box-text p {
+  margin: 0;
+}
+
+.callout-box-action {
+  flex: none;
+  align-self: center;
+}
+
+@media (max-width: 720px) {
+  .callout-box {
+    flex-wrap: wrap;
+  }
+
+  .callout-box-action {
+    width: 100%;
+  }
+}
+
+.callout-box.warn {
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+}
+
+.callout-box.warn .callout-box-icon {
+  border-color: color-mix(in srgb, var(--warn) 40%, transparent);
+  color: var(--warn);
 }
 
 .settings-note {
