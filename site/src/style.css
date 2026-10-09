@@ -319,7 +319,7 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .opening > :not(.floaters) { position: relative; z-index: 1; }
 .opening .say { max-width: 16em; }
 .opening .then { max-width: 46ch; }
-.floaters { position: absolute; z-index: 0; top: 100px; right: -56px; width: 470px; height: 500px; pointer-events: none; user-select: none; }
+.floaters { position: absolute; z-index: 0; top: 93px; right: -56px; width: 470px; height: 500px; pointer-events: none; user-select: none; }
 .floaters-scene { position: absolute; inset: 0; }
 .floater { position: absolute; width: 240px; border: 1px solid var(--rule-2); border-radius: 8px; background: var(--sheet); overflow: hidden; box-shadow: 0 18px 40px -18px rgba(0, 0, 0, .28), 0 1px 3px rgba(0, 0, 0, .06); }
 :root[data-theme="dark"] .floater { box-shadow: 0 22px 50px -16px rgba(0, 0, 0, .75), 0 1px 3px rgba(0, 0, 0, .4); }
