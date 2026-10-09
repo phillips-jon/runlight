@@ -11,6 +11,7 @@ use std::pin::Pin;
 
 pub mod assets;
 pub mod brand;
+pub mod assistant;
 pub mod data;
 mod error;
 pub use error::Error;
@@ -24,6 +25,7 @@ pub mod js;
 pub mod limit;
 pub mod links;
 pub mod mail;
+pub mod mcp;
 pub mod mmdb;
 pub mod payload;
 pub mod query;
@@ -36,6 +38,7 @@ pub mod sources;
 pub mod store;
 pub mod time;
 pub mod ua;
+pub mod version;
 pub mod zip;
 
 /// A boxed future that can be sent between threads, as the crate's traits
