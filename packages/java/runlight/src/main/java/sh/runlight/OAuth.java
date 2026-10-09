@@ -1,10 +1,10 @@
 package sh.runlight;
 
+import java.lang.ref.WeakReference;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -113,37 +113,22 @@ public final class OAuth {
       Pattern.compile("^http://(localhost|127\\.0\\.0\\.1|\\[::1\\])(:\\d+)?/");
   private static final Pattern SPACES = Pattern.compile("[" + Js.SPACE + "]+");
 
-  /**
-   * Per install, the per-address limit on registrations. Counts are kept in fixed one-minute
-   * windows under an HMAC of the address with a key made at start, so the map never holds an IP.
-   */
-  private static final class Registrations {
-    private final byte[] key = Hash.randomBytes(16);
-    private long window;
-    private final Map<String, Integer> counts = new HashMap<>();
+  /** Per install, the per-address limit on registrations. */
+  private static final Map<Install, RateLimit> REGISTRATIONS = new WeakHashMap<>();
 
-    synchronized boolean allow(String ip, long now) {
-      // No address cannot be told apart, so it is not limited.
-      if (ip.isEmpty()) {
-        return true;
-      }
-      long current = Math.floorDiv(now, 60_000L);
-      if (current != window) {
-        window = current;
-        counts.clear();
-      }
-      String id =
-          java.util.HexFormat.of().formatHex(Hash.hmacBytes(key, Js.utf8(ip))).substring(0, 16);
-      int count = counts.merge(id, 1, Integer::sum);
-      return count <= REGISTRATIONS_PER_MINUTE;
-    }
-  }
-
-  private static final Map<Install, Registrations> REGISTRATIONS = new WeakHashMap<>();
-
-  private static Registrations registrations(Install runlight) {
+  private static RateLimit registrations(Install runlight) {
     synchronized (REGISTRATIONS) {
-      return REGISTRATIONS.computeIfAbsent(runlight, k -> new Registrations());
+      // The clock holds the install weakly, or the limit would keep its own key alive.
+      WeakReference<Install> install = new WeakReference<>(runlight);
+      return REGISTRATIONS.computeIfAbsent(
+          runlight,
+          k ->
+              new RateLimit(
+                  REGISTRATIONS_PER_MINUTE,
+                  () -> {
+                    Install held = install.get();
+                    return held == null ? 0 : held.now();
+                  }));
     }
   }
 
@@ -349,7 +334,7 @@ public final class OAuth {
 
     if (path.equals("/oauth/register") && method.equals("POST")) {
       runlight.init();
-      if (!registrations(runlight).allow(runlight.clientIp(request, context), runlight.now())) {
+      if (!registrations(runlight).allow(runlight.clientIp(request, context))) {
         return oauthError(
             "invalid_client_metadata",
             "Too many registrations from this address. Wait a minute and try again.",
