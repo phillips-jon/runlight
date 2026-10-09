@@ -43,6 +43,7 @@
 
   <modules>
     <module>runlight</module>
+    <module>runlight-servlet</module>
   </modules>
 
   <properties>
