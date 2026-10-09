@@ -36,7 +36,7 @@ The script sets no cookies and stores nothing in the visitor's browser. Runlight
 1. Install and activate the plugin.
 2. Go to Settings, Runlight, and enter your Runlight's address, such as `https://stats.example.com/runlight`. The page checks that it answers.
 3. Make sure that Runlight counts this site's hostname.
-4. To count AI agents, set `RUNLIGHT_OBSERVE_KEY` on your Runlight and enter the same key here.
+4. To count AI agents, copy this site's key from Settings, Install, Key for CMS plugins in your Runlight and enter it here. The key can only report AI agent fetches for this one site.
 
 == Frequently Asked Questions ==
 
@@ -51,6 +51,14 @@ Not for Runlight: it sets no cookies and stores nothing on the visitor's device.
 = Where are the numbers? =
 
 In your Runlight's dashboard. The Runlight item in the admin menu opens it.
+
+== External services ==
+
+The plugin talks to one service, the Runlight whose address you enter under Settings, Runlight. You run that Runlight yourself, in your own app or on your own server, and nothing is sent until you enter its address. Runlight is open source software under the MIT licence, and its terms of use and privacy policy are at https://runlight.sh/terms/ and https://runlight.sh/privacy/.
+
+* Every page loads Runlight's script from that address. In the visitor's browser, the script sends the page's address, the referring page, the screen size, the browser's language, the page's title, how long it was read, and how far down it was scrolled, with any events you set up. Runlight uses the visitor's IP address and user agent to work out a daily visitor count and never stores them.
+* When an AI agent such as ChatGPT or Claude fetches a page and you have entered a key, the plugin sends that page's address and the agent's user agent to the same Runlight, from your server.
+* When you save the settings, the plugin asks that address whether it answers as Runlight, to tell you whether it is connected.
 
 == Changelog ==
 

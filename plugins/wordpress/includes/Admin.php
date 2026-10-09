@@ -115,7 +115,7 @@ final class Admin {
 						<th scope="row"><label for="runlight-key"><?php esc_html_e( 'Observe key', 'runlight' ); ?></label></th>
 						<td>
 							<input id="runlight-key" class="regular-text code" type="password" autocomplete="off" name="<?php echo esc_attr( Settings::OPTION ); ?>[observe_key]" value="" placeholder="<?php echo '' !== $settings['observe_key'] ? esc_attr__( 'Saved. Leave blank to keep it for this address.', 'runlight' ) : ''; ?>">
-							<p class="description"><?php esc_html_e( 'Optional. With your Runlight’s RUNLIGHT_OBSERVE_KEY, the plugin reports AI agents such as ChatGPT and Claude reading your pages. They run no JavaScript, so the script cannot see them. The key can report fetches and nothing else.', 'runlight' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Optional. With this site’s key from Runlight’s Settings, Install, Key for CMS plugins, the plugin reports AI agents such as ChatGPT and Claude reading your pages. They run no JavaScript, so the script cannot see them. The key can report fetches for this site and nothing else.', 'runlight' ); ?></p>
 						</td>
 					</tr>
 					<tr>
