@@ -150,6 +150,26 @@ def order_key(text: str) -> Any:
     return text.encode("utf-16-be", "surrogatepass")
 
 
+def locale_key(text: str) -> Any:
+    """A sort key for `a.localeCompare(b)` in English, close to ICU's root collation without ICU: white space,
+    then punctuation, then symbols, then digits, then letters; letters compared without accents or case first,
+    then accents, then lower case before upper."""
+    import unicodedata
+
+    primary = []
+    accents = []
+    cases = []
+    for ch in text:
+        base = unicodedata.normalize("NFD", ch)
+        letter = base[0]
+        category = unicodedata.category(letter)
+        rank = {"Z": 0, "P": 1, "S": 2, "N": 3, "L": 4}.get(category[0], 2)
+        primary.append((rank, letter.casefold() if rank == 4 else letter))
+        accents.append(base[1:])
+        cases.append(0 if letter == letter.lower() else 1)
+    return (primary, accents, cases)
+
+
 def lower(text: str) -> str:
     return text.lower()
 
