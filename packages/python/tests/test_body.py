@@ -92,3 +92,6 @@ def test_the_fetcher_stops_reading_past_max_bytes(port: int) -> None:
 def test_the_fetcher_connects_to_the_pinned_address(port: int) -> None:
     answer = UrllibFetcher().fetch(f"http://pinned.invalid:{port}/", {"resolve": [f"pinned.invalid:{port}:127.0.0.1"]})
     assert answer.text() == f"host pinned.invalid:{port}"
+    # A pin listing several addresses, as public_fetch writes one, connects to the first.
+    several = UrllibFetcher().fetch(f"http://pinned.invalid:{port}/", {"resolve": [f"pinned.invalid:{port}:127.0.0.1,[::1]"]})
+    assert several.text() == f"host pinned.invalid:{port}"

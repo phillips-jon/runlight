@@ -127,7 +127,8 @@ class UrllibFetcher:
             host, _, rest = str(pin).partition(":")
             pin_port, _, pinned = rest.partition(":")
             if host.lower() == name.lower() and pin_port == str(port):
-                address = pinned.strip("[]")
+                # A pin may list several addresses ("a,[b]"), as curl's does; the first is the one connected to.
+                address = pinned.split(",")[0].strip("[]")
                 break
         try:
             if parsed.protocol == "https:":
