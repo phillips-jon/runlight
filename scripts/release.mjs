@@ -86,7 +86,7 @@ export const PUBLISH = [
   ] },
   // Packagist reads composer.json from a repository's root and versions from
   // its tags, so packages/php goes to a read-only repository of its own.
-  { dir: "packages/php", commands: (v) => [`# packages/php: the pushed tag v${v} is split to phillips-jon/runlight-php, which Packagist watches, by .github/workflows/php-split.yml (once PHP_SPLIT_TOKEN is set)`] },
+  { dir: "packages/php", commands: (v) => [`# packages/php: the pushed tag v${v} is split to phillips-jon/runlight-php, which Packagist watches, by .github/workflows/php-split.yml (once PHP_SPLIT_DEPLOY_KEY is set)`] },
   { dir: "plugins/wordpress", commands: (v) => [`# plugins/wordpress: the pushed tag v${v} gets a GitHub release with its CHANGELOG.md section as notes and the plugin's zip attached as runlight-${v}.zip and runlight.zip, by .github/workflows/release.yml (once RELEASE_ENABLED is true)`] },
   { dir: "plugins/drupal", commands: (v) => [`# plugins/drupal: the pushed tag is split to drupal.org's repository as the tag ${v} on the branch ${v.split(".").slice(0, 2).join(".")}.x by .github/workflows/php-plugins-split.yml (once DRUPAL_SPLIT_ENABLED is true); then make the drupal.org release from the ${v} tag`] },
   { dir: "plugins/craft", commands: (v) => [`# plugins/craft: the pushed tag v${v} is split to phillips-jon/runlight-craft, which Packagist and the Craft Plugin Store read, by .github/workflows/php-plugins-split.yml (once CRAFT_SPLIT_ENABLED is true)`] },

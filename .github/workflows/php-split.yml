@@ -11,9 +11,9 @@
 # already there on the same commit is a rerun and is left alone. The tag
 # can also be pushed by hand from the Actions tab.
 #
-# Nothing runs until the repository secret PHP_SPLIT_TOKEN holds a token that
-# may write to the split repository (a fine-grained token with Contents read
-# and write on it alone).
+# Nothing runs until the repository secret PHP_SPLIT_DEPLOY_KEY holds the
+# private half of a deploy key with write access on the split repository
+# alone, as the Craft plugin's split uses.
 name: PHP package split
 
 on:
@@ -30,7 +30,7 @@ permissions:
   contents: read
 
 jobs:
-  # Whether PHP_SPLIT_TOKEN is set; a job's `if` cannot read a secret.
+  # Whether PHP_SPLIT_DEPLOY_KEY is set; a job's `if` cannot read a secret.
   gate:
     if: github.repository == 'phillips-jon/runlight'
     runs-on: ubuntu-latest
@@ -39,9 +39,9 @@ jobs:
     steps:
       - id: gate
         env:
-          SPLIT_TOKEN: ${{ secrets.PHP_SPLIT_TOKEN }}
+          DEPLOY_KEY: ${{ secrets.PHP_SPLIT_DEPLOY_KEY }}
         run: |
-          if [ -n "$SPLIT_TOKEN" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "PHP_SPLIT_TOKEN is not set, so nothing is pushed."; fi
+          if [ -n "$DEPLOY_KEY" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "PHP_SPLIT_DEPLOY_KEY is not set, so nothing is pushed."; fi
 
   main:
     needs: gate
@@ -52,7 +52,7 @@ jobs:
       group: php-split-main
       cancel-in-progress: false
     env:
-      SPLIT_TOKEN: ${{ secrets.PHP_SPLIT_TOKEN }}
+      DEPLOY_KEY: ${{ secrets.PHP_SPLIT_DEPLOY_KEY }}
       SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'phillips-jon/runlight-php' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -61,8 +61,14 @@ jobs:
           persist-credentials: false
       - name: Push packages/php to its own repository
         run: |
+          key="$RUNNER_TEMP/split_key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          chmod 600 "$key"
+          # GitHub's published host key (https://api.github.com/meta), pinned rather than trusted on first use.
+          printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$RUNNER_TEMP/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
           split="$(git subtree split --prefix=packages/php HEAD)"
-          git push "https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git" "$split:refs/heads/main"
+          git push "git@github.com:${SPLIT_REPO}.git" "$split:refs/heads/main"
 
   # CI must pass on the tagged commit first (ci-passed.yml).
   ci:
@@ -83,7 +89,7 @@ jobs:
       group: php-split-tag
       cancel-in-progress: false
     env:
-      SPLIT_TOKEN: ${{ secrets.PHP_SPLIT_TOKEN }}
+      DEPLOY_KEY: ${{ secrets.PHP_SPLIT_DEPLOY_KEY }}
       SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'phillips-jon/runlight-php' }}
       TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
@@ -101,8 +107,14 @@ jobs:
           if [ "v$version" != "$TAG" ]; then echo "packages/php/assets/build.json is $version, the tag is $TAG"; exit 1; fi
           git config user.name "Runlight release"
           git config user.email "noreply@runlight.sh"
+          key="$RUNNER_TEMP/split_key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          chmod 600 "$key"
+          # GitHub's published host key (https://api.github.com/meta), pinned rather than trusted on first use.
+          printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$RUNNER_TEMP/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
           split="$(git subtree split --prefix=packages/php HEAD)"
-          remote="https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git"
+          remote="git@github.com:${SPLIT_REPO}.git"
           # A tag already there on this commit is a rerun; on another commit, a release changed after it shipped.
           remote_tag="$(git ls-remote "$remote" "refs/tags/$TAG^{}" | cut -f1)"
           if [ "$remote_tag" = "$split" ]; then echo "$TAG is already there on this commit"; exit 0; fi

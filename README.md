@@ -62,7 +62,7 @@ It never pushes or publishes. It prints what to run next, which is `git push ori
 | --- | --- | --- |
 | `docker.yml` | Builds the server's image for amd64 and arm64 and pushes it to `ghcr.io/phillips-jon/runlight` | `DOCKER_ENABLED` variable |
 | `release.yml` | Makes the GitHub release from the changelog and attaches the WordPress zip as `runlight.zip` | `RELEASE_ENABLED` variable |
-| `php-split.yml` | Pushes `packages/php` and the tag to `phillips-jon/runlight-php` for Packagist | `PHP_SPLIT_TOKEN` secret |
+| `php-split.yml` | Pushes `packages/php` and the tag to `phillips-jon/runlight-php` for Packagist | `PHP_SPLIT_DEPLOY_KEY` secret |
 | `php-plugins-split.yml` | Pushes the Drupal module to drupal.org and the Craft plugin to `phillips-jon/runlight-craft` | `DRUPAL_SPLIT_ENABLED` and `CRAFT_SPLIT_ENABLED` variables |
 
 After the Drupal split, make the release on drupal.org from the pushed tag.
