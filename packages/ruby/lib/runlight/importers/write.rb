@@ -149,7 +149,7 @@ module Runlight
                   "city" => Js.slice(str(c, "city"), 0, 100),
                   "browser" => browser(str(c, "browser")),
                   "browserVersion" => "",
-                  "os" => SYSTEMS[Js.lower(str(c, "os"))] || text(c, "os"),
+                  "os" => system_name(str(c, "os")),
                   "osVersion" => "",
                   "device" => device(str(c, "device")),
                   "screen" => text(c, "screen"),

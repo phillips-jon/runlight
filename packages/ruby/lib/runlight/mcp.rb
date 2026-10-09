@@ -255,20 +255,27 @@ module Runlight
       answer = read_api.call(request["path"], request["params"])
       parsed, body = Js.parse_json(answer.text)
       body = {} unless parsed
+      # Any body that is not an object (null included) carries no words of its own.
+      object = body.is_a?(Hash) ? body : nil
       unless answer.ok?
-        error = Js.get(body, "error")
+        error = object.nil? ? nil : Js.get(object, "error")
         text = Js.string(error.nil? || error.equal?(UNDEFINED) ? "Runlight answered #{answer.status}" : error)
         return { "content" => [{ "type" => "text", "text" => text }], "isError" => true }
       end
-      { "content" => [{ "type" => "text", "text" => Json.encode(tool["shape"] ? tool["shape"].call(body) : body) }] }
+      { "content" => [{ "type" => "text", "text" => Json.encode(tool["shape"] && object ? tool["shape"].call(object) : body) }] }
     end
 
     # The answer, or nil for a notification.
     def answer(message, read_api)
+      # A batch element that is not an object is an invalid request, answered with a null id.
+      return rpc_error(nil, -32_600, "Invalid request") unless message.is_a?(Hash)
+
       id = Js.get(message, "id")
       notification = id.equal?(UNDEFINED)
       method = Js.get(message, "method")
       return notification ? nil : rpc_error(id, -32_600, "Invalid request") if Js.get(message, "jsonrpc") != "2.0" || !method.is_a?(String)
+      # A notification is never answered, so it never runs anything either.
+      return nil if notification
 
       given = Js.get(message, "params")
       params = Js.truthy?(given) && Js.object?(given) ? given : {}
@@ -300,12 +307,10 @@ module Runlight
         when "tools/call"
           result = call_tool(params, read_api)
         else
-          return notification ? nil : rpc_error(id, -32_601, "Unknown method \"#{method}\"")
+          return rpc_error(id, -32_601, "Unknown method \"#{method}\"")
         end
-        notification ? nil : { "jsonrpc" => "2.0", "id" => id, "result" => result }
+        { "jsonrpc" => "2.0", "id" => id, "result" => result }
       rescue StandardError => e
-        return nil if notification
-
         e.is_a?(McpError) ? rpc_error(id, e.code, e.message) : rpc_error(id, -32_603, "Internal error")
       end
     end

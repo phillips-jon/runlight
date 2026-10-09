@@ -28,15 +28,19 @@ module Runlight
 
     module_function
 
-    # An attribute's value in a tag. The name is matched without regard to ASCII case only, \s is JavaScript's
-    # white space, and a word boundary is an ASCII one, as in the TypeScript's pattern.
-    def attr(tag, name)
-      letters = name.chars.map { |c| "[#{c.downcase}#{c.upcase}]" }.join
-      pattern = /(?<![A-Za-z0-9_])#{letters}[#{Js::SPACE}]*=[#{Js::SPACE}]*("([^"]*)"|'([^']*)'|([^#{Js::SPACE}>]+))/
-      match = tag.match(pattern)
-      return "" if match.nil?
+    # A tag's attributes, read one after another so a name inside another (data-rel) or inside a value
+    # (title="rel=icon") is never taken for one. The first of a repeated name counts, as in a browser. \s is
+    # JavaScript's white space, as in the TypeScript's pattern.
+    ATTRIBUTE = /([^#{Js::SPACE}"'>\/=]+)(?:[#{Js::SPACE}]*=[#{Js::SPACE}]*(?:"([^"]*)"|'([^']*)'|([^#{Js::SPACE}>]+)))?/
+    private_constant :ATTRIBUTE
 
-      Js.trim(match[2] || match[3] || match[4] || "")
+    def attrs(tag)
+      out = {}
+      tag["<link".length..].scan(ATTRIBUTE) do |name, double, single, bare|
+        name = Js.lower(name)
+        out[name] = Js.trim(double || single || bare || "") unless out.key?(name)
+      end
+      out
     end
 
     # Icon URLs a page links to, best first: apple-touch-icon, then SVG and PNG icons, then any icon.
@@ -44,8 +48,9 @@ module Runlight
       found = []
       Js.scrub(html).b.scan(LINK).each do |bytes|
         tag = bytes.dup.force_encoding(Encoding::UTF_8)
-        rel = Js.lower(attr(tag, "rel")).split(/[#{Js::SPACE}]+/)
-        href = attr(tag, "href")
+        attributes = attrs(tag)
+        rel = Js.lower(attributes["rel"] || "").split(/[#{Js::SPACE}]+/)
+        href = attributes["href"] || ""
         next if href.empty? || !(rel.include?("icon") || rel.include?("apple-touch-icon"))
 
         parsed = Http::Url.parse(href, base)
@@ -55,7 +60,7 @@ module Runlight
         # Only https, which is all the fetch below takes.
         next unless url.start_with?("https://")
 
-        type = Js.lower(attr(tag, "type"))
+        type = Js.lower(attributes["type"] || "")
         score = if rel.include?("apple-touch-icon") then 3
                 elsif type.include?("svg") || url.end_with?(".svg") then 2
                 elsif type.include?("png") || url.end_with?(".png") then 1
@@ -172,6 +177,6 @@ module Runlight
       nil
     end
 
-    private_class_method :attr, :get, :image, :look_up, :cached, :store, :file
+    private_class_method :attrs, :get, :image, :look_up, :cached, :store, :file
   end
 end

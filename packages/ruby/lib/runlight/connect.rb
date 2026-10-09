@@ -20,19 +20,27 @@ module Runlight
     # The install's address as its dashboard is, without a trailing slash.
     def install_url(value)
       url = Js.trim(Js.string(value.nil? ? "" : value)).sub(%r{/+\z}, "")
-      unless url.match?(%r{\Ahttps://[^/]+|\Ahttp://(localhost|127\.0\.0\.1)(:\d+)?(/|\z)})
+      # The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
+      unless url.match?(%r{\Ahttps://[^/]+|\Ahttp://(localhost|127\.0\.0\.1)(:\d+)?(/|\z)}) && !Http::Url.parse(url).nil?
         raise ConnectError.new("Enter the install's address, like https://example.com/runlight", "url")
       end
 
       url
     end
 
+    # A saved attempt, or nil when it cannot be read or has no time it runs out, which counts as expired.
+    def pending_from(value, now)
+      pending = value.nil? ? nil : Json.try_decode(value)
+      return nil unless pending.is_a?(Hash)
+
+      expires = pending["expires"]
+      (expires.is_a?(Integer) || expires.is_a?(Float)) && expires >= now ? pending : nil
+    end
+
     # Attempts nobody came back from are removed, so they do not pile up in settings.
     def clear_expired(runlight)
       runlight.store.settings_starting_with("connect:").each do |row|
-        pending = Json.try_decode(row["value"])
-        expires = pending.is_a?(Hash) ? pending["expires"] : nil
-        runlight.store.set_setting(row["key"], nil) if !Js.truthy?(expires) || Js.number(expires) < runlight.now
+        runlight.store.set_setting(row["key"], nil) if pending_from(row["value"], runlight.now).nil?
       end
     end
 
@@ -125,8 +133,8 @@ module Runlight
       stored = state.match?(/\A[a-f0-9]{32}\z/) ? runlight.store.setting(key) : nil
       # Each attempt works once.
       runlight.store.set_setting(key, nil) if !stored.nil? && stored != ""
-      pending = !stored.nil? && stored != "" ? Json.decode(stored) : nil
-      if pending.nil? || pending["expires"] < runlight.now
+      pending = !stored.nil? && stored != "" ? pending_from(stored, runlight.now) : nil
+      if pending.nil?
         raise ConnectError.new("That connection took too long or was already used. Start again.", "expired")
       end
       raise ConnectError.new("The connection was not allowed.", "denied") if params.get("error") == "access_denied"
@@ -159,6 +167,6 @@ module Runlight
       site["id"]
     end
 
-    private_class_method :clear_expired, :s256, :json
+    private_class_method :pending_from, :clear_expired, :s256, :json
   end
 end

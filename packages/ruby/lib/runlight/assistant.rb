@@ -189,7 +189,7 @@ module Runlight
           )
           blocks = Js.get(data, "content")
           blocks = [] if blocks.nil? || blocks.equal?(UNDEFINED)
-          raise TypeError, "blocks.filter is not a function" unless blocks.is_a?(Array)
+          raise unreadable(base) unless blocks.is_a?(Array) && blocks.all?(Hash)
 
           calls = blocks.select { |b| Js.get(b, "type") == "tool_use" }
           if Js.get(data, "stop_reason") != "tool_use" || calls.empty?
@@ -235,7 +235,7 @@ module Runlight
         unless Js.truthy?(count)
           return { "reply" => Js.trim(content.nil? || content.equal?(UNDEFINED) ? "" : Js.string(content)), "tools" => used }
         end
-        raise TypeError, "message.tool_calls is not iterable" unless calls.is_a?(Array)
+        raise unreadable(base) unless calls.is_a?(Array) && calls.all? { |call| call.is_a?(Hash) && Js.get(call, "function").is_a?(Hash) }
 
         convo << { "role" => "assistant", "content" => content.equal?(UNDEFINED) ? nil : content, "tool_calls" => calls }
         calls.each do |call|
@@ -251,6 +251,13 @@ module Runlight
         end
       end
       raise AssistantError.new("The assistant needed too many steps for that question. Try asking something narrower.", "assistant_steps")
+    end
+
+    # A service that answered, but not in its protocol's shape.
+    def unreadable(url)
+      host = Http::Url.new(url).host
+      message = "#{host} sent an answer Runlight could not read"
+      AssistantError.new(message, "assistant_failed", { "host" => host, "detail" => message })
     end
 
     # data.choices?.[0]?.message ?? {}
@@ -304,10 +311,12 @@ module Runlight
       end
       list = data.nil? ? UNDEFINED : Js.get(data, "data")
       list = [] if list.nil? || list.equal?(UNDEFINED)
-      raise TypeError, "data.data.filter is not a function" unless list.is_a?(Array)
+      raise unreadable(base) unless list.is_a?(Array)
 
       models = []
       list.each do |m|
+        next unless m.is_a?(Hash)
+
         id = Js.get(m, "id")
         next if !id.is_a?(String) || id == ""
 
@@ -368,7 +377,7 @@ module Runlight
       [primary, secondary, tertiary]
     end
 
-    private_class_method :provider, :system_prompt, :in_time, :service_message, :post, :tool_text, :clock, :first_message, :blank?,
+    private_class_method :provider, :system_prompt, :in_time, :service_message, :post, :tool_text, :clock, :first_message, :unreadable, :blank?,
                          :locale_compare, :collation_key
   end
 end
