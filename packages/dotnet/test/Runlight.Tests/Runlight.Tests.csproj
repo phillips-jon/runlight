@@ -18,6 +18,9 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <ProjectReference Include="../../src/Runlight/Runlight.csproj" />
     <ProjectReference Include="../../src/Runlight.AspNetCore/Runlight.AspNetCore.csproj" />
   </ItemGroup>
