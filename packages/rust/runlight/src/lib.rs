@@ -18,6 +18,7 @@ pub mod http;
 pub mod journeys;
 pub mod js;
 pub mod limit;
+pub mod mail;
 pub mod mmdb;
 pub mod payload;
 pub mod query;
