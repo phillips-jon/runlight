@@ -16,6 +16,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.KeyStore;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,6 +31,10 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.TrustManagerFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 import sh.runlight.Fixtures;
@@ -462,6 +469,144 @@ class MailTest {
     }
   }
 
+  /**
+   * A self-signed certificate for 127.0.0.1, made by keytool for this run: the server's keys, and a
+   * client that trusts only it.
+   */
+  private record SelfSigned(SSLContext server, SSLContext client) {
+    static SelfSigned make() throws Exception {
+      Path dir = Files.createTempDirectory("runlight-smtp-tls");
+      Path store = dir.resolve("smtp.p12");
+      char[] password = "runlight-test".toCharArray();
+      Process keytool =
+          new ProcessBuilder(
+                  Path.of(System.getProperty("java.home"), "bin", "keytool").toString(),
+                  "-genkeypair",
+                  "-alias",
+                  "smtp",
+                  "-keyalg",
+                  "EC",
+                  "-groupname",
+                  "secp256r1",
+                  "-dname",
+                  "CN=127.0.0.1",
+                  "-ext",
+                  "SAN=ip:127.0.0.1",
+                  "-validity",
+                  "2",
+                  "-storetype",
+                  "PKCS12",
+                  "-keystore",
+                  store.toString(),
+                  "-storepass",
+                  new String(password),
+                  "-keypass",
+                  new String(password))
+              .redirectErrorStream(true)
+              .start();
+      String output = new String(keytool.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+      assertEquals(0, keytool.waitFor(), output);
+      KeyStore keys = KeyStore.getInstance("PKCS12");
+      try (InputStream in = Files.newInputStream(store)) {
+        keys.load(in, password);
+      }
+      Files.delete(store);
+      Files.delete(dir);
+      KeyManagerFactory keyManagers =
+          KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+      keyManagers.init(keys, password);
+      SSLContext server = SSLContext.getInstance("TLS");
+      server.init(keyManagers.getKeyManagers(), null, null);
+      KeyStore trusted = KeyStore.getInstance(KeyStore.getDefaultType());
+      trusted.load(null, null);
+      trusted.setCertificateEntry("smtp", keys.getCertificate("smtp"));
+      TrustManagerFactory trustManagers =
+          TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+      trustManagers.init(trusted);
+      SSLContext client = SSLContext.getInstance("TLS");
+      client.init(null, trustManagers.getTrustManagers(), null);
+      return new SelfSigned(server, client);
+    }
+  }
+
+  /** The commands a client sent, the message's lines left out. */
+  private static List<String> commands(String received) {
+    List<String> seen = new ArrayList<>();
+    boolean inData = false;
+    for (String line : received.split("\r\n", -1)) {
+      if (inData) {
+        inData = !line.equals(".");
+        continue;
+      }
+      if (!line.isEmpty()) {
+        seen.add(line.split(" ", -1)[0]);
+      }
+      inData = line.equals("DATA");
+    }
+    return seen;
+  }
+
+  @Test
+  void smtpStartTlsAndImplicitTls() throws Exception {
+    SelfSigned certificate = SelfSigned.make();
+    try (FakeSmtp server = new FakeSmtp(certificate.server(), false)) {
+      Map<String, Object> config =
+          config(
+              "service", "smtp",
+              "host", "127.0.0.1",
+              "port", Integer.toString(server.port()),
+              "security", "starttls");
+      Smtp.send(
+          config,
+          message(),
+          "Runlight <reports@example.com>",
+          60_000,
+          null,
+          null,
+          certificate.client().getSocketFactory());
+      String received = (String) server.conversation(5000).get("received");
+      assertTrue(
+          received.startsWith(
+              "EHLO example.com\r\nSTARTTLS\r\nEHLO example.com\r\nMAIL FROM:<reports@example.com>\r\n"),
+          received);
+      assertTrue(received.endsWith("\r\n.\r\nQUIT\r\n"), received);
+      // Without the certificate trusted, the JDK's default refuses it.
+      MailError refused =
+          assertThrows(MailError.class, () -> Smtp.send(config, message(), "reports@example.com"));
+      assertEquals("mail_failed", refused.code());
+      assertTrue(refused.getMessage().startsWith("SMTP: TLS failed: "), refused.getMessage());
+      server.conversation(5000);
+    }
+    try (FakeSmtp server = new FakeSmtp(certificate.server(), true)) {
+      Map<String, Object> config =
+          config(
+              "service", "smtp",
+              "host", "127.0.0.1",
+              "port", Integer.toString(server.port()),
+              "security", "tls");
+      Smtp.send(
+          config,
+          message(),
+          "reports@example.com",
+          60_000,
+          null,
+          null,
+          certificate.client().getSocketFactory());
+      assertEquals(
+          List.of("EHLO", "MAIL", "RCPT", "DATA", "QUIT"),
+          commands((String) server.conversation(5000).get("received")));
+      MailError refused =
+          assertThrows(MailError.class, () -> Smtp.send(config, message(), "reports@example.com"));
+      assertEquals("mail_unreachable", refused.code());
+      assertEquals("127.0.0.1:" + server.port(), refused.params().get("host"));
+      assertTrue(
+          refused
+              .getMessage()
+              .startsWith("SMTP: could not connect to 127.0.0.1:" + server.port() + ": "),
+          refused.getMessage());
+    }
+  }
+
   @Test
   void smtpThatCannotConnectSaysSo() throws IOException {
     int port;
@@ -500,17 +645,35 @@ class MailTest {
    * sent.
    *
    * <p>relay: answers as the TS tests' relay does (AUTH PLAIN checks jon/pw, no STARTTLS). trickle:
-   * sends "220-still here" every 100 ms and never finishes its greeting.
+   * sends "220-still here" every 100 ms and never finishes its greeting. With an SSLContext,
+   * starttls is the relay offering STARTTLS and turning TLS on when asked, and tls is the relay
+   * behind implicit TLS.
    */
   private static final class FakeSmtp implements AutoCloseable {
     private final ServerSocket server;
     private final boolean trickle;
+    private final SSLContext starttls;
     private final BlockingQueue<Map<String, Object>> done = new LinkedBlockingQueue<>();
     private final Thread thread;
 
     FakeSmtp(boolean trickle) throws IOException {
-      this.server = new ServerSocket(0, 10, InetAddress.getLoopbackAddress());
+      this(trickle, null, false);
+    }
+
+    /** The relay with TLS from {@code context}: implicit when {@code implicit}, else STARTTLS. */
+    FakeSmtp(SSLContext context, boolean implicit) throws IOException {
+      this(false, context, implicit);
+    }
+
+    private FakeSmtp(boolean trickle, SSLContext context, boolean implicit) throws IOException {
+      this.server =
+          implicit
+              ? context
+                  .getServerSocketFactory()
+                  .createServerSocket(0, 10, InetAddress.getLoopbackAddress())
+              : new ServerSocket(0, 10, InetAddress.getLoopbackAddress());
       this.trickle = trickle;
+      this.starttls = implicit ? null : context;
       this.thread = new Thread(this::serve, "fake-smtp");
       thread.setDaemon(true);
       thread.start();
@@ -528,7 +691,7 @@ class MailTest {
     private void serve() {
       while (!server.isClosed()) {
         try (Socket socket = server.accept()) {
-          done.add(trickle ? trickle(socket) : relay(socket));
+          done.add(trickle ? trickle(socket) : relay(socket, starttls));
         } catch (IOException e) {
           // Closed, or a client gone; the next one is served.
         }
@@ -563,11 +726,17 @@ class MailTest {
       return Json.object("received", received.toString(StandardCharsets.UTF_8), "closed", true);
     }
 
-    private static Map<String, Object> relay(Socket socket) throws IOException {
+    private static Map<String, Object> relay(Socket plain, SSLContext starttls) throws IOException {
+      Socket socket = plain;
       ByteArrayOutputStream received = new ByteArrayOutputStream();
       OutputStream out = socket.getOutputStream();
       InputStream in = socket.getInputStream();
-      out.write("220 test ESMTP\r\n".getBytes(StandardCharsets.US_ASCII));
+      try {
+        out.write("220 test ESMTP\r\n".getBytes(StandardCharsets.US_ASCII));
+      } catch (IOException e) {
+        // A TLS client that does not trust the certificate hangs up in the handshake.
+        return Json.object("received", "", "closed", true);
+      }
       StringBuilder buffer = new StringBuilder();
       boolean inData = false;
       boolean open = true;
@@ -595,7 +764,30 @@ class MailTest {
               reply = "250 queued\r\n";
             }
           } else if (line.startsWith("EHLO")) {
-            reply = "250-test\r\n250-SIZE 1000\r\n250 AUTH PLAIN\r\n";
+            reply =
+                starttls != null && !(socket instanceof SSLSocket)
+                    ? "250-test\r\n250-STARTTLS\r\n250 AUTH PLAIN\r\n"
+                    : "250-test\r\n250-SIZE 1000\r\n250 AUTH PLAIN\r\n";
+          } else if (line.equals("STARTTLS") && starttls != null) {
+            out.write("220 go ahead\r\n".getBytes(StandardCharsets.US_ASCII));
+            out.flush();
+            SSLSocket secured =
+                (SSLSocket)
+                    starttls
+                        .getSocketFactory()
+                        .createSocket(socket, "127.0.0.1", socket.getPort(), true);
+            secured.setUseClientMode(false);
+            try {
+              secured.startHandshake();
+            } catch (IOException e) {
+              open = false;
+              break;
+            }
+            socket = secured;
+            in = socket.getInputStream();
+            out = socket.getOutputStream();
+            buffer.setLength(0);
+            continue;
           } else if (line.startsWith("AUTH PLAIN")) {
             String got =
                 new String(Base64.getDecoder().decode(line.substring(11)), StandardCharsets.UTF_8);
