@@ -65,6 +65,9 @@ jobs:
       # The dashboard and tracker the package serves are the SDK's own build, copied by a script.
       - name: The copied assets are current
         run: node --import tsx scripts/elixir-assets.mts --check
+      # The Intl data email reports format with, made from Node's ICU by a script.
+      - name: The Intl data is current
+        run: node --import tsx scripts/elixir-intl.mts --check
       - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         id: beam
         with:

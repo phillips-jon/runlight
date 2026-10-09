@@ -62,7 +62,7 @@ defmodule Runlight.Test.Stores do
     {:ok, admin} = Postgrex.start_link(config)
     Process.unlink(admin)
     Postgrex.query!(admin, ~s(CREATE SCHEMA "#{name}"), [])
-    {:ok, pid} = PgRepo.start_link([name: nil, pool_size: 4, log: false, parameters: [search_path: name]] ++ config)
+    {:ok, pid} = PgRepo.start_link([name: nil, pool_size: 2, log: false, parameters: [search_path: name]] ++ config)
     Process.unlink(pid)
     store = Runlight.Store.ecto(repo: PgRepo, dynamic_repo: pid)
 
@@ -71,12 +71,13 @@ defmodule Runlight.Test.Stores do
        stop(pid)
        Postgrex.query!(admin, ~s(DROP SCHEMA IF EXISTS "#{name}" CASCADE), [])
        GenServer.stop(admin)
+       :ok
      end}
   end
 
   def store(kind, url) when kind in [:mysql, :mariadb] do
     config = parse(url)
-    {:ok, pid} = MyRepo.start_link([name: nil, pool_size: 4, log: false] ++ config)
+    {:ok, pid} = MyRepo.start_link([name: nil, pool_size: 2, log: false] ++ config)
     Process.unlink(pid)
     previous = MyRepo.put_dynamic_repo(pid)
     empty_mysql()
@@ -103,16 +104,12 @@ defmodule Runlight.Test.Stores do
     for [table] <- rows, do: MyRepo.query!("DROP TABLE IF EXISTS `#{table}`", [], log: false)
   end
 
+  # Supervisor.stop works from any process; an exit signal from one that is not the repo's parent is ignored.
   defp stop(pid) do
-    ref = Process.monitor(pid)
-    Process.unlink(pid)
-    Process.exit(pid, :shutdown)
-
-    receive do
-      {:DOWN, ^ref, _, _, _} -> :ok
-    after
-      5000 -> :ok
-    end
+    if Process.alive?(pid), do: Supervisor.stop(pid, :normal, 10_000)
+    :ok
+  catch
+    :exit, _ -> :ok
   end
 
   defp parse(url) do
