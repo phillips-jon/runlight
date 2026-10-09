@@ -1,7 +1,8 @@
 # Every push and pull request: the Java port (packages/java) on the oldest JDK
 # it supports and the newer long-term and current ones, against SQLite,
 # Postgres, and MySQL or MariaDB, with Error Prone, the formatting check, and
-# a check that its copies of the dashboard and tracker are the SDK's.
+# checks that its copies of the dashboard, the tracker, and Node's Intl data
+# are current.
 name: Java
 
 on:
@@ -64,6 +65,8 @@ jobs:
       - run: npm ci
       - name: The dashboard and tracker are the SDK's
         run: node --import tsx scripts/java-assets.mts --check
+      - name: The Intl data is Node's
+        run: node --import tsx scripts/java-intl.mts --check
       - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
