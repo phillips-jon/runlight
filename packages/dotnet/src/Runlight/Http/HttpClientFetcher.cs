@@ -34,12 +34,14 @@ public sealed class HttpClientFetcher : IFetcher, IDisposable
     {
         string host = context.DnsEndPoint.Host;
         int port = context.DnsEndPoint.Port;
-        EndPoint target = context.DnsEndPoint;
+        // A pin for this host and port: "host:port:address[,address...]", each address perhaps in
+        // brackets, as curl's resolve takes them. Only those addresses are tried, in order.
+        var targets = new List<EndPoint>();
+        bool pinned = false;
         if (context.InitialRequestMessage.Options.TryGetValue(PinsKey, out var pins))
         {
             foreach (string pin in pins)
             {
-                // host:port:address, the address perhaps in brackets.
                 int first = pin.IndexOf(':', StringComparison.Ordinal);
                 if (first < 0)
                 {
@@ -52,26 +54,53 @@ public sealed class HttpClientFetcher : IFetcher, IDisposable
                 }
                 string pinHost = pin[..first];
                 string pinPort = pin[(first + 1)..second];
-                string address = pin[(second + 1)..].Trim('[', ']');
-                if (string.Equals(pinHost, host, StringComparison.OrdinalIgnoreCase) && pinPort == port.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                    && IPAddress.TryParse(address, out var ip))
+                if (!string.Equals(pinHost, host, StringComparison.OrdinalIgnoreCase) || pinPort != port.ToString(System.Globalization.CultureInfo.InvariantCulture))
                 {
-                    target = new IPEndPoint(ip, port);
-                    break;
+                    continue;
                 }
+                pinned = true;
+                foreach (string address in pin[(second + 1)..].Split(','))
+                {
+                    if (IPAddress.TryParse(address.Trim().Trim('[', ']'), out var ip))
+                    {
+                        targets.Add(new IPEndPoint(ip, port));
+                    }
+                }
+                break;
             }
         }
-        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
-        try
+        if (!pinned)
         {
-            await socket.ConnectAsync(target, cancellationToken).ConfigureAwait(false);
-            return new NetworkStream(socket, ownsSocket: true);
+            targets.Add(context.DnsEndPoint);
         }
-        catch
+        else if (targets.Count == 0)
         {
-            socket.Dispose();
-            throw;
+            // A pin that names no address never falls back to a lookup of its own.
+            throw new SocketException((int)SocketError.HostNotFound);
         }
+        Exception? last = null;
+        foreach (var target in targets)
+        {
+            var socket = target is IPEndPoint ip
+                ? new Socket(ip.AddressFamily, SocketType.Stream, ProtocolType.Tcp) { NoDelay = true }
+                : new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+            try
+            {
+                await socket.ConnectAsync(target, cancellationToken).ConfigureAwait(false);
+                return new NetworkStream(socket, ownsSocket: true);
+            }
+            catch (SocketException e)
+            {
+                socket.Dispose();
+                last = e;
+            }
+            catch
+            {
+                socket.Dispose();
+                throw;
+            }
+        }
+        throw last!;
     }
 
     public async Task<Response> FetchAsync(string url, FetchInit? init = null, CancellationToken cancellationToken = default)
