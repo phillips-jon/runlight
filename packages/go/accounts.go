@@ -232,7 +232,9 @@ func (a *AccountStore) row(r Row) User {
 // seal seals a two-factor secret with the install's secret, so the database alone cannot make codes.
 func (a *AccountStore) seal(text string) (string, error) { return accounts.SealText(text, a.secret) }
 
-func (a *AccountStore) unseal(sealed string) (string, bool) { return accounts.UnsealText(sealed, a.secret) }
+func (a *AccountStore) unseal(sealed string) (string, bool) {
+	return accounts.UnsealText(sealed, a.secret)
+}
 
 // StartTwoFactor starts turning on two-factor: a new secret, kept aside until a code from it is confirmed.
 func (a *AccountStore) StartTwoFactor(ctx context.Context, id string) (string, error) {
