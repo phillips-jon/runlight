@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Runlight/Runlight.csproj" />
+    <Project Path="src/Runlight.AspNetCore/Runlight.AspNetCore.csproj" />
+    <Project Path="src/Runlight.Server/Runlight.Server.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Runlight.Tests/Runlight.Tests.csproj" />
+  </Folder>
+</Solution>
