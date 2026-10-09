@@ -250,6 +250,16 @@ final class MailTest extends TestCase
         }
     }
 
+    public function testSmtpReplyJustBeforeTheServerClosesIsTheErrorNotTheClose(): void
+    {
+        $server = new SmtpServer('refuse');
+        try {
+            $this->assertThrowsMatching('/^SMTP greeting: 535 no$/', fn () => Smtp::send(['service' => 'smtp', 'host' => '127.0.0.1', 'port' => (string) $server->port, 'security' => 'none'], self::MESSAGE, 'reports@example.com'));
+        } finally {
+            $server->stop();
+        }
+    }
+
     public function testSmtpThatCannotConnectSaysSo(): void
     {
         // A port that was free a moment ago.
