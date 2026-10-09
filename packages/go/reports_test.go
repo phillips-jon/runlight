@@ -6,6 +6,7 @@ import (
 	"runlight.sh/go/internal/fixture"
 	"runlight.sh/go/internal/intl"
 	"runlight.sh/go/internal/js"
+	"runlight.sh/go/internal/web"
 )
 
 func TestIntl(t *testing.T) {
@@ -43,6 +44,18 @@ func TestIntl(t *testing.T) {
 		}
 		for _, c := range js.Arr(js.Dig(set, "region")) {
 			check("region "+js.Str(js.Dig(c, 0)), intl.Region(lang, js.Str(js.Dig(c, 0))), js.Dig(c, 1))
+		}
+	}
+}
+
+func TestIconLinksAndPublicAddresses(t *testing.T) {
+	f := fixture.PHP(t, "outbound.json")
+	for _, c := range js.Arr(js.Dig(f, "icons")) {
+		same(t, "icons", IconLinks(js.Str(js.Dig(c, "html")), js.Str(js.Dig(c, "base"))), js.Dig(c, "links"))
+	}
+	for _, c := range js.Arr(js.Dig(f, "ips")) {
+		if web.PublicAddress(js.Str(js.Dig(c, "ip"))) != js.Truthy(js.Dig(c, "public")) {
+			t.Errorf("ip %v", js.Dig(c, "ip"))
 		}
 	}
 }

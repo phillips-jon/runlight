@@ -12,21 +12,6 @@ import (
 
 var errPending = errors.New("not ported yet")
 
-// ConnectError is why connecting another install failed.
-type ConnectError struct{ CodedError }
-
-func (*ConnectError) isRangeError() {}
-
-// StartConnect begins connecting another install.
-func StartConnect(ctx context.Context, r *Runlight, url any, back, site string) (string, error) {
-	return "", errPending
-}
-
-// FinishConnect ends connecting another install.
-func FinishConnect(ctx context.Context, r *Runlight, q *whatwg.SearchParams) (string, error) {
-	return "", errPending
-}
-
 // ImportStep is one step of a link import.
 func ImportStep(ctx context.Context, r *Runlight, site, source string, credentials map[string]string, cursor *string, done float64) (any, error) {
 	return nil, errPending
@@ -48,15 +33,6 @@ func ImportUmamiVisits(ctx context.Context, r *Runlight, site string, credential
 func ImportCsvVisits(ctx context.Context, r *Runlight, site string, rows any) (any, error) {
 	return nil, errPending
 }
-
-// SiteIcon is a site's icon.
-type SiteIcon struct {
-	Body []byte
-	Type string
-}
-
-// FetchIcon is a site's icon, nil when it has none.
-func FetchIcon(ctx context.Context, fetcher Fetcher, origin string, now int64) *SiteIcon { return nil }
 
 func (rt *Routes) assistantAPI(c *call, path string, u *whatwg.URL) (*Response, error) {
 	return nil, nil
