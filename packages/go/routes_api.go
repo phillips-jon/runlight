@@ -251,7 +251,7 @@ func (rt *Routes) api(c *call, path string, u *whatwg.URL) (*Response, error) {
 			if s, ok := body.Value("cursor").(string); ok {
 				cursor = &s
 			}
-			step, err := ImportUmamiVisits(ctx, r, site.ID, credentials, field(body, "website"), cursor)
+			step, err := ImportUmamiVisits(ctx, r, site.ID, credentials, undefinedIfMissing(body, "website", body.Value("website")), cursor)
 			if err != nil {
 				return nil, err
 			}
