@@ -302,9 +302,11 @@ public static class Mcp
         {
             body = new JsObject();
         }
+        // Any body that is not an object (null included) carries no words of its own.
+        var json = body as JsObject;
         if (!answer.Ok)
         {
-            object? error = Arg(body, "error");
+            object? error = Arg(json, "error");
             return new JsObject
             {
                 ["content"] = new List<object?> { new JsObject { ["type"] = "text", ["text"] = Js.String(error is null or Undefined ? "Runlight answered " + Js.Str(answer.Status) : error) } },
@@ -313,16 +315,17 @@ public static class Mcp
         }
         return new JsObject
         {
-            ["content"] = new List<object?> { new JsObject { ["type"] = "text", ["text"] = Json.Stringify(tool.Shape != null ? tool.Shape(body) : body) } },
+            ["content"] = new List<object?> { new JsObject { ["type"] = "text", ["text"] = Json.Stringify(tool.Shape != null && json != null ? tool.Shape(json) : body) } },
         };
     }
 
     /// <summary>The answer to one message, or null for a notification.</summary>
     private static async Task<JsObject?> AnswerAsync(object? message, ApiRead readApi)
     {
-        if (message is null)
+        // A batch element that is not an object is an invalid request, answered with a null id.
+        if (message is not JsObject)
         {
-            throw new JsTypeError("Cannot read properties of null (reading 'id')");
+            return RpcError(null, -32600, "Invalid request");
         }
         object? id = Js.Get(message, "id");
         bool isNotification = id is Undefined;
@@ -330,6 +333,11 @@ public static class Mcp
         if (Js.Get(message, "jsonrpc") is not "2.0" || method is not string methodName)
         {
             return isNotification ? null : RpcError(id, -32600, "Invalid request");
+        }
+        // A notification is never answered, so it never runs anything either.
+        if (isNotification)
+        {
+            return null;
         }
         object? given = Js.Get(message, "params");
         object? parameters = Js.Truthy(given) && Js.IsObject(given) ? given : new JsObject();
@@ -371,26 +379,17 @@ public static class Mcp
                     result = await CallToolAsync(parameters, readApi).ConfigureAwait(false);
                     break;
                 default:
-                    if (isNotification)
-                    {
-                        return null;
-                    }
                     return RpcError(id, -32601, "Unknown method \"" + methodName + "\"");
             }
-            return isNotification ? null : new JsObject { ["jsonrpc"] = "2.0", ["id"] = id, ["result"] = result };
+            return new JsObject { ["jsonrpc"] = "2.0", ["id"] = id, ["result"] = result };
         }
         catch (Exception error)
         {
-            if (isNotification)
-            {
-                return null;
-            }
             return error is McpError mcp ? RpcError(id, mcp.Code, mcp.Message) : RpcError(id, -32603, "Internal error");
         }
     }
 
     /// <summary>Answers one POST to the MCP endpoint, already authorised.</summary>
-    /// <exception cref="JsTypeError">For a batch holding null, as the TypeScript throws.</exception>
     public static async Task<Response> McpResponseAsync(Request request, ApiRead readApi)
     {
         Headers JsonHeaders() => new() { ["content-type"] = "application/json; charset=utf-8", ["cache-control"] = "no-store" };
@@ -401,11 +400,6 @@ public static class Mcp
         // Batches were in the 2025-03-26 protocol; answering them costs nothing.
         if (body is List<object?> batch)
         {
-            if (batch.Contains(null))
-            {
-                // Promise.all rejects with the first message that cannot be read.
-                throw new JsTypeError("Cannot read properties of null (reading 'id')");
-            }
             var answers = new List<object?>();
             foreach (object? message in batch)
             {

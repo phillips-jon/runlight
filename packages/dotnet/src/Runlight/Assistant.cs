@@ -165,6 +165,14 @@ public static class Assistant
         return new AssistantError(host + ": " + detail, "assistant_refused", new JsObject { ["host"] = host, ["detail"] = detail });
     }
 
+    /// <summary>A service that answered, but not in its protocol's shape.</summary>
+    private static AssistantError Unreadable(string url)
+    {
+        string host = new Url(url).Host;
+        string message = host + " sent an answer Runlight could not read";
+        return new AssistantError(message, "assistant_failed", new JsObject { ["host"] = host, ["detail"] = message });
+    }
+
     private static async Task<object?> PostAsync(IFetcher fetcher, string url, Headers headers, object? body, long deadline, Func<long> now, CancellationToken cancellationToken)
     {
         InTime(deadline, now, cancellationToken);
@@ -377,9 +385,9 @@ public static class Assistant
                 {
                     content = new List<object?>();
                 }
-                if (content is not List<object?> blocks)
+                if (content is not List<object?> blocks || !blocks.All(b => b is JsObject))
                 {
-                    throw new JsTypeError("blocks.filter is not a function");
+                    throw Unreadable(@base);
                 }
                 var calls = blocks.Where(b => Js.Get(b, "type") is "tool_use").ToList();
                 if (Js.Get(data, "stop_reason") is not "tool_use" || calls.Count == 0)
@@ -441,9 +449,9 @@ public static class Assistant
             {
                 return new JsObject { ["reply"] = Js.Trim(content is null or Undefined ? "" : Js.String(content)), ["tools"] = used };
             }
-            if (calls is not List<object?> list)
+            if (calls is not List<object?> list || !list.All(call => call is JsObject o && o.Get("function") is JsObject))
             {
-                throw new JsTypeError("message.tool_calls is not iterable");
+                throw Unreadable(@base);
             }
             chat.Add(new JsObject { ["role"] = "assistant", ["content"] = content is Undefined ? null : content, ["tool_calls"] = list });
             foreach (object? call in list)
@@ -527,12 +535,12 @@ public static class Assistant
         }
         if (list is not List<object?> items)
         {
-            throw new JsTypeError("data.data.filter is not a function");
+            throw Unreadable(@base);
         }
         var models = new List<JsObject>();
         foreach (object? m in items)
         {
-            if (Js.Get(m, "id") is not string id || id.Length == 0)
+            if (m is not JsObject || Js.Get(m, "id") is not string id || id.Length == 0)
             {
                 continue;
             }
