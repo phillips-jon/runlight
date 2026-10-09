@@ -785,6 +785,11 @@ export class Runlight {
   }
 
   /** Handles one tracker request. Always resolves; bad input is dropped quietly. */
+  /** The host a proxy says the request was for, read only when proxy headers are trusted, as the client's address is. */
+  private forwardedHost(request: Request): string | null {
+    return this.trustProxy ? request.headers.get("x-forwarded-host") : null;
+  }
+
   async collect(request: Request, context: RequestContext = {}): Promise<void> {
     const length = Number(request.headers.get("content-length") ?? 0);
     if (length > MAX_BODY) return;
@@ -975,7 +980,7 @@ export class Runlight {
   async linkDomainResponse(request: Request, context: RequestContext = {}): Promise<Response | null> {
     const url = new URL(request.url);
     // A forwarded host only counts behind a proxy that sets it; otherwise any client could pick one.
-    const given = (this.trustProxy ? request.headers.get("x-forwarded-host") : null) ?? request.headers.get("host") ?? url.host;
+    const given = this.forwardedHost(request) ?? request.headers.get("host") ?? url.host;
     const host = stripWww(given.split(",")[0]!.trim().split(":")[0] ?? "");
     if (!(await this.linkDomainSet()).has(host)) return null;
     // Lets the dashboard confirm that requests to this domain reach Runlight.
@@ -1003,7 +1008,7 @@ export class Runlight {
   async redirect(request: Request, slug: string, domain: string, context: RequestContext = {}): Promise<Response | null> {
     await this.init();
     const url = new URL(request.url);
-    const host = stripWww((request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.host).split(":")[0] ?? "");
+    const host = stripWww((this.forwardedHost(request) ?? request.headers.get("host") ?? url.host).split(":")[0] ?? "");
     const link = await this.store.linkBySlug(slug);
     // The app's own link path answers for every link, so a link whose domain
     // was removed keeps working; a link domain answers only for its own links.
@@ -1080,7 +1085,7 @@ export class Runlight {
       // Pages, not their assets.
       const ext = /\.([a-z0-9]+)$/i.exec(url.pathname)?.[1]?.toLowerCase();
       if (ext && !["html", "htm", "md", "txt", "php"].includes(ext)) return false;
-      const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host") ?? url.hostname;
+      const host = this.forwardedHost(request) ?? request.headers.get("host") ?? url.hostname;
       await this.init();
       const site = this.siteFor(host.split(":")[0] ?? host);
       if (!site) return false;

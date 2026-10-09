@@ -161,3 +161,12 @@ test("a link domain's check says where the domain should point, for its setup st
     globalThis.fetch = real;
   }
 });
+
+test("a proxy's x-forwarded-host is only believed when proxy headers are trusted", async () => {
+  const CLAUDE = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0)";
+  const ask = (rl: ReturnType<typeof setup>["rl"]) =>
+    rl.observe(new Request("https://elsewhere.example/blog", { headers: { "user-agent": CLAUDE, host: "elsewhere.example", "x-forwarded-host": "example.com" } }));
+  const site = { hostnames: ["example.com"] };
+  assert.equal(await ask(setup("sqlite", { site, trustProxy: false }).rl), false, "an untrusted header cannot claim the site");
+  assert.equal(await ask(setup("sqlite", { site }).rl), true, "behind a trusted proxy, its header names the host");
+});

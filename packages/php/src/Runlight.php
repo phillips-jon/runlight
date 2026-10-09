@@ -1131,6 +1131,12 @@ final class Runlight
         $this->store->dropSaltsBefore(gmdate('Y-m-d', intdiv($now - 2 * 86_400_000, 1000)));
     }
 
+    /** The host a proxy says the request was for, read only when proxy headers are trusted, as the client's address is. */
+    private function forwardedHost(Request $request): ?string
+    {
+        return $this->trustProxy !== false ? $request->headers->get('x-forwarded-host') : null;
+    }
+
     /**
      * Handles one tracker request. Bad input is dropped quietly; only a database that keeps failing throws.
      *
@@ -1347,7 +1353,7 @@ final class Runlight
     {
         $url = new Url($request->url);
         // A forwarded host only counts behind a proxy that sets it; otherwise any client could pick one.
-        $given = ($this->trustProxy !== false ? $request->headers->get('x-forwarded-host') : null) ?? $request->headers->get('host') ?? $url->host();
+        $given = $this->forwardedHost($request) ?? $request->headers->get('host') ?? $url->host();
         $host = Sources::stripWww(explode(':', Js::trim(explode(',', $given)[0]))[0]);
         if (!isset($this->linkDomainSet()[$host])) {
             return null;
@@ -1391,7 +1397,7 @@ final class Runlight
     {
         $this->init();
         $url = new Url($request->url);
-        $host = Sources::stripWww(explode(':', $request->headers->get('x-forwarded-host') ?? $request->headers->get('host') ?? $url->host())[0]);
+        $host = Sources::stripWww(explode(':', $this->forwardedHost($request) ?? $request->headers->get('host') ?? $url->host())[0]);
         $link = $this->store->linkBySlug($slug);
         // The app's own link path answers for every link, so a link whose domain
         // was removed keeps working; a link domain answers only for its own links.
@@ -1484,7 +1490,7 @@ final class Runlight
             if (preg_match('/\.([a-z0-9]+)$/iD', $url->pathname, $m) && !in_array(strtolower($m[1]), ['html', 'htm', 'md', 'txt', 'php'], true)) {
                 return false;
             }
-            $host = $request->headers->get('x-forwarded-host') ?? $request->headers->get('host') ?? $url->hostname;
+            $host = $this->forwardedHost($request) ?? $request->headers->get('host') ?? $url->hostname;
             $this->init();
             $site = $this->siteFor(explode(':', $host)[0]);
             if ($site === null) {
