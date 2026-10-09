@@ -82,20 +82,28 @@ module Runlight
       # hash is not base64, as the TypeScript rejects then.
       def check_password(password, stored)
         parts = stored.split("$", -1)
+        # A stored hash whose salt or key is not base64url matches nothing, rather than failing the sign-in.
+        decode = lambda do |part|
+          from_base64url(part)
+        rescue ArgumentError
+          nil
+        end
         if parts[0] == "scrypt" && parts.length == 3
-          expected = from_base64url(parts[2])
-          return false if expected.bytesize < MIN_KEY_BYTES
+          expected = decode.call(parts[2])
+          salt = decode.call(parts[1])
+          return false if expected.nil? || salt.nil? || expected.bytesize < MIN_KEY_BYTES
 
-          return same_bytes(scrypt(password, from_base64url(parts[1]), expected.bytesize), expected)
+          return same_bytes(scrypt(password, salt, expected.bytesize), expected)
         end
         if parts[0] == "pbkdf2" && parts.length == 4
           rounds = Js.number(parts[1])
           return false if !rounds.is_a?(Integer) || rounds < 1 || rounds > 10_000_000
 
-          expected = from_base64url(parts[3])
-          return false if expected.bytesize < MIN_KEY_BYTES
+          expected = decode.call(parts[3])
+          salt = decode.call(parts[2])
+          return false if expected.nil? || salt.nil? || expected.bytesize < MIN_KEY_BYTES
 
-          return same_bytes(pbkdf2(password, from_base64url(parts[2]), rounds, expected.bytesize), expected)
+          return same_bytes(pbkdf2(password, salt, rounds, expected.bytesize), expected)
         end
         false
       end

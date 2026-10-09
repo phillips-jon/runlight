@@ -12,6 +12,16 @@ module AccountsSupport
       @sent = []
       @mail = nil
       @mail_fails = nil
+      @later = []
+    end
+
+    # Work Runlight runs after the answer; idle runs it, as an adapter does once the answer is out.
+    def later(&work)
+      @later << work
+    end
+
+    def idle
+      @later.shift.call until @later.empty?
     end
 
     def mail_settings

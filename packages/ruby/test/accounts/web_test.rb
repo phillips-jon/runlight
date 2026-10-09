@@ -365,6 +365,8 @@ class AccountsWebTest < Minitest::Test
     held = handle(web, form("/login", { "email" => "jon@example.com", "password" => "a long password", "next" => "/runlight/?a=1" }))
     assert_equal 429, held.status
     assert_includes held.text, "a link to sign in is on its way"
+    assert_equal 0, @rl.sent.length, "the link goes out after the answer, so its timing cannot show a right password"
+    @rl.idle
     assert_equal 1, @rl.sent.length
     assert_equal "Sign in to Runlight", @rl.sent[0]["subject"]
     m = @rl.sent[0]["text"].match(%r{(https://stats\.example\.com/runlight/login/link\?\S+)})

@@ -457,7 +457,9 @@ module Runlight
 
           user = @accounts.sign_in(email, password)
           unless user.nil?
-            begin
+            # Sent once the answer is out, as TypeScript does, so a right password takes no longer to answer than a
+            # wrong one.
+            @rl.later do
               send_link(user, next_path)
             rescue StandardError => e
               warn "Runlight: could not send a sign-in link #{e.message}"

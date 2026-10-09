@@ -131,6 +131,8 @@ module Runlight
       @salts = {}
       # Retention work asked for and not yet done: a site's id, or nil for every site.
       @pruning = []
+      # Work to do once the answer is sent, such as an email whose timing must not show in the answer.
+      @later = []
     end
 
     def managed_sites?
@@ -481,9 +483,23 @@ module Runlight
       nil
     end
 
-    # Runs the work still waiting from earlier calls (a retention change's deletions); the scheduled check and
-    # tests wait for it.
+    # Queues work for idle, so it runs after the answer is sent, as TypeScript leaves a promise running.
+    def later(&work)
+      @later << work
+      nil
+    end
+
+    # Runs the work still waiting from earlier calls (later work and a retention change's deletions); the
+    # scheduled check and tests wait for it.
     def idle
+      until @later.empty?
+        work = @later.shift
+        begin
+          work.call
+        rescue StandardError => e
+          warn("Runlight: #{e.message}")
+        end
+      end
       until @pruning.empty?
         only = @pruning.shift
         begin
