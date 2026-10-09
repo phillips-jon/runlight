@@ -103,7 +103,8 @@ func (c *Client) GetJSON(ctx context.Context, url string, init RequestInit) (any
 			if text, ok := response.Header.Lookup("retry-after"); ok {
 				wait = js.Number(text) * 1000
 			}
-			if wait == 0 || math.IsNaN(wait) {
+			// None, zero, negative, or not a number waits the default backoff.
+			if !(wait > 0) {
 				wait = float64(800 * attempt)
 			}
 			if err := c.Pause(ctx, math.Min(wait, 10_000)); err != nil {

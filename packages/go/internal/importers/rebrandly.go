@@ -43,7 +43,7 @@ func (rebrandly) Step(ctx context.Context, client *Client, in StepInput) (*StepR
 	links := make([]ForeignItem, len(all))
 	for i, l := range all {
 		links[i] = ForeignItem{Link: ForeignLink{
-			SourceID:  text(field(l, "id")),
+			SourceID:  js.String(field(l, "id")),
 			Slug:      text(field(l, "slashtag")),
 			Domain:    text(coalesce(field(field(l, "domain"), "fullName"), "")),
 			Name:      text(or(field(l, "title"), "")),
@@ -53,7 +53,7 @@ func (rebrandly) Step(ctx context.Context, client *Client, in StepInput) (*StepR
 	}
 	result := &StepResult{Links: links}
 	if len(all) == rebrandlyPage && js.Truthy(all[len(all)-1]) {
-		result.Cursor = strPtr(text(field(all[len(all)-1], "id")))
+		result.Cursor = strPtr(js.String(field(all[len(all)-1], "id")))
 	}
 	return result, nil
 }

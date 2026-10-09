@@ -340,7 +340,12 @@ func ImportStep(ctx context.Context, r *Runlight, site, source string, credentia
 	if err != nil {
 		return nil, importErr(err)
 	}
-	step := &ImportResult{Cursor: result.Cursor, Done: done, Total: result.Total, Failed: []importers.FailedLink{}}
+	// A total that is not a number is as good as none.
+	total := result.Total
+	if total != nil && (math.IsNaN(*total) || math.IsInf(*total, 0)) {
+		total = nil
+	}
+	step := &ImportResult{Cursor: result.Cursor, Done: done, Total: total, Failed: []importers.FailedLink{}}
 	for _, item := range result.Links {
 		if item.Known {
 			step.Done++
@@ -368,8 +373,8 @@ func ImportStep(ctx context.Context, r *Runlight, site, source string, credentia
 		}
 	}
 	// Links the source skipped (deleted ones) still count toward progress.
-	if result.Cursor == nil && result.Total != nil {
-		step.Done = math.Max(step.Done, *result.Total)
+	if result.Cursor == nil && total != nil {
+		step.Done = math.Max(step.Done, *total)
 	}
 	return step, nil
 }
@@ -586,7 +591,10 @@ func ImportUmamiVisits(ctx context.Context, r *Runlight, siteID string, credenti
 		if v, has, err := r.Store.Setting(ctx, progressKey(siteID, websiteID)); err != nil {
 			return nil, err
 		} else if has {
-			resumed = js.Number(v)
+			// A saved place that does not read as a number is ignored, as if there were none.
+			if n := js.Number(v); !math.IsNaN(n) && !math.IsInf(n, 0) {
+				resumed = n
+			}
 		}
 		// Never older than the site keeps, or the next scheduled check would delete it again.
 		cutoff := 0.0

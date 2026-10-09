@@ -68,7 +68,7 @@ func (dub) Step(ctx context.Context, client *Client, in StepInput) (*StepResult,
 		if history == nil || history == "events" {
 			clicks, err = dubEvents(ctx, client, headers, id)
 			if err != nil {
-				if refused(err) {
+				if !planRefused(err) {
 					return nil, err
 				}
 				clicks = nil
@@ -84,7 +84,7 @@ func (dub) Step(ctx context.Context, client *Client, in StepInput) (*StepResult,
 				if err != nil {
 					return nil, err
 				}
-			} else if refused(err) {
+			} else if !planRefused(err) {
 				return nil, err
 			} else {
 				history = "none"
@@ -149,4 +149,12 @@ func dubEvents(ctx context.Context, client *Client, headers *web.Headers, id any
 			return clicks, nil
 		}
 	}
+}
+
+// planRefused is whether Dub said the plan does not include what was asked
+// (403, or 402). Any other failure (a server error that outlasts the
+// retries, say) fails the step and leaves the history mode as it was.
+func planRefused(err error) bool {
+	var h *HTTPError
+	return errors.As(err, &h) && (h.Status == 403 || h.Status == 402)
 }

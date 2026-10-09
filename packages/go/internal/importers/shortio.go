@@ -149,9 +149,10 @@ func shortioDaily(ctx context.Context, client *Client, headers *web.Headers, id 
 		if !ok {
 			ms = ParseDate(x)
 		}
+		// A point whose date cannot be read is left out, not the link.
 		iso, err := isoString(ms)
 		if err != nil {
-			return nil, err
+			continue
 		}
 		daily = append(daily, DailyClicks{Day: iso[:10], Clicks: js.ToNumber(y)})
 	}

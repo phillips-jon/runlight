@@ -132,7 +132,15 @@ func TestSealedKeysOpenOnlyWithTheSameSecret(t *testing.T) {
 func TestKeysSealedByTypeScriptOpenHere(t *testing.T) {
 	cases := js.Arr(outbound(t).Value("sealed"))
 	for _, c := range cases {
-		value, secret, sealed := js.Str(js.Dig(c, "value")), js.Str(js.Dig(c, "secret")), js.Str(js.Dig(c, "sealed"))
+		secret, sealed := js.Str(js.Dig(c, "secret")), js.Str(js.Dig(c, "sealed"))
+		// A value of null is one TypeScript refuses to open.
+		if js.Dig(c, "value") == nil {
+			if v, ok := Unseal(sealed, secret); ok {
+				t.Errorf("%q opened as %q", sealed, v)
+			}
+			continue
+		}
+		value := js.Str(js.Dig(c, "value"))
 		if v, ok := Unseal(sealed, secret); !ok || v != value {
 			t.Errorf("unseal %q: %q %v", sealed, v, ok)
 		}
@@ -143,7 +151,7 @@ func TestKeysSealedByTypeScriptOpenHere(t *testing.T) {
 			t.Errorf("round trip of %q: %q %v", value, v, ok)
 		}
 	}
-	if len(cases) != 4 {
+	if len(cases) != 5 {
 		t.Fatalf("%d sealed cases", len(cases))
 	}
 }

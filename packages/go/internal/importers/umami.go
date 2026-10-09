@@ -2,6 +2,7 @@ package importers
 
 import (
 	"context"
+	"math"
 	"regexp"
 	"strconv"
 
@@ -57,7 +58,12 @@ func UmamiSignIn(ctx context.Context, client *Client, credentials Credentials, t
 	if err != nil {
 		return nil, err
 	}
-	return &UmamiLogin{base, field(login, "token")}, nil
+	// A sign-in that answers without a token was refused, whatever its status.
+	token, isText := field(login, "token").(string)
+	if !isText || token == "" {
+		return nil, NewImportError("The key or sign-in was refused", "import_refused")
+	}
+	return &UmamiLogin{base, token}, nil
 }
 
 // UmamiAll is every page of an Umami list: GET {base}/api{path}&page=N&pageSize=1000
@@ -174,10 +180,15 @@ func (umami) Step(ctx context.Context, client *Client, in StepInput) (*StepResul
 	}
 	count := field(body, "count")
 	result := &StepResult{Links: links}
-	if n, ok := count.(float64); ok {
+	// Without a count there is no total, and a full page may have more after it.
+	n, isNumber := count.(float64)
+	isNumber = isNumber && !math.IsNaN(n) && !math.IsInf(n, 0)
+	more := len(data) == umamiPage
+	if isNumber {
 		result.Total = &n
+		more = js.ToNumber(page)*umamiPage < n && len(data) > 0
 	}
-	if js.ToNumber(page)*umamiPage < js.ToNumber(count) && len(data) > 0 {
+	if more {
 		next := js.NewObject("page", js.ToNumber(page)+1)
 		if key == "" {
 			next.Set("token", login.Token)
