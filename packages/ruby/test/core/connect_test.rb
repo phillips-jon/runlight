@@ -134,4 +134,14 @@ class CoreConnectTest < Minitest::Test
     e = refused("unreachable") { Connect.start_connect(hub, APP, "https://hub.example/done") }
     assert_equal({ "host" => "127.0.0.1:4100" }, e.params)
   end
+
+  def test_starting_clears_every_attempt_that_cannot_be_read_or_has_no_expiry
+    fresh = hub(install)
+    fresh.init
+    { "b" => "null", "c" => "5", "d" => "not json", "e" => '{"url":"x"}', "f" => '{"expires":"9999999999999"}' }.each do |letter, value|
+      fresh.store.set_setting("connect:#{letter * 32}", value)
+    end
+    Connect.start_connect(fresh, APP, "https://hub.example/done")
+    assert_equal 1, fresh.store.settings_starting_with("connect:").length
+  end
 end

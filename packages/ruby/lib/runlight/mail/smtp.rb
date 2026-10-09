@@ -68,7 +68,7 @@ module Runlight
       def deliver(config, m, from, deadline = 60_000, now = nil, uuid = nil)
         host = Transports.trim(config["host"].to_s)
         security = config["security"].to_s.empty? ? "starttls" : config["security"]
-        port = number(config["port"].to_s)
+        port = port_number(config["port"].to_s)
         port = port.nan? || port.zero? ? (security == "tls" ? 465 : 587) : port.to_i
         late = "SMTP: #{host}:#{port} took longer than #{(deadline / 1000.0 + 0.5).floor} s"
         session = SmtpSession.new(host, port, monotonic + (deadline * 1_000_000), late)
@@ -123,14 +123,10 @@ module Runlight
         end
       end
 
-      # JavaScript's Number() for the port as typed: NaN for anything that is not a number.
-      def number(text)
-        text = Transports.trim(text)
-        return 0.0 if text.empty?
-        return text[2..].to_i(16).to_f if text.match?(/\A0[xX][0-9a-fA-F]+\z/)
-        return Float(text.sub(/\A([+-]?)\./, '\10.').sub(/\.(?=[eE]|\z)/, "")) if text.match?(/\A[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?\z/)
-
-        Float::NAN
+      # JavaScript's Number() for the port as typed: NaN for anything that is not a number, and 0o, 0b, and
+      # Infinity read as JavaScript reads them.
+      def port_number(text)
+        Js.number(text.to_s).to_f
       end
 
       # Nanoseconds on a clock that only goes forward, as hrtime() gives.
@@ -138,7 +134,7 @@ module Runlight
         Process.clock_gettime(Process::CLOCK_MONOTONIC, :nanosecond)
       end
 
-      private_class_method :encode_word, :wrap, :converse, :number
+      private_class_method :encode_word, :wrap, :converse
     end
   end
 end

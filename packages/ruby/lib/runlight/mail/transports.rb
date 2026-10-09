@@ -101,8 +101,9 @@ module Runlight
         { "content-type" => "application/json" }.merge(headers)
       end
 
+      # Basic auth over the UTF-8 bytes, so a key with any character is sent.
       def basic(user, pass)
-        "Basic #{btoa("#{user}:#{pass}")}"
+        "Basic #{[Js.scrub("#{user}:#{pass}").b].pack("m0")}"
       end
 
       # Checks a config has what its service needs, before anything is saved or sent.
@@ -124,6 +125,14 @@ module Runlight
         url = config["url"].to_s
         if config["service"] == "webhook" && !url.match?(%r{\Ahttps://}) && !url.match?(%r{\Ahttp://(localhost|127\.0\.0\.1)(:\d+)?(/|\z)})
           raise MailError.new("The webhook URL must use https", "mail_https", {})
+        end
+        if config["service"] == "webhook" && Http::Url.parse(url).nil?
+          raise MailError.new("Enter the webhook's whole URL, like https://example.com/hooks/mail", "mail_url", {})
+        end
+        # A port a socket can connect to, read with Number() as the SMTP client reads it.
+        port = Smtp.port_number(config["port"].to_s)
+        if config["service"] == "smtp" && !(port.finite? && port == port.floor && port >= 1 && port <= 65_535)
+          raise MailError.new("The port must be a whole number from 1 to 65535", "mail_port", {})
         end
       end
 
@@ -234,21 +243,13 @@ module Runlight
         Js.trim(text)
       end
 
-      # btoa(): base64 of Latin-1 text, refusing a character past U+00FF as the browser's does.
-      def btoa(text)
-        text = Js.scrub(text.to_s)
-        raise ArgumentError, "Invalid character" if text.each_char.any? { |c| c.ord > 0xff }
-
-        [text.encode(Encoding::ISO_8859_1)].pack("m0")
-      end
-
       # The first `units` UTF-16 code units, as String.prototype.slice counts them. A pair cut in half keeps
       # no half; JavaScript would keep a lone surrogate, which Ruby text cannot hold.
       def slice16(text, units)
         Js.cut(text, units)
       end
 
-      private_class_method :post, :json, :basic, :btoa
+      private_class_method :post, :json, :basic
     end
   end
 end
