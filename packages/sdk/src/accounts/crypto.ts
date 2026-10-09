@@ -93,19 +93,29 @@ const MIN_KEY_BYTES = 16;
 
 export async function checkPassword(password: string, stored: string): Promise<boolean> {
   const parts = stored.split("$");
+  // A stored hash whose salt or key is not base64url matches nothing, rather than failing the sign-in.
+  const decode = (text: string): Uint8Array<ArrayBuffer> | null => {
+    try {
+      return fromBase64url(text);
+    } catch {
+      return null;
+    }
+  };
   if (parts[0] === "scrypt" && parts.length === 3) {
     const scrypt = await nodeScrypt();
     if (!scrypt) return false;
-    const expected = fromBase64url(parts[2]!);
-    if (expected.length < MIN_KEY_BYTES) return false;
-    return sameBytes(await runScrypt(scrypt, password, fromBase64url(parts[1]!), expected.length), expected);
+    const expected = decode(parts[2]!);
+    const salt = decode(parts[1]!);
+    if (!expected || !salt || expected.length < MIN_KEY_BYTES) return false;
+    return sameBytes(await runScrypt(scrypt, password, salt, expected.length), expected);
   }
   if (parts[0] === "pbkdf2" && parts.length === 4) {
     const rounds = Number(parts[1]);
     if (!Number.isInteger(rounds) || rounds < 1 || rounds > 10_000_000) return false;
-    const expected = fromBase64url(parts[3]!);
-    if (expected.length < MIN_KEY_BYTES) return false;
-    return sameBytes(await pbkdf2(password, fromBase64url(parts[2]!), rounds, expected.length), expected);
+    const expected = decode(parts[3]!);
+    const salt = decode(parts[2]!);
+    if (!expected || !salt || expected.length < MIN_KEY_BYTES) return false;
+    return sameBytes(await pbkdf2(password, salt, rounds, expected.length), expected);
   }
   return false;
 }

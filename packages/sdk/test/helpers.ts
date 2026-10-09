@@ -105,12 +105,24 @@ export function freshStore(kind: StoreKind): SqlStore {
   const pool = new pg.Pool({ connectionString: url, max: 3, options: `-c search_path=${schema}` });
   const ready = pool.query(`CREATE SCHEMA ${schema}`);
   const store = postgres({ pool });
+  // Nothing reaches the database before the schema exists: a request can reach the accounts tables before
+  // anything migrates.
+  const db = store.db as unknown as Record<string, unknown>;
+  for (const name of ["all", "run", "affected", "exclusive", "transaction"]) {
+    const inner = db[name] as ((...args: unknown[]) => Promise<unknown>) | undefined;
+    if (!inner) continue;
+    db[name] = async (...args: unknown[]) => {
+      await ready;
+      return inner(...args);
+    };
+  }
   const migrate = store.migrate.bind(store);
   store.migrate = async () => {
     await ready;
     return migrate();
   };
   cleanups.push(async () => {
+    await ready.catch(() => {});
     await pool.query(`DROP SCHEMA ${schema} CASCADE`);
     await pool.end();
   });
