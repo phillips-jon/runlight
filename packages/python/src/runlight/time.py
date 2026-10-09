@@ -63,7 +63,9 @@ _PRINTABLE = re.compile(r"[\x21-\x7e]*\Z")
 def _names() -> dict[str, str]:
     """Lowercase name to the database's name."""
     names = {name.lower(): name for name in available_timezones()}
-    names.pop("factory", None)
+    # Files some systems keep beside the zones, which are not zone names to ICU.
+    for name in ("factory", "localtime", "posixrules", "posix", "right"):
+        names.pop(name, None)
     return names
 
 

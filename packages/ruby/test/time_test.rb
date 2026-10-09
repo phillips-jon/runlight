@@ -38,6 +38,19 @@ class TimeTest < Minitest::Test
     self.class.changed_zones.include?(zone)
   end
 
+  # Some systems' zone files stop listing changes after 2037, so TZInfo there knows no summer time from 2038 on.
+  # Where Lord Howe Island has none in December 2038, instants from 2038 on are not compared.
+  BEYOND_2037 = 2_145_916_800_000 # 2038-01-01T00:00:00Z
+
+  def self.short_data?
+    @short_data = TZInfo::Timezone.get("Australia/Lord_Howe").period_for(Time.utc(2038, 12, 15)).std_offset.zero? if @short_data.nil?
+    @short_data
+  end
+
+  def beyond_data?(ts)
+    self.class.short_data? && ts >= BEYOND_2037
+  end
+
   def iso(ms)
     Time.at(ms.div(1000), ms % 1000, :millisecond).utc.strftime("%Y-%m-%dT%H:%M:%S.%LZ")
   end
@@ -155,7 +168,7 @@ class TimeTest < Minitest::Test
     failures = []
     instants = Fixtures.load("time")["instants"]
     instants.each do |zone, ts, date, weekday, hour|
-      next if changed?(zone)
+      next if changed?(zone) || beyond_data?(ts)
 
       got = [Dates.local_date(ts, zone), *Dates.local_weekday_hour(ts, zone)]
       failures << "#{zone} #{ts}: #{got.join(" ")} not #{date} #{weekday} #{hour}" if got != [date, weekday, hour]
@@ -168,13 +181,13 @@ class TimeTest < Minitest::Test
     fixture = Fixtures.load("time")
     failures = []
     fixture["starts"].each do |zone, date, hour, start|
-      next if changed?(zone)
+      next if changed?(zone) || (self.class.short_data? && date >= "2038")
 
       got = Dates.start_of(date, zone, hour)
       failures << "#{zone} #{date} #{hour}: #{got} not #{start}" if got != start
     end
     fixture["dayStarts"].each do |zone, year, sha|
-      next if changed?(zone)
+      next if changed?(zone) || (self.class.short_data? && year >= 2038)
 
       days = []
       d = "#{year}-01-01"
