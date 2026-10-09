@@ -32,6 +32,12 @@ fn daily_of(series: &Value, day_key: &str) -> Result<Vec<Value>, ImportError> {
     Ok(out)
 }
 
+/// Whether Dub said the plan does not include what was asked (403, or 402). Any other failure (a server
+/// error that outlasts the retries, say) fails the step and leaves the history mode as it was.
+fn plan_refused(error: &ImportError) -> bool {
+    matches!(error.status(), Some(403 | 402))
+}
+
 /// Dub's links.
 pub struct Dub;
 
@@ -126,7 +132,7 @@ impl Importer for Dub {
                             clicks = Some(c);
                             history = text("events");
                         }
-                        Err(e) if e.is_http() && e.status() != Some(401) => {
+                        Err(e) if plan_refused(&e) => {
                             clicks = None;
                             history = text("daily");
                         }
@@ -147,7 +153,7 @@ impl Importer for Dub {
                     };
                     match read.await {
                         Ok(d) => daily = Some(d),
-                        Err(e) if e.is_http() && e.status() != Some(401) => history = text("none"),
+                        Err(e) if plan_refused(&e) => history = text("none"),
                         Err(e) => return Err(e),
                     }
                 }

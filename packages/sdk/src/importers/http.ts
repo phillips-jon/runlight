@@ -26,7 +26,9 @@ export async function getJson<T>(url: string, init: { headers?: Record<string, s
     if (response.ok) return (await response.json()) as T;
     if (response.status === 401) throw new HttpError("The key or sign-in was refused", 401, "import_refused");
     if ((response.status === 429 || response.status >= 500) && attempt < 4) {
-      const wait = Number(response.headers.get("retry-after")) * 1000 || 800 * attempt;
+      // Retry-After in seconds; none, zero, negative, or not a number waits the default backoff.
+      const after = Number(response.headers.get("retry-after")) * 1000;
+      const wait = after > 0 ? after : 800 * attempt;
       await new Promise((r) => setTimeout(r, Math.min(wait, 10_000)));
       continue;
     }

@@ -39,7 +39,7 @@ impl Importer for Rebrandly {
                 let name = or(field(l, "title"), None).cloned().unwrap_or_else(|| Value::from(""));
                 let created = or_now(parse_value(field(l, "createdAt")), input.now);
                 let item = foreign_link(
-                    field(l, "id").cloned(),
+                    Some(Value::from(super::write::tpl(field(l, "id")))),
                     field(l, "slashtag").cloned(),
                     domain,
                     Some(name),
@@ -50,7 +50,7 @@ impl Importer for Rebrandly {
             }
             let end = list.last().filter(|l| js::truthy(l));
             let cursor = match end {
-                Some(end) if list.len() == PAGE => super::types::arg(field(Some(end), "id")),
+                Some(end) if list.len() == PAGE => Some(super::write::tpl(field(Some(end), "id"))),
                 _ => None,
             };
             Ok(step_answer(cursor, Some(Value::Null), links))

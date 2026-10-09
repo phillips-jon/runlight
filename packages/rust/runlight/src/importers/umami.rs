@@ -53,7 +53,11 @@ pub async fn umami_sign_in(
     let login = http
         .get_json(&format!("{base}/api/auth/login"), "POST", &[("content-type", "application/json")], Some(&body))
         .await?;
-    Ok((base, field(Some(&login), "token").cloned()))
+    // A sign-in that answers without a token was refused, whatever its status.
+    match field(Some(&login), "token") {
+        Some(Value::String(t)) if !t.is_empty() => Ok((base, Some(Value::from(t.as_str())))),
+        _ => Err(ImportError::new("The key or sign-in was refused", "import_refused", &[])),
+    }
 }
 
 /// Umami's links.
@@ -166,8 +170,15 @@ impl Importer for Umami {
                 links.push(Value::Object(item));
             }
             let page_number = page.as_ref().map_or(f64::NAN, js::js_number);
-            let count = field(Some(&list), "count");
-            let more = page_number * PAGE < count.map_or(f64::NAN, js::js_number) && !data.is_empty();
+            // Without a count there is no total, and a full page may have more after it.
+            let count = match field(Some(&list), "count") {
+                Some(Value::Number(n)) if n.is_finite() => Some(*n),
+                _ => None,
+            };
+            let more = match count {
+                None => data.len() as f64 == PAGE,
+                Some(c) => page_number * PAGE < c && !data.is_empty(),
+            };
             let cursor = more.then(|| {
                 let mut next = Object::new();
                 next.set("page", page_number + 1.0);
@@ -178,7 +189,7 @@ impl Importer for Umami {
                 }
                 js::stringify(&Value::Object(next))
             });
-            Ok(step_answer(cursor, count.cloned(), links))
+            Ok(step_answer(cursor, Some(Value::from(count)), links))
         })
     }
 }

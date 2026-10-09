@@ -262,7 +262,9 @@ pub async fn import_umami_visits(
         let info = http.get(&format!("{base}/api/websites/{website}"), &headers).await?;
         let created = super::http::or_now(parse_value(field(Some(&info), "createdAt")), rl.now());
         // Carry on where an earlier run stopped, and end where Runlight's own visits begin.
-        let resumed = rl.store().setting(&progress_key(site_id, website)).await?.map_or(0.0, |s| js::text_number(&s));
+        // A saved place that does not read as a number is ignored, as if there were none.
+        let stored = rl.store().setting(&progress_key(site_id, website)).await?.map_or(0.0, |s| js::text_number(&s));
+        let resumed = if stored.is_finite() { stored } else { 0.0 };
         // Never older than the site keeps, or the next scheduled check would delete it again.
         let cutoff = rl.retention_cutoff(site_id).await?.unwrap_or(0) as f64;
         let start = js_max(&[(created / DAY).floor() * DAY, resumed, (cutoff / DAY).ceil() * DAY]);

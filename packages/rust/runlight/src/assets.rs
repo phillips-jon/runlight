@@ -36,7 +36,12 @@ pub struct Build {
 pub static BUILD_INFO: LazyLock<Build> = LazyLock::new(|| {
     let v = js::parse(BUILD).expect("assets/build.json is JSON");
     let s = |k: &str| js::str_or_empty(v.get(k));
-    Build { dashboard_hash: s("dashboardHash"), world_hash: s("worldHash"), locales_hash: s("localesHash"), tracker_hash: s("trackerHash") }
+    Build {
+        dashboard_hash: s("dashboardHash"),
+        world_hash: s("worldHash"),
+        locales_hash: s("localesHash"),
+        tracker_hash: s("trackerHash"),
+    }
 });
 
 /// Every language's messages as the JSON text the dashboard reads, English first, in the build's order.

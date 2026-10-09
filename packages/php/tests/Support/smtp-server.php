@@ -9,6 +9,7 @@ declare(strict_types=1);
  *
  * relay: answers as the TS tests' relay does (AUTH PLAIN checks jon/pw, no STARTTLS).
  * trickle: sends "220-still here" every 100 ms and never finishes its greeting.
+ * refuse: sends "535 no" and closes at once.
  */
 
 $mode = $argv[1] ?? 'relay';
@@ -25,6 +26,12 @@ while (true) {
         continue;
     }
     $received = '';
+    if ($mode === 'refuse') {
+        fwrite($socket, "535 no\r\n");
+        @fclose($socket);
+        echo json_encode(['received' => '', 'closed' => true]), "\n";
+        continue;
+    }
     if ($mode === 'trickle') {
         stream_set_blocking($socket, false);
         while (true) {

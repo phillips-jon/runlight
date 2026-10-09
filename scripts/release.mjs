@@ -53,6 +53,17 @@ export const VERSIONED = [
   { file: "plugins/wordpress/runlight.php", pattern: /^( \* Version: +)(\S+)()$/m },
   { file: "plugins/wordpress/runlight.php", pattern: /^(define\( 'RUNLIGHT_PLUGIN_VERSION', ')([^']+)(' \);)$/m },
   { file: "plugins/wordpress/readme.txt", pattern: /^(Stable tag: )(\S+)()$/m },
+  // The Python package: pyproject.toml for PyPI, and build.json, which
+  // scripts/python-assets.mts writes from the SDK's VERSION and the package
+  // reports as its own.
+  { file: "packages/python/pyproject.toml", pattern: /^(version = ")([^"]+)(")/m },
+  { file: "packages/python/src/runlight/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
+  // The Ruby gem: GEM_VERSION for RubyGems, and build.json, which
+  // scripts/ruby-assets.mts writes from the SDK's VERSION.
+  { file: "packages/ruby/lib/runlight/version.rb", pattern: /^(\s*GEM_VERSION = ")([^"]+)(")/m },
+  { file: "packages/ruby/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
+  // The Rails test apps' lockfiles name the gem they load from the path.
+  ...["7_2", "8_0", "8_1"].map((rails) => ({ file: `packages/ruby/test/rails/gemfiles/rails_${rails}.gemfile.lock`, pattern: /^( {4}runlight \()([^)]+)(\))$/m })),
 ];
 
 /** Folders with no version in any file, and why. */
@@ -87,6 +98,8 @@ export const PUBLISH = [
   // Packagist reads composer.json from a repository's root and versions from
   // its tags, so packages/php goes to a read-only repository of its own.
   { dir: "packages/php", commands: (v) => [`# packages/php: the pushed tag v${v} is split to phillips-jon/runlight-php, which Packagist watches, by .github/workflows/php-split.yml (once PHP_SPLIT_DEPLOY_KEY is set)`] },
+  { dir: "packages/python", commands: (v) => [`# packages/python: the pushed tag v${v} is built and published to PyPI as runlight by .github/workflows/pypi.yml, with trusted publishing (once PYPI_ENABLED is true)`] },
+  { dir: "packages/ruby", commands: (v) => [`(cd packages/ruby && gem build runlight.gemspec && gem push runlight-${v}.gem)`] },
   { dir: "plugins/wordpress", commands: (v) => [`# plugins/wordpress: the pushed tag v${v} gets a GitHub release with its CHANGELOG.md section as notes and the plugin's zip attached as runlight-${v}.zip and runlight.zip, by .github/workflows/release.yml (once RELEASE_ENABLED is true)`] },
   { dir: "plugins/drupal", commands: (v) => [`# plugins/drupal: the pushed tag is split to drupal.org's repository as the tag ${v} on the branch ${v.split(".").slice(0, 2).join(".")}.x by .github/workflows/php-plugins-split.yml (once DRUPAL_SPLIT_ENABLED is true); then make the drupal.org release from the ${v} tag`] },
   { dir: "plugins/craft", commands: (v) => [`# plugins/craft: the pushed tag v${v} is split to phillips-jon/runlight-craft, which Packagist and the Craft Plugin Store read, by .github/workflows/php-plugins-split.yml (once CRAFT_SPLIT_ENABLED is true)`] },
@@ -99,7 +112,7 @@ export const UNPUBLISHED = {
 };
 
 /** Files the steps regenerate, reported by --dry-run. */
-const REGENERATED = ["package-lock.json", "packages/php/assets/build.json (written again from the SDK's VERSION, the same as the edit above)"];
+const REGENERATED = ["package-lock.json", "packages/php/assets/build.json, packages/python/src/runlight/assets/build.json, and packages/ruby/assets/build.json (written again from the SDK's VERSION, the same as the edits above)"];
 
 const ROOT = process.cwd();
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
@@ -296,6 +309,8 @@ function main() {
   const steps = [
     ["Refresh package-lock.json", npm, ["install", "--no-audit", "--no-fund"]],
     ["Write packages/php/assets", npm, ["run", "php-assets"]],
+    ["Write packages/python/src/runlight/assets", npm, ["run", "python-assets"]],
+    ["Write packages/ruby/assets", npm, ["run", "ruby-assets"]],
     ["Check", npm, ["run", "check"]],
     ["Build", npm, ["run", "build"]],
     ["Pack, install and load the npm packages", npm, ["run", "check:packages"]],

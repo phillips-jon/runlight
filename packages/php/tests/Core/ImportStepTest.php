@@ -185,6 +185,25 @@ final class ImportStepTest extends TestCase
         self::assertSame([], array_filter($router->calls, static fn (string $c): bool => str_contains($c, '/websites/u-9/')), 'no history was fetched for it');
     }
 
+    public function testUmamiALinkListWithoutACountGivesNoTotalAndPagesOnWhilePagesAreFull(): void
+    {
+        $link = static fn (int $i): array => ['id' => "u$i", 'name' => "N$i", 'url' => "https://a.com/$i", 'slug' => "s$i", 'createdAt' => '2026-01-01T00:00:00Z', 'deletedAt' => null];
+        $router = new Router([
+            ['#/api/links\?page=1&#', static fn () => ['data' => array_map($link, range(0, 4))]],
+            ['#/api/links\?page=2&#', static fn () => ['data' => [$link(5)], 'count' => 'six']],
+            ['#/websites/#', static fn () => ['data' => [], 'count' => 0]],
+        ]);
+        $rl = self::runlight($router);
+        $creds = ['url' => 'https://stats.example.com', 'apiKey' => 'k'];
+        $first = Index::importStep($rl, 'default', 'umami', $creds, null, 0);
+        self::assertNull($first['total']);
+        self::assertNotNull($first['cursor'], 'a full page may have more after it');
+        $second = Index::importStep($rl, 'default', 'umami', $creds, $first['cursor'], $first['done']);
+        self::assertSame([null, 6, null], [$second['cursor'], $second['done'], $second['total']]);
+        $empty = Index::importStep(self::runlight(new Router([['#/api/links\?#', static fn () => ['data' => []]]])), 'default', 'umami', $creds, null, 0);
+        self::assertSame([null, 0, null], [$empty['cursor'], $empty['done'], $empty['total']]);
+    }
+
     public function testALinkWhoseSlugIsTakenOrUnusableIsReportedWithACode(): void
     {
         $rl = new Runlight(['store' => Stores::sqlite(':memory:')]);

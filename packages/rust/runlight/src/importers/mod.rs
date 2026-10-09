@@ -100,13 +100,15 @@ pub async fn import_step_with(
         })
     };
     let result = importer.step(http, StepInput { credentials, cursor, known, now: rl.now() }).await?;
+    // A total that is not a number is as good as none.
+    let total = field(Some(&result), "total").and_then(Value::as_f64).filter(|t| t.is_finite());
     let mut step = ImportStep {
         cursor: match field(Some(&result), "cursor") {
             None | Some(Value::Null) => None,
             Some(v) => Some(js::js_string(v)),
         },
         done,
-        total: field(Some(&result), "total").and_then(Value::as_f64),
+        total,
         links: 0.0,
         clicks: 0.0,
         skipped: 0.0,
@@ -146,14 +148,10 @@ pub async fn import_step_with(
         }
     }
     // Links the source skipped (deleted ones) still count toward progress.
-    let cursor_truthy = js::opt_truthy(field(Some(&result), "cursor"));
-    match field(Some(&result), "total") {
-        Some(Value::Null) => {}
-        total if !cursor_truthy => {
-            let t = total.map_or(f64::NAN, js::js_number);
-            step.done = if t.is_nan() || step.done.is_nan() { f64::NAN } else { step.done.max(t) };
-        }
-        _ => {}
+    if !js::opt_truthy(field(Some(&result), "cursor"))
+        && let Some(t) = total
+    {
+        step.done = if step.done.is_nan() { f64::NAN } else { step.done.max(t) };
     }
     Ok(step)
 }

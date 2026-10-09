@@ -1,0 +1,104 @@
+# The Ruby gem (packages/ruby), on the oldest Ruby it supports and current
+# ones, against each supported Rails series and the same three kinds of
+# database as the SDK: SQLite, Postgres, and MySQL or MariaDB (each entry runs
+# against one of the two). The conformance replay plays conformance/http.json
+# on every database. Each supported Rails series runs from its own Gemfile in
+# test/rails/gemfiles; setup-ruby's bundler-cache reads BUNDLE_GEMFILE from the
+# job's environment.
+name: Ruby
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  ruby:
+    name: ruby (Ruby ${{ matrix.ruby }}, Rails ${{ matrix.rails }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ruby: "3.2"
+            rails: "7.2"
+            gemfile: rails_7_2
+            mysql: mysql:8.4
+            mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
+          - ruby: "3.4"
+            rails: "8.0"
+            gemfile: rails_8_0
+            mysql: mariadb:11.4
+            mysql-health: healthcheck.sh --connect --innodb_initialized
+          - ruby: "3.4"
+            rails: "8.1"
+            gemfile: rails_8_1
+            mysql: mysql:8.4
+            mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
+          - ruby: "4.0"
+            rails: "8.1"
+            gemfile: rails_8_1
+            mysql: mariadb:11.4
+            mysql-health: healthcheck.sh --connect --innodb_initialized
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: runlight
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: ${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: pw
+          MARIADB_ROOT_PASSWORD: pw
+          MYSQL_DATABASE: runlight
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "${{ matrix.mysql-health }}" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      BUNDLE_GEMFILE: ${{ github.workspace }}/packages/ruby/test/rails/gemfiles/${{ matrix.gemfile }}.gemfile
+      RUNLIGHT_TEST_PG: postgres://postgres:pw@127.0.0.1:5432/runlight
+      RUNLIGHT_TEST_MYSQL: mysql://root:pw@127.0.0.1:3306/runlight
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+      # Node runs the SDK beside the gem in the tests that share one database
+      # between the two, and checks that packages/ruby/assets are current.
+      - run: npm ci --no-audit --no-fund
+      - run: node --import tsx scripts/ruby-assets.mts --check
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1.327.0
+        with:
+          ruby-version: ${{ matrix.ruby }}
+          bundler-cache: true
+          working-directory: packages/ruby
+      - run: bundle exec rake test
+        working-directory: packages/ruby
+      # Build the gem, install it into an empty GEM_HOME and use it from a
+      # fresh process outside the bundle, as an app would.
+      - name: Build, install and require the gem
+        working-directory: packages/ruby
+        run: |
+          dir="$(mktemp -d)"
+          gem build runlight.gemspec --output "$dir/runlight.gem"
+          unset BUNDLE_GEMFILE RUBYOPT
+          export GEM_HOME="$dir/gems" GEM_PATH="$dir/gems"
+          gem install --no-document "$dir/runlight.gem" sqlite3
+          cd "$dir"
+          ruby -e '
+            require "runlight"
+            rl = Runlight.new(store: Runlight::Stores.sqlite("#{Dir.pwd}/smoke.db"), site: { name: "Smoke", hostnames: ["example.com"] })
+            app = rl.rack_app(base_path: "/runlight", token: "smoke")
+            status, headers, = app.call("REQUEST_METHOD" => "GET", "PATH_INFO" => "/runlight/api/sites", "QUERY_STRING" => "",
+              "SERVER_NAME" => "example.com", "SERVER_PORT" => "443", "rack.url_scheme" => "https", "HTTP_AUTHORIZATION" => "Bearer smoke")
+            abort "info answered #{status}" unless status == 200
+            puts "runlight #{Runlight::GEM_VERSION} from #{Gem.loaded_specs.fetch("runlight").full_gem_path}"
+          '

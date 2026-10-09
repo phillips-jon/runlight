@@ -144,7 +144,11 @@ impl Remote {
             url: js::str_or_empty(v.get("url")),
             token: js::str_or_empty(v.get("token")),
             site: js::str_or_empty(v.get("site")),
-            hostnames: v.get("hostnames").and_then(Value::as_array).map(|a| a.iter().map(js::js_string).collect()).unwrap_or_default(),
+            hostnames: v
+                .get("hostnames")
+                .and_then(Value::as_array)
+                .map(|a| a.iter().map(js::js_string).collect())
+                .unwrap_or_default(),
             scope: v.get("scope").and_then(Value::as_str).map(str::to_string),
         }
     }
@@ -168,8 +172,7 @@ pub fn env_value(name: &str) -> Option<String> {
 
 /// What passes for an email address: something@somewhere.tld, with no spaces, quotes, or angle brackets.
 pub fn is_email(text: &str) -> bool {
-    crate::re::uni_re!(r#"^[^@<>"]+@[^@<>"]+\.[^@<>"]+$"#).is_match(text)
-        && !text.chars().any(|c| js::is_space(c))
+    crate::re::uni_re!(r#"^[^@<>"]+@[^@<>"]+\.[^@<>"]+$"#).is_match(text) && !text.chars().any(js::is_space)
 }
 
 fn site_row(options: &SiteOptions, index: usize) -> Result<SiteRow, String> {
@@ -234,7 +237,6 @@ pub(crate) struct Inner {
 #[derive(Clone)]
 pub struct Runlight(pub(crate) Arc<Inner>);
 
-
 impl Runlight {
     /// A Runlight over a store. Refuses a site whose timezone or id is not one, several sites without
     /// hostnames, and two sites with one id.
@@ -259,10 +261,13 @@ impl Runlight {
         // Zero, or anything that is not a positive number, means no limit, never a limit of nothing.
         let limit = (per_minute > 0.0).then(|| RateLimit::new(per_minute));
         let clock: Clock = options.now.clone().unwrap_or_else(|| {
-            Arc::new(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64))
+            Arc::new(|| {
+                std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as i64)
+            })
         });
         let link_path = format!("/{}", options.link_path.as_deref().unwrap_or("/go").trim_matches('/'));
-        let secret = options.secret.clone().or_else(|| env_value("RUNLIGHT_SECRET")).or_else(|| env_value("RUNLIGHT_TOKEN"));
+        let secret =
+            options.secret.clone().or_else(|| env_value("RUNLIGHT_SECRET")).or_else(|| env_value("RUNLIGHT_TOKEN"));
         Ok(Runlight(Arc::new(Inner {
             store: options.store,
             managed_sites: options.managed_sites,
@@ -416,9 +421,14 @@ impl Runlight {
         let configured = self.configured();
         for host in &hostnames {
             if !is_domain(host) && host != "localhost" {
-                return Err(Error::settings(format!("\"{host}\" is not a domain name"), "site_domain_invalid", &[("host", host)]));
+                return Err(Error::settings(
+                    format!("\"{host}\" is not a domain name"),
+                    "site_domain_invalid",
+                    &[("host", host)],
+                ));
             }
-            if let Some(owner) = configured.iter().find(|s| Some(s.id.as_str()) != except && s.hostnames.contains(host)) {
+            if let Some(owner) = configured.iter().find(|s| Some(s.id.as_str()) != except && s.hostnames.contains(host))
+            {
                 return Err(Error::settings(
                     format!("{host} already belongs to {}", owner.name),
                     "site_domain_taken",
@@ -466,14 +476,25 @@ impl Runlight {
         {
             return Some(info.clone());
         }
-        let mut info = RemoteInfo { last_seen: cached.as_ref().and_then(|c| c.1.last_seen), retention_months: None, connection: "unreachable" };
-        let init = FetchInit::default().header("authorization", format!("Bearer {}", remote.token)).timeout(8000).max_bytes(REMOTE_MAX_BYTES);
+        let mut info = RemoteInfo {
+            last_seen: cached.as_ref().and_then(|c| c.1.last_seen),
+            retention_months: None,
+            connection: "unreachable",
+        };
+        let init = FetchInit::default()
+            .header("authorization", format!("Bearer {}", remote.token))
+            .timeout(8000)
+            .max_bytes(REMOTE_MAX_BYTES);
         if let Ok(answer) = self.0.fetcher.fetch(&format!("{}/api/sites", remote.url), init).await {
             if answer.status == 401 || answer.status == 403 {
                 info.connection = "refused";
             }
             if let Ok(body) = answer.json_body()
-                && let Some(there) = body.get("sites").and_then(Value::as_array).and_then(|a| a.iter().find(|s| js::str_or_empty(s.get("id")) == remote.site && s.get("id").is_some_and(Value::is_string)))
+                && let Some(there) = body.get("sites").and_then(Value::as_array).and_then(|a| {
+                    a.iter().find(|s| {
+                        js::str_or_empty(s.get("id")) == remote.site && s.get("id").is_some_and(Value::is_string)
+                    })
+                })
             {
                 info = RemoteInfo {
                     last_seen: there.get("lastSeen").and_then(Value::as_f64),
@@ -493,7 +514,8 @@ impl Runlight {
 
     /// Asks a connected install to delete the token this server holds for it. A failure leaves it listed there.
     async fn revoke_remote_token(&self, remote: &Remote) {
-        let init = FetchInit::method("DELETE").header("authorization", format!("Bearer {}", remote.token)).timeout(5000);
+        let init =
+            FetchInit::method("DELETE").header("authorization", format!("Bearer {}", remote.token)).timeout(5000);
         let _ = self.0.fetcher.fetch(&format!("{}/api/token", remote.url), init).await;
     }
 
@@ -505,7 +527,11 @@ impl Runlight {
     async fn add_remote_site(&self, input: &Value, name: Option<&Value>) -> Result<SiteRow, Error> {
         let url = js::trim(&js::str_or_empty(input.get("url"))).trim_end_matches('/').to_string();
         if !test(js_re!(r"^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"), &url) {
-            return Err(Error::settings("Enter the install's address, like https://example.com/runlight", "connect_url", &[]));
+            return Err(Error::settings(
+                "Enter the install's address, like https://example.com/runlight",
+                "connect_url",
+                &[],
+            ));
         }
         let token = js::trim(&js::str_or_empty(input.get("token"))).to_string();
         if token.is_empty() {
@@ -514,7 +540,10 @@ impl Runlight {
         let fetcher = &self.0.fetcher;
         let auth = format!("Bearer {token}");
         let answer = match fetcher
-            .fetch(&format!("{url}/api/sites"), FetchInit::default().header("authorization", &auth).timeout(10_000).max_bytes(REMOTE_MAX_BYTES))
+            .fetch(
+                &format!("{url}/api/sites"),
+                FetchInit::default().header("authorization", &auth).timeout(10_000).max_bytes(REMOTE_MAX_BYTES),
+            )
             .await
         {
             Ok(a) => a,
@@ -528,15 +557,23 @@ impl Runlight {
             return Err(Error::settings("That install refused the token", "install_refused", &[]));
         }
         let body = answer.json_body().ok();
-        let sites: Vec<Value> = body.as_ref().and_then(|b| b.get("sites")).and_then(Value::as_array).cloned().unwrap_or_default();
+        let sites: Vec<Value> =
+            body.as_ref().and_then(|b| b.get("sites")).and_then(Value::as_array).cloned().unwrap_or_default();
         if !answer.ok() || sites.is_empty() {
-            return Err(Error::settings(format!("{url} did not answer like a Runlight install"), "connect_not_runlight", &[("url", &url)]));
+            return Err(Error::settings(
+                format!("{url} did not answer like a Runlight install"),
+                "connect_not_runlight",
+                &[("url", &url)],
+            ));
         }
         // What the token may do there; an install from before manage tokens has no /api/token and reads only.
         let mut scope = "read".to_string();
         let mut token_site = String::new();
         if let Ok(about) = fetcher
-            .fetch(&format!("{url}/api/token"), FetchInit::default().header("authorization", &auth).timeout(10_000).max_bytes(REMOTE_MAX_BYTES))
+            .fetch(
+                &format!("{url}/api/token"),
+                FetchInit::default().header("authorization", &auth).timeout(10_000).max_bytes(REMOTE_MAX_BYTES),
+            )
             .await
             && about.ok()
             && let Ok(info) = about.json_body()
@@ -564,7 +601,12 @@ impl Runlight {
         let known: Vec<(String, Remote)> = self.state().remotes.clone();
         for (existing, k) in known {
             if k.url == url && k.site == there_id {
-                let updated = Remote { token: token.clone(), scope: Some(scope.clone()), hostnames: hostnames.clone(), ..k.clone() };
+                let updated = Remote {
+                    token: token.clone(),
+                    scope: Some(scope.clone()),
+                    hostnames: hostnames.clone(),
+                    ..k.clone()
+                };
                 if k.token != token {
                     self.revoke_remote_token(&k).await;
                 }
@@ -580,7 +622,8 @@ impl Runlight {
                 return self.site(Some(&existing)).ok_or_else(|| Error::Range("Unknown site".into()));
             }
         }
-        let host_source = hostnames.first().cloned().unwrap_or_else(|| Url::parse(&url).map(|u| u.host()).unwrap_or_default());
+        let host_source =
+            hostnames.first().cloned().unwrap_or_else(|| Url::parse(&url).map(|u| u.host()).unwrap_or_default());
         let host = crate::re::replace_all(js_re!(r"(?i)[^a-z0-9._-]"), &host_source, "-").to_lowercase();
         let stem = js::head16(&host, 56);
         let mut id = stem.clone();
@@ -593,7 +636,12 @@ impl Runlight {
         let site_name = if given.is_empty() { js::str_or_empty(there.get("name")) } else { given };
         let tz = js::str_or_empty(there.get("timezone"));
         // No hostnames: tracker hits never land on a site that is counted elsewhere.
-        let site = SiteRow { id: id.clone(), name: site_name, hostnames: vec![], timezone: if is_timezone(&tz) { tz } else { "UTC".into() } };
+        let site = SiteRow {
+            id: id.clone(),
+            name: site_name,
+            hostnames: vec![],
+            timezone: if is_timezone(&tz) { tz } else { "UTC".into() },
+        };
         let remote = Remote { url, token, site: there_id, hostnames, scope: Some(scope) };
         self.0.store.upsert_site(&site, self.now()).await?;
         let sealed = self.seal(&remote.to_value().to_json()).await;
@@ -625,7 +673,11 @@ impl Runlight {
         }
         let timezone = input.get("timezone").filter(|v| !v.is_null()).map_or_else(|| "UTC".to_string(), js::js_string);
         if !is_timezone(&timezone) {
-            return Err(Error::settings(format!("Unknown timezone \"{timezone}\""), "unknown_timezone", &[("timezone", &timezone)]));
+            return Err(Error::settings(
+                format!("Unknown timezone \"{timezone}\""),
+                "unknown_timezone",
+                &[("timezone", &timezone)],
+            ));
         }
         let stem = js::head16(&crate::re::replace_all(js_re!(r"[^a-z0-9._-]"), &hostnames[0], "-"), 56);
         let mut id = stem.clone();
@@ -688,7 +740,11 @@ impl Runlight {
         let zone_of = |v: &Value| -> Result<String, Error> {
             let tz = js::js_string(v);
             if !is_timezone(&tz) {
-                return Err(Error::settings(format!("Unknown timezone \"{tz}\""), "unknown_timezone", &[("timezone", &tz)]));
+                return Err(Error::settings(
+                    format!("Unknown timezone \"{tz}\""),
+                    "unknown_timezone",
+                    &[("timezone", &tz)],
+                ));
             }
             Ok(tz)
         };
@@ -747,7 +803,11 @@ impl Runlight {
         if let Some(m) = months
             && !RETENTION_MONTHS.contains(&m)
         {
-            return Err(Error::settings("Keep visits for 6, 12, 24, 36, 60 months, or forever", "retention_bad", &[("months", "6, 12, 24, 36, 60")]));
+            return Err(Error::settings(
+                "Keep visits for 6, 12, 24, 36, 60 months, or forever",
+                "retention_bad",
+                &[("months", "6, 12, 24, 36, 60")],
+            ));
         }
         self.0.store.set_setting(&format!("retention:{site}"), months.map(|m| m.to_string()).as_deref()).await?;
         // Deleting a long history takes a while, so it runs in pieces after the answer, with tracking going on between them.
@@ -932,7 +992,11 @@ impl Runlight {
             let _ = host;
             h.to_string()
         };
-        if !(host == "localhost" || host == "127.0.0.1" || host == "::1" || test(js_re!(r"\.(localhost|local|test)$"), &host)) {
+        if !(host == "localhost"
+            || host == "127.0.0.1"
+            || host == "::1"
+            || test(js_re!(r"\.(localhost|local|test)$"), &host))
+        {
             return Ok(None);
         }
         let site = match id.filter(|i| !i.is_empty()) {
@@ -954,11 +1018,13 @@ impl Runlight {
         let h = &request.headers;
         let last = |name: &str| -> Option<String> {
             let value = h.get(name)?;
-            value.split(',').map(|x| js::trim(x).to_string()).filter(|x| !x.is_empty()).next_back()
+            value.split(',').map(|x| js::trim(x).to_string()).rfind(|x| !x.is_empty())
         };
         let forwarded = match &self.0.trust_proxy {
             TrustProxy::Off => None,
-            TrustProxy::On => last("x-forwarded-for").or_else(|| h.get("x-real-ip")).or_else(|| h.get("cf-connecting-ip")),
+            TrustProxy::On => {
+                last("x-forwarded-for").or_else(|| h.get("x-real-ip")).or_else(|| h.get("cf-connecting-ip"))
+            }
             TrustProxy::Header(name) if name == "x-forwarded-for" => last("x-forwarded-for"),
             TrustProxy::Header(name) => h.get(name),
         };
@@ -1069,8 +1135,17 @@ impl Runlight {
                     (Some(w), Some(h)) if w != 0 && h != 0 => format!("{w}x{h}"),
                     _ => String::new(),
                 };
-                self.session_for(&site, request, &page, &payload.referrer, now, payload.screen_width.map(|w| w as f64), &screen, &payload.language)
-                    .await?
+                self.session_for(
+                    &site,
+                    request,
+                    &page,
+                    &payload.referrer,
+                    now,
+                    payload.screen_width.map(|w| w as f64),
+                    &screen,
+                    &payload.language,
+                )
+                .await?
             }
         };
         store.touch_session(&id, now, payload.kind, &page.path, reopen).await?;
@@ -1208,7 +1283,8 @@ impl Runlight {
             Some(rest) => decode_uri_component(rest).ok_or_else(|| Error::Other("URIError: URI malformed".into()))?,
             None => String::new(),
         };
-        let found = if !slug.is_empty() && !slug.contains('/') { self.redirect(request, &slug, "").await? } else { None };
+        let found =
+            if !slug.is_empty() && !slug.contains('/') { self.redirect(request, &slug, "").await? } else { None };
         Ok(found.unwrap_or_else(not_found))
     }
 
@@ -1242,8 +1318,10 @@ impl Runlight {
                 return Ok(None);
             }
         }
-        let slug = decode_uri_component(&pathname[1.min(pathname.len())..]).ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
-        let found = if !slug.is_empty() && !slug.contains('/') { self.redirect(request, &slug, &host).await? } else { None };
+        let slug = decode_uri_component(&pathname[1.min(pathname.len())..])
+            .ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
+        let found =
+            if !slug.is_empty() && !slug.contains('/') { self.redirect(request, &slug, &host).await? } else { None };
         Ok(Some(found.unwrap_or_else(not_found)))
     }
 
@@ -1272,7 +1350,8 @@ impl Runlight {
                 let first = accept.split(',').next().unwrap_or("").split(';').next().unwrap_or("");
                 let language = js::head16(js::trim(first), 35);
                 let referer = request.headers.get("referer").unwrap_or_default();
-                let (id, visitor) = self.session_for(&site, request, &parse_page(&url), &referer, now, None, "", &language).await?;
+                let (id, visitor) =
+                    self.session_for(&site, request, &parse_page(&url), &referer, now, None, "", &language).await?;
                 let pathname = url.pathname();
                 self.0.store.touch_session(&id, now, "click", &pathname, true).await?;
                 self.0
@@ -1305,7 +1384,10 @@ impl Runlight {
         Ok(Some(Response::new(
             Vec::new(),
             302,
-            Headers::new().with("location", &link.url).with("cache-control", "no-store").with("referrer-policy", "no-referrer-when-downgrade"),
+            Headers::new()
+                .with("location", &link.url)
+                .with("cache-control", "no-store")
+                .with("referrer-policy", "no-referrer-when-downgrade"),
         )))
     }
 
@@ -1371,7 +1453,8 @@ impl Runlight {
         {
             return Ok(false);
         }
-        let host = self.forwarded_host(request).or_else(|| request.headers.get("host")).unwrap_or_else(|| url.hostname());
+        let host =
+            self.forwarded_host(request).or_else(|| request.headers.get("host")).unwrap_or_else(|| url.hostname());
         self.init().await?;
         let Some(site) = self.site_for(host.split(':').next().unwrap_or(&host), None) else { return Ok(false) };
         // A log reader sends when the page was served. Older than a week is dropped; ahead of now counts as now.
@@ -1502,7 +1585,9 @@ fn not_found() -> Response {
 /// True for a database that could not take a statement just now and may a moment later.
 fn busy(error: &Error) -> bool {
     test(
-        js_re!(r"(?i)timeout exceeded when trying to connect|connection timeout|no MySQL connection was free|SQLITE_BUSY|database is locked"),
+        js_re!(
+            r"(?i)timeout exceeded when trying to connect|connection timeout|no MySQL connection was free|SQLITE_BUSY|database is locked"
+        ),
         error.message(),
     )
 }

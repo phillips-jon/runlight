@@ -4,6 +4,7 @@
 mod api;
 mod glue;
 mod parts;
+mod wired;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -88,8 +89,7 @@ const PICK_TARGET_PLACEHOLDER: &str = "\"__RUNLIGHT_PICK_TARGET__\"";
 const PICK_HOSTS_PLACEHOLDER: &str = "\"__RUNLIGHT_PICK_HOSTS__\"";
 /// How long a picker ticket works.
 const PICK_TICKET_MS: i64 = 30 * 60_000;
-pub(crate) const DASHBOARD_CSP: &str =
-    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+pub(crate) const DASHBOARD_CSP: &str = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 
 /// HTML's special characters escaped.
 pub(crate) fn escape_html(value: &str) -> String {
@@ -145,7 +145,13 @@ pub(crate) fn coded(error: &str, code: &str, status: u16, params: Option<&[(&str
     coded_with(error, code, status, params, &[])
 }
 
-pub(crate) fn coded_with(error: &str, code: &str, status: u16, params: Option<&[(&str, &str)]>, extra: &[(&str, &str)]) -> Response {
+pub(crate) fn coded_with(
+    error: &str,
+    code: &str,
+    status: u16,
+    params: Option<&[(&str, &str)]>,
+    extra: &[(&str, &str)],
+) -> Response {
     let mut o = js::Object::new();
     o.set("error", error);
     o.set("code", code);
@@ -180,7 +186,8 @@ pub(crate) fn refused_plain(message: &str, fallback: &str, status: u16) -> Respo
 
 /// Whether a request's body is JSON by its media type.
 pub(crate) fn is_json(request: &Request) -> bool {
-    js::trim(request.headers.get("content-type").unwrap_or_default().split(';').next().unwrap_or("")).to_lowercase() == "application/json"
+    js::trim(request.headers.get("content-type").unwrap_or_default().split(';').next().unwrap_or("")).to_lowercase()
+        == "application/json"
 }
 
 /// A Host or X-Forwarded-Host value as a bare name: lowercase, with no port, no final dot, and no www.
@@ -203,7 +210,12 @@ pub(crate) fn private_name(domain: &str) -> bool {
     if test(js_re!(r"(^|\.)\d{1,3}(\.\d{1,3}){3}(\.|$)"), domain) {
         return true;
     }
-    test(js_re!(r"\.(internal|intranet|private|local|localhost|localdomain|lan|home|corp|home\.arpa|arpa|test|invalid|example)$"), domain)
+    test(
+        js_re!(
+            r"\.(internal|intranet|private|local|localhost|localdomain|lan|home|corp|home\.arpa|arpa|test|invalid|example)$"
+        ),
+        domain,
+    )
 }
 
 /// A plain page in a visitor's language, for unsubscribing and for a share link that is gone.
@@ -272,7 +284,11 @@ pub(crate) fn read_cookie(request: &Request, name: &str) -> String {
 
 pub(crate) fn bearer(request: &Request) -> String {
     let header = request.headers.get("authorization").unwrap_or_default();
-    if header.to_lowercase().starts_with("bearer ") { js::trim(&js::slice16(&header, 7, i64::MAX)).to_string() } else { String::new() }
+    if header.to_lowercase().starts_with("bearer ") {
+        js::trim(&js::slice16(&header, 7, i64::MAX)).to_string()
+    } else {
+        String::new()
+    }
 }
 
 fn normalise_base(path: &str) -> String {
@@ -354,7 +370,18 @@ pub fn manage_path(method: &str, path: &str) -> bool {
 pub(crate) fn shared_path(path: &str) -> bool {
     matches!(
         path,
-        "/api/sites" | "/api/icon" | "/api/realtime" | "/api/stats" | "/api/series" | "/api/rhythm" | "/api/breakdown" | "/api/goals" | "/api/event-props" | "/api/export" | "/api/funnels" | "/api/journeys"
+        "/api/sites"
+            | "/api/icon"
+            | "/api/realtime"
+            | "/api/stats"
+            | "/api/series"
+            | "/api/rhythm"
+            | "/api/breakdown"
+            | "/api/goals"
+            | "/api/event-props"
+            | "/api/export"
+            | "/api/funnels"
+            | "/api/journeys"
     ) || test(js_re!(r"^/api/goals/[a-f0-9]{24}$"), path)
 }
 
@@ -450,7 +477,9 @@ impl Routes {
         }
         .filter(|s| !s.is_empty());
         let origin = match &options.origin {
-            Some(o) if !o.is_empty() => Some(Url::parse(o).ok_or_else(|| "TypeError: Invalid URL".to_string())?.origin()),
+            Some(o) if !o.is_empty() => {
+                Some(Url::parse(o).ok_or_else(|| "TypeError: Invalid URL".to_string())?.origin())
+            }
             _ => None,
         };
         // A link domain leaves these paths to the app, so the dashboard stays reachable on every name.
@@ -466,7 +495,16 @@ impl Routes {
         let open_setup = open || (!token_set && is_development());
         let account_secret = runlight.secret().map(str::to_string).or_else(|| open_setup.then(|| random_id(32)));
         let web = if options.accounts {
-            account_secret.map(|secret| glue::web(&runlight, &secret, &base, token.as_deref().filter(|t| !t.is_empty()), open_setup, options.origin.as_deref()))
+            account_secret.map(|secret| {
+                glue::web(
+                    &runlight,
+                    &secret,
+                    &base,
+                    token.as_deref().filter(|t| !t.is_empty()),
+                    open_setup,
+                    options.origin.as_deref(),
+                )
+            })
         } else {
             None
         };
@@ -489,6 +527,11 @@ impl Routes {
             asked: Mutex::new(HashMap::new()),
             trackers: Mutex::new(HashMap::new()),
         })))
+    }
+
+    /// Where the routes are mounted, such as "/runlight", or "" at the root.
+    pub fn base_path(&self) -> &str {
+        &self.0.base
     }
 
     /// The token in use, if any.
@@ -550,7 +593,11 @@ impl Routes {
             return CanRead::Yes;
         }
         let cookie = read_cookie(request, COOKIE);
-        if !cookie.is_empty() && constant_time_equal(&cookie, &cookie_value(token)) { CanRead::Yes } else { CanRead::No }
+        if !cookie.is_empty() && constant_time_equal(&cookie, &cookie_value(token)) {
+            CanRead::Yes
+        } else {
+            CanRead::No
+        }
     }
 
     /// An API token from the bearer header: read-only, and maybe limited to one site.
@@ -631,7 +678,12 @@ impl Routes {
 
     /// A ticket that lets the picker, on `site`'s pages, send its choice to `origin` for half an hour.
     pub(crate) async fn pick_ticket(&self, origin: &str, site: &str) -> Result<String, crate::Error> {
-        let payload = format!("{}.{}.{}", self.rl().now() + PICK_TICKET_MS, crate::hash::hex(site.as_bytes()), crate::hash::hex(origin.as_bytes()));
+        let payload = format!(
+            "{}.{}.{}",
+            self.rl().now() + PICK_TICKET_MS,
+            crate::hash::hex(site.as_bytes()),
+            crate::hash::hex(origin.as_bytes())
+        );
         let sig = hmac(&self.pick_key().await?, &payload);
         Ok(format!("{payload}.{sig}"))
     }
@@ -672,7 +724,11 @@ impl Routes {
         let etag = format!("\"{}-{}\"", BUILD_INFO.tracker_hash, &sha256(&rules)[..8]);
         // One entry per site at most; a query naming no real site gets the empty script without filling the map.
         if site_id.is_none() || !sites.is_empty() {
-            self.0.trackers.lock().unwrap_or_else(|e| e.into_inner()).insert(key, Tracker { body: body.clone(), etag: etag.clone(), at: self.rl().now() });
+            self.0
+                .trackers
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .insert(key, Tracker { body: body.clone(), etag: etag.clone(), at: self.rl().now() });
         }
         Ok((body, etag))
     }
@@ -742,20 +798,30 @@ impl Routes {
                 Some((_, site)) => self.rl().site(Some(site)).map(|s| s.hostnames),
                 None => Some(vec![]),
             };
-            let target_json = js::quote(if hosts.is_some() { target.as_ref().map_or("", |t| t.0.as_str()) } else { "" });
-            let hosts_json = js::quote(&Value::Array(hosts.unwrap_or_default().into_iter().map(Value::from).collect()).to_json());
-            let script = PICKER.replacen(PICK_TARGET_PLACEHOLDER, &target_json, 1).replacen(PICK_HOSTS_PLACEHOLDER, &hosts_json, 1);
+            let target_json =
+                js::quote(if hosts.is_some() { target.as_ref().map_or("", |t| t.0.as_str()) } else { "" });
+            let hosts_json =
+                js::quote(&Value::Array(hosts.unwrap_or_default().into_iter().map(Value::from).collect()).to_json());
+            let script = PICKER.replacen(PICK_TARGET_PLACEHOLDER, &target_json, 1).replacen(
+                PICK_HOSTS_PLACEHOLDER,
+                &hosts_json,
+                1,
+            );
             return Ok(Response::new(
                 script,
                 200,
-                Headers::new().with("content-type", "application/javascript; charset=utf-8").with("cache-control", "no-store"),
+                Headers::new()
+                    .with("content-type", "application/javascript; charset=utf-8")
+                    .with("cache-control", "no-store"),
             ));
         }
         if path == format!("/assets/world.{}.json", BUILD_INFO.world_hash) && method == "GET" {
             return Ok(Response::new(
                 WORLD_JSON,
                 200,
-                Headers::new().with("content-type", "application/json; charset=utf-8").with("cache-control", "public, max-age=31536000, immutable"),
+                Headers::new()
+                    .with("content-type", "application/json; charset=utf-8")
+                    .with("cache-control", "public, max-age=31536000, immutable"),
             ));
         }
         if let Some(caps) = js_re!(r"^/assets/locale\.([a-z]{2,3})\.([a-f0-9]+)\.json$").captures(path.as_bytes()) {
@@ -768,7 +834,9 @@ impl Routes {
                 return Ok(Response::new(
                     text.clone(),
                     200,
-                    Headers::new().with("content-type", "application/json; charset=utf-8").with("cache-control", "public, max-age=31536000, immutable"),
+                    Headers::new()
+                        .with("content-type", "application/json; charset=utf-8")
+                        .with("cache-control", "public, max-age=31536000, immutable"),
                 ));
             }
         }
@@ -785,7 +853,14 @@ impl Routes {
                 asset,
                 200,
                 Headers::new()
-                    .with("content-type", if path.ends_with(".js") { "application/javascript; charset=utf-8" } else { "text/css; charset=utf-8" })
+                    .with(
+                        "content-type",
+                        if path.ends_with(".js") {
+                            "application/javascript; charset=utf-8"
+                        } else {
+                            "text/css; charset=utf-8"
+                        },
+                    )
                     .with("cache-control", "public, max-age=31536000, immutable"),
             ));
         }
@@ -828,7 +903,10 @@ impl Routes {
                 // Points an OAuth client at the metadata that starts the sign-in.
                 refused.headers.set(
                     "www-authenticate",
-                    &format!("Bearer realm=\"runlight\", resource_metadata=\"{}\"", glue::resource_metadata_url(&url.origin(), &self.0.base)),
+                    &format!(
+                        "Bearer realm=\"runlight\", resource_metadata=\"{}\"",
+                        glue::resource_metadata_url(&url.origin(), &self.0.base)
+                    ),
                 );
                 return Ok(refused);
             }
@@ -843,13 +921,18 @@ impl Routes {
             && method == "GET"
         {
             self.rl().init().await?;
-            let share = if test(js_re!(r"^[a-f0-9]{32}$"), &id) { self.rl().store().share_by_id(&id).await? } else { None };
+            let share =
+                if test(js_re!(r"^[a-f0-9]{32}$"), &id) { self.rl().store().share_by_id(&id).await? } else { None };
             let Some(share) = share else {
                 let lang = accepted_language(request);
                 let (t, lang) = glue::translator(&lang);
                 return Ok(small_page(
                     &lang,
-                    &format!("<h1>{}</h1><p>{}</p>", escape_html(&t("share.goneTitle", &[])), escape_html(&t("share.gone", &[]))),
+                    &format!(
+                        "<h1>{}</h1><p>{}</p>",
+                        escape_html(&t("share.goneTitle", &[])),
+                        escape_html(&t("share.gone", &[]))
+                    ),
                     404,
                 ));
             };
@@ -882,7 +965,10 @@ impl Routes {
                     303,
                     Headers::new().with("location", format!("{}{}", url.pathname(), url.search())).with(
                         "set-cookie",
-                        format!("{COOKIE}={}; Path={base}; HttpOnly; SameSite=Lax; Max-Age=2592000{secure}", cookie_value(token)),
+                        format!(
+                            "{COOKIE}={}; Path={base}; HttpOnly; SameSite=Lax; Max-Age=2592000{secure}",
+                            cookie_value(token)
+                        ),
                     ),
                 ));
             }
@@ -924,7 +1010,8 @@ fn internal(error: crate::Error) -> Response {
 }
 
 fn unhex(text: &str) -> String {
-    let bytes: Vec<u8> = (0..text.len() / 2).filter_map(|i| u8::from_str_radix(&text[i * 2..i * 2 + 2], 16).ok()).collect();
+    let bytes: Vec<u8> =
+        (0..text.len() / 2).filter_map(|i| u8::from_str_radix(&text[i * 2..i * 2 + 2], 16).ok()).collect();
     crate::http::utf8(&bytes)
 }
 
@@ -939,4 +1026,3 @@ pub(crate) fn read_json(request: &Request) -> Result<js::Object, Response> {
         _ => Err(coded("Send a JSON object", "send_object", 400, None)),
     }
 }
-

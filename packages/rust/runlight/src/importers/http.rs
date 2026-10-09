@@ -87,7 +87,8 @@ impl Http {
                     None => 0.0,
                     Some(v) => js::text_number(&v),
                 } * 1000.0;
-                let wait = if asked == 0.0 || asked.is_nan() { 800.0 * f64::from(attempt) } else { asked };
+                // Retry-After in seconds; none, zero, negative, or not a number waits the default backoff.
+                let wait = if asked > 0.0 { asked } else { 800.0 * f64::from(attempt) };
                 self.pause(wait.min(10_000.0)).await;
                 attempt += 1;
                 continue;

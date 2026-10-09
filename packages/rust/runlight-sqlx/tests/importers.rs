@@ -1161,3 +1161,165 @@ fn import_errors_carry_their_code() {
     assert!(!ImportError::new("x", "y", &[]).is_http());
     let _ = params![1];
 }
+
+// The cases added with unreadable dates, missing totals, tokenless sign-ins, and transient Dub failures.
+
+#[tokio::test]
+async fn shortio_a_point_whose_date_cannot_be_read_is_skipped_not_the_whole_step() {
+    let fake = serve(vec![
+        (
+            r"api\.short\.io\/api\/domains",
+            obj! { "body" => js::parse(r#"[{ "id": 7, "hostname": "s.brand.com" }]"#).unwrap() },
+        ),
+        (
+            r"api\/links\?domain_id=7",
+            obj! { "body" => js::parse(r#"{ "links": [{ "idString": "lnk1", "id": 1, "path": "one", "originalURL": "https://a.com/1", "createdAt": "2026-01-01T00:00:00Z" }], "nextPageToken": null }"#).unwrap() },
+        ),
+        (
+            r"statistics\/link\/lnk1\/by_interval",
+            obj! { "body" => js::parse(r#"{ "clickStatistics": [{ "x": "1772409600000", "y": 1 }, { "x": "2026-03-01T00:00:00Z", "y": 4 }, { "x": 9e15, "y": 2 }] }"#).unwrap() },
+        ),
+    ]);
+    let (rl, _, _) = make(NOW, "UTC", Some(fake.clone())).await;
+    let (links, clicks, ..) = run_all(&rl, &importing(fake), "shortio", &creds(&[("apiKey", "sk_test")])).await;
+    assert_eq!((links, clicks), (1.0, 4.0));
+}
+
+#[tokio::test]
+async fn umami_a_link_list_without_a_count_gives_no_total_and_pages_on_while_pages_are_full() {
+    let link = |i: usize| {
+        obj! { "id" => format!("u{i}"), "name" => format!("N{i}"), "url" => format!("https://a.com/{i}"), "slug" => format!("s{i}"), "createdAt" => "2026-01-01T00:00:00Z", "deletedAt" => Value::Null }
+    };
+    let fake = serve(vec![
+        (r"\/api\/links\?page=1&", obj! { "body" => obj! { "data" => Value::Array((0..5).map(link).collect()) } }),
+        (r"\/api\/links\?page=2&", obj! { "body" => obj! { "data" => arr![link(5)], "count" => "six" } }),
+        (r"\/websites\/", obj! { "body" => obj! { "data" => arr![], "count" => 0 } }),
+    ]);
+    let (rl, _, _) = make(NOW, "UTC", Some(fake.clone())).await;
+    let http = importing(fake);
+    let c = creds(&[("url", "https://stats.example.com"), ("apiKey", "k")]);
+    let first = import_step_with(&rl, &http, "default", "umami", &c, None, 0.0).await.unwrap();
+    assert_eq!(first.total, None);
+    assert!(first.cursor.is_some(), "a full page may have more after it");
+    let second =
+        import_step_with(&rl, &http, "default", "umami", &c, first.cursor.as_deref(), first.done).await.unwrap();
+    assert_eq!((second.cursor, second.done, second.total), (None, 6.0, None));
+    let empty_fake = serve(vec![(r"\/api\/links\?", obj! { "body" => obj! { "data" => arr![] } })]);
+    let empty = import_step_with(&rl, &importing(empty_fake), "default", "umami", &c, None, 0.0).await.unwrap();
+    assert_eq!((empty.cursor, empty.done, empty.total), (None, 0.0, None));
+}
+
+#[tokio::test]
+async fn umami_a_sign_in_that_answers_without_a_token_is_refused_there() {
+    let fake = serve(vec![
+        (r"\/api\/auth\/login", obj! { "body" => obj! {} }),
+        (r"\/api\/links\?", obj! { "body" => obj! { "data" => arr![], "count" => 0 } }),
+    ]);
+    let (rl, _, _) = make(NOW, "UTC", Some(fake.clone())).await;
+    let c = creds(&[("url", "https://stats.example.com"), ("username", "jon"), ("password", "bad")]);
+    let error = import_step_with(&rl, &importing(fake.clone()), "default", "umami", &c, None, 0.0).await.unwrap_err();
+    assert_eq!(error.coded().unwrap().code, "import_refused");
+    assert!(!error.is_http());
+    assert_eq!(fake.calls(), vec!["POST stats.example.com/api/auth/login"], "nothing is asked with a missing token");
+}
+
+#[tokio::test]
+async fn dub_a_failed_events_request_fails_the_step_and_keeps_per_click_history_for_the_rest() {
+    let failing = Arc::new(AtomicBool::new(true));
+    let f = failing.clone();
+    let links = js::parse(
+        r#"[
+        { "id": "l1", "domain": "dub.sh", "key": "a", "url": "https://a.com/a", "title": "A", "createdAt": "2026-01-02T00:00:00Z" },
+        { "id": "l2", "domain": "dub.sh", "key": "b", "url": "https://a.com/b", "title": "B", "createdAt": "2026-01-02T00:00:00Z" }
+    ]"#,
+    )
+    .unwrap();
+    let fake = Fake::new(Box::new(move |url, _| {
+        let href = url.href();
+        let ok = |v: Value| Some(Ok((200, v, vec![])));
+        if href.contains("api.dub.co/links?") {
+            return ok(if href.contains("startingAfter=l2") { arr![] } else { links.clone() });
+        }
+        if href.contains("/events?") && href.contains("linkId=l1") {
+            if f.load(Ordering::SeqCst) {
+                return Some(Ok((500, obj! {}, vec![])));
+            }
+            return ok(js::parse(r#"[{ "timestamp": "2026-03-01T10:00:00Z", "click": { "id": "c1" } }]"#).unwrap());
+        }
+        if href.contains("/events?") && href.contains("linkId=l2") {
+            return ok(js::parse(r#"[{ "timestamp": "2026-03-02T10:00:00Z", "click": { "id": "c2" } }]"#).unwrap());
+        }
+        if href.contains("/analytics?") {
+            return ok(js::parse(r#"[{ "start": "2026-03-01T00:00:00.000Z", "clicks": 9 }]"#).unwrap());
+        }
+        None
+    }));
+    let (rl, _, _) = make(NOW, "UTC", Some(fake.clone())).await;
+    rl.init().await.unwrap();
+    let http = importing(fake.clone());
+    let c = creds(&[("apiKey", "k")]);
+    let error = import_step_with(&rl, &http, "default", "dub", &c, None, 0.0).await.unwrap_err();
+    assert_eq!(error.coded().unwrap().code, "import_status");
+    assert!(!fake.calls().iter().any(|c| c.contains("/analytics")), "a server error does not switch to daily counts");
+    failing.store(false, Ordering::SeqCst);
+    let step = import_step_with(&rl, &http, "default", "dub", &c, None, 0.0).await.unwrap();
+    assert_eq!(step.links, 2.0);
+    assert_eq!(step.clicks, 2.0, "both links keep every click");
+    assert!(!fake.calls().iter().any(|c| c.contains("/analytics")));
+}
+
+#[tokio::test]
+async fn rebrandly_a_numeric_id_still_gives_a_text_cursor() {
+    let list = Value::Array(
+        (0..25)
+            .map(|i| obj! { "id" => i, "slashtag" => format!("s{i}"), "destination" => format!("https://a.com/{i}"), "createdAt" => "2026-01-01T00:00:00Z" })
+            .collect(),
+    );
+    let fake = serve(vec![
+        (r"\/links\?.*last=24", obj! { "body" => arr![] }),
+        (r"rebrandly\.com\/v1\/links\?", obj! { "body" => list }),
+    ]);
+    let (rl, _, _) = make(NOW, "UTC", Some(fake.clone())).await;
+    let step = import_step_with(&rl, &importing(fake), "default", "rebrandly", &creds(&[("apiKey", "rb")]), None, 0.0)
+        .await
+        .unwrap();
+    assert_eq!(step.cursor.as_deref(), Some("24"));
+}
+
+#[tokio::test]
+async fn http_a_negative_retry_after_waits_the_default_backoff() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let n = calls.clone();
+    let fake = Fake::new(Box::new(move |_, _| {
+        if n.fetch_add(1, Ordering::SeqCst) == 0 {
+            Some(Ok((429, obj! {}, vec![("retry-after".to_string(), "-5".to_string())])))
+        } else {
+            Some(Ok((200, arr![], vec![])))
+        }
+    }));
+    let (sleep, waits) = no_wait();
+    let http = Http::with_sleep(fake, sleep);
+    assert_eq!(js::stringify(&http.get("https://api.example.com/x", &[]).await.unwrap()), "[]");
+    assert_eq!(*waits.lock().unwrap(), vec![800.0]);
+}
+
+#[tokio::test]
+async fn umami_visit_history_an_unreadable_saved_progress_setting_starts_as_if_there_were_none() {
+    let fake = fake_umami();
+    let (rl, _, _) = make(parse_ms("2026-03-04T00:00:00Z"), "UTC", Some(fake.clone())).await;
+    rl.init().await.unwrap();
+    rl.store().set_setting("import:umami-visits:default:w1", Some("not a number")).await.unwrap();
+    let http = importing(fake);
+    let mut cursor: Option<String> = None;
+    let mut pageviews = 0.0;
+    loop {
+        let step = import_umami_visits(&rl, &http, "default", &key_creds(), "w1", cursor.as_deref()).await.unwrap();
+        assert!(step.done.is_finite() && step.total.is_finite(), "progress is a number");
+        cursor = step.cursor;
+        pageviews += step.pageviews;
+        if cursor.is_none() {
+            break;
+        }
+    }
+    assert_eq!(pageviews, 4.0, "every day is read from the website's start");
+}

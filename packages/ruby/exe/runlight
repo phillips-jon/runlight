@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# runlight: the standalone server and its command line. It reads the server's settings from the environment or
+# config.rb in the working folder; `runlight --help` lists the commands.
+
+require_relative "../lib/runlight"
+
+exit Runlight::Server::Cli.run(ARGV, Dir.pwd)

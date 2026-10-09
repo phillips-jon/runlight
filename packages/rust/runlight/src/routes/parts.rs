@@ -27,14 +27,24 @@ impl Routes {
         let params = url.search_params();
         let raw_filters = params.get_all("filter");
         if raw_filters.len() > MAX_FILTERS {
-            return Ok(Err(coded(&format!("Use at most {MAX_FILTERS} filters at once."), "filters_max", 400, Some(&[("max", &MAX_FILTERS.to_string())]))));
+            return Ok(Err(coded(
+                &format!("Use at most {MAX_FILTERS} filters at once."),
+                "filters_max",
+                400,
+                Some(&[("max", &MAX_FILTERS.to_string())]),
+            )));
         }
         let mut filters: Vec<Filter> = Vec::new();
         for raw in &raw_filters {
             match parse_filter(raw) {
                 Some(f) => filters.push(f),
                 None => {
-                    return Ok(Err(coded(&format!("Bad filter \"{raw}\". Use dimension:is|not|contains:value."), "filter_bad", 400, Some(&[("filter", raw)]))));
+                    return Ok(Err(coded(
+                        &format!("Bad filter \"{raw}\". Use dimension:is|not|contains:value."),
+                        "filter_bad",
+                        400,
+                        Some(&[("filter", raw)]),
+                    )));
                 }
             }
         }
@@ -59,11 +69,22 @@ impl Routes {
         let raw = params.get("compare").unwrap_or("previous").to_string();
         let mode = if raw == "false" { "off".to_string() } else { raw.clone() };
         if !["previous", "year", "custom", "off"].contains(&mode.as_str()) {
-            return Ok(Err(coded(&format!("Bad compare \"{raw}\". Use previous, year, custom, or off."), "compare_bad", 400, Some(&[("compare", &raw)]))));
+            return Ok(Err(coded(
+                &format!("Bad compare \"{raw}\". Use previous, year, custom, or off."),
+                "compare_bad",
+                400,
+                Some(&[("compare", &raw)]),
+            )));
         }
-        let compared = compare_range(&range, &mode, &site.timezone, params.get("compare_from"), params.get("compare_to"));
+        let compared =
+            compare_range(&range, &mode, &site.timezone, params.get("compare_from"), params.get("compare_to"));
         if mode == "custom" && compared.is_none() {
-            return Ok(Err(coded("Bad comparison range. Use compare_from and compare_to as YYYY-MM-DD.", "compare_range_bad", 400, None)));
+            return Ok(Err(coded(
+                "Bad comparison range. Use compare_from and compare_to as YYYY-MM-DD.",
+                "compare_range_bad",
+                400,
+                None,
+            )));
         }
         Ok(Ok(Read { query, range, compared }))
     }
@@ -86,7 +107,9 @@ impl Routes {
         };
         match self.links_inner(request, path, url, call, &site).await {
             Err(Error::Link(e)) => Ok(coded_error(&e, 400)),
-            Err(Error::Range(m)) | Err(Error::Settings(CodedError { message: m, .. })) => Ok(coded(&m, "unknown_link", 404, None)),
+            Err(Error::Range(m)) | Err(Error::Settings(CodedError { message: m, .. })) => {
+                Ok(coded(&m, "unknown_link", 404, None))
+            }
             other => other,
         }
     }
@@ -97,8 +120,13 @@ impl Routes {
         let method = request.method.as_str();
         if path == "/api/link-domains" {
             if method == "GET" {
-                let domains: Vec<Value> =
-                    store.link_domains().await?.into_iter().filter(|(_, s)| *s == site.id).map(|(d, _)| Value::from(d)).collect();
+                let domains: Vec<Value> = store
+                    .link_domains()
+                    .await?
+                    .into_iter()
+                    .filter(|(_, s)| *s == site.id)
+                    .map(|(d, _)| Value::from(d))
+                    .collect();
                 return Ok(json(&obj! { "domains" => Value::Array(domains) }, 200, &[]));
             }
             if method == "POST" {
@@ -130,7 +158,10 @@ impl Routes {
                 if let Some(o) = &self.0.origin {
                     own.push(Url::parse(o).map(|u| u.host()).unwrap_or_default());
                 }
-                for h in [request.headers.get("host"), request.headers.get("x-forwarded-host"), Some(url.host())].into_iter().flatten() {
+                for h in [request.headers.get("host"), request.headers.get("x-forwarded-host"), Some(url.host())]
+                    .into_iter()
+                    .flatten()
+                {
                     if !h.is_empty() {
                         own.push(h);
                     }
@@ -156,7 +187,12 @@ impl Routes {
                 if let Some((_, owner)) = store.link_domains().await?.into_iter().find(|(d, _)| *d == domain)
                     && owner != site.id
                 {
-                    return Ok(coded(&format!("{domain} already belongs to another site"), "domain_taken", 409, Some(&[("domain", &domain)])));
+                    return Ok(coded(
+                        &format!("{domain} already belongs to another site"),
+                        "domain_taken",
+                        409,
+                        Some(&[("domain", &domain)]),
+                    ));
                 }
                 store.add_link_domain(&domain, &site.id, rl.now()).await?;
                 rl.forget_link_domains();
@@ -166,7 +202,8 @@ impl Routes {
         if let Some(raw) = crate::re::group(js_re!(r"^/api/link-domains/([^/]+)/check$"), path, 1)
             && method == "GET"
         {
-            let domain = crate::sources::decode_uri_component(&raw).ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
+            let domain = crate::sources::decode_uri_component(&raw)
+                .ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
             if !store.link_domains().await?.iter().any(|(d, s)| *d == domain && *s == site.id) {
                 return Ok(coded("Unknown domain", "unknown_domain", 404, None));
             }
@@ -193,32 +230,40 @@ impl Routes {
             if !crate::runlight::is_domain(&domain) || private_name(&domain) {
                 return Ok(result("check_not_public", "is not a public domain name", None));
             }
-            return Ok(match glue::public_fetch(rl, &format!("https://{domain}{}", crate::runlight::LINK_DOMAIN_CHECK), 5000).await {
-                Ok(answer) => {
-                    let body = answer.json_body().ok();
-                    let ok = body.as_ref().is_some_and(|b| b.get("runlight") == Some(&Value::Bool(true)) && b.get("domain").and_then(Value::as_str) == Some(domain.as_str()));
-                    if answer.ok() && ok {
-                        result("", "", None)
-                    } else if answer.ok() {
-                        result("check_not_runlight", "answered, but not from Runlight", None)
-                    } else {
-                        let status = answer.status.to_string();
-                        result("check_status", &format!("answered {status}"), Some(("status", &status)))
+            return Ok(
+                match glue::public_fetch(rl, &format!("https://{domain}{}", crate::runlight::LINK_DOMAIN_CHECK), 5000)
+                    .await
+                {
+                    Ok(answer) => {
+                        let body = answer.json_body().ok();
+                        let ok = body.as_ref().is_some_and(|b| {
+                            b.get("runlight") == Some(&Value::Bool(true))
+                                && b.get("domain").and_then(Value::as_str) == Some(domain.as_str())
+                        });
+                        if answer.ok() && ok {
+                            result("", "", None)
+                        } else if answer.ok() {
+                            result("check_not_runlight", "answered, but not from Runlight", None)
+                        } else {
+                            let status = answer.status.to_string();
+                            result("check_status", &format!("answered {status}"), Some(("status", &status)))
+                        }
                     }
-                }
-                Err(timed_out) => {
-                    if timed_out {
-                        result("check_timeout", "timed out", None)
-                    } else {
-                        result("check_https", "could not connect over HTTPS", None)
+                    Err(timed_out) => {
+                        if timed_out {
+                            result("check_timeout", "timed out", None)
+                        } else {
+                            result("check_https", "could not connect over HTTPS", None)
+                        }
                     }
-                }
-            });
+                },
+            );
         }
         if let Some(raw) = crate::re::group(js_re!(r"^/api/link-domains/([^/]+)$"), path, 1)
             && method == "DELETE"
         {
-            let domain = crate::sources::decode_uri_component(&raw).ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
+            let domain = crate::sources::decode_uri_component(&raw)
+                .ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
             if !store.link_domains().await?.iter().any(|(d, s)| *d == domain && *s == site.id) {
                 return Ok(coded("Unknown domain", "unknown_domain", 404, None));
             }
@@ -244,8 +289,13 @@ impl Routes {
                     })
                     .collect();
                 // Links on a removed domain are served from the app's own path until it is added back.
-                let domains: Vec<Value> =
-                    store.link_domains().await?.into_iter().filter(|(_, s)| *s == site.id).map(|(d, _)| Value::from(d)).collect();
+                let domains: Vec<Value> = store
+                    .link_domains()
+                    .await?
+                    .into_iter()
+                    .filter(|(_, s)| *s == site.id)
+                    .map(|(d, _)| Value::from(d))
+                    .collect();
                 return Ok(json(
                     &obj! { "prefix" => format!("{}{}", url.origin(), rl.link_path()), "domains" => Value::Array(domains), "links" => Value::Array(links) },
                     200,
@@ -260,7 +310,15 @@ impl Routes {
                 let opt = |k: &str| body.get(k).map(js::js_string);
                 let link = rl
                     .links()
-                    .create(&site.id, &crate::links::LinkInput { url: js::str_or_empty(body.get("url")), name: opt("name"), slug: opt("slug"), domain: opt("domain") })
+                    .create(
+                        &site.id,
+                        &crate::links::LinkInput {
+                            url: js::str_or_empty(body.get("url")),
+                            name: opt("name"),
+                            slug: opt("slug"),
+                            domain: opt("domain"),
+                        },
+                    )
                     .await?;
                 return Ok(json(&obj! { "link" => Value::Object(link.to_object()) }, 201, &[]));
             }
@@ -281,14 +339,18 @@ impl Routes {
                 Err(r) => return Ok(r),
             };
             // Rows that are not objects (null, a number) are dropped rather than failing the import.
-            let Some(Value::Array(rows)) = body.get("rows") else { return Ok(coded("Send rows as a list", "rows_needed", 400, None)) };
+            let Some(Value::Array(rows)) = body.get("rows") else {
+                return Ok(coded("Send rows as a list", "rows_needed", 400, None));
+            };
             let rows: Vec<Value> = rows.iter().filter(|r| r.is_object()).take(5000).cloned().collect();
             return Ok(json(&rl.links().import(&site.id, &rows).await?, 200, &[]));
         }
         if let Some(id) = crate::re::group(js_re!(r"^/api/links/([a-f0-9]+)$"), path, 1) {
             if method == "GET" {
                 let link = store.link_by_id(&id).await?;
-                let Some(link) = link.filter(|l| l.site == site.id) else { return Ok(coded("Unknown link", "unknown_link", 404, None)) };
+                let Some(link) = link.filter(|l| l.site == site.id) else {
+                    return Ok(coded("Unknown link", "unknown_link", 404, None));
+                };
                 let read = match self.read_query(url, site).await? {
                     Ok(r) => r,
                     Err(r) => return Ok(r),
@@ -332,7 +394,12 @@ impl Routes {
                     Err(r) => return Ok(r),
                 };
                 let pick = |k: &str| body.get(k).map(js::js_string);
-                let input = crate::links::LinkPatch { url: pick("url"), name: pick("name"), slug: pick("slug"), domain: pick("domain") };
+                let input = crate::links::LinkPatch {
+                    url: pick("url"),
+                    name: pick("name"),
+                    slug: pick("slug"),
+                    domain: pick("domain"),
+                };
                 let link = rl.links().update(&id, &input).await?;
                 return Ok(json(&obj! { "link" => Value::Object(link.to_object()) }, 200, &[]));
             }
@@ -356,7 +423,10 @@ impl Routes {
         let id = if path == "/api/goals" {
             None
         } else {
-            Some(crate::sources::decode_uri_component(&path["/api/goals/".len()..]).ok_or_else(|| Error::Other("URIError: URI malformed".into()))?)
+            Some(
+                crate::sources::decode_uri_component(&path["/api/goals/".len()..])
+                    .ok_or_else(|| Error::Other("URIError: URI malformed".into()))?,
+            )
         };
         if let Some(id) = &id
             && !existing.iter().any(|g| &g.id == id)
@@ -439,7 +509,11 @@ impl Routes {
             if method == "GET" {
                 let reports: Vec<Value> = store.reports(Some(&site.id)).await?.iter().map(Self::report_view).collect();
                 let languages: Vec<Value> = glue::languages().into_iter().map(Value::from).collect();
-                return Ok(json(&obj! { "reports" => Value::Array(reports), "languages" => Value::Array(languages) }, 200, &[]));
+                return Ok(json(
+                    &obj! { "reports" => Value::Array(reports), "languages" => Value::Array(languages) },
+                    200,
+                    &[],
+                ));
             }
             if method == "POST" {
                 let body = match read_json(request) {
@@ -450,10 +524,16 @@ impl Routes {
                 if !crate::runlight::is_email(&email) {
                     return Ok(coded("Enter an email address", "email_invalid", 400, None));
                 }
-                let frequency = if body.get("frequency").and_then(Value::as_str) == Some("monthly") { "monthly" } else { "weekly" };
+                let frequency =
+                    if body.get("frequency").and_then(Value::as_str) == Some("monthly") { "monthly" } else { "weekly" };
                 let existing = store.reports(Some(&site.id)).await?;
                 if existing.iter().any(|r| r.email == email && r.frequency == frequency) {
-                    return Ok(coded(&format!("{email} already gets the {frequency} report"), "report_exists", 400, Some(&[("email", &email)])));
+                    return Ok(coded(
+                        &format!("{email} already gets the {frequency} report"),
+                        "report_exists",
+                        400,
+                        Some(&[("email", &email)]),
+                    ));
                 }
                 if existing.len() >= 50 {
                     return Ok(coded("A site can send to at most 50 addresses", "report_limit", 400, None));
@@ -493,7 +573,9 @@ impl Routes {
             None => (String::new(), false),
         };
         let report = if caps.is_some() { store.report_by(false, &id).await? } else { None };
-        let Some(report) = report.filter(|r| r.site == site.id) else { return Ok(coded("Unknown report", "unknown_report", 404, None)) };
+        let Some(report) = report.filter(|r| r.site == site.id) else {
+            return Ok(coded("Unknown report", "unknown_report", 404, None));
+        };
         if send && method == "POST" {
             // A sample at most once a minute per report, so the send button cannot be used to flood an inbox.
             let managed = call.is_managed();
@@ -504,7 +586,12 @@ impl Routes {
                 let last = sent.get(&key).copied().unwrap_or(0);
                 if rl.now() - last < wait {
                     return Ok(if managed {
-                        coded("A connected hub can send one sample every ten minutes. Wait a few minutes and try again.", "sample_soon_hub", 429, None)
+                        coded(
+                            "A connected hub can send one sample every ten minutes. Wait a few minutes and try again.",
+                            "sample_soon_hub",
+                            429,
+                            None,
+                        )
                     } else {
                         coded("A sample went out a moment ago. Wait a minute and try again.", "sample_soon", 429, None)
                     });
@@ -525,11 +612,20 @@ impl Routes {
     pub(crate) async fn unsubscribe_page(&self, request: &Request, token: &str) -> R {
         let rl = self.rl();
         rl.init().await?;
-        let report = if test(js_re!(r"^[a-f0-9]{32}$"), token) { rl.store().report_by(true, token).await? } else { None };
+        let report =
+            if test(js_re!(r"^[a-f0-9]{32}$"), token) { rl.store().report_by(true, token).await? } else { None };
         let site = report.as_ref().and_then(|r| rl.site(Some(&r.site)));
         let (t, lang) = glue::translator(report.as_ref().map_or("en", |r| r.lang.as_str()));
         let (Some(report), Some(site)) = (report, site) else {
-            return Ok(small_page(&lang, &format!("<h1>{}</h1><p>{}</p>", escape_html(&t("email.unsub.goneTitle", &[])), escape_html(&t("email.unsub.gone", &[]))), 404));
+            return Ok(small_page(
+                &lang,
+                &format!(
+                    "<h1>{}</h1><p>{}</p>",
+                    escape_html(&t("email.unsub.goneTitle", &[])),
+                    escape_html(&t("email.unsub.gone", &[]))
+                ),
+                404,
+            ));
         };
         if request.method == "POST" {
             rl.store().delete_report(&report.id).await?;
@@ -591,9 +687,12 @@ impl Routes {
             }
             return Ok(coded("Method not allowed", "method_not_allowed", 405, None));
         }
-        let id = crate::sources::decode_uri_component(&path["/api/shares/".len()..]).ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
+        let id = crate::sources::decode_uri_component(&path["/api/shares/".len()..])
+            .ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
         let share = if test(js_re!(r"^[a-f0-9]{32}$"), &id) { rl.store().share_by_id(&id).await? } else { None };
-        let Some(share) = share.filter(|s| s.site == site.id) else { return Ok(coded("Unknown share", "unknown_share", 404, None)) };
+        let Some(share) = share.filter(|s| s.site == site.id) else {
+            return Ok(coded("Unknown share", "unknown_share", 404, None));
+        };
         if method == "PATCH" {
             let body = match read_json(request) {
                 Ok(b) => Value::Object(b),
@@ -640,7 +739,12 @@ impl Routes {
             }
             let scope = if body.get("scope").and_then(Value::as_str) == Some("manage") { "manage" } else { "read" };
             if scope == "manage" && site.is_empty() {
-                return Ok(coded("A token that changes settings is for one site. Pick the site.", "token_site", 400, None));
+                return Ok(coded(
+                    "A token that changes settings is for one site. Pick the site.",
+                    "token_site",
+                    400,
+                    None,
+                ));
             }
             let secret = format!("{TOKEN_PREFIX}{}", random_id(20));
             let row = TokenRow {
@@ -675,8 +779,16 @@ impl Routes {
 
     /// Answers a read for a site counted by another install by asking that install, with its token and
     /// its own id for the site, and handing back what it says.
-    pub(crate) async fn pass_through(&self, remote: &crate::runlight::Remote, path: &str, url: &Url, request: Option<&Request>) -> R {
-        let Some(mut target) = Url::parse(&format!("{}{path}", remote.url)) else { return Err(Error::Other("TypeError: Invalid URL".into())) };
+    pub(crate) async fn pass_through(
+        &self,
+        remote: &crate::runlight::Remote,
+        path: &str,
+        url: &Url,
+        request: Option<&Request>,
+    ) -> R {
+        let Some(mut target) = Url::parse(&format!("{}{path}", remote.url)) else {
+            return Err(Error::Other("TypeError: Invalid URL".into()));
+        };
         let mut params = target.search_params();
         for (k, v) in url.search_params().pairs() {
             params.append(k, v);
@@ -685,13 +797,12 @@ impl Routes {
         target.set_search_params(&params);
         // A change made from the hub goes on to the install with its JSON body; reads carry none.
         let write = request.is_some_and(|r| r.method != "GET" && r.method != "HEAD");
-        let mut init = crate::http::FetchInit::method(if write { request.map_or("GET", |r| r.method.as_str()) } else { "GET" })
-            .header("authorization", format!("Bearer {}", remote.token))
-            .timeout(if write { 30_000 } else { 120_000 });
+        let mut init =
+            crate::http::FetchInit::method(if write { request.map_or("GET", |r| r.method.as_str()) } else { "GET" })
+                .header("authorization", format!("Bearer {}", remote.token))
+                .timeout(if write { 30_000 } else { 120_000 });
         init.manual_redirect = true;
-        if write
-            && let Some(r) = request
-        {
+        if write && let Some(r) = request {
             if let Some(ct) = r.headers.get("content-type").filter(|c| !c.is_empty()) {
                 init.headers.set("content-type", &ct);
             }
@@ -701,14 +812,26 @@ impl Routes {
         let answer = match self.rl().fetcher().fetch(&target.href(), init).await {
             Ok(a) => a,
             Err(crate::http::FetchError::TimedOut) => {
-                return Ok(coded(&format!("{host} took too long to answer. Try a shorter range."), "remote_slow", 504, Some(&[("host", &host)])));
+                return Ok(coded(
+                    &format!("{host} took too long to answer. Try a shorter range."),
+                    "remote_slow",
+                    504,
+                    Some(&[("host", &host)]),
+                ));
             }
-            Err(_) => return Ok(coded(&format!("Could not reach {host}"), "unreachable", 502, Some(&[("host", &host)]))),
+            Err(_) => {
+                return Ok(coded(&format!("Could not reach {host}"), "unreachable", 502, Some(&[("host", &host)])));
+            }
         };
         // What comes back is shown from this server's origin, so it is never taken as a page.
-        let download = path == "/api/export" || (path == "/api/breakdown" && url.search_params().get("format") == Some("csv"));
+        let download =
+            path == "/api/export" || (path == "/api/breakdown" && url.search_params().get("format") == Some("csv"));
         let content_type = if download {
-            if answer.headers.get("content-type").unwrap_or_default().starts_with("text/csv") { "text/csv; charset=utf-8" } else { "application/zip" }
+            if answer.headers.get("content-type").unwrap_or_default().starts_with("text/csv") {
+                "text/csv; charset=utf-8"
+            } else {
+                "application/zip"
+            }
         } else {
             "application/json; charset=utf-8"
         };
@@ -718,8 +841,12 @@ impl Routes {
             .with("content-security-policy", "default-src 'none'; frame-ancestors 'none'")
             .with("content-type", content_type);
         if download {
-            let name = crate::re::group(js_re!(r#"filename="([A-Za-z0-9._-]+)""#), &answer.headers.get("content-disposition").unwrap_or_default(), 1)
-                .unwrap_or_else(|| "runlight-export".into());
+            let name = crate::re::group(
+                js_re!(r#"filename="([A-Za-z0-9._-]+)""#),
+                &answer.headers.get("content-disposition").unwrap_or_default(),
+                1,
+            )
+            .unwrap_or_else(|| "runlight-export".into());
             back.set("content-disposition", &format!("attachment; filename=\"{name}\""));
         }
         if (300..400).contains(&answer.status) {
@@ -768,10 +895,13 @@ impl Routes {
 /// Rows of objects as CSV, with a column for every key the first row has, in the units a spreadsheet reads.
 pub(crate) fn rows_csv(rows: &[Value], timezone: &str, interval: Option<&str>, dimension: Option<&str>) -> String {
     let readable: Vec<js::Object> = rows.iter().map(|r| sheet_row(r, timezone, interval, dimension)).collect();
-    let header: Vec<String> = readable.first().map_or_else(|| vec!["value".to_string()], |r| r.keys().map(str::to_string).collect());
+    let header: Vec<String> =
+        readable.first().map_or_else(|| vec!["value".to_string()], |r| r.keys().map(str::to_string).collect());
     let header_refs: Vec<&str> = header.iter().map(String::as_str).collect();
-    let body: Vec<Vec<String>> =
-        readable.iter().map(|r| header.iter().map(|k| r.get(k).map_or_else(String::new, crate::zip::cell)).collect()).collect();
+    let body: Vec<Vec<String>> = readable
+        .iter()
+        .map(|r| header.iter().map(|k| r.get(k).map_or_else(String::new, crate::zip::cell)).collect())
+        .collect();
     crate::zip::csv(&header_refs, &body)
 }
 
@@ -784,12 +914,20 @@ pub(crate) fn sheet_row(row: &Value, timezone: &str, interval: Option<&str>, dim
         match (key, value) {
             ("start", Value::Number(n)) => {
                 let ts = *n as i64;
-                let hour = if interval == Some("hour") { format!(" {:02}:00", local_weekday_hour(ts, timezone).1) } else { String::new() };
+                let hour = if interval == Some("hour") {
+                    format!(" {:02}:00", local_weekday_hour(ts, timezone).1)
+                } else {
+                    String::new()
+                };
                 out.set("date", format!("{}{hour}", local_date(ts, timezone)));
             }
             ("bounceRate", Value::Number(n)) => out.set("bounceRatePercent", js::round(n * 1000.0) / 10.0),
-            ("visitDuration" | "timeOnPage", Value::Number(n)) => out.set(format!("{key}Seconds"), js::round(n / 1000.0)),
-            ("value", Value::String(s)) if dimension.is_some_and(|d| ["page", "entry", "exit", "ai_page"].contains(&d)) => {
+            ("visitDuration" | "timeOnPage", Value::Number(n)) => {
+                out.set(format!("{key}Seconds"), js::round(n / 1000.0))
+            }
+            ("value", Value::String(s))
+                if dimension.is_some_and(|d| ["page", "entry", "exit", "ai_page"].contains(&d)) =>
+            {
                 out.set("value", crate::sources::readable_path(s))
             }
             _ => out.set(key, value.clone()),

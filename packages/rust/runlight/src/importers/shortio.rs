@@ -116,6 +116,10 @@ impl Importer for Shortio {
                                 Some(Value::Number(n)) => *n,
                                 x => parse_value(x),
                             };
+                            // A point whose date cannot be read is left out, not the link.
+                            if !ms.is_finite() || ms.abs() > 8.64e15 {
+                                continue;
+                            }
                             let day = js::head16(&iso_string(ms)?, 10);
                             out.push(crate::obj! { "day" => day, "clicks" => y.cloned().unwrap_or(Value::Null) });
                         }
