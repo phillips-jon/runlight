@@ -496,4 +496,34 @@ defmodule Runlight.PureTest do
       end
     end
   end
+
+  # The pictographs are a spelled-out class, since OTP 27's PCRE has no \p{Extended_Pictographic}.
+  test "thanks, with or without pictographs, gets a short reply; a question does not" do
+    for text <- [
+          "Thanks!",
+          "thank you",
+          "Thanks!! \u{1F64F}",
+          "ok",
+          "Great, thanks.",
+          "\u{1F44D}",
+          "\u{2764}\u{FE0F}",
+          "merci beaucoup",
+          "Danke schön!",
+          "valeu"
+        ] do
+      assert Runlight.Assistant.acknowledgement(text, "en"), text
+    end
+
+    for text <- [
+          "Thanks, and what about last week?",
+          "What was my bounce rate?",
+          "ok so which pages?",
+          "great results?",
+          "\u{1F44D}?"
+        ] do
+      refute Runlight.Assistant.acknowledgement(text, "en"), text
+    end
+
+    assert Runlight.Assistant.acknowledgement("merci", "fr") =~ "plaisir"
+  end
 end
