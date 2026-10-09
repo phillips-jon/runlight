@@ -318,14 +318,19 @@ public final class JdbcDb implements Db {
     ResultSetMetaData meta = result.getMetaData();
     int columns = meta.getColumnCount();
     String[] names = new String[columns];
+    boolean[] bools = new boolean[columns];
     for (int c = 0; c < columns; c++) {
       names[c] = meta.getColumnLabel(c + 1);
+      // A Postgres boolean stays a boolean, as pg gives it; a MySQL TINYINT(1), which the driver
+      // reads as a boolean, is a number, as mysql2 gives it.
+      bools[c] = "bool".equalsIgnoreCase(meta.getColumnTypeName(c + 1));
     }
     List<Map<String, Object>> rows = new ArrayList<>();
     while (result.next()) {
       Map<String, Object> row = new LinkedHashMap<>();
       for (int c = 0; c < columns; c++) {
-        row.put(names[c], value(result.getObject(c + 1)));
+        Object raw = result.getObject(c + 1);
+        row.put(names[c], bools[c] && raw instanceof Boolean ? raw : value(raw));
       }
       rows.add(row);
     }
