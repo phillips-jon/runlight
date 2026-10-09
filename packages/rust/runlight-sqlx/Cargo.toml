@@ -34,6 +34,10 @@ runlight = { workspace = true, features = ["axum"] }
 # TLS, as the CI and local test servers have it. An app picks its own.
 sqlx = { version = "0.9", default-features = false, features = ["mysql-rsa"] }
 tokio = { version = "1.44", features = ["full"] }
+# The conformance runner: the normalizer's lookbehinds, and the TOTP codes steps send.
+fancy-regex = "0.14"
+hmac = "0.12"
+sha1 = "0.10"
 
 [package.metadata.docs.rs]
 all-features = true
