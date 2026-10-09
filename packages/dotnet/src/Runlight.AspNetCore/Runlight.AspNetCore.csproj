@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Runlight.AspNetCore</RootNamespace>
+    <AssemblyName>Runlight.AspNetCore</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <PackageId>Runlight.AspNetCore</PackageId>
+    <Description>Runlight on ASP.NET Core: MapRunlight serves the dashboard, the tracker, and short links from your app.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Runlight/Runlight.csproj" />
+  </ItemGroup>
+</Project>

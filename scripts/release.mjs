@@ -29,7 +29,8 @@ import { addMarkdownChangelog, addReadmeChangelog, addRootChangelog, today } fro
 /**
  * Every place the release version lives. Each pattern captures
  * (before)(version)(after); a pattern with the g flag moves every match in
- * its file, and must match at least once.
+ * its file, and must match at least once. A row with `form: "minor"` holds
+ * the version as "X.Y", the way an install line names it.
  */
 export const VERSIONED = [
   { file: "packages/sdk/package.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
@@ -83,6 +84,29 @@ export const VERSIONED = [
   // scripts/elixir-assets.mts writes from the SDK's VERSION.
   { file: "packages/elixir/mix.exs", pattern: /^(\s*@version ")([^"]+)(")/m },
   { file: "packages/elixir/priv/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
+  // The Java build: <revision> in the parent POM alone holds its version,
+  // and the flatten plugin writes it into every POM that is published.
+  // build.json, which scripts/java-assets.mts writes from the SDK's VERSION,
+  // is what the library reports as its own.
+  { file: "packages/java/pom.xml", pattern: /^(\s*<revision>)([^<]+)(<\/revision>)/m },
+  { file: "packages/java/runlight/src/main/resources/sh/runlight/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
+  // The .NET packages: Directory.Build.props alone holds their version, and
+  // build.json, which scripts/dotnet-assets.mts writes from the SDK's VERSION.
+  { file: "packages/dotnet/Directory.Build.props", pattern: /^(\s*<Version>)([^<]+)(<\/Version>)/m },
+  { file: "packages/dotnet/src/Runlight/Assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
+  // The Rust crates take their version from [workspace.package], and
+  // runlight-sqlx requires runlight at exactly that release through
+  // [workspace.dependencies]. VERSION is what the crate reports about
+  // itself, and build.json is written by scripts/rust-assets.mts from the
+  // SDK's VERSION. Cargo.lock is not committed.
+  { file: "packages/rust/Cargo.toml", pattern: /^(version = ")([^"]+)(")/m },
+  { file: "packages/rust/Cargo.toml", pattern: /^(runlight = \{ path = "runlight", version = "=)([^"]+)(")/m },
+  { file: "packages/rust/runlight/src/version.rs", pattern: /^(pub const VERSION: &str = ")([^"]+)(")/m },
+  { file: "packages/rust/runlight/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
+  // The install lines name a minor ("0.1" in Cargo admits 0.1.x, "1.0"
+  // every 1.x), so a copied line installs this release or a later
+  // compatible one.
+  ...["packages/rust/README.md", "site/docs/rust.md"].map((file) => ({ file, pattern: /^(runlight(?:-sqlx)? = \{ version = ")([^"]+)(")/gm, form: "minor" })),
 ];
 
 /** Folders with no version in any file, and why. */
@@ -134,6 +158,11 @@ export const PUBLISH = [
   // package needs no tag of its own. .github/workflows/hex.yml publishes it
   // from the release tag.
   { dir: "packages/elixir", commands: (v) => [`# packages/elixir: the pushed tag v${v} is published to Hex as runlight, with its docs, by .github/workflows/hex.yml (once HEX_ENABLED is true); by hand, (cd packages/elixir && mix hex.publish)`] },
+  // Maven Central, nuget.org, and crates.io each read a release from what
+  // their tools upload, so these need no tags of their own.
+  { dir: "packages/java", commands: (v) => [`# packages/java: the pushed tag v${v} is built, signed, and published to Maven Central as sh.runlight:runlight, runlight-servlet, and runlight-spring-boot-starter by .github/workflows/maven.yml (once MAVEN_ENABLED is true)`] },
+  { dir: "packages/dotnet", commands: (v) => [`# packages/dotnet: the pushed tag v${v} is packed and published to nuget.org as Runlight, Runlight.AspNetCore, and Runlight.Server, in that order, by .github/workflows/nuget.yml, with trusted publishing (once NUGET_ENABLED is true)`] },
+  { dir: "packages/rust", commands: (v) => [`# packages/rust: the pushed tag v${v} is published to crates.io as runlight, then runlight-sqlx, by .github/workflows/crates.yml, with trusted publishing (once CRATES_ENABLED is true); the first release by hand, (cd packages/rust && cargo publish --workspace)`] },
   { dir: "plugins/wordpress", commands: (v) => [`# plugins/wordpress: the pushed tag v${v} gets a GitHub release with its CHANGELOG.md section as notes and the plugin's zip attached as runlight-${v}.zip and runlight.zip, by .github/workflows/release.yml (once RELEASE_ENABLED is true)`] },
   { dir: "plugins/drupal", commands: (v) => [`# plugins/drupal: the pushed tag is split to drupal.org's repository as the tag ${v} on the branch ${v.split(".").slice(0, 2).join(".")}.x by .github/workflows/php-plugins-split.yml (once DRUPAL_SPLIT_ENABLED is true); then make the drupal.org release from the ${v} tag`] },
   { dir: "plugins/craft", commands: (v) => [`# plugins/craft: the pushed tag v${v} is split to phillips-jon/runlight-craft, which Packagist and the Craft Plugin Store read, by .github/workflows/php-plugins-split.yml (once CRAFT_SPLIT_ENABLED is true)`] },
@@ -146,7 +175,7 @@ export const UNPUBLISHED = {
 };
 
 /** Files the steps regenerate, reported by --dry-run. */
-const REGENERATED = ["package-lock.json", "packages/php/assets/build.json, packages/python/src/runlight/assets/build.json, packages/ruby/assets/build.json, packages/go/internal/assets/build.json, and packages/elixir/priv/assets/build.json (written again from the SDK's VERSION, the same as the edits above)"];
+const REGENERATED = ["package-lock.json", "packages/php/assets/build.json, packages/python/src/runlight/assets/build.json, packages/ruby/assets/build.json, packages/go/internal/assets/build.json, packages/elixir/priv/assets/build.json, packages/java/runlight/src/main/resources/sh/runlight/assets/build.json, packages/dotnet/src/Runlight/Assets/build.json, and packages/rust/runlight/assets/build.json (written again from the SDK's VERSION, the same as the edits above)"];
 
 const ROOT = process.cwd();
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
@@ -230,19 +259,30 @@ export function tableProblems(root = ROOT) {
   return problems;
 }
 
+/** "X.Y" of a version: what an install line's requirement names. */
+export function minorOf(version) {
+  const [, major, minor] = SEMVER.exec(version);
+  return `${major}.${minor}`;
+}
+
 /**
  * The edits to make, one per file, after checking every row holds the
  * current version. Throws when a row has no match or holds another version.
  */
 export function planEdits(rows, readFile, current, next) {
+  const prerelease = (v) => SEMVER.exec(v)[4] !== undefined;
   const edits = new Map();
-  for (const { file, pattern } of rows) {
+  for (const { file, pattern, form } of rows) {
+    // An install line names the newest stable minor: a prerelease leaves it
+    // alone, and while the current version is one it may name any.
+    const expected = form === "minor" ? (prerelease(current) ? null : minorOf(current)) : current;
+    const value = form === "minor" ? (prerelease(next) ? null : minorOf(next)) : next;
     const before = edits.get(file)?.after ?? readFile(file);
     const matches = pattern.global ? [...before.matchAll(pattern)] : [pattern.exec(before)].filter(Boolean);
     if (matches.length === 0) throw new Error(`${file}: no match for ${pattern}; update VERSIONED in scripts/release.mjs`);
-    for (const match of matches) if (match[2] !== current) throw new Error(`${file} says ${match[2]}, not ${current}; bring it in step first`);
-    const after = before.replace(pattern, (_, head, _version, tail) => `${head}${next}${tail}`);
-    const lines = matches.map((match) => [match[0], `${match[1]}${next}${match[3]}`]);
+    for (const match of matches) if (expected !== null && match[2] !== expected) throw new Error(`${file} says ${match[2]}, not ${expected}; bring it in step first`);
+    const after = before.replace(pattern, (_, head, version, tail) => `${head}${value ?? version}${tail}`);
+    const lines = matches.map((match) => [match[0], `${match[1]}${value ?? match[2]}${match[3]}`]);
     edits.set(file, { before: edits.get(file)?.before ?? before, after, lines: [...(edits.get(file)?.lines ?? []), ...lines] });
   }
   return edits;
@@ -258,7 +298,11 @@ const NOT_THE_RELEASE = [
   ...["packages/elixir/README.md", "site/docs/elixir.md"].map((file) => ({ file, line: /\{:runlight, ">= 0\.0\.0"\}/ })),
 ];
 
-/** Tracked files, outside the table and the regenerated ones, that still mention the old version. */
+/**
+ * Tracked files, outside the table and the regenerated ones, that still
+ * mention the old version, or name its minor the way a Cargo install line
+ * does (`runlight = { version = "X.Y" }`).
+ */
 function strays(current) {
   const skip = new Set([...VERSIONED.map((row) => row.file), ...MARKDOWN_CHANGELOGS, ROOT_CHANGELOG, "package-lock.json", "scripts/release.mjs", "scripts/release.test.mjs"]);
   let found = [];
@@ -269,6 +313,11 @@ function strays(current) {
     const escaped = current.replace(/\./g, "\\.");
     found = git("grep", "-n", "-I", "-P", `(?<![.\\d])${escaped}(?![.\\d])`, "--", ".", ":!package-lock.json", ":!**/go.sum").split("\n");
   } catch {}
+  try {
+    const minor = minorOf(current).replace(".", "\\.");
+    found.push(...git("grep", "-n", "-I", "-E", `runlight(-sqlx)? = (\\{ version = )?"${minor}"`, "--", ".").split("\n"));
+  } catch {}
+  found = [...new Set(found)];
   const known = (line) => {
     const [file, , ...rest] = line.split(":");
     return NOT_THE_RELEASE.some((row) => row.file === file && row.line.test(rest.join(":")));
@@ -353,6 +402,9 @@ function main() {
     ["Write packages/ruby/assets", npm, ["run", "ruby-assets"]],
     ["Write packages/go/internal/assets", npm, ["run", "go-assets"]],
     ["Write packages/elixir/priv/assets", npm, ["run", "elixir-assets"]],
+    ["Write packages/java/runlight/src/main/resources/sh/runlight/assets", npm, ["run", "java-assets"]],
+    ["Write packages/dotnet/src/Runlight/Assets", npm, ["run", "dotnet-assets"]],
+    ["Write packages/rust/runlight/assets", npm, ["run", "rust-assets"]],
     ["Check", npm, ["run", "check"]],
     ["Build", npm, ["run", "build"]],
     ["Pack, install and load the npm packages", npm, ["run", "check:packages"]],

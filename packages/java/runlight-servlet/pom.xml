@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  sh.runlight:runlight-servlet, Runlight in a Jakarta servlet container
+  (Servlet 6.0 or newer: Tomcat 10.1, Jetty 12, Undertow 2.3, any Jakarta EE
+  10 or 11 server). The servlet API is provided, as the container brings it;
+  Jetty and SQLite are the tests' alone.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>sh.runlight</groupId>
+    <artifactId>runlight-parent</artifactId>
+    <version>${revision}</version>
+  </parent>
+
+  <artifactId>runlight-servlet</artifactId>
+  <packaging>jar</packaging>
+
+  <name>Runlight for servlet containers</name>
+  <description>Runlight's dashboard, API, and tracker as a Jakarta servlet, with a filter for short links, link domains, and AI agent fetches, for Tomcat, Jetty, Undertow, and any Jakarta EE 10 or 11 server.</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>sh.runlight</groupId>
+      <artifactId>runlight</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.servlet</groupId>
+      <artifactId>jakarta.servlet-api</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.junit.platform</groupId>
+      <artifactId>junit-platform-launcher</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jetty.ee10</groupId>
+      <artifactId>jetty-ee10-servlet</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.xerial</groupId>
+      <artifactId>sqlite-jdbc</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

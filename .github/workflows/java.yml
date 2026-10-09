@@ -1,0 +1,94 @@
+# Every push and pull request: the Java port (packages/java) on the oldest JDK
+# it supports and the newer long-term and current ones, against SQLite,
+# Postgres, and MySQL or MariaDB, with Error Prone, the formatting check, and
+# checks that its copies of the dashboard, the tracker, and Node's Intl data
+# are current.
+name: Java
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  java:
+    name: java (JDK ${{ matrix.java }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - java: "21"
+            mysql: public.ecr.aws/docker/library/mysql:8.4
+            mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
+            newest: false
+          - java: "25"
+            mysql: public.ecr.aws/docker/library/mariadb:11.4
+            mysql-health: healthcheck.sh --connect --innodb_initialized
+            newest: false
+          - java: "27"
+            mysql: public.ecr.aws/docker/library/mysql:8.4
+            mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
+            newest: true
+    services:
+      postgres:
+        image: public.ecr.aws/docker/library/postgres:16
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: runlight
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: ${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: pw
+          MARIADB_ROOT_PASSWORD: pw
+          MYSQL_DATABASE: runlight
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "${{ matrix.mysql-health }}" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RUNLIGHT_TEST_PG: postgres://postgres:pw@127.0.0.1:5432/runlight
+      RUNLIGHT_TEST_MYSQL: mysql://root:pw@127.0.0.1:3306/runlight
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: The dashboard and tracker are the SDK's
+        run: node --import tsx scripts/java-assets.mts --check
+      - name: The Intl data is Node's
+        run: node --import tsx scripts/java-intl.mts --check
+      - name: The collation pairs are Node's
+        run: node --import tsx scripts/java-collation.mts --check
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.m2/wrapper
+          key: maven-jdk${{ matrix.java }}-${{ hashFiles('packages/java/**/pom.xml', 'packages/java/.mvn/wrapper/maven-wrapper.properties') }}
+          restore-keys: maven-jdk${{ matrix.java }}-
+      - name: ./mvnw verify
+        working-directory: packages/java
+        run: ./mvnw -B verify
+      # The starter's Spring is the app's own, so it is tested on the oldest Boot it supports too.
+      - name: The starter on Spring Boot 3.5.0
+        if: matrix.java == '21'
+        working-directory: packages/java
+        run: ./mvnw -B verify -pl runlight-spring-boot-starter -am -Dspring-boot.version=3.5.0 -Dtest='sh.runlight.spring.**' -Dsurefire.failIfNoSpecifiedTests=false
+      - name: The formatting
+        if: matrix.newest
+        working-directory: packages/java
+        run: ./mvnw -B spotless:check

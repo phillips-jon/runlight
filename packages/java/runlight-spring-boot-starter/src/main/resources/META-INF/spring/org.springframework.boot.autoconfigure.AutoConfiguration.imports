@@ -1,0 +1,2 @@
+sh.runlight.spring.RunlightAutoConfiguration
+sh.runlight.spring.RunlightWebAutoConfiguration
