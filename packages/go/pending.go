@@ -12,43 +12,6 @@ import (
 
 var errPending = errors.New("not ported yet")
 
-// AccountsWeb is the sign-in accounts' pages and APIs.
-type AccountsWeb struct{}
-
-// FirstAccount says who may make the first account.
-type FirstAccount struct {
-	Mode  string
-	Token string
-}
-
-// AccountsWebOptions configure the accounts.
-type AccountsWebOptions struct {
-	Runlight     *Runlight
-	Secret       string
-	Base         string
-	Now          func() int64
-	FirstAccount FirstAccount
-	Home         func(context.Context) string
-	Forgot       string
-}
-
-// NewAccountsWeb makes the accounts.
-func NewAccountsWeb(options AccountsWebOptions) *AccountsWeb { return &AccountsWeb{} }
-
-// Access is what a request may do.
-func (a *AccountsWeb) Access(ctx context.Context, request *Request) Access { return AccessNone }
-
-// Handle answers the accounts' own paths, nil for others.
-func (a *AccountsWeb) Handle(ctx context.Context, request *Request, path string) (*Response, error) {
-	return nil, nil
-}
-
-// AccountOf is the account a request comes from.
-func (a *AccountsWeb) AccountOf(ctx context.Context, request *Request) string { return "" }
-
-// TokenMade notes who made a token.
-func (a *AccountsWeb) TokenMade(ctx context.Context, token TokenRow, by string) bool { return true }
-
 type oauthHost struct {
 	r         *Runlight
 	base      string

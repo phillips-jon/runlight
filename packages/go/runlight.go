@@ -1082,6 +1082,19 @@ func (r *Runlight) prune(fn func(ctx context.Context) error) {
 	}()
 }
 
+// later runs work after the answer, such as an email a right password
+// should not wait for; Idle waits for it.
+func (r *Runlight) later(fn func(ctx context.Context)) {
+	r.pruneWG.Add(1)
+	go func() {
+		defer r.pruneWG.Done()
+		fn(context.Background())
+	}()
+}
+
+// errURIMalformed is what decodeURIComponent throws for a broken escape.
+var errURIMalformed = errors.New("URIError: URI malformed")
+
 // Idle waits for retention work still running; the scheduled check and tests wait for it.
 func (r *Runlight) Idle() { r.pruneWG.Wait() }
 
