@@ -68,20 +68,8 @@ type Error struct {
 
 func (e *Error) Error() string { return e.Message }
 
-// TypeError is what JavaScript throws reading a property of null, which the
-// TypeScript lets through; the routes answer it as any other failure.
-type TypeError struct{ Message string }
-
-func (e *TypeError) Error() string { return e.Message }
-
-// readNull is the TypeError for reading key of null.
-func readNull(key string) error {
-	return &TypeError{"Cannot read properties of null (reading '" + key + "')"}
-}
-
 // get is v[key] as JavaScript reads it from a JSON value: undefined where v
-// is not an object or has no such key. Reading from null is the caller's to
-// refuse, since JavaScript throws there.
+// is not an object or has no such key.
 func get(v any, key string) any {
 	if o, ok := v.(*js.Object); ok {
 		if value, ok := o.Get(key); ok {
@@ -274,9 +262,6 @@ var Tools = []Tool{
 		InputSchema: js.NewObject("type", "object", "properties", properties(true, false)),
 		Request:     read("/api/rhythm", rangeKeys, nil),
 		Shape: func(body any) (any, error) {
-			if body == nil {
-				return nil, readNull("site")
-			}
 			return js.NewObject(
 				"site", get(body, "site"),
 				"range", get(body, "range"),
@@ -388,17 +373,16 @@ func CallTool(ctx context.Context, params any, readAPI APIRead) (*Result, error)
 	if err != nil {
 		body = &js.Object{}
 	}
+	// Any body that is not an object (null included) carries no words of its own.
+	_, object := body.(*js.Object)
 	if !answer.OK() {
-		if body == nil {
-			return nil, readNull("error")
-		}
 		text := get(body, "error")
 		if absent(text) {
 			text = "Runlight answered " + js.FormatNumber(float64(answer.Status))
 		}
 		return &Result{Content: []Content{{"text", js.String(text)}}, IsError: true}, nil
 	}
-	if tool.Shape != nil {
+	if tool.Shape != nil && object {
 		if body, err = tool.Shape(body); err != nil {
 			return nil, err
 		}
@@ -414,18 +398,23 @@ func rpcError(id any, code int, message string) *js.Object {
 }
 
 // answer is the answer to one message, or nil for a notification.
-func answer(ctx context.Context, message any, readAPI APIRead) (*js.Object, error) {
-	if message == nil {
-		return nil, readNull("id")
+func answer(ctx context.Context, message any, readAPI APIRead) *js.Object {
+	// A batch element that is not an object is an invalid request, answered with a null id.
+	if _, ok := message.(*js.Object); !ok {
+		return rpcError(nil, -32600, "Invalid request")
 	}
 	id := get(message, "id")
 	_, isNotification := id.(js.Undefined)
 	method, ok := get(message, "method").(string)
 	if get(message, "jsonrpc") != "2.0" || !ok {
 		if isNotification {
-			return nil, nil
+			return nil
 		}
-		return rpcError(id, -32600, "Invalid request"), nil
+		return rpcError(id, -32600, "Invalid request")
+	}
+	// A notification is never answered, so it never runs anything either.
+	if isNotification {
+		return nil
 	}
 	params := get(message, "params")
 	if !isObject(params) {
@@ -463,68 +452,43 @@ func answer(ctx context.Context, message any, readAPI APIRead) (*js.Object, erro
 	case "tools/call":
 		result, err = CallTool(ctx, params, readAPI)
 	default:
-		if isNotification {
-			return nil, nil
-		}
-		return rpcError(id, -32601, `Unknown method "`+method+`"`), nil
+		return rpcError(id, -32601, `Unknown method "`+method+`"`)
 	}
 	if err != nil {
-		if isNotification {
-			return nil, nil
-		}
 		var own *Error
 		if errors.As(err, &own) {
-			return rpcError(id, own.Code, own.Message), nil
+			return rpcError(id, own.Code, own.Message)
 		}
-		return rpcError(id, -32603, "Internal error"), nil
+		return rpcError(id, -32603, "Internal error")
 	}
-	if isNotification {
-		return nil, nil
-	}
-	return js.NewObject("jsonrpc", "2.0", "id", id, "result", result), nil
+	return js.NewObject("jsonrpc", "2.0", "id", id, "result", result)
 }
 
-// MCPResponse answers one POST to the MCP endpoint, already authorised. It
-// fails only where the TypeScript throws: a batch holding null.
-func MCPResponse(ctx context.Context, request *web.Request, readAPI APIRead) (*web.Response, error) {
+// MCPResponse answers one POST to the MCP endpoint, already authorised.
+func MCPResponse(ctx context.Context, request *web.Request, readAPI APIRead) *web.Response {
 	headers := []string{"content-type", "application/json; charset=utf-8", "cache-control", "no-store"}
 	body, err := request.JSON()
 	if err != nil || !isObject(body) {
-		return web.NewResponse(400, []byte(js.Stringify(rpcError(nil, -32700, "Send a JSON-RPC message"))), headers...), nil
+		return web.NewResponse(400, []byte(js.Stringify(rpcError(nil, -32700, "Send a JSON-RPC message"))), headers...)
 	}
 	// Batches were in the 2025-03-26 protocol; answering them costs nothing.
 	if batch, ok := body.([]any); ok {
 		answers := []any{}
-		var failed error
 		for _, m := range batch {
-			one, err := answer(ctx, m, readAPI)
-			if err != nil {
-				// Promise.all rejects with the first failure, once every message has been read.
-				if failed == nil {
-					failed = err
-				}
-				continue
-			}
-			if one != nil {
+			if one := answer(ctx, m, readAPI); one != nil {
 				answers = append(answers, one)
 			}
 		}
-		if failed != nil {
-			return nil, failed
-		}
 		if len(answers) == 0 {
-			return web.NewResponse(202, nil), nil
+			return web.NewResponse(202, nil)
 		}
-		return web.NewResponse(200, []byte(js.Stringify(answers)), headers...), nil
+		return web.NewResponse(200, []byte(js.Stringify(answers)), headers...)
 	}
-	one, err := answer(ctx, body, readAPI)
-	if err != nil {
-		return nil, err
-	}
+	one := answer(ctx, body, readAPI)
 	if one == nil {
-		return web.NewResponse(202, nil), nil
+		return web.NewResponse(202, nil)
 	}
-	return web.NewResponse(200, []byte(js.Stringify(one)), headers...), nil
+	return web.NewResponse(200, []byte(js.Stringify(one)), headers...)
 }
 
 // encodeURIComponent is JavaScript's: every byte of the UTF-8 percent-encoded

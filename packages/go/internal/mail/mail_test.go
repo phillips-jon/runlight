@@ -296,7 +296,7 @@ func TestEveryServiceSendsTheTypeScriptRequestsExactly(t *testing.T) {
 			t.Errorf("%s error\n got %s\nwant %s", label, got, want)
 		}
 	}
-	if len(cases) != 56 {
+	if len(cases) != 64 {
 		t.Fatalf("%d mail cases", len(cases))
 	}
 }
@@ -386,9 +386,23 @@ func TestCheckConfigAndBadInput(t *testing.T) {
 			t.Error(url, "passed")
 		}
 	}
-	// btoa refuses a character past U+00FF, as it does in TypeScript.
-	err := Send(context.Background(), capture(200), Config{"service": "mailjet", "apiKey": "kĀ", "secretKey": "s"}, message)
-	if err == nil || err.Error() != "Invalid character" {
+	// Basic auth sends the UTF-8 bytes of a key past U+00FF too.
+	if err := Send(context.Background(), capture(200), Config{"service": "mailjet", "apiKey": "kĀ", "secretKey": "s"}, message); err != nil {
 		t.Fatal(err)
+	}
+	for _, port := range []string{"0o17", "0b11", "0x19", " 25 ", "2.5e1"} {
+		if err := CheckConfig(Config{"service": "smtp", "host": "h", "port": port, "security": "none"}); err != nil {
+			t.Error(port, err)
+		}
+	}
+	for _, port := range []string{"0", "70000", "65536", "1.5", "abc", "Infinity", "-25", "0o9"} {
+		if err := CheckConfig(Config{"service": "smtp", "host": "h", "port": port, "security": "none"}); err == nil || err.(*MailError).Code != "mail_port" {
+			t.Error(port, err)
+		}
+	}
+	for _, url := range []string{"https://", "https://["} {
+		if err := CheckConfig(Config{"service": "webhook", "url": url}); err == nil || err.(*MailError).Code != "mail_url" {
+			t.Error(url, err)
+		}
 	}
 }

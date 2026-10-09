@@ -45,24 +45,32 @@ var (
 	relSplit = regexp.MustCompile(`[\t\n\v\f\r \x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}]+`)
 )
 
-var attrPatterns sync.Map
+// jsSpace is JavaScript's \s.
+const jsSpace = `\t\n\v\f\r \x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff}`
 
-func attr(tag, name string) string {
-	p, ok := attrPatterns.Load(name)
-	if !ok {
-		p = regexp.MustCompile(`(?i)\b` + name + `[\t\n\v\f\r ]*=[\t\n\v\f\r ]*("([^"]*)"|'([^']*)'|([^\t\n\v\f\r >]+))`)
-		attrPatterns.Store(name, p)
-	}
-	m := p.(*regexp.Regexp).FindStringSubmatch(tag)
-	if m == nil {
-		return ""
-	}
-	for _, v := range m[2:] {
-		if v != "" {
-			return jsTrim(v)
+var linkAttr = regexp.MustCompile(`([^` + jsSpace + `"'>/=]+)(?:[` + jsSpace + `]*=[` + jsSpace + `]*(?:"([^"]*)"|'([^']*)'|([^` + jsSpace + `>]+)))?`)
+
+// attrs are a tag's attributes, read one after another so a name inside
+// another (data-rel) or inside a value (title="rel=icon") is never taken for
+// one. The first of a repeated name counts, as in a browser.
+func attrs(tag string) map[string]string {
+	out := map[string]string{}
+	rest := tag[len("<link"):]
+	for _, m := range linkAttr.FindAllStringSubmatchIndex(rest, -1) {
+		name := lower(rest[m[2]:m[3]])
+		if _, ok := out[name]; ok {
+			continue
 		}
+		value := ""
+		for g := 2; g <= 4; g++ {
+			if m[2*g] >= 0 {
+				value = rest[m[2*g]:m[2*g+1]]
+				break
+			}
+		}
+		out[name] = jsTrim(value)
 	}
-	return ""
+	return out
 }
 
 // IconLinks are the icon URLs a page links to, best first:
@@ -74,8 +82,9 @@ func IconLinks(html, base string) []string {
 	}
 	list := []found{}
 	for _, tag := range linkTag.FindAllString(html, -1) {
-		rel := relSplit.Split(lower(attr(tag, "rel")), -1)
-		href := attr(tag, "href")
+		attributes := attrs(tag)
+		rel := relSplit.Split(lower(attributes["rel"]), -1)
+		href := attributes["href"]
 		if href == "" || !(contains(rel, "icon") || contains(rel, "apple-touch-icon")) {
 			continue
 		}
@@ -88,7 +97,7 @@ func IconLinks(html, base string) []string {
 		if !strings.HasPrefix(url, "https://") {
 			continue
 		}
-		kind := lower(attr(tag, "type"))
+		kind := lower(attributes["type"])
 		score := 0
 		switch {
 		case contains(rel, "apple-touch-icon"):

@@ -142,19 +142,11 @@ func inTime(ctx context.Context, deadline int64, now clock) error {
 	return nil
 }
 
-// TypeError is what JavaScript throws where the TypeScript reads a property
-// of null or calls a list method on something else, which it lets through.
+// TypeError is what JavaScript throws where the TypeScript lets one through,
+// as new URL() does on a base address it cannot parse.
 type TypeError struct{ Message string }
 
 func (e *TypeError) Error() string { return e.Message }
-
-func readOf(v any, key string) error {
-	what := "undefined"
-	if v == nil {
-		what = "null"
-	}
-	return &TypeError{"Cannot read properties of " + what + " (reading '" + key + "')"}
-}
 
 // get is v[key] as JavaScript reads it from a JSON value: undefined where v
 // is not an object or has no such key.
@@ -182,6 +174,42 @@ func isObject(v any) bool {
 		return true
 	}
 	return false
+}
+
+// unreadable is a service that answered, but not in its protocol's shape.
+func unreadable(url string) error {
+	h, err := host(url)
+	if err != nil {
+		return err
+	}
+	message := h + " sent an answer Runlight could not read"
+	return fail(message, "assistant_failed", "host", h, "detail", message)
+}
+
+// isPlainObject is whether v is a JSON object, not null and not an array.
+func isPlainObject(v any) bool {
+	_, ok := v.(*js.Object)
+	return ok
+}
+
+// allObjects is whether every value in list is a JSON object.
+func allObjects(list []any) bool {
+	for _, v := range list {
+		if !isPlainObject(v) {
+			return false
+		}
+	}
+	return true
+}
+
+// allFunctions is whether every tool call has an object for its function.
+func allFunctions(calls []any) bool {
+	for _, call := range calls {
+		if !isPlainObject(get(call, "function")) {
+			return false
+		}
+	}
+	return true
 }
 
 func host(url string) (string, error) {
@@ -328,7 +356,7 @@ func providerOf(id string) *Provider {
 // asks, through fetcher. now is the clock in milliseconds (nil for the wall
 // clock); ctx ending is the person leaving, checked before each request and
 // tool. It fails with an *Error, or a *TypeError where the TypeScript throws
-// one on an answer it cannot read.
+// one on a base address it cannot parse.
 func Chat(ctx context.Context, fetcher web.Fetcher, settings Settings, messages []ChatMessage, chatContext ChatContext, readAPI mcp.APIRead, now func() int64) (*ChatResult, error) {
 	if now == nil {
 		now = func() int64 { return time.Now().UnixMilli() }
@@ -400,14 +428,11 @@ func Chat(ctx context.Context, fetcher web.Fetcher, settings Settings, messages 
 				content = []any{}
 			}
 			blocks, ok := content.([]any)
-			if !ok {
-				return nil, &TypeError{"blocks.filter is not a function"}
+			if !ok || !allObjects(blocks) {
+				return nil, unreadable(base)
 			}
 			var calls []any
 			for _, b := range blocks {
-				if b == nil {
-					return nil, readOf(b, "type")
-				}
 				if get(b, "type") == "tool_use" {
 					calls = append(calls, b)
 				}
@@ -482,8 +507,8 @@ func Chat(ctx context.Context, fetcher web.Fetcher, settings Settings, messages 
 			return &ChatResult{Reply: js.Trim(js.String(content)), Tools: used}, nil
 		}
 		calls, ok := given.([]any)
-		if !ok {
-			return nil, &TypeError{"message.tool_calls is not iterable"}
+		if !ok || !allObjects(calls) || !allFunctions(calls) {
+			return nil, unreadable(base)
 		}
 		if _, undefined := content.(js.Undefined); undefined {
 			content = nil
@@ -493,13 +518,7 @@ func Chat(ctx context.Context, fetcher web.Fetcher, settings Settings, messages 
 			if err := inTime(ctx, deadline, now); err != nil {
 				return nil, err
 			}
-			if call == nil {
-				return nil, readOf(call, "function")
-			}
 			function := get(call, "function")
-			if absent(function) {
-				return nil, readOf(function, "name")
-			}
 			name := get(function, "name")
 			if _, undefined := name.(js.Undefined); undefined {
 				used = append(used, nil)
@@ -595,12 +614,12 @@ func ListModels(ctx context.Context, fetcher web.Fetcher, settings Settings) ([]
 	}
 	list, ok := listed.([]any)
 	if !ok {
-		return nil, &TypeError{"data.data.filter is not a function"}
+		return nil, unreadable(base)
 	}
 	models := []Model{}
 	for _, m := range list {
-		if m == nil {
-			return nil, readOf(m, "id")
+		if !isPlainObject(m) {
+			continue
 		}
 		id, ok := get(m, "id").(string)
 		if !ok || id == "" {

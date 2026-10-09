@@ -377,5 +377,5 @@ func (rt *Routes) mcp(c *call, u *whatwg.URL) (*Response, error) {
 		return refused, nil
 	}
 	// Each tool reads the HTTP API with the caller's own headers, so it sees what they may.
-	return mcp.MCPResponse(c.ctx, c.req, rt.innerRead(c, u, ""))
+	return mcp.MCPResponse(c.ctx, c.req, rt.innerRead(c, u, "")), nil
 }

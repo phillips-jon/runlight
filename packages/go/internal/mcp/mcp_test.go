@@ -80,18 +80,7 @@ func TestJSONRPCAnswersMatch(t *testing.T) {
 		}
 		var log []any
 		request := web.NewRequest("POST", "https://example.com/runlight/mcp", nil, body)
-		answer, err := MCPResponse(context.Background(), request, FakeAPI(t, &log))
-		if js.Obj(c).Has("throws") {
-			var typeError *TypeError
-			if !errors.As(err, &typeError) {
-				t.Errorf("%s: want a TypeError, got %v", body, err)
-			}
-			continue
-		}
-		if err != nil {
-			t.Errorf("%s: %v", body, err)
-			continue
-		}
+		answer := MCPResponse(context.Background(), request, FakeAPI(t, &log))
 		if want := int(js.Num(js.Dig(c, "status"))); answer.Status != want {
 			t.Errorf("%s: status %d, want %d", body, answer.Status, want)
 		}
@@ -112,11 +101,7 @@ func TestJSONRPCAnswersMatch(t *testing.T) {
 func rpc(t *testing.T, text string) *web.Response {
 	t.Helper()
 	var log []any
-	answer, err := MCPResponse(context.Background(), web.NewRequest("POST", "https://x.com/mcp", nil, []byte(text)), FakeAPI(t, &log))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return answer
+	return MCPResponse(context.Background(), web.NewRequest("POST", "https://x.com/mcp", nil, []byte(text)), FakeAPI(t, &log))
 }
 
 func TestToolsAreListedReadOnlyInOrder(t *testing.T) {
@@ -167,29 +152,25 @@ func TestInitializeAnswersTheAskedVersionOrTheNewest(t *testing.T) {
 
 func TestAFailedReadIsAnInternalError(t *testing.T) {
 	failing := func(context.Context, string, Params) (*web.Response, error) { return nil, errors.New("store down") }
-	answer, err := MCPResponse(context.Background(), web.NewRequest("POST", "https://x.com/mcp", nil, []byte(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_sites"}}`)), failing)
-	if err != nil {
-		t.Fatal(err)
-	}
+	answer := MCPResponse(context.Background(), web.NewRequest("POST", "https://x.com/mcp", nil, []byte(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_sites"}}`)), failing)
 	if want := `{"jsonrpc":"2.0","id":1,"error":{"code":-32603,"message":"Internal error"}}`; answer.Text() != want {
 		t.Errorf("got %s", answer.Text())
 	}
 }
 
-func TestANullAnswerIsReadAsJavaScriptReadsIt(t *testing.T) {
+func TestABodyThatIsNotAnObjectIsReadAsNoWords(t *testing.T) {
 	null := func(context.Context, string, Params) (*web.Response, error) {
 		return web.NewResponse(500, []byte("null")), nil
 	}
-	_, err := CallTool(context.Background(), js.NewObject("name", "list_sites"), null)
-	var typeError *TypeError
-	if !errors.As(err, &typeError) || typeError.Message != "Cannot read properties of null (reading 'error')" {
-		t.Errorf("got %v", err)
+	result, err := CallTool(context.Background(), js.NewObject("name", "list_sites"), null)
+	if err != nil || !result.IsError || result.Content[0].Text != "Runlight answered 500" {
+		t.Errorf("got %+v, %v", result, err)
 	}
 	ok := func(context.Context, string, Params) (*web.Response, error) {
 		return web.NewResponse(200, []byte("null")), nil
 	}
-	_, err = CallTool(context.Background(), js.NewObject("name", "get_visit_times"), ok)
-	if !errors.As(err, &typeError) || typeError.Message != "Cannot read properties of null (reading 'site')" {
-		t.Errorf("got %v", err)
+	result, err = CallTool(context.Background(), js.NewObject("name", "get_visit_times"), ok)
+	if err != nil || result.IsError || result.Content[0].Text != "null" {
+		t.Errorf("got %+v, %v", result, err)
 	}
 }

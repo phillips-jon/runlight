@@ -9,27 +9,14 @@ import (
 	"runlight.sh/go/internal/js"
 )
 
-// These stand in for the browser globals the TypeScript reaches for: btoa,
-// atob, encodeURIComponent, and decodeURIComponent, with the same answers
-// and the same failures.
+// These stand in for the browser globals the TypeScript reaches for: atob,
+// encodeURIComponent, and decodeURIComponent, with the same answers and the
+// same failures.
 
 var (
 	errInvalidCharacter = errors.New("Invalid character")
 	errURIMalformed     = errors.New("URI malformed")
 )
-
-// btoa is base64 of text read as Latin-1, refusing a character past U+00FF
-// as the browser's does.
-func btoa(text string) (string, error) {
-	b := make([]byte, 0, len(text))
-	for _, u := range js.Units(text) {
-		if u > 0xff {
-			return "", errInvalidCharacter
-		}
-		b = append(b, byte(u))
-	}
-	return base64.StdEncoding.EncodeToString(b), nil
-}
 
 // atob is forgiving-base64 decode: ASCII whitespace dropped, padding
 // optional, and bits past the last whole byte ignored.

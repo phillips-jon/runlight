@@ -8,8 +8,10 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/hex"
 	"errors"
+	"math"
 	"slices"
 	"strings"
 	"time"
@@ -237,9 +239,9 @@ func jsonHeaders(pairs ...string) *web.Headers {
 	return web.NewHeaders(append([]string{"content-type", "application/json"}, pairs...)...)
 }
 
-func basic(user, pass string) (string, error) {
-	b, err := btoa(user + ":" + pass)
-	return "Basic " + b, err
+// basic is Basic auth over the UTF-8 bytes, so a key with any character is sent.
+func basic(user, pass string) string {
+	return "Basic " + base64.StdEncoding.EncodeToString([]byte(js.WellFormed(user+":"+pass)))
 }
 
 func hmacHex(secret, body string) string {
@@ -267,6 +269,14 @@ func CheckConfig(config Config) error {
 	}
 	if config["service"] == "webhook" && !strings.HasPrefix(config["url"], "https://") && !localWebhook(config["url"]) {
 		return mailError("The webhook URL must use https", "mail_https")
+	}
+	if config["service"] == "webhook" && !whatwg.CanParse(config["url"]) {
+		return mailError("Enter the webhook's whole URL, like https://example.com/hooks/mail", "mail_url")
+	}
+	// A port a socket can connect to, read with Number() as the SMTP client reads it.
+	port := js.Number(config["port"])
+	if config["service"] == "smtp" && !(port == math.Trunc(port) && port >= 1 && port <= 65535) {
+		return mailError("The port must be a whole number from 1 to 65535", "mail_port")
 	}
 	return nil
 }
@@ -399,20 +409,14 @@ func SendWith(ctx context.Context, fetcher web.Fetcher, config Config, m Message
 		if err != nil {
 			return err
 		}
-		auth, err := basic("api", config["apiKey"])
-		if err != nil {
-			return err
-		}
+		auth := basic("api", config["apiKey"])
 		return post(ctx, fetcher, "https://"+host+"/v3/"+domain+"/messages",
 			web.NewHeaders("authorization", auth, "content-type", "application/x-www-form-urlencoded"), form.String(), true)
 	case "brevo":
 		return post(ctx, fetcher, "https://api.brevo.com/v3/smtp/email", jsonHeaders("api-key", config["apiKey"], "accept", "application/json"),
 			js.Stringify(js.NewObject("sender", sender(m, "email", "name"), "to", []any{js.NewObject("email", m.To)}, "subject", m.Subject, "htmlContent", m.HTML, "textContent", m.Text, "headers", headers)), true)
 	case "mailjet":
-		auth, err := basic(config["apiKey"], config["secretKey"])
-		if err != nil {
-			return err
-		}
+		auth := basic(config["apiKey"], config["secretKey"])
 		return post(ctx, fetcher, "https://api.mailjet.com/v3.1/send", jsonHeaders("authorization", auth),
 			js.Stringify(js.NewObject(
 				"Messages", []any{js.NewObject("From", sender(m, "Email", "Name"), "To", []any{js.NewObject("Email", m.To)}, "Subject", m.Subject, "TextPart", m.Text, "HTMLPart", m.HTML, "Headers", headers)},

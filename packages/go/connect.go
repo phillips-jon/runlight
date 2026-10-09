@@ -34,10 +34,29 @@ func connectError(message, code string, params ...string) error {
 // installURL is the install's address as its dashboard is, without a trailing slash.
 func installURL(value any) (string, error) {
 	url := strings.TrimRight(jsTrim(stringOf(value)), "/")
-	if !connectURL.MatchString(url) {
+	// The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
+	if !connectURL.MatchString(url) || !whatwg.CanParse(url) {
 		return "", connectError("Enter the install's address, like https://example.com/runlight", "url")
 	}
 	return url, nil
+}
+
+// pendingFrom is a saved attempt, or nil when it cannot be read or has no
+// time it runs out, which counts as expired.
+func pendingFrom(value string, now int64) *js.Object {
+	parsed, err := js.Parse(value)
+	if err != nil {
+		return nil
+	}
+	pending, ok := parsed.(*js.Object)
+	if !ok {
+		return nil
+	}
+	expires, ok := pending.Value("expires").(float64)
+	if !ok || expires < float64(now) {
+		return nil
+	}
+	return pending
 }
 
 // clearExpired removes attempts nobody came back from, so they do not pile up in settings.
@@ -47,12 +66,7 @@ func clearExpired(ctx context.Context, r *Runlight) error {
 		return err
 	}
 	for _, s := range settings {
-		parsed, err := js.Parse(s.Value)
-		if err != nil {
-			return err
-		}
-		expires := js.Num(js.Dig(parsed, "expires"))
-		if expires == 0 || expires < float64(r.now()) {
+		if pendingFrom(s.Value, r.now()) == nil {
 			if err := r.Store.SetSetting(ctx, s.Key, nil); err != nil {
 				return err
 			}
@@ -159,14 +173,11 @@ func FinishConnect(ctx context.Context, r *Runlight, params *whatwg.SearchParams
 			return "", err
 		}
 	}
-	var pending any
+	var pending *js.Object
 	if has && stored != "" {
-		var err error
-		if pending, err = js.Parse(stored); err != nil {
-			return "", err
-		}
+		pending = pendingFrom(stored, r.now())
 	}
-	if pending == nil || js.Num(js.Dig(pending, "expires")) < float64(r.now()) {
+	if pending == nil {
 		return "", connectError("That connection took too long or was already used. Start again.", "expired")
 	}
 	if e, _ := params.Get("error"); e == "access_denied" {

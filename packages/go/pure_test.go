@@ -363,3 +363,34 @@ func TestGeo(t *testing.T) {
 		}
 	}
 }
+
+func TestNamesLikeObjectPropertiesAreJustNames(t *testing.T) {
+	for _, source := range []string{"constructor", "toString", "__proto__", "hasOwnProperty"} {
+		_, err := ImportStep(t.Context(), nil, "default", source, nil, nil, 0)
+		if e, ok := err.(*ImportError); !ok || e.Code != "import_source" {
+			t.Errorf("%s: %v", source, err)
+		}
+	}
+	same(t, "browsers", []any{browserName("constructor"), browserName("__proto__"), browserName("toString")}, []any{"Constructor", "__proto__", "ToString"})
+	same(t, "devices", []any{deviceName("constructor"), deviceName("valueOf")}, []any{"", ""})
+}
+
+func TestConnectAddressesAndAttempts(t *testing.T) {
+	for _, url := range []string{"https://[", "https://[::1", "https://a b"} {
+		if _, err := installURL(url); err == nil {
+			t.Errorf("%s passed", url)
+		}
+	}
+	if url, err := installURL("https://example.com/runlight/"); err != nil || url != "https://example.com/runlight" {
+		t.Error(url, err)
+	}
+	// An attempt counts only as a JSON object with a numeric expiry at or after now.
+	for _, value := range []string{"", "null", "5", "not json", "[]", `{"url":"x"}`, `{"expires":"9999999999999"}`, `{"expires":999}`} {
+		if pendingFrom(value, 1000) != nil {
+			t.Errorf("%s counted", value)
+		}
+	}
+	if pendingFrom(`{"expires":1000}`, 1000) == nil {
+		t.Error("an attempt at its expiry did not count")
+	}
+}
