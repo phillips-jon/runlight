@@ -2,7 +2,7 @@
 title: Rust
 description: Runlight runs inside a Rust service on tokio, behind axum, hyper, or any server that takes a tower service, with its tables in the app's own database through sqlx.
 group: Platforms
-order: 15
+order: 14.97
 ---
 
 The Rust crate is Runlight written again in Rust. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so either one can read a database the other wrote. It needs Rust 1.88 or later and runs on tokio. The store comes from a second crate, `runlight-sqlx`, which needs Rust 1.94 for sqlx 0.9.
