@@ -1,0 +1,75 @@
+# The Python package (packages/python), on the oldest Python it supports and the
+# newest, against SQLite, Postgres, and one of MySQL and MariaDB each. The assets
+# it serves are checked against the TypeScript SDK's generated files first, the
+# conformance scenarios replay on every database, and the wheel is built,
+# installed into an empty virtualenv, and imported from outside the project.
+name: Python
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python: "3.11"
+            mysql: mysql:8.4
+            mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
+          - python: "3.14"
+            mysql: mariadb:11.4
+            mysql-health: healthcheck.sh --connect --innodb_initialized
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: runlight
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: ${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: pw
+          MARIADB_ROOT_PASSWORD: pw
+          MYSQL_DATABASE: runlight
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "${{ matrix.mysql-health }}" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RUNLIGHT_TEST_PG: postgres://postgres:pw@127.0.0.1:5432/runlight
+      RUNLIGHT_TEST_MYSQL: mysql://root:pw@127.0.0.1:3306/runlight
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node scripts/check-dashes.mjs
+      - name: The assets match the TypeScript SDK's
+        run: node --import tsx scripts/python-assets.mts --check
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv run --python ${{ matrix.python }} pytest
+        working-directory: packages/python
+      # Build the wheel, install it into an empty virtualenv and use it from a
+      # directory outside the project, as an app would.
+      - name: Build, install and import the package
+        working-directory: packages/python
+        run: |
+          dir="$(mktemp -d)"
+          uv build --out-dir "$dir/dist"
+          uv venv --python ${{ matrix.python }} "$dir/venv"
+          VIRTUAL_ENV="$dir/venv" uv pip install "$dir"/dist/*.whl
+          cd "$dir"
+          venv/bin/python -c "import runlight; from runlight.store import Stores; rl = runlight.Runlight(store=Stores.sqlite(':memory:'), site={'name': 'example.com', 'hostnames': ['example.com']}); print(rl.routes(token='t').handle(runlight.Request('https://example.com/runlight/s.js')).status)"

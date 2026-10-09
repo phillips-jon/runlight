@@ -1,5 +1,5 @@
 {
-  "name": "runlight/drupal",
+  "name": "drupal/runlight",
   "description": "Counts visitors with Runlight: privacy friendly analytics with no cookies, kept in your own database.",
   "type": "drupal-module",
   "license": "GPL-2.0-or-later",

@@ -31,7 +31,6 @@ final class Umami implements Importer
     /**
      * Signs in to an Umami: an API key, or a username and password (stock
      * self-hosted Umami has no API keys). A token from an earlier step is reused.
-     * A token the sign-in did not give is Undefined, as TS's `login.token` is then.
      *
      * @param array<string, string> $credentials
      * @return array{base: string, token: mixed}
@@ -54,7 +53,12 @@ final class Umami implements Importer
             'headers' => ['content-type' => 'application/json'],
             'body' => Json::encode(['username' => $credentials['username'], 'password' => $credentials['password']]),
         ]);
-        return ['base' => $base, 'token' => Http::field($login, 'token')];
+        // A sign-in that answers without a token was refused, whatever its status.
+        $token = Http::field($login, 'token');
+        if (!is_string($token) || $token === '') {
+            throw new ImportError('The key or sign-in was refused', 'import_refused');
+        }
+        return ['base' => $base, 'token' => $token];
     }
 
     public function step(array $credentials, ?string $cursor, callable $known): array
@@ -122,8 +126,11 @@ final class Umami implements Importer
                 'clicks' => $clicks,
             ];
         }
-        $more = $state['page'] * self::PAGE < $list['count'] && count($list['data']) > 0;
+        // Without a count there is no total, and a full page may have more after it.
+        $count = Http::field($list, 'count');
+        $count = is_int($count) || (is_float($count) && is_finite($count)) ? $count : null;
+        $more = $count === null ? count($list['data']) === self::PAGE : $state['page'] * self::PAGE < $count && count($list['data']) > 0;
         $next = $key !== '' ? ['page' => $state['page'] + 1] : ['page' => $state['page'] + 1, 'token' => $state['token']];
-        return ['cursor' => $more ? Json::encode($next) : null, 'total' => $list['count'], 'links' => $links];
+        return ['cursor' => $more ? Json::encode($next) : null, 'total' => $count, 'links' => $links];
     }
 }

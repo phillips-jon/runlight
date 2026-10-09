@@ -1,0 +1,11406 @@
+{
+ "description": "Intl.NumberFormat, DateTimeFormat, and DisplayNames as reports.ts uses them, from Node's ICU.",
+ "node": "v24.14.1",
+ "cases": [
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "0",
+   "out": "0"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "0",
+   "out": "0%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "0",
+   "out": "0.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1",
+   "out": "1"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1",
+   "out": "100%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1",
+   "out": "1.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "-1",
+   "out": "-1"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "-1",
+   "out": "-100%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "-1",
+   "out": "-1.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "7",
+   "out": "7"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "7",
+   "out": "700%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "7",
+   "out": "7.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "12",
+   "out": "12"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "12",
+   "out": "1,200%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "12",
+   "out": "12.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "999",
+   "out": "999"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "999",
+   "out": "99,900%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "999",
+   "out": "999.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1000",
+   "out": "1,000"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1000",
+   "out": "100,000%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1000",
+   "out": "1,000.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1234",
+   "out": "1,234"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1234",
+   "out": "123,400%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1234",
+   "out": "1,234.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "12345",
+   "out": "12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "12345",
+   "out": "1,234,500%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "12345",
+   "out": "12,345.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "123456",
+   "out": "123,456"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "123456",
+   "out": "12,345,600%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "123456",
+   "out": "123,456.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1234567",
+   "out": "1,234,567"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1234567",
+   "out": "123,456,700%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1234567",
+   "out": "1,234,567.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "-1234567",
+   "out": "-1,234,567"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "-1234567",
+   "out": "-123,456,700%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "-1234567",
+   "out": "-1,234,567.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "0.5",
+   "out": "0.5"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "0.5",
+   "out": "50%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "0.5",
+   "out": "0.5"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1.5",
+   "out": "1.5"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1.5",
+   "out": "150%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1.5",
+   "out": "1.5"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "2.5",
+   "out": "2.5"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "2.5",
+   "out": "250%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "2.5",
+   "out": "2.5"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "-2.5",
+   "out": "-2.5"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "-2.5",
+   "out": "-250%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "-2.5",
+   "out": "-2.5"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "0.05",
+   "out": "0.05"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "0.05",
+   "out": "5%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "0.05",
+   "out": "0.1"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "2.05",
+   "out": "2.05"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "2.05",
+   "out": "205%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "2.05",
+   "out": "2.1"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1.005",
+   "out": "1.005"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1.005",
+   "out": "101%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1.005",
+   "out": "1.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "0.135",
+   "out": "0.135"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "0.135",
+   "out": "14%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "0.135",
+   "out": "0.1"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "0.30000000000000004",
+   "out": "0.3"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "0.30000000000000004",
+   "out": "30%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "0.30000000000000004",
+   "out": "0.3"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1e+21",
+   "out": "1,000,000,000,000,000,000,000"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1e+21",
+   "out": "100,000,000,000,000,000,000,000%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1e+21",
+   "out": "1,000,000,000,000,000,000,000.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1e-7",
+   "out": "0"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1e-7",
+   "out": "0%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1e-7",
+   "out": "0.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "123.456789",
+   "out": "123.457"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "123.456789",
+   "out": "12,346%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "123.456789",
+   "out": "123.5"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "9999.95",
+   "out": "9,999.95"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "9999.95",
+   "out": "999,995%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "9999.95",
+   "out": "10,000.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "99999.95",
+   "out": "99,999.95"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "99999.95",
+   "out": "9,999,995%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "99999.95",
+   "out": "100,000.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "0.0001",
+   "out": "0"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "0.0001",
+   "out": "0%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "0.0001",
+   "out": "0.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "3.14159",
+   "out": "3.142"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "3.14159",
+   "out": "314%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "3.14159",
+   "out": "3.1"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "-0.4",
+   "out": "-0.4"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "-0.4",
+   "out": "-40%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "-0.4",
+   "out": "-0.4"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "NaN",
+   "out": "NaN%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "Infinity",
+   "out": "∞%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "-Infinity",
+   "out": "-∞%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "0.3333333333333333",
+   "out": "0.333"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "0.3333333333333333",
+   "out": "33%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "0.3333333333333333",
+   "out": "0.3"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "0.6666666666666666",
+   "out": "0.667"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "0.6666666666666666",
+   "out": "67%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "0.6666666666666666",
+   "out": "0.7"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "0.995",
+   "out": "0.995"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "0.995",
+   "out": "100%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "0.995",
+   "out": "1.0"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1.45",
+   "out": "1.45"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1.45",
+   "out": "145%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1.45",
+   "out": "1.5"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "1.55",
+   "out": "1.55"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "1.55",
+   "out": "155%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "1.55",
+   "out": "1.6"
+  },
+  {
+   "lang": "en",
+   "kind": "number",
+   "n": "12.345",
+   "out": "12.345"
+  },
+  {
+   "lang": "en",
+   "kind": "percent",
+   "n": "12.345",
+   "out": "1,235%"
+  },
+  {
+   "lang": "en",
+   "kind": "decimal",
+   "n": "12.345",
+   "out": "12.3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "USD",
+   "out": "$0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "USD",
+   "out": "$1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "USD",
+   "out": "$1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "USD",
+   "out": "$12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "USD",
+   "out": "-$3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "USD",
+   "out": "$0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "USD",
+   "out": "$0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "USD",
+   "out": "$1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "USD",
+   "out": "$19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "USD",
+   "out": "$1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "EUR",
+   "out": "€0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "EUR",
+   "out": "€1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "EUR",
+   "out": "€1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "EUR",
+   "out": "€12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "EUR",
+   "out": "-€3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "EUR",
+   "out": "€0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "EUR",
+   "out": "€0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "EUR",
+   "out": "€1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "EUR",
+   "out": "€19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "EUR",
+   "out": "€1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "GBP",
+   "out": "£0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "GBP",
+   "out": "£1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "GBP",
+   "out": "£1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "GBP",
+   "out": "£12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "GBP",
+   "out": "-£3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "GBP",
+   "out": "£0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "GBP",
+   "out": "£0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "GBP",
+   "out": "£1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "GBP",
+   "out": "£19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "GBP",
+   "out": "£1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "JPY",
+   "out": "¥0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "JPY",
+   "out": "¥1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "JPY",
+   "out": "¥1,234.5"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "JPY",
+   "out": "¥12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "JPY",
+   "out": "-¥3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "JPY",
+   "out": "¥0.5"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "JPY",
+   "out": "¥0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "JPY",
+   "out": "¥1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "JPY",
+   "out": "¥19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "JPY",
+   "out": "¥1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CHF",
+   "out": "CHF 0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CHF",
+   "out": "CHF 1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CHF",
+   "out": "CHF 1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CHF",
+   "out": "CHF 12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CHF",
+   "out": "-CHF 3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CHF",
+   "out": "CHF 0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CHF",
+   "out": "CHF 0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CHF",
+   "out": "CHF 1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CHF",
+   "out": "CHF 19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CHF",
+   "out": "CHF 1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "BRL",
+   "out": "R$0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "BRL",
+   "out": "R$1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "BRL",
+   "out": "R$1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "BRL",
+   "out": "R$12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "BRL",
+   "out": "-R$3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "BRL",
+   "out": "R$0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "BRL",
+   "out": "R$0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "BRL",
+   "out": "R$1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "BRL",
+   "out": "R$19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "BRL",
+   "out": "R$1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "KWD",
+   "out": "KWD 0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "KWD",
+   "out": "KWD 1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "KWD",
+   "out": "KWD 1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "KWD",
+   "out": "KWD 12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "KWD",
+   "out": "-KWD 3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "KWD",
+   "out": "KWD 0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "KWD",
+   "out": "KWD 0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "KWD",
+   "out": "KWD 1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "KWD",
+   "out": "KWD 19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "KWD",
+   "out": "KWD 1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CLF",
+   "out": "CLF 0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CLF",
+   "out": "CLF 1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CLF",
+   "out": "CLF 1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CLF",
+   "out": "CLF 12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CLF",
+   "out": "-CLF 3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CLF",
+   "out": "CLF 0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CLF",
+   "out": "CLF 0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CLF",
+   "out": "CLF 1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CLF",
+   "out": "CLF 19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CLF",
+   "out": "CLF 1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "XYZ",
+   "out": "XYZ 0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "XYZ",
+   "out": "XYZ 1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "XYZ",
+   "out": "XYZ 1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "XYZ",
+   "out": "XYZ 12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "XYZ",
+   "out": "-XYZ 3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "XYZ",
+   "out": "XYZ 0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "XYZ",
+   "out": "XYZ 0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "XYZ",
+   "out": "XYZ 1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "XYZ",
+   "out": "XYZ 19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "XYZ",
+   "out": "XYZ 1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "usd",
+   "out": "$0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "usd",
+   "out": "$1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "usd",
+   "out": "$1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "usd",
+   "out": "$12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "usd",
+   "out": "-$3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "usd",
+   "out": "$0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "usd",
+   "out": "$0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "usd",
+   "out": "$1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "usd",
+   "out": "$19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "usd",
+   "out": "$1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "DEM",
+   "out": "DEM 0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "DEM",
+   "out": "DEM 1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "DEM",
+   "out": "DEM 1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "DEM",
+   "out": "DEM 12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "DEM",
+   "out": "-DEM 3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "DEM",
+   "out": "DEM 0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "DEM",
+   "out": "DEM 0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "DEM",
+   "out": "DEM 1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "DEM",
+   "out": "DEM 19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "DEM",
+   "out": "DEM 1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "INR",
+   "out": "₹0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "INR",
+   "out": "₹1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "INR",
+   "out": "₹1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "INR",
+   "out": "₹12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "INR",
+   "out": "-₹3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "INR",
+   "out": "₹0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "INR",
+   "out": "₹0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "INR",
+   "out": "₹1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "INR",
+   "out": "₹19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "INR",
+   "out": "₹1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CAD",
+   "out": "CA$0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CAD",
+   "out": "CA$1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CAD",
+   "out": "CA$1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CAD",
+   "out": "CA$12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CAD",
+   "out": "-CA$3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CAD",
+   "out": "CA$0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CAD",
+   "out": "CA$0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CAD",
+   "out": "CA$1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CAD",
+   "out": "CA$19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CAD",
+   "out": "CA$1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "AUD",
+   "out": "A$0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "AUD",
+   "out": "A$1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "AUD",
+   "out": "A$1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "AUD",
+   "out": "A$12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "AUD",
+   "out": "-A$3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "AUD",
+   "out": "A$0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "AUD",
+   "out": "A$0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "AUD",
+   "out": "A$1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "AUD",
+   "out": "A$19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "AUD",
+   "out": "A$1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "MXN",
+   "out": "MX$0"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "MXN",
+   "out": "MX$1"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "MXN",
+   "out": "MX$1,234.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "MXN",
+   "out": "MX$12,345"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "MXN",
+   "out": "-MX$3"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "MXN",
+   "out": "MX$0.50"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "MXN",
+   "out": "MX$0.13"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "MXN",
+   "out": "MX$1,234,567.89"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "MXN",
+   "out": "MX$19.99"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "MXN",
+   "out": "MX$1.01"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ab",
+   "out": "0 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ab",
+   "out": "1 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ab",
+   "out": "1234.5 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ab",
+   "out": "12345 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ab",
+   "out": "-3 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ab",
+   "out": "0.5 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ab",
+   "out": "0.125 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ab",
+   "out": "1234567.891 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ab",
+   "out": "19.99 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ab",
+   "out": "1.005 ab"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ABCD",
+   "out": "0 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ABCD",
+   "out": "1 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ABCD",
+   "out": "1234.5 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ABCD",
+   "out": "12345 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ABCD",
+   "out": "-3 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ABCD",
+   "out": "0.5 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ABCD",
+   "out": "0.125 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ABCD",
+   "out": "1234567.891 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ABCD",
+   "out": "19.99 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ABCD",
+   "out": "1.005 ABCD"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0",
+   "currency": "€",
+   "out": "0 €"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1",
+   "currency": "€",
+   "out": "1 €"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "€",
+   "out": "1234.5 €"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "€",
+   "out": "12345 €"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "€",
+   "out": "-3 €"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "€",
+   "out": "0.5 €"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "€",
+   "out": "0.125 €"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "€",
+   "out": "1234567.891 €"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "€",
+   "out": "19.99 €"
+  },
+  {
+   "lang": "en",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "€",
+   "out": "1.005 €"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-01-05",
+   "out": "January 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-01-05",
+   "out": "Jan 5"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-01-05",
+   "out": "Jan 5, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-02-28",
+   "out": "February 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-02-28",
+   "out": "Feb 28"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-02-28",
+   "out": "Feb 28, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-03-01",
+   "out": "March 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-03-01",
+   "out": "Mar 1"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-03-01",
+   "out": "Mar 1, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-05-31",
+   "out": "May 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-05-31",
+   "out": "May 31"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-05-31",
+   "out": "May 31, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-06-15",
+   "out": "June 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-06-15",
+   "out": "Jun 15"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-06-15",
+   "out": "Jun 15, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-07-04",
+   "out": "July 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-07-04",
+   "out": "Jul 4"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-07-04",
+   "out": "Jul 4, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-08-09",
+   "out": "August 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-08-09",
+   "out": "Aug 9"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-08-09",
+   "out": "Aug 9, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-09-30",
+   "out": "September 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-09-30",
+   "out": "Sep 30"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-09-30",
+   "out": "Sep 30, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-10-10",
+   "out": "October 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-10-10",
+   "out": "Oct 10"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-10-10",
+   "out": "Oct 10, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-11-11",
+   "out": "November 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-11-11",
+   "out": "Nov 11"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-11-11",
+   "out": "Nov 11, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "2026-12-25",
+   "out": "December 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "2026-12-25",
+   "out": "Dec 25"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "2026-12-25",
+   "out": "Dec 25, 2026"
+  },
+  {
+   "lang": "en",
+   "kind": "monthYear",
+   "date": "1999-04-01",
+   "out": "April 1999"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDay",
+   "date": "1999-04-01",
+   "out": "Apr 1"
+  },
+  {
+   "lang": "en",
+   "kind": "shortDayYear",
+   "date": "1999-04-01",
+   "out": "Apr 1, 1999"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "US",
+   "out": "United States"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "GB",
+   "out": "United Kingdom"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "DE",
+   "out": "Germany"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "FR",
+   "out": "France"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "BR",
+   "out": "Brazil"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "JP",
+   "out": "Japan"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "XK",
+   "out": "Kosovo"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "ZZ",
+   "out": "Unknown Region"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "419",
+   "out": "Latin America"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "001",
+   "out": "world"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "999",
+   "out": "999"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "us",
+   "out": "us"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "Us",
+   "out": "Us"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "",
+   "out": ""
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "USA",
+   "out": "USA"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "AA",
+   "out": "AA"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "CW",
+   "out": "Curaçao"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "HK",
+   "out": "Hong Kong SAR China"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "MK",
+   "out": "North Macedonia"
+  },
+  {
+   "lang": "en",
+   "kind": "region",
+   "code": "CI",
+   "out": "Côte d’Ivoire"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "0",
+   "out": "0"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "0",
+   "out": "0 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "0",
+   "out": "0,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1",
+   "out": "1"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1",
+   "out": "100 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1",
+   "out": "1,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "-1",
+   "out": "-1"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "-1",
+   "out": "-100 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "-1",
+   "out": "-1,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "7",
+   "out": "7"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "7",
+   "out": "700 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "7",
+   "out": "7,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "12",
+   "out": "12"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "12",
+   "out": "1.200 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "12",
+   "out": "12,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "999",
+   "out": "999"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "999",
+   "out": "99.900 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "999",
+   "out": "999,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1000",
+   "out": "1.000"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1000",
+   "out": "100.000 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1000",
+   "out": "1.000,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1234",
+   "out": "1.234"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1234",
+   "out": "123.400 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1234",
+   "out": "1.234,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "12345",
+   "out": "12.345"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "12345",
+   "out": "1.234.500 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "12345",
+   "out": "12.345,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "123456",
+   "out": "123.456"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "123456",
+   "out": "12.345.600 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "123456",
+   "out": "123.456,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1234567",
+   "out": "1.234.567"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1234567",
+   "out": "123.456.700 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1234567",
+   "out": "1.234.567,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "-1234567",
+   "out": "-1.234.567"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "-1234567",
+   "out": "-123.456.700 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "-1234567",
+   "out": "-1.234.567,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "0.5",
+   "out": "0,5"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "0.5",
+   "out": "50 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "0.5",
+   "out": "0,5"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1.5",
+   "out": "1,5"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1.5",
+   "out": "150 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1.5",
+   "out": "1,5"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "2.5",
+   "out": "2,5"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "2.5",
+   "out": "250 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "2.5",
+   "out": "2,5"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "-2.5",
+   "out": "-2,5"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "-2.5",
+   "out": "-250 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "-2.5",
+   "out": "-2,5"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "0.05",
+   "out": "0,05"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "0.05",
+   "out": "5 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "0.05",
+   "out": "0,1"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "2.05",
+   "out": "2,05"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "2.05",
+   "out": "205 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "2.05",
+   "out": "2,1"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1.005",
+   "out": "1,005"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1.005",
+   "out": "101 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1.005",
+   "out": "1,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "0.135",
+   "out": "0,135"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "0.135",
+   "out": "14 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "0.135",
+   "out": "0,1"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "0.30000000000000004",
+   "out": "0,3"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "0.30000000000000004",
+   "out": "30 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "0.30000000000000004",
+   "out": "0,3"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1e+21",
+   "out": "1.000.000.000.000.000.000.000"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1e+21",
+   "out": "100.000.000.000.000.000.000.000 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1e+21",
+   "out": "1.000.000.000.000.000.000.000,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1e-7",
+   "out": "0"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1e-7",
+   "out": "0 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1e-7",
+   "out": "0,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "123.456789",
+   "out": "123,457"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "123.456789",
+   "out": "12.346 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "123.456789",
+   "out": "123,5"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "9999.95",
+   "out": "9.999,95"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "9999.95",
+   "out": "999.995 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "9999.95",
+   "out": "10.000,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "99999.95",
+   "out": "99.999,95"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "99999.95",
+   "out": "9.999.995 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "99999.95",
+   "out": "100.000,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "0.0001",
+   "out": "0"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "0.0001",
+   "out": "0 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "0.0001",
+   "out": "0,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "3.14159",
+   "out": "3,142"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "3.14159",
+   "out": "314 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "3.14159",
+   "out": "3,1"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "-0.4",
+   "out": "-0,4"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "-0.4",
+   "out": "-40 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "-0.4",
+   "out": "-0,4"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "NaN",
+   "out": "NaN %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "Infinity",
+   "out": "∞ %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "-Infinity",
+   "out": "-∞ %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "0.3333333333333333",
+   "out": "0,333"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "0.3333333333333333",
+   "out": "33 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "0.3333333333333333",
+   "out": "0,3"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "0.6666666666666666",
+   "out": "0,667"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "0.6666666666666666",
+   "out": "67 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "0.6666666666666666",
+   "out": "0,7"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "0.995",
+   "out": "0,995"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "0.995",
+   "out": "100 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "0.995",
+   "out": "1,0"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1.45",
+   "out": "1,45"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1.45",
+   "out": "145 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1.45",
+   "out": "1,5"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "1.55",
+   "out": "1,55"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "1.55",
+   "out": "155 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "1.55",
+   "out": "1,6"
+  },
+  {
+   "lang": "de",
+   "kind": "number",
+   "n": "12.345",
+   "out": "12,345"
+  },
+  {
+   "lang": "de",
+   "kind": "percent",
+   "n": "12.345",
+   "out": "1.235 %"
+  },
+  {
+   "lang": "de",
+   "kind": "decimal",
+   "n": "12.345",
+   "out": "12,3"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "USD",
+   "out": "0 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "USD",
+   "out": "1 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "USD",
+   "out": "1.234,50 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "USD",
+   "out": "12.345 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "USD",
+   "out": "-3 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "USD",
+   "out": "0,50 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "USD",
+   "out": "0,13 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "USD",
+   "out": "1.234.567,89 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "USD",
+   "out": "19,99 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "USD",
+   "out": "1,01 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "EUR",
+   "out": "0 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "EUR",
+   "out": "1 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "EUR",
+   "out": "1.234,50 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "EUR",
+   "out": "12.345 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "EUR",
+   "out": "-3 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "EUR",
+   "out": "0,50 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "EUR",
+   "out": "0,13 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "EUR",
+   "out": "1.234.567,89 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "EUR",
+   "out": "19,99 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "EUR",
+   "out": "1,01 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "GBP",
+   "out": "0 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "GBP",
+   "out": "1 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "GBP",
+   "out": "1.234,50 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "GBP",
+   "out": "12.345 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "GBP",
+   "out": "-3 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "GBP",
+   "out": "0,50 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "GBP",
+   "out": "0,13 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "GBP",
+   "out": "1.234.567,89 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "GBP",
+   "out": "19,99 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "GBP",
+   "out": "1,01 £"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "JPY",
+   "out": "0 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "JPY",
+   "out": "1 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "JPY",
+   "out": "1.234,5 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "JPY",
+   "out": "12.345 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "JPY",
+   "out": "-3 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "JPY",
+   "out": "0,5 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "JPY",
+   "out": "0,13 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "JPY",
+   "out": "1.234.567,89 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "JPY",
+   "out": "19,99 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "JPY",
+   "out": "1,01 ¥"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CHF",
+   "out": "0 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CHF",
+   "out": "1 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CHF",
+   "out": "1.234,50 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CHF",
+   "out": "12.345 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CHF",
+   "out": "-3 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CHF",
+   "out": "0,50 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CHF",
+   "out": "0,13 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CHF",
+   "out": "1.234.567,89 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CHF",
+   "out": "19,99 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CHF",
+   "out": "1,01 CHF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "BRL",
+   "out": "0 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "BRL",
+   "out": "1 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "BRL",
+   "out": "1.234,50 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "BRL",
+   "out": "12.345 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "BRL",
+   "out": "-3 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "BRL",
+   "out": "0,50 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "BRL",
+   "out": "0,13 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "BRL",
+   "out": "1.234.567,89 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "BRL",
+   "out": "19,99 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "BRL",
+   "out": "1,01 R$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "KWD",
+   "out": "0 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "KWD",
+   "out": "1 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "KWD",
+   "out": "1.234,50 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "KWD",
+   "out": "12.345 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "KWD",
+   "out": "-3 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "KWD",
+   "out": "0,50 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "KWD",
+   "out": "0,13 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "KWD",
+   "out": "1.234.567,89 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "KWD",
+   "out": "19,99 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "KWD",
+   "out": "1,01 KWD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CLF",
+   "out": "0 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CLF",
+   "out": "1 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CLF",
+   "out": "1.234,50 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CLF",
+   "out": "12.345 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CLF",
+   "out": "-3 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CLF",
+   "out": "0,50 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CLF",
+   "out": "0,13 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CLF",
+   "out": "1.234.567,89 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CLF",
+   "out": "19,99 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CLF",
+   "out": "1,01 CLF"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "XYZ",
+   "out": "0 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "XYZ",
+   "out": "1 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "XYZ",
+   "out": "1.234,50 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "XYZ",
+   "out": "12.345 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "XYZ",
+   "out": "-3 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "XYZ",
+   "out": "0,50 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "XYZ",
+   "out": "0,13 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "XYZ",
+   "out": "1.234.567,89 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "XYZ",
+   "out": "19,99 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "XYZ",
+   "out": "1,01 XYZ"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "usd",
+   "out": "0 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "usd",
+   "out": "1 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "usd",
+   "out": "1.234,50 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "usd",
+   "out": "12.345 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "usd",
+   "out": "-3 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "usd",
+   "out": "0,50 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "usd",
+   "out": "0,13 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "usd",
+   "out": "1.234.567,89 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "usd",
+   "out": "19,99 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "usd",
+   "out": "1,01 $"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "DEM",
+   "out": "0 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "DEM",
+   "out": "1 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "DEM",
+   "out": "1.234,50 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "DEM",
+   "out": "12.345 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "DEM",
+   "out": "-3 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "DEM",
+   "out": "0,50 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "DEM",
+   "out": "0,13 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "DEM",
+   "out": "1.234.567,89 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "DEM",
+   "out": "19,99 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "DEM",
+   "out": "1,01 DM"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "INR",
+   "out": "0 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "INR",
+   "out": "1 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "INR",
+   "out": "1.234,50 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "INR",
+   "out": "12.345 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "INR",
+   "out": "-3 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "INR",
+   "out": "0,50 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "INR",
+   "out": "0,13 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "INR",
+   "out": "1.234.567,89 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "INR",
+   "out": "19,99 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "INR",
+   "out": "1,01 ₹"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CAD",
+   "out": "0 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CAD",
+   "out": "1 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CAD",
+   "out": "1.234,50 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CAD",
+   "out": "12.345 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CAD",
+   "out": "-3 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CAD",
+   "out": "0,50 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CAD",
+   "out": "0,13 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CAD",
+   "out": "1.234.567,89 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CAD",
+   "out": "19,99 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CAD",
+   "out": "1,01 CA$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "AUD",
+   "out": "0 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "AUD",
+   "out": "1 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "AUD",
+   "out": "1.234,50 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "AUD",
+   "out": "12.345 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "AUD",
+   "out": "-3 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "AUD",
+   "out": "0,50 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "AUD",
+   "out": "0,13 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "AUD",
+   "out": "1.234.567,89 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "AUD",
+   "out": "19,99 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "AUD",
+   "out": "1,01 AU$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "MXN",
+   "out": "0 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "MXN",
+   "out": "1 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "MXN",
+   "out": "1.234,50 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "MXN",
+   "out": "12.345 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "MXN",
+   "out": "-3 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "MXN",
+   "out": "0,50 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "MXN",
+   "out": "0,13 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "MXN",
+   "out": "1.234.567,89 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "MXN",
+   "out": "19,99 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "MXN",
+   "out": "1,01 MX$"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ab",
+   "out": "0 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ab",
+   "out": "1 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ab",
+   "out": "1234.5 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ab",
+   "out": "12345 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ab",
+   "out": "-3 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ab",
+   "out": "0.5 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ab",
+   "out": "0.125 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ab",
+   "out": "1234567.891 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ab",
+   "out": "19.99 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ab",
+   "out": "1.005 ab"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ABCD",
+   "out": "0 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ABCD",
+   "out": "1 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ABCD",
+   "out": "1234.5 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ABCD",
+   "out": "12345 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ABCD",
+   "out": "-3 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ABCD",
+   "out": "0.5 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ABCD",
+   "out": "0.125 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ABCD",
+   "out": "1234567.891 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ABCD",
+   "out": "19.99 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ABCD",
+   "out": "1.005 ABCD"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0",
+   "currency": "€",
+   "out": "0 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1",
+   "currency": "€",
+   "out": "1 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "€",
+   "out": "1234.5 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "€",
+   "out": "12345 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "€",
+   "out": "-3 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "€",
+   "out": "0.5 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "€",
+   "out": "0.125 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "€",
+   "out": "1234567.891 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "€",
+   "out": "19.99 €"
+  },
+  {
+   "lang": "de",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "€",
+   "out": "1.005 €"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-01-05",
+   "out": "Januar 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-01-05",
+   "out": "5. Jan."
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-01-05",
+   "out": "5. Jan. 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-02-28",
+   "out": "Februar 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-02-28",
+   "out": "28. Feb."
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-02-28",
+   "out": "28. Feb. 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-03-01",
+   "out": "März 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-03-01",
+   "out": "1. März"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-03-01",
+   "out": "1. März 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-05-31",
+   "out": "Mai 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-05-31",
+   "out": "31. Mai"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-05-31",
+   "out": "31. Mai 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-06-15",
+   "out": "Juni 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-06-15",
+   "out": "15. Juni"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-06-15",
+   "out": "15. Juni 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-07-04",
+   "out": "Juli 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-07-04",
+   "out": "4. Juli"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-07-04",
+   "out": "4. Juli 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-08-09",
+   "out": "August 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-08-09",
+   "out": "9. Aug."
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-08-09",
+   "out": "9. Aug. 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-09-30",
+   "out": "September 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-09-30",
+   "out": "30. Sept."
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-09-30",
+   "out": "30. Sept. 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-10-10",
+   "out": "Oktober 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-10-10",
+   "out": "10. Okt."
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-10-10",
+   "out": "10. Okt. 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-11-11",
+   "out": "November 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-11-11",
+   "out": "11. Nov."
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-11-11",
+   "out": "11. Nov. 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "2026-12-25",
+   "out": "Dezember 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "2026-12-25",
+   "out": "25. Dez."
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "2026-12-25",
+   "out": "25. Dez. 2026"
+  },
+  {
+   "lang": "de",
+   "kind": "monthYear",
+   "date": "1999-04-01",
+   "out": "April 1999"
+  },
+  {
+   "lang": "de",
+   "kind": "shortDay",
+   "date": "1999-04-01",
+   "out": "1. Apr."
+  },
+  {
+   "lang": "de",
+   "kind": "shortDayYear",
+   "date": "1999-04-01",
+   "out": "1. Apr. 1999"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "US",
+   "out": "Vereinigte Staaten"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "GB",
+   "out": "Vereinigtes Königreich"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "DE",
+   "out": "Deutschland"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "FR",
+   "out": "Frankreich"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "BR",
+   "out": "Brasilien"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "JP",
+   "out": "Japan"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "XK",
+   "out": "Kosovo"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "ZZ",
+   "out": "Unbekannte Region"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "419",
+   "out": "Lateinamerika"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "001",
+   "out": "Welt"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "999",
+   "out": "999"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "us",
+   "out": "us"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "Us",
+   "out": "Us"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "",
+   "out": ""
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "USA",
+   "out": "USA"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "AA",
+   "out": "AA"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "CW",
+   "out": "Curaçao"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "HK",
+   "out": "Sonderverwaltungsregion Hongkong"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "MK",
+   "out": "Nordmazedonien"
+  },
+  {
+   "lang": "de",
+   "kind": "region",
+   "code": "CI",
+   "out": "Côte d’Ivoire"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "0",
+   "out": "0"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "0",
+   "out": "0 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "0",
+   "out": "0,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1",
+   "out": "1"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1",
+   "out": "100 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1",
+   "out": "1,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "-1",
+   "out": "-1"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "-1",
+   "out": "-100 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "-1",
+   "out": "-1,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "7",
+   "out": "7"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "7",
+   "out": "700 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "7",
+   "out": "7,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "12",
+   "out": "12"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "12",
+   "out": "1200 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "12",
+   "out": "12,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "999",
+   "out": "999"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "999",
+   "out": "99.900 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "999",
+   "out": "999,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1000",
+   "out": "1000"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1000",
+   "out": "100.000 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1000",
+   "out": "1000,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1234",
+   "out": "1234"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1234",
+   "out": "123.400 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1234",
+   "out": "1234,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "12345",
+   "out": "12.345"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "12345",
+   "out": "1.234.500 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "12345",
+   "out": "12.345,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "123456",
+   "out": "123.456"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "123456",
+   "out": "12.345.600 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "123456",
+   "out": "123.456,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1234567",
+   "out": "1.234.567"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1234567",
+   "out": "123.456.700 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1234567",
+   "out": "1.234.567,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "-1234567",
+   "out": "-1.234.567"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "-1234567",
+   "out": "-123.456.700 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "-1234567",
+   "out": "-1.234.567,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "0.5",
+   "out": "0,5"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "0.5",
+   "out": "50 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "0.5",
+   "out": "0,5"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1.5",
+   "out": "1,5"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1.5",
+   "out": "150 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1.5",
+   "out": "1,5"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "2.5",
+   "out": "2,5"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "2.5",
+   "out": "250 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "2.5",
+   "out": "2,5"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "-2.5",
+   "out": "-2,5"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "-2.5",
+   "out": "-250 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "-2.5",
+   "out": "-2,5"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "0.05",
+   "out": "0,05"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "0.05",
+   "out": "5 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "0.05",
+   "out": "0,1"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "2.05",
+   "out": "2,05"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "2.05",
+   "out": "205 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "2.05",
+   "out": "2,1"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1.005",
+   "out": "1,005"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1.005",
+   "out": "101 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1.005",
+   "out": "1,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "0.135",
+   "out": "0,135"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "0.135",
+   "out": "14 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "0.135",
+   "out": "0,1"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "0.30000000000000004",
+   "out": "0,3"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "0.30000000000000004",
+   "out": "30 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "0.30000000000000004",
+   "out": "0,3"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1e+21",
+   "out": "1.000.000.000.000.000.000.000"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1e+21",
+   "out": "100.000.000.000.000.000.000.000 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1e+21",
+   "out": "1.000.000.000.000.000.000.000,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1e-7",
+   "out": "0"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1e-7",
+   "out": "0 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1e-7",
+   "out": "0,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "123.456789",
+   "out": "123,457"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "123.456789",
+   "out": "12.346 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "123.456789",
+   "out": "123,5"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "9999.95",
+   "out": "9999,95"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "9999.95",
+   "out": "999.995 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "9999.95",
+   "out": "10.000,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "99999.95",
+   "out": "99.999,95"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "99999.95",
+   "out": "9.999.995 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "99999.95",
+   "out": "100.000,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "0.0001",
+   "out": "0"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "0.0001",
+   "out": "0 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "0.0001",
+   "out": "0,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "3.14159",
+   "out": "3,142"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "3.14159",
+   "out": "314 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "3.14159",
+   "out": "3,1"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "-0.4",
+   "out": "-0,4"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "-0.4",
+   "out": "-40 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "-0.4",
+   "out": "-0,4"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "NaN",
+   "out": "NaN %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "Infinity",
+   "out": "∞ %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "-Infinity",
+   "out": "-∞ %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "0.3333333333333333",
+   "out": "0,333"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "0.3333333333333333",
+   "out": "33 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "0.3333333333333333",
+   "out": "0,3"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "0.6666666666666666",
+   "out": "0,667"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "0.6666666666666666",
+   "out": "67 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "0.6666666666666666",
+   "out": "0,7"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "0.995",
+   "out": "0,995"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "0.995",
+   "out": "100 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "0.995",
+   "out": "1,0"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1.45",
+   "out": "1,45"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1.45",
+   "out": "145 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1.45",
+   "out": "1,5"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "1.55",
+   "out": "1,55"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "1.55",
+   "out": "155 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "1.55",
+   "out": "1,6"
+  },
+  {
+   "lang": "es",
+   "kind": "number",
+   "n": "12.345",
+   "out": "12,345"
+  },
+  {
+   "lang": "es",
+   "kind": "percent",
+   "n": "12.345",
+   "out": "1235 %"
+  },
+  {
+   "lang": "es",
+   "kind": "decimal",
+   "n": "12.345",
+   "out": "12,3"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "USD",
+   "out": "0 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "USD",
+   "out": "1 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "USD",
+   "out": "1234,50 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "USD",
+   "out": "12.345 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "USD",
+   "out": "-3 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "USD",
+   "out": "0,50 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "USD",
+   "out": "0,13 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "USD",
+   "out": "1.234.567,89 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "USD",
+   "out": "19,99 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "USD",
+   "out": "1,01 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "EUR",
+   "out": "0 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "EUR",
+   "out": "1 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "EUR",
+   "out": "1234,50 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "EUR",
+   "out": "12.345 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "EUR",
+   "out": "-3 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "EUR",
+   "out": "0,50 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "EUR",
+   "out": "0,13 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "EUR",
+   "out": "1.234.567,89 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "EUR",
+   "out": "19,99 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "EUR",
+   "out": "1,01 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "GBP",
+   "out": "0 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "GBP",
+   "out": "1 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "GBP",
+   "out": "1234,50 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "GBP",
+   "out": "12.345 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "GBP",
+   "out": "-3 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "GBP",
+   "out": "0,50 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "GBP",
+   "out": "0,13 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "GBP",
+   "out": "1.234.567,89 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "GBP",
+   "out": "19,99 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "GBP",
+   "out": "1,01 GBP"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "JPY",
+   "out": "0 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "JPY",
+   "out": "1 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "JPY",
+   "out": "1234,5 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "JPY",
+   "out": "12.345 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "JPY",
+   "out": "-3 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "JPY",
+   "out": "0,5 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "JPY",
+   "out": "0,13 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "JPY",
+   "out": "1.234.567,89 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "JPY",
+   "out": "19,99 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "JPY",
+   "out": "1,01 JPY"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CHF",
+   "out": "0 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CHF",
+   "out": "1 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CHF",
+   "out": "1234,50 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CHF",
+   "out": "12.345 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CHF",
+   "out": "-3 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CHF",
+   "out": "0,50 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CHF",
+   "out": "0,13 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CHF",
+   "out": "1.234.567,89 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CHF",
+   "out": "19,99 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CHF",
+   "out": "1,01 CHF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "BRL",
+   "out": "0 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "BRL",
+   "out": "1 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "BRL",
+   "out": "1234,50 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "BRL",
+   "out": "12.345 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "BRL",
+   "out": "-3 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "BRL",
+   "out": "0,50 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "BRL",
+   "out": "0,13 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "BRL",
+   "out": "1.234.567,89 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "BRL",
+   "out": "19,99 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "BRL",
+   "out": "1,01 BRL"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "KWD",
+   "out": "0 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "KWD",
+   "out": "1 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "KWD",
+   "out": "1234,50 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "KWD",
+   "out": "12.345 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "KWD",
+   "out": "-3 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "KWD",
+   "out": "0,50 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "KWD",
+   "out": "0,13 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "KWD",
+   "out": "1.234.567,89 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "KWD",
+   "out": "19,99 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "KWD",
+   "out": "1,01 KWD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CLF",
+   "out": "0 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CLF",
+   "out": "1 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CLF",
+   "out": "1234,50 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CLF",
+   "out": "12.345 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CLF",
+   "out": "-3 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CLF",
+   "out": "0,50 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CLF",
+   "out": "0,13 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CLF",
+   "out": "1.234.567,89 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CLF",
+   "out": "19,99 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CLF",
+   "out": "1,01 CLF"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "XYZ",
+   "out": "0 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "XYZ",
+   "out": "1 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "XYZ",
+   "out": "1234,50 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "XYZ",
+   "out": "12.345 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "XYZ",
+   "out": "-3 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "XYZ",
+   "out": "0,50 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "XYZ",
+   "out": "0,13 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "XYZ",
+   "out": "1.234.567,89 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "XYZ",
+   "out": "19,99 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "XYZ",
+   "out": "1,01 XYZ"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "usd",
+   "out": "0 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "usd",
+   "out": "1 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "usd",
+   "out": "1234,50 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "usd",
+   "out": "12.345 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "usd",
+   "out": "-3 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "usd",
+   "out": "0,50 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "usd",
+   "out": "0,13 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "usd",
+   "out": "1.234.567,89 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "usd",
+   "out": "19,99 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "usd",
+   "out": "1,01 US$"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "DEM",
+   "out": "0 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "DEM",
+   "out": "1 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "DEM",
+   "out": "1234,50 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "DEM",
+   "out": "12.345 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "DEM",
+   "out": "-3 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "DEM",
+   "out": "0,50 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "DEM",
+   "out": "0,13 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "DEM",
+   "out": "1.234.567,89 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "DEM",
+   "out": "19,99 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "DEM",
+   "out": "1,01 DEM"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "INR",
+   "out": "0 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "INR",
+   "out": "1 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "INR",
+   "out": "1234,50 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "INR",
+   "out": "12.345 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "INR",
+   "out": "-3 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "INR",
+   "out": "0,50 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "INR",
+   "out": "0,13 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "INR",
+   "out": "1.234.567,89 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "INR",
+   "out": "19,99 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "INR",
+   "out": "1,01 INR"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CAD",
+   "out": "0 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CAD",
+   "out": "1 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CAD",
+   "out": "1234,50 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CAD",
+   "out": "12.345 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CAD",
+   "out": "-3 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CAD",
+   "out": "0,50 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CAD",
+   "out": "0,13 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CAD",
+   "out": "1.234.567,89 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CAD",
+   "out": "19,99 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CAD",
+   "out": "1,01 CAD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "AUD",
+   "out": "0 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "AUD",
+   "out": "1 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "AUD",
+   "out": "1234,50 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "AUD",
+   "out": "12.345 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "AUD",
+   "out": "-3 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "AUD",
+   "out": "0,50 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "AUD",
+   "out": "0,13 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "AUD",
+   "out": "1.234.567,89 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "AUD",
+   "out": "19,99 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "AUD",
+   "out": "1,01 AUD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "MXN",
+   "out": "0 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "MXN",
+   "out": "1 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "MXN",
+   "out": "1234,50 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "MXN",
+   "out": "12.345 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "MXN",
+   "out": "-3 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "MXN",
+   "out": "0,50 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "MXN",
+   "out": "0,13 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "MXN",
+   "out": "1.234.567,89 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "MXN",
+   "out": "19,99 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "MXN",
+   "out": "1,01 MXN"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ab",
+   "out": "0 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ab",
+   "out": "1 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ab",
+   "out": "1234.5 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ab",
+   "out": "12345 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ab",
+   "out": "-3 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ab",
+   "out": "0.5 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ab",
+   "out": "0.125 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ab",
+   "out": "1234567.891 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ab",
+   "out": "19.99 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ab",
+   "out": "1.005 ab"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ABCD",
+   "out": "0 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ABCD",
+   "out": "1 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ABCD",
+   "out": "1234.5 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ABCD",
+   "out": "12345 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ABCD",
+   "out": "-3 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ABCD",
+   "out": "0.5 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ABCD",
+   "out": "0.125 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ABCD",
+   "out": "1234567.891 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ABCD",
+   "out": "19.99 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ABCD",
+   "out": "1.005 ABCD"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0",
+   "currency": "€",
+   "out": "0 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1",
+   "currency": "€",
+   "out": "1 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "€",
+   "out": "1234.5 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "€",
+   "out": "12345 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "€",
+   "out": "-3 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "€",
+   "out": "0.5 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "€",
+   "out": "0.125 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "€",
+   "out": "1234567.891 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "€",
+   "out": "19.99 €"
+  },
+  {
+   "lang": "es",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "€",
+   "out": "1.005 €"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-01-05",
+   "out": "enero de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-01-05",
+   "out": "5 ene"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-01-05",
+   "out": "5 ene 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-02-28",
+   "out": "febrero de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-02-28",
+   "out": "28 feb"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-02-28",
+   "out": "28 feb 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-03-01",
+   "out": "marzo de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-03-01",
+   "out": "1 mar"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-03-01",
+   "out": "1 mar 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-05-31",
+   "out": "mayo de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-05-31",
+   "out": "31 may"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-05-31",
+   "out": "31 may 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-06-15",
+   "out": "junio de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-06-15",
+   "out": "15 jun"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-06-15",
+   "out": "15 jun 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-07-04",
+   "out": "julio de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-07-04",
+   "out": "4 jul"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-07-04",
+   "out": "4 jul 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-08-09",
+   "out": "agosto de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-08-09",
+   "out": "9 ago"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-08-09",
+   "out": "9 ago 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-09-30",
+   "out": "septiembre de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-09-30",
+   "out": "30 sept"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-09-30",
+   "out": "30 sept 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-10-10",
+   "out": "octubre de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-10-10",
+   "out": "10 oct"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-10-10",
+   "out": "10 oct 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-11-11",
+   "out": "noviembre de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-11-11",
+   "out": "11 nov"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-11-11",
+   "out": "11 nov 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "2026-12-25",
+   "out": "diciembre de 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "2026-12-25",
+   "out": "25 dic"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "2026-12-25",
+   "out": "25 dic 2026"
+  },
+  {
+   "lang": "es",
+   "kind": "monthYear",
+   "date": "1999-04-01",
+   "out": "abril de 1999"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDay",
+   "date": "1999-04-01",
+   "out": "1 abr"
+  },
+  {
+   "lang": "es",
+   "kind": "shortDayYear",
+   "date": "1999-04-01",
+   "out": "1 abr 1999"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "US",
+   "out": "Estados Unidos"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "GB",
+   "out": "Reino Unido"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "DE",
+   "out": "Alemania"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "FR",
+   "out": "Francia"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "BR",
+   "out": "Brasil"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "JP",
+   "out": "Japón"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "XK",
+   "out": "Kosovo"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "ZZ",
+   "out": "Región desconocida"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "419",
+   "out": "Latinoamérica"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "001",
+   "out": "Mundo"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "999",
+   "out": "999"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "us",
+   "out": "us"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "Us",
+   "out": "Us"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "",
+   "out": ""
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "USA",
+   "out": "USA"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "AA",
+   "out": "AA"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "CW",
+   "out": "Curazao"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "HK",
+   "out": "RAE de Hong Kong (China)"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "MK",
+   "out": "Macedonia del Norte"
+  },
+  {
+   "lang": "es",
+   "kind": "region",
+   "code": "CI",
+   "out": "Côte d’Ivoire"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "0",
+   "out": "0"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "0",
+   "out": "0 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "0",
+   "out": "0,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1",
+   "out": "1"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1",
+   "out": "100 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1",
+   "out": "1,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "-1",
+   "out": "-1"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "-1",
+   "out": "-100 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "-1",
+   "out": "-1,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "7",
+   "out": "7"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "7",
+   "out": "700 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "7",
+   "out": "7,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "12",
+   "out": "12"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "12",
+   "out": "1 200 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "12",
+   "out": "12,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "999",
+   "out": "999"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "999",
+   "out": "99 900 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "999",
+   "out": "999,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1000",
+   "out": "1 000"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1000",
+   "out": "100 000 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1000",
+   "out": "1 000,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1234",
+   "out": "1 234"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1234",
+   "out": "123 400 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1234",
+   "out": "1 234,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "12345",
+   "out": "12 345"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "12345",
+   "out": "1 234 500 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "12345",
+   "out": "12 345,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "123456",
+   "out": "123 456"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "123456",
+   "out": "12 345 600 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "123456",
+   "out": "123 456,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1234567",
+   "out": "1 234 567"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1234567",
+   "out": "123 456 700 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1234567",
+   "out": "1 234 567,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "-1234567",
+   "out": "-1 234 567"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "-1234567",
+   "out": "-123 456 700 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "-1234567",
+   "out": "-1 234 567,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "0.5",
+   "out": "0,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "0.5",
+   "out": "50 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "0.5",
+   "out": "0,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1.5",
+   "out": "1,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1.5",
+   "out": "150 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1.5",
+   "out": "1,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "2.5",
+   "out": "2,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "2.5",
+   "out": "250 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "2.5",
+   "out": "2,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "-2.5",
+   "out": "-2,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "-2.5",
+   "out": "-250 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "-2.5",
+   "out": "-2,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "0.05",
+   "out": "0,05"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "0.05",
+   "out": "5 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "0.05",
+   "out": "0,1"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "2.05",
+   "out": "2,05"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "2.05",
+   "out": "205 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "2.05",
+   "out": "2,1"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1.005",
+   "out": "1,005"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1.005",
+   "out": "101 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1.005",
+   "out": "1,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "0.135",
+   "out": "0,135"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "0.135",
+   "out": "14 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "0.135",
+   "out": "0,1"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "0.30000000000000004",
+   "out": "0,3"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "0.30000000000000004",
+   "out": "30 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "0.30000000000000004",
+   "out": "0,3"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1e+21",
+   "out": "1 000 000 000 000 000 000 000"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1e+21",
+   "out": "100 000 000 000 000 000 000 000 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1e+21",
+   "out": "1 000 000 000 000 000 000 000,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1e-7",
+   "out": "0"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1e-7",
+   "out": "0 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1e-7",
+   "out": "0,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "123.456789",
+   "out": "123,457"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "123.456789",
+   "out": "12 346 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "123.456789",
+   "out": "123,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "9999.95",
+   "out": "9 999,95"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "9999.95",
+   "out": "999 995 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "9999.95",
+   "out": "10 000,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "99999.95",
+   "out": "99 999,95"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "99999.95",
+   "out": "9 999 995 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "99999.95",
+   "out": "100 000,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "0.0001",
+   "out": "0"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "0.0001",
+   "out": "0 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "0.0001",
+   "out": "0,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "3.14159",
+   "out": "3,142"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "3.14159",
+   "out": "314 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "3.14159",
+   "out": "3,1"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "-0.4",
+   "out": "-0,4"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "-0.4",
+   "out": "-40 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "-0.4",
+   "out": "-0,4"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "NaN",
+   "out": "NaN %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "Infinity",
+   "out": "∞ %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "-Infinity",
+   "out": "-∞ %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "0.3333333333333333",
+   "out": "0,333"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "0.3333333333333333",
+   "out": "33 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "0.3333333333333333",
+   "out": "0,3"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "0.6666666666666666",
+   "out": "0,667"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "0.6666666666666666",
+   "out": "67 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "0.6666666666666666",
+   "out": "0,7"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "0.995",
+   "out": "0,995"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "0.995",
+   "out": "100 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "0.995",
+   "out": "1,0"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1.45",
+   "out": "1,45"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1.45",
+   "out": "145 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1.45",
+   "out": "1,5"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "1.55",
+   "out": "1,55"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "1.55",
+   "out": "155 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "1.55",
+   "out": "1,6"
+  },
+  {
+   "lang": "fr",
+   "kind": "number",
+   "n": "12.345",
+   "out": "12,345"
+  },
+  {
+   "lang": "fr",
+   "kind": "percent",
+   "n": "12.345",
+   "out": "1 235 %"
+  },
+  {
+   "lang": "fr",
+   "kind": "decimal",
+   "n": "12.345",
+   "out": "12,3"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "USD",
+   "out": "0 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "USD",
+   "out": "1 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "USD",
+   "out": "1 234,50 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "USD",
+   "out": "12 345 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "USD",
+   "out": "-3 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "USD",
+   "out": "0,50 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "USD",
+   "out": "0,13 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "USD",
+   "out": "1 234 567,89 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "USD",
+   "out": "19,99 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "USD",
+   "out": "1,01 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "EUR",
+   "out": "0 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "EUR",
+   "out": "1 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "EUR",
+   "out": "1 234,50 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "EUR",
+   "out": "12 345 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "EUR",
+   "out": "-3 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "EUR",
+   "out": "0,50 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "EUR",
+   "out": "0,13 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "EUR",
+   "out": "1 234 567,89 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "EUR",
+   "out": "19,99 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "EUR",
+   "out": "1,01 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "GBP",
+   "out": "0 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "GBP",
+   "out": "1 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "GBP",
+   "out": "1 234,50 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "GBP",
+   "out": "12 345 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "GBP",
+   "out": "-3 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "GBP",
+   "out": "0,50 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "GBP",
+   "out": "0,13 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "GBP",
+   "out": "1 234 567,89 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "GBP",
+   "out": "19,99 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "GBP",
+   "out": "1,01 £GB"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "JPY",
+   "out": "0 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "JPY",
+   "out": "1 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "JPY",
+   "out": "1 234,5 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "JPY",
+   "out": "12 345 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "JPY",
+   "out": "-3 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "JPY",
+   "out": "0,5 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "JPY",
+   "out": "0,13 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "JPY",
+   "out": "1 234 567,89 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "JPY",
+   "out": "19,99 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "JPY",
+   "out": "1,01 JPY"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CHF",
+   "out": "0 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CHF",
+   "out": "1 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CHF",
+   "out": "1 234,50 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CHF",
+   "out": "12 345 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CHF",
+   "out": "-3 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CHF",
+   "out": "0,50 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CHF",
+   "out": "0,13 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CHF",
+   "out": "1 234 567,89 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CHF",
+   "out": "19,99 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CHF",
+   "out": "1,01 CHF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "BRL",
+   "out": "0 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "BRL",
+   "out": "1 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "BRL",
+   "out": "1 234,50 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "BRL",
+   "out": "12 345 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "BRL",
+   "out": "-3 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "BRL",
+   "out": "0,50 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "BRL",
+   "out": "0,13 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "BRL",
+   "out": "1 234 567,89 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "BRL",
+   "out": "19,99 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "BRL",
+   "out": "1,01 R$"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "KWD",
+   "out": "0 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "KWD",
+   "out": "1 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "KWD",
+   "out": "1 234,50 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "KWD",
+   "out": "12 345 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "KWD",
+   "out": "-3 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "KWD",
+   "out": "0,50 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "KWD",
+   "out": "0,13 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "KWD",
+   "out": "1 234 567,89 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "KWD",
+   "out": "19,99 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "KWD",
+   "out": "1,01 KWD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CLF",
+   "out": "0 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CLF",
+   "out": "1 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CLF",
+   "out": "1 234,50 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CLF",
+   "out": "12 345 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CLF",
+   "out": "-3 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CLF",
+   "out": "0,50 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CLF",
+   "out": "0,13 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CLF",
+   "out": "1 234 567,89 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CLF",
+   "out": "19,99 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CLF",
+   "out": "1,01 CLF"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "XYZ",
+   "out": "0 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "XYZ",
+   "out": "1 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "XYZ",
+   "out": "1 234,50 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "XYZ",
+   "out": "12 345 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "XYZ",
+   "out": "-3 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "XYZ",
+   "out": "0,50 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "XYZ",
+   "out": "0,13 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "XYZ",
+   "out": "1 234 567,89 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "XYZ",
+   "out": "19,99 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "XYZ",
+   "out": "1,01 XYZ"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "usd",
+   "out": "0 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "usd",
+   "out": "1 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "usd",
+   "out": "1 234,50 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "usd",
+   "out": "12 345 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "usd",
+   "out": "-3 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "usd",
+   "out": "0,50 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "usd",
+   "out": "0,13 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "usd",
+   "out": "1 234 567,89 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "usd",
+   "out": "19,99 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "usd",
+   "out": "1,01 $US"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "DEM",
+   "out": "0 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "DEM",
+   "out": "1 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "DEM",
+   "out": "1 234,50 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "DEM",
+   "out": "12 345 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "DEM",
+   "out": "-3 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "DEM",
+   "out": "0,50 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "DEM",
+   "out": "0,13 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "DEM",
+   "out": "1 234 567,89 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "DEM",
+   "out": "19,99 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "DEM",
+   "out": "1,01 DEM"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "INR",
+   "out": "0 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "INR",
+   "out": "1 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "INR",
+   "out": "1 234,50 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "INR",
+   "out": "12 345 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "INR",
+   "out": "-3 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "INR",
+   "out": "0,50 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "INR",
+   "out": "0,13 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "INR",
+   "out": "1 234 567,89 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "INR",
+   "out": "19,99 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "INR",
+   "out": "1,01 ₹"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CAD",
+   "out": "0 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CAD",
+   "out": "1 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CAD",
+   "out": "1 234,50 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CAD",
+   "out": "12 345 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CAD",
+   "out": "-3 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CAD",
+   "out": "0,50 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CAD",
+   "out": "0,13 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CAD",
+   "out": "1 234 567,89 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CAD",
+   "out": "19,99 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CAD",
+   "out": "1,01 $CA"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "AUD",
+   "out": "0 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "AUD",
+   "out": "1 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "AUD",
+   "out": "1 234,50 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "AUD",
+   "out": "12 345 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "AUD",
+   "out": "-3 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "AUD",
+   "out": "0,50 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "AUD",
+   "out": "0,13 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "AUD",
+   "out": "1 234 567,89 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "AUD",
+   "out": "19,99 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "AUD",
+   "out": "1,01 $AU"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "MXN",
+   "out": "0 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "MXN",
+   "out": "1 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "MXN",
+   "out": "1 234,50 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "MXN",
+   "out": "12 345 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "MXN",
+   "out": "-3 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "MXN",
+   "out": "0,50 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "MXN",
+   "out": "0,13 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "MXN",
+   "out": "1 234 567,89 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "MXN",
+   "out": "19,99 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "MXN",
+   "out": "1,01 $MX"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ab",
+   "out": "0 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ab",
+   "out": "1 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ab",
+   "out": "1234.5 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ab",
+   "out": "12345 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ab",
+   "out": "-3 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ab",
+   "out": "0.5 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ab",
+   "out": "0.125 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ab",
+   "out": "1234567.891 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ab",
+   "out": "19.99 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ab",
+   "out": "1.005 ab"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ABCD",
+   "out": "0 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ABCD",
+   "out": "1 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ABCD",
+   "out": "1234.5 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ABCD",
+   "out": "12345 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ABCD",
+   "out": "-3 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ABCD",
+   "out": "0.5 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ABCD",
+   "out": "0.125 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ABCD",
+   "out": "1234567.891 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ABCD",
+   "out": "19.99 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ABCD",
+   "out": "1.005 ABCD"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0",
+   "currency": "€",
+   "out": "0 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1",
+   "currency": "€",
+   "out": "1 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "€",
+   "out": "1234.5 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "€",
+   "out": "12345 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "€",
+   "out": "-3 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "€",
+   "out": "0.5 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "€",
+   "out": "0.125 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "€",
+   "out": "1234567.891 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "€",
+   "out": "19.99 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "€",
+   "out": "1.005 €"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-01-05",
+   "out": "janvier 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-01-05",
+   "out": "5 janv."
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-01-05",
+   "out": "5 janv. 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-02-28",
+   "out": "février 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-02-28",
+   "out": "28 févr."
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-02-28",
+   "out": "28 févr. 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-03-01",
+   "out": "mars 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-03-01",
+   "out": "1 mars"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-03-01",
+   "out": "1 mars 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-05-31",
+   "out": "mai 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-05-31",
+   "out": "31 mai"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-05-31",
+   "out": "31 mai 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-06-15",
+   "out": "juin 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-06-15",
+   "out": "15 juin"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-06-15",
+   "out": "15 juin 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-07-04",
+   "out": "juillet 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-07-04",
+   "out": "4 juil."
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-07-04",
+   "out": "4 juil. 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-08-09",
+   "out": "août 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-08-09",
+   "out": "9 août"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-08-09",
+   "out": "9 août 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-09-30",
+   "out": "septembre 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-09-30",
+   "out": "30 sept."
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-09-30",
+   "out": "30 sept. 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-10-10",
+   "out": "octobre 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-10-10",
+   "out": "10 oct."
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-10-10",
+   "out": "10 oct. 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-11-11",
+   "out": "novembre 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-11-11",
+   "out": "11 nov."
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-11-11",
+   "out": "11 nov. 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "2026-12-25",
+   "out": "décembre 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "2026-12-25",
+   "out": "25 déc."
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "2026-12-25",
+   "out": "25 déc. 2026"
+  },
+  {
+   "lang": "fr",
+   "kind": "monthYear",
+   "date": "1999-04-01",
+   "out": "avril 1999"
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDay",
+   "date": "1999-04-01",
+   "out": "1 avr."
+  },
+  {
+   "lang": "fr",
+   "kind": "shortDayYear",
+   "date": "1999-04-01",
+   "out": "1 avr. 1999"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "US",
+   "out": "États-Unis"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "GB",
+   "out": "Royaume-Uni"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "DE",
+   "out": "Allemagne"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "FR",
+   "out": "France"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "BR",
+   "out": "Brésil"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "JP",
+   "out": "Japon"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "XK",
+   "out": "Kosovo"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "ZZ",
+   "out": "région inconnue"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "419",
+   "out": "Amérique latine"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "001",
+   "out": "Monde"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "999",
+   "out": "999"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "us",
+   "out": "us"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "Us",
+   "out": "Us"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "",
+   "out": ""
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "USA",
+   "out": "USA"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "AA",
+   "out": "AA"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "CW",
+   "out": "Curaçao"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "HK",
+   "out": "R.A.S. chinoise de Hong Kong"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "MK",
+   "out": "Macédoine du Nord"
+  },
+  {
+   "lang": "fr",
+   "kind": "region",
+   "code": "CI",
+   "out": "Côte d’Ivoire"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "0",
+   "out": "0"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "0",
+   "out": "0%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "0",
+   "out": "0,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1",
+   "out": "1"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1",
+   "out": "100%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1",
+   "out": "1,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "-1",
+   "out": "-1"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "-1",
+   "out": "-100%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "-1",
+   "out": "-1,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "7",
+   "out": "7"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "7",
+   "out": "700%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "7",
+   "out": "7,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "12",
+   "out": "12"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "12",
+   "out": "1.200%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "12",
+   "out": "12,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "999",
+   "out": "999"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "999",
+   "out": "99.900%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "999",
+   "out": "999,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1000",
+   "out": "1.000"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1000",
+   "out": "100.000%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1000",
+   "out": "1.000,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1234",
+   "out": "1.234"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1234",
+   "out": "123.400%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1234",
+   "out": "1.234,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "12345",
+   "out": "12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "12345",
+   "out": "1.234.500%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "12345",
+   "out": "12.345,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "123456",
+   "out": "123.456"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "123456",
+   "out": "12.345.600%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "123456",
+   "out": "123.456,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1234567",
+   "out": "1.234.567"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1234567",
+   "out": "123.456.700%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1234567",
+   "out": "1.234.567,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "-1234567",
+   "out": "-1.234.567"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "-1234567",
+   "out": "-123.456.700%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "-1234567",
+   "out": "-1.234.567,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "0.5",
+   "out": "0,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "0.5",
+   "out": "50%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "0.5",
+   "out": "0,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1.5",
+   "out": "1,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1.5",
+   "out": "150%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1.5",
+   "out": "1,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "2.5",
+   "out": "2,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "2.5",
+   "out": "250%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "2.5",
+   "out": "2,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "-2.5",
+   "out": "-2,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "-2.5",
+   "out": "-250%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "-2.5",
+   "out": "-2,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "0.05",
+   "out": "0,05"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "0.05",
+   "out": "5%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "0.05",
+   "out": "0,1"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "2.05",
+   "out": "2,05"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "2.05",
+   "out": "205%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "2.05",
+   "out": "2,1"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1.005",
+   "out": "1,005"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1.005",
+   "out": "101%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1.005",
+   "out": "1,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "0.135",
+   "out": "0,135"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "0.135",
+   "out": "14%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "0.135",
+   "out": "0,1"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "0.30000000000000004",
+   "out": "0,3"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "0.30000000000000004",
+   "out": "30%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "0.30000000000000004",
+   "out": "0,3"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1e+21",
+   "out": "1.000.000.000.000.000.000.000"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1e+21",
+   "out": "100.000.000.000.000.000.000.000%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1e+21",
+   "out": "1.000.000.000.000.000.000.000,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1e-7",
+   "out": "0"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1e-7",
+   "out": "0%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1e-7",
+   "out": "0,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "123.456789",
+   "out": "123,457"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "123.456789",
+   "out": "12.346%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "123.456789",
+   "out": "123,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "9999.95",
+   "out": "9.999,95"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "9999.95",
+   "out": "999.995%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "9999.95",
+   "out": "10.000,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "99999.95",
+   "out": "99.999,95"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "99999.95",
+   "out": "9.999.995%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "99999.95",
+   "out": "100.000,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "0.0001",
+   "out": "0"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "0.0001",
+   "out": "0%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "0.0001",
+   "out": "0,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "3.14159",
+   "out": "3,142"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "3.14159",
+   "out": "314%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "3.14159",
+   "out": "3,1"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "-0.4",
+   "out": "-0,4"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "-0.4",
+   "out": "-40%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "-0.4",
+   "out": "-0,4"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "NaN",
+   "out": "NaN%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "NaN",
+   "out": "NaN"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "Infinity",
+   "out": "∞%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "Infinity",
+   "out": "∞"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "-Infinity",
+   "out": "-∞%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "-Infinity",
+   "out": "-∞"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "0.3333333333333333",
+   "out": "0,333"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "0.3333333333333333",
+   "out": "33%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "0.3333333333333333",
+   "out": "0,3"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "0.6666666666666666",
+   "out": "0,667"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "0.6666666666666666",
+   "out": "67%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "0.6666666666666666",
+   "out": "0,7"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "0.995",
+   "out": "0,995"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "0.995",
+   "out": "100%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "0.995",
+   "out": "1,0"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1.45",
+   "out": "1,45"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1.45",
+   "out": "145%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1.45",
+   "out": "1,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "1.55",
+   "out": "1,55"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "1.55",
+   "out": "155%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "1.55",
+   "out": "1,6"
+  },
+  {
+   "lang": "pt",
+   "kind": "number",
+   "n": "12.345",
+   "out": "12,345"
+  },
+  {
+   "lang": "pt",
+   "kind": "percent",
+   "n": "12.345",
+   "out": "1.235%"
+  },
+  {
+   "lang": "pt",
+   "kind": "decimal",
+   "n": "12.345",
+   "out": "12,3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "USD",
+   "out": "US$ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "USD",
+   "out": "US$ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "USD",
+   "out": "US$ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "USD",
+   "out": "US$ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "USD",
+   "out": "-US$ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "USD",
+   "out": "US$ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "USD",
+   "out": "US$ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "USD",
+   "out": "US$ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "USD",
+   "out": "US$ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "USD",
+   "out": "US$ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "EUR",
+   "out": "€ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "EUR",
+   "out": "€ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "EUR",
+   "out": "€ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "EUR",
+   "out": "€ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "EUR",
+   "out": "-€ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "EUR",
+   "out": "€ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "EUR",
+   "out": "€ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "EUR",
+   "out": "€ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "EUR",
+   "out": "€ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "EUR",
+   "out": "€ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "GBP",
+   "out": "£ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "GBP",
+   "out": "£ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "GBP",
+   "out": "£ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "GBP",
+   "out": "£ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "GBP",
+   "out": "-£ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "GBP",
+   "out": "£ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "GBP",
+   "out": "£ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "GBP",
+   "out": "£ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "GBP",
+   "out": "£ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "GBP",
+   "out": "£ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "JPY",
+   "out": "JP¥ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "JPY",
+   "out": "JP¥ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "JPY",
+   "out": "JP¥ 1.234,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "JPY",
+   "out": "JP¥ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "JPY",
+   "out": "-JP¥ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "JPY",
+   "out": "JP¥ 0,5"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "JPY",
+   "out": "JP¥ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "JPY",
+   "out": "JP¥ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "JPY",
+   "out": "JP¥ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "JPY",
+   "out": "JP¥ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CHF",
+   "out": "CHF 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CHF",
+   "out": "CHF 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CHF",
+   "out": "CHF 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CHF",
+   "out": "CHF 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CHF",
+   "out": "-CHF 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CHF",
+   "out": "CHF 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CHF",
+   "out": "CHF 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CHF",
+   "out": "CHF 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CHF",
+   "out": "CHF 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CHF",
+   "out": "CHF 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "BRL",
+   "out": "R$ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "BRL",
+   "out": "R$ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "BRL",
+   "out": "R$ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "BRL",
+   "out": "R$ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "BRL",
+   "out": "-R$ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "BRL",
+   "out": "R$ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "BRL",
+   "out": "R$ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "BRL",
+   "out": "R$ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "BRL",
+   "out": "R$ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "BRL",
+   "out": "R$ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "KWD",
+   "out": "KWD 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "KWD",
+   "out": "KWD 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "KWD",
+   "out": "KWD 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "KWD",
+   "out": "KWD 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "KWD",
+   "out": "-KWD 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "KWD",
+   "out": "KWD 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "KWD",
+   "out": "KWD 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "KWD",
+   "out": "KWD 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "KWD",
+   "out": "KWD 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "KWD",
+   "out": "KWD 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CLF",
+   "out": "CLF 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CLF",
+   "out": "CLF 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CLF",
+   "out": "CLF 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CLF",
+   "out": "CLF 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CLF",
+   "out": "-CLF 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CLF",
+   "out": "CLF 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CLF",
+   "out": "CLF 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CLF",
+   "out": "CLF 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CLF",
+   "out": "CLF 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CLF",
+   "out": "CLF 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "XYZ",
+   "out": "XYZ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "XYZ",
+   "out": "XYZ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "XYZ",
+   "out": "XYZ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "XYZ",
+   "out": "XYZ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "XYZ",
+   "out": "-XYZ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "XYZ",
+   "out": "XYZ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "XYZ",
+   "out": "XYZ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "XYZ",
+   "out": "XYZ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "XYZ",
+   "out": "XYZ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "XYZ",
+   "out": "XYZ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "usd",
+   "out": "US$ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "usd",
+   "out": "US$ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "usd",
+   "out": "US$ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "usd",
+   "out": "US$ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "usd",
+   "out": "-US$ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "usd",
+   "out": "US$ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "usd",
+   "out": "US$ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "usd",
+   "out": "US$ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "usd",
+   "out": "US$ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "usd",
+   "out": "US$ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "DEM",
+   "out": "DEM 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "DEM",
+   "out": "DEM 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "DEM",
+   "out": "DEM 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "DEM",
+   "out": "DEM 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "DEM",
+   "out": "-DEM 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "DEM",
+   "out": "DEM 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "DEM",
+   "out": "DEM 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "DEM",
+   "out": "DEM 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "DEM",
+   "out": "DEM 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "DEM",
+   "out": "DEM 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "INR",
+   "out": "₹ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "INR",
+   "out": "₹ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "INR",
+   "out": "₹ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "INR",
+   "out": "₹ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "INR",
+   "out": "-₹ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "INR",
+   "out": "₹ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "INR",
+   "out": "₹ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "INR",
+   "out": "₹ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "INR",
+   "out": "₹ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "INR",
+   "out": "₹ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "CAD",
+   "out": "CA$ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "CAD",
+   "out": "CA$ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "CAD",
+   "out": "CA$ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "CAD",
+   "out": "CA$ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "CAD",
+   "out": "-CA$ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "CAD",
+   "out": "CA$ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "CAD",
+   "out": "CA$ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "CAD",
+   "out": "CA$ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "CAD",
+   "out": "CA$ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "CAD",
+   "out": "CA$ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "AUD",
+   "out": "AU$ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "AUD",
+   "out": "AU$ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "AUD",
+   "out": "AU$ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "AUD",
+   "out": "AU$ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "AUD",
+   "out": "-AU$ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "AUD",
+   "out": "AU$ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "AUD",
+   "out": "AU$ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "AUD",
+   "out": "AU$ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "AUD",
+   "out": "AU$ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "AUD",
+   "out": "AU$ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "MXN",
+   "out": "MX$ 0"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "MXN",
+   "out": "MX$ 1"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "MXN",
+   "out": "MX$ 1.234,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "MXN",
+   "out": "MX$ 12.345"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "MXN",
+   "out": "-MX$ 3"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "MXN",
+   "out": "MX$ 0,50"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "MXN",
+   "out": "MX$ 0,13"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "MXN",
+   "out": "MX$ 1.234.567,89"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "MXN",
+   "out": "MX$ 19,99"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "MXN",
+   "out": "MX$ 1,01"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ab",
+   "out": "0 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ab",
+   "out": "1 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ab",
+   "out": "1234.5 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ab",
+   "out": "12345 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ab",
+   "out": "-3 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ab",
+   "out": "0.5 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ab",
+   "out": "0.125 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ab",
+   "out": "1234567.891 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ab",
+   "out": "19.99 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ab",
+   "out": "1.005 ab"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "ABCD",
+   "out": "0 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "ABCD",
+   "out": "1 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "ABCD",
+   "out": "1234.5 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "ABCD",
+   "out": "12345 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "ABCD",
+   "out": "-3 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "ABCD",
+   "out": "0.5 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "ABCD",
+   "out": "0.125 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "ABCD",
+   "out": "1234567.891 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "ABCD",
+   "out": "19.99 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "ABCD",
+   "out": "1.005 ABCD"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0",
+   "currency": "€",
+   "out": "0 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1",
+   "currency": "€",
+   "out": "1 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234.5",
+   "currency": "€",
+   "out": "1234.5 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "12345",
+   "currency": "€",
+   "out": "12345 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "-3",
+   "currency": "€",
+   "out": "-3 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.5",
+   "currency": "€",
+   "out": "0.5 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "0.125",
+   "currency": "€",
+   "out": "0.125 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1234567.891",
+   "currency": "€",
+   "out": "1234567.891 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "19.99",
+   "currency": "€",
+   "out": "19.99 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "currency",
+   "n": "1.005",
+   "currency": "€",
+   "out": "1.005 €"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-01-05",
+   "out": "janeiro de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-01-05",
+   "out": "5 de jan."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-01-05",
+   "out": "5 de jan. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-02-28",
+   "out": "fevereiro de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-02-28",
+   "out": "28 de fev."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-02-28",
+   "out": "28 de fev. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-03-01",
+   "out": "março de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-03-01",
+   "out": "1 de mar."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-03-01",
+   "out": "1 de mar. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-05-31",
+   "out": "maio de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-05-31",
+   "out": "31 de mai."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-05-31",
+   "out": "31 de mai. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-06-15",
+   "out": "junho de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-06-15",
+   "out": "15 de jun."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-06-15",
+   "out": "15 de jun. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-07-04",
+   "out": "julho de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-07-04",
+   "out": "4 de jul."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-07-04",
+   "out": "4 de jul. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-08-09",
+   "out": "agosto de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-08-09",
+   "out": "9 de ago."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-08-09",
+   "out": "9 de ago. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-09-30",
+   "out": "setembro de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-09-30",
+   "out": "30 de set."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-09-30",
+   "out": "30 de set. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-10-10",
+   "out": "outubro de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-10-10",
+   "out": "10 de out."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-10-10",
+   "out": "10 de out. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-11-11",
+   "out": "novembro de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-11-11",
+   "out": "11 de nov."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-11-11",
+   "out": "11 de nov. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "2026-12-25",
+   "out": "dezembro de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "2026-12-25",
+   "out": "25 de dez."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "2026-12-25",
+   "out": "25 de dez. de 2026"
+  },
+  {
+   "lang": "pt",
+   "kind": "monthYear",
+   "date": "1999-04-01",
+   "out": "abril de 1999"
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDay",
+   "date": "1999-04-01",
+   "out": "1 de abr."
+  },
+  {
+   "lang": "pt",
+   "kind": "shortDayYear",
+   "date": "1999-04-01",
+   "out": "1 de abr. de 1999"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "US",
+   "out": "Estados Unidos"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "GB",
+   "out": "Reino Unido"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "DE",
+   "out": "Alemanha"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "FR",
+   "out": "França"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "BR",
+   "out": "Brasil"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "JP",
+   "out": "Japão"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "XK",
+   "out": "Kosovo"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "ZZ",
+   "out": "Região desconhecida"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "419",
+   "out": "América Latina"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "001",
+   "out": "Mundo"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "999",
+   "out": "999"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "us",
+   "out": "us"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "Us",
+   "out": "Us"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "",
+   "out": ""
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "USA",
+   "out": "USA"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "AA",
+   "out": "AA"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "CW",
+   "out": "Curaçao"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "HK",
+   "out": "Hong Kong, RAE da China"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "MK",
+   "out": "Macedônia do Norte"
+  },
+  {
+   "lang": "pt",
+   "kind": "region",
+   "code": "CI",
+   "out": "Costa do Marfim"
+  }
+ ]
+}

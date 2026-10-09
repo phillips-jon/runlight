@@ -23,6 +23,13 @@ interface DubEvent {
 type History = "events" | "daily" | "none" | null;
 
 /**
+ * Whether Dub said the plan does not include what was asked (403, or 402).
+ * Any other failure (a server error that outlasts the retries, say) fails
+ * the step and leaves the history mode as it was.
+ */
+const planRefused = (error: unknown) => error instanceof HttpError && (error.status === 403 || error.status === 402);
+
+/**
  * Dub. Links come from GET /links (cursor pages of up to 100, archived
  * included). Click history is per click from /events where the plan allows,
  * else daily counts from /analytics, else none; the first link decides.
@@ -69,7 +76,7 @@ export const dub: Importer = {
           }
           state.history = "events";
         } catch (error) {
-          if (!(error instanceof HttpError) || error.status === 401) throw error;
+          if (!planRefused(error)) throw error;
           clicks = undefined;
           state.history = "daily";
         }
@@ -82,7 +89,7 @@ export const dub: Importer = {
           );
           daily = series.filter((p) => p.clicks > 0).map((p) => ({ day: p.start.slice(0, 10), clicks: p.clicks }));
         } catch (error) {
-          if (!(error instanceof HttpError) || error.status === 401) throw error;
+          if (!planRefused(error)) throw error;
           state.history = "none";
         }
       }
