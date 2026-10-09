@@ -44,7 +44,8 @@ defmodule Runlight.Mcp do
           type: "array",
           items: JS.obj(type: "string"),
           maxItems: max,
-          description: ~s(Narrow to matching visits, up to #{max} at once, each "dimension:op:value" with op is, not, or contains.)
+          description:
+            ~s(Narrow to matching visits, up to #{max} at once, each "dimension:op:value" with op is, not, or contains.)
         )
     ]
   end
@@ -82,7 +83,15 @@ defmodule Runlight.Mcp do
   defp limit(args, fallback) do
     n = JS.number(JS.prop(args, "limit"))
     n = if JS.truthy?(n), do: n, else: fallback
-    n = case n, do: (:infinity -> 100; :neg_infinity -> 1; n -> n)
+
+    n =
+      case n,
+        do: (
+          :infinity -> 100
+          :neg_infinity -> 1
+          n -> n
+        )
+
     JS.string(n |> max(1) |> min(100))
   end
 
@@ -95,7 +104,8 @@ defmodule Runlight.Mcp do
       %{
         name: "list_sites",
         title: "List sites",
-        description: "Every site this token can read, with its id, name, hostnames, timezone, and when it last had a visit.",
+        description:
+          "Every site this token can read, with its id, name, hostnames, timezone, and when it last had a visit.",
         input_schema: JS.obj(type: "object", properties: JS.obj([])),
         request: fn _ -> {"/api/sites", []} end
       },
@@ -119,7 +129,14 @@ defmodule Runlight.Mcp do
               JS.obj(
                 r ++
                   c ++
-                  [interval: JS.obj(type: "string", enum: ["hour", "day", "week", "month"], description: "Chosen from the range when left out.")]
+                  [
+                    interval:
+                      JS.obj(
+                        type: "string",
+                        enum: ["hour", "day", "week", "month"],
+                        description: "Chosen from the range when left out."
+                      )
+                  ]
               )
           ),
         request: read("/api/series", @compare_keys ++ ["interval"])
@@ -137,13 +154,15 @@ defmodule Runlight.Mcp do
                 r ++
                   [
                     dimension: JS.obj(type: "string", enum: Query.dimensions()),
-                    limit: JS.obj(type: "integer", minimum: 1, maximum: 100, description: "Rows to return. Defaults to 10."),
+                    limit:
+                      JS.obj(type: "integer", minimum: 1, maximum: 100, description: "Rows to return. Defaults to 10."),
                     page: JS.obj(type: "integer", minimum: 1, description: "For more rows: 2 is the next limit rows.")
                   ]
               ),
             required: ["dimension"]
           ),
-        request: read("/api/breakdown", @range_keys ++ ["dimension", "page"], fn args -> [{"limit", limit(args, 10)}] end)
+        request:
+          read("/api/breakdown", @range_keys ++ ["dimension", "page"], fn args -> [{"limit", limit(args, 10)}] end)
       },
       %{
         name: "list_funnels",
@@ -165,9 +184,19 @@ defmodule Runlight.Mcp do
               JS.obj(
                 r ++
                   [
-                    event: JS.obj(type: "string", description: "The event's name, as get_breakdown with dimension event lists it."),
+                    event:
+                      JS.obj(
+                        type: "string",
+                        description: "The event's name, as get_breakdown with dimension event lists it."
+                      ),
                     key: JS.obj(type: "string", description: "Which property. Defaults to the most used one."),
-                    limit: JS.obj(type: "integer", minimum: 1, maximum: 100, description: "Values to return. Defaults to 25.")
+                    limit:
+                      JS.obj(
+                        type: "integer",
+                        minimum: 1,
+                        maximum: 100,
+                        description: "Values to return. Defaults to 25."
+                      )
                   ]
               ),
             required: ["event"]
@@ -177,17 +206,24 @@ defmodule Runlight.Mcp do
       %{
         name: "get_visit_times",
         title: "When people visit",
-        description: "Visits by weekday and hour in the site's timezone: grid[weekday][hour], Monday first, hours 0 to 23.",
+        description:
+          "Visits by weekday and hour in the site's timezone: grid[weekday][hour], Monday first, hours 0 to 23.",
         input_schema: JS.obj(type: "object", properties: JS.obj(r)),
         request: read("/api/rhythm", @range_keys),
         shape: fn body ->
-          JS.obj(site: JS.prop(body, "site"), range: JS.prop(body, "range"), weekdays: ~w(Mon Tue Wed Thu Fri Sat Sun), grid: JS.prop(body, "grid"))
+          JS.obj(
+            site: JS.prop(body, "site"),
+            range: JS.prop(body, "range"),
+            weekdays: ~w(Mon Tue Wed Thu Fri Sat Sun),
+            grid: JS.prop(body, "grid")
+          )
         end
       },
       %{
         name: "get_realtime",
         title: "Right now",
-        description: "People on the site in the last five minutes, the pages they are reading, where they came from, their countries, and the latest activity.",
+        description:
+          "People on the site in the last five minutes, the pages they are reading, where they came from, their countries, and the latest activity.",
         input_schema: JS.obj(type: "object", properties: JS.obj(site: r[:site])),
         request: read("/api/realtime", ["site"])
       },
@@ -202,10 +238,13 @@ defmodule Runlight.Mcp do
       %{
         name: "get_goal",
         title: "One goal in detail",
-        description: "One goal's conversions over time and by channel, source, and page. Find the goal_id with list_goals.",
-        input_schema: JS.obj(type: "object", properties: JS.obj(r ++ [goal_id: JS.obj(type: "string")]), required: ["goal_id"]),
+        description:
+          "One goal's conversions over time and by channel, source, and page. Find the goal_id with list_goals.",
+        input_schema:
+          JS.obj(type: "object", properties: JS.obj(r ++ [goal_id: JS.obj(type: "string")]), required: ["goal_id"]),
         request: fn args ->
-          {"/api/goals/#{JS.encode_uri_component(args |> JS.prop("goal_id") |> JS.nullish("") |> JS.string())}", range_params(args, @range_keys)}
+          {"/api/goals/#{JS.encode_uri_component(args |> JS.prop("goal_id") |> JS.nullish("") |> JS.string())}",
+           range_params(args, @range_keys)}
         end
       },
       %{
@@ -220,7 +259,13 @@ defmodule Runlight.Mcp do
               JS.obj(
                 r ++
                   [
-                    steps: JS.obj(type: "integer", minimum: 2, maximum: 8, description: "How many pages of each path. Defaults to 5."),
+                    steps:
+                      JS.obj(
+                        type: "integer",
+                        minimum: 2,
+                        maximum: 8,
+                        description: "How many pages of each path. Defaults to 5."
+                      ),
                     start: JS.obj(type: "string", description: "Only paths from this page, such as /pricing."),
                     end: JS.obj(type: "string", description: "Only paths that reach this page, cut there.")
                   ]
@@ -232,7 +277,8 @@ defmodule Runlight.Mcp do
         name: "list_links",
         title: "Short links",
         description: "Every short link with its destination and its clicks in the range.",
-        input_schema: JS.obj(type: "object", properties: JS.obj(site: r[:site], period: r[:period], from: r[:from], to: r[:to])),
+        input_schema:
+          JS.obj(type: "object", properties: JS.obj(site: r[:site], period: r[:period], from: r[:from], to: r[:to])),
         request: read("/api/links", ["site", "period", "from", "to"])
       }
     ]
@@ -249,10 +295,23 @@ defmodule Runlight.Mcp do
         throw({:rpc, -32602, ~s(Unknown tool "#{JS.string(name)}")})
 
       tool ->
-        args = case JS.prop(params, "arguments"), do: (a when is_list(a) -> Object.new(); %Object{} = a -> a; _ -> Object.new())
+        args =
+          case JS.prop(params, "arguments"),
+            do: (
+              a when is_list(a) -> Object.new()
+              %Object{} = a -> a
+              _ -> Object.new()
+            )
+
         {path, query} = tool.request.(args)
         answer = read_api.(path, query)
-        body = case Response.json(answer), do: ({:ok, b} -> b; :error -> Object.new())
+
+        body =
+          case Response.json(answer),
+            do: (
+              {:ok, b} -> b
+              :error -> Object.new()
+            )
 
         if Response.ok?(answer) do
           text = JS.stringify(if tool[:shape], do: tool.shape.(body), else: body)
@@ -274,7 +333,13 @@ defmodule Runlight.Mcp do
     if JS.prop(message, "jsonrpc") != "2.0" or not is_binary(method) do
       if notification, do: nil, else: rpc_error(id, -32600, "Invalid request")
     else
-      params = case JS.prop(message, "params"), do: (p when is_list(p) -> p; %Object{} = p -> p; _ -> Object.new())
+      params =
+        case JS.prop(message, "params"),
+          do: (
+            p when is_list(p) -> p
+            %Object{} = p -> p
+            _ -> Object.new()
+          )
 
       try do
         result =

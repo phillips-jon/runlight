@@ -74,17 +74,24 @@ defmodule Runlight.OAuth do
   defp esc(value), do: JS.escape_html(value)
 
   defp json(body, status \\ 200) do
-    Response.new(JS.stringify(body), status, [{"content-type", "application/json; charset=utf-8"}, {"cache-control", "no-store"}] ++ @cors)
+    Response.new(
+      JS.stringify(body),
+      status,
+      [{"content-type", "application/json; charset=utf-8"}, {"cache-control", "no-store"}] ++ @cors
+    )
   end
 
-  defp oauth_error(error, description, status \\ 400), do: json(JS.obj(error: error, error_description: description), status)
+  defp oauth_error(error, description, status \\ 400),
+    do: json(JS.obj(error: error, error_description: description), status)
 
   @doc "base64url of SHA-256, as PKCE's S256 method compares."
   def s256(verifier), do: :crypto.hash(:sha256, verifier) |> base64url()
 
   # Redirect addresses a client may register: https, or a local app's own loopback address.
   defp allowed_redirect?(value),
-    do: Regex.match?(~r/^https:\/\/[^\/]+/, value) or Regex.match?(~r/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//, value)
+    do:
+      Regex.match?(~r/^https:\/\/[^\/]+/, value) or
+        Regex.match?(~r/^http:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//, value)
 
   @doc "The URL that a 401 from the MCP endpoint points clients at, to start OAuth."
   def resource_metadata_url(origin, base), do: "#{origin}#{base}/.well-known/oauth-protected-resource"
@@ -94,7 +101,9 @@ defmodule Runlight.OAuth do
     rl = ctx.rl
     base = ctx.base
     issuer = "#{Url.origin(url)}#{base}"
-    well_known = String.starts_with?(path, "/.well-known/oauth-") or String.starts_with?(path, "/.well-known/openid-configuration")
+
+    well_known =
+      String.starts_with?(path, "/.well-known/oauth-") or String.starts_with?(path, "/.well-known/openid-configuration")
 
     cond do
       request.method == "OPTIONS" and (well_known or String.starts_with?(path, "/oauth/")) ->
@@ -110,7 +119,8 @@ defmodule Runlight.OAuth do
           )
         )
 
-      String.starts_with?(path, "/.well-known/oauth-authorization-server") or String.starts_with?(path, "/.well-known/openid-configuration") ->
+      String.starts_with?(path, "/.well-known/oauth-authorization-server") or
+          String.starts_with?(path, "/.well-known/openid-configuration") ->
         json(
           JS.obj(
             issuer: issuer,
@@ -130,19 +140,31 @@ defmodule Runlight.OAuth do
         limit = RateLimit.new(rl.table, :oauth_registrations, @registrations_per_minute)
 
         if RateLimit.allow?(limit, Runlight.client_ip(rl, request), Runlight.now(rl)) do
-          body = case Request.json(request), do: ({:ok, %Object{} = b} -> b; _ -> nil)
+          body =
+            case Request.json(request),
+              do: (
+                {:ok, %Object{} = b} -> b
+                _ -> nil
+              )
 
           redirects =
             case body && body["redirect_uris"] do
-              list when is_list(list) -> list |> Enum.map(&JS.string/1) |> Enum.filter(&allowed_redirect?/1) |> Enum.take(10)
-              _ -> []
+              list when is_list(list) ->
+                list |> Enum.map(&JS.string/1) |> Enum.filter(&allowed_redirect?/1) |> Enum.take(10)
+
+              _ ->
+                []
             end
 
           if redirects == [],
             do: oauth_error("invalid_redirect_uri", "Register at least one https redirect address"),
             else: register(rl, JS.string(JS.nullish(body && JS.prop(body, "client_name"), "An app")), redirects)
         else
-          oauth_error("invalid_client_metadata", "Too many registrations from this address. Wait a minute and try again.", 429)
+          oauth_error(
+            "invalid_client_metadata",
+            "Too many registrations from this address. Wait a minute and try again.",
+            429
+          )
         end
 
       path == "/oauth/authorize" and request.method in ["GET", "POST"] ->
@@ -185,7 +207,9 @@ defmodule Runlight.OAuth do
         if JS.truthy?(client["usedAt"]) do
           back.(params)
         else
-          said = Enum.find_value(params, fn {k, v} -> if k == "error_description", do: v end) || Enum.find_value(params, fn {k, v} -> if k == "error", do: v end)
+          said =
+            Enum.find_value(params, fn {k, v} -> if k == "error_description", do: v end) ||
+              Enum.find_value(params, fn {k, v} -> if k == "error", do: v end)
 
           page(
             "This app asked in a way Runlight does not support",
@@ -331,7 +355,7 @@ defmodule Runlight.OAuth do
   end
 
   defp token(ctx, request) do
-    rl = ctx.rl
+    _rl = ctx.rl
     type = (Request.header(request, "content-type") || "") |> String.split(";") |> hd() |> JS.trim()
 
     form =
@@ -376,7 +400,12 @@ defmodule Runlight.OAuth do
 
         if found && not JS.truthy?(found.client["usedAt"]) do
           if String.starts_with?(found.used_key, "oauth-client:"),
-            do: Store.set_setting(rl.store, found.used_key, JS.stringify(Object.put(found.client, "usedAt", Runlight.now(rl)))),
+            do:
+              Store.set_setting(
+                rl.store,
+                found.used_key,
+                JS.stringify(Object.put(found.client, "usedAt", Runlight.now(rl)))
+              ),
             else: Store.set_setting(rl.store, found.used_key, JS.string(Runlight.now(rl)))
         end
 
@@ -398,12 +427,14 @@ defmodule Runlight.OAuth do
         Store.insert_token(rl.store, row)
 
         # Someone removed, or no longer an owner, between allowing the app and its swapping the code gets nothing.
-        if JS.truthy?(grant["by"]) and ctx.token_made && not ctx.token_made.(row, grant["by"]) do
+        if (JS.truthy?(grant["by"]) and ctx.token_made) && not ctx.token_made.(row, grant["by"]) do
           Store.delete_token(rl.store, row["id"])
           oauth_error("invalid_grant", "Whoever allowed this app can no longer connect it")
         else
           # A hub's own address, from where it asked to be sent back, so the picker only ever sends choices there.
-          if scope == "manage", do: Store.set_setting(rl.store, "token-origin:#{row["id"]}", Url.origin(Url.new(grant["redirect"])))
+          if scope == "manage",
+            do: Store.set_setting(rl.store, "token-origin:#{row["id"]}", Url.origin(Url.new(grant["redirect"])))
+
           out = JS.obj(access_token: secret, token_type: "Bearer", scope: scope)
           json(if(JS.truthy?(grant["site"]), do: Object.put(out, "site", grant["site"]), else: out))
         end
@@ -417,7 +448,9 @@ defmodule Runlight.OAuth do
     # Apps stored before ids were signed, which never connected, and codes nobody exchanged are cleared away.
     for %{key: key, value: value} <- Store.settings_starting_with(rl.store, "oauth-client:") do
       client = JS.parse!(value)
-      if not JS.truthy?(client["usedAt"]) and now - client["createdAt"] >= @unused_client_ms, do: Store.set_setting(rl.store, key, nil)
+
+      if not JS.truthy?(client["usedAt"]) and now - client["createdAt"] >= @unused_client_ms,
+        do: Store.set_setting(rl.store, key, nil)
     end
 
     for %{key: key, value: value} <- Store.settings_starting_with(rl.store, "oauth-code:") do
@@ -454,7 +487,8 @@ defmodule Runlight.OAuth do
         {"content-type", "text/html; charset=utf-8"},
         {"cache-control", "no-store"},
         # No form-action rule: browsers apply it to the redirect back to the app after Allow.
-        {"content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; frame-ancestors 'none'"},
+        {"content-security-policy",
+         "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; frame-ancestors 'none'"},
         {"x-frame-options", "DENY"},
         # same-origin, not no-referrer: under no-referrer a form post carries Origin: null, which the consent check refuses.
         {"referrer-policy", "same-origin"}

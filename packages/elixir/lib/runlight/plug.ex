@@ -58,8 +58,12 @@ if Code.ensure_loaded?(Plug.Conn) do
 
       case State.get(rl.table, key) do
         nil ->
-          State.one_at_a_time(rl.table, key, fn -> State.get(rl.table, key) || State.put(rl.table, key, Runlight.routes(rl, opts)) end)
-        routes -> routes
+          State.one_at_a_time(rl.table, key, fn ->
+            State.get(rl.table, key) || State.put(rl.table, key, Runlight.routes(rl, opts))
+          end)
+
+        routes ->
+          routes
       end
     end
 
@@ -85,8 +89,14 @@ if Code.ensure_loaded?(Plug.Conn) do
           address = conn.remote_ip |> :inet.ntoa() |> to_string()
 
           {:ok,
-           %Request{url: url, method: conn.method, headers: headers, body: body, remote_address: address, ref: make_ref()},
-           conn}
+           %Request{
+             url: url,
+             method: conn.method,
+             headers: headers,
+             body: body,
+             remote_address: address,
+             ref: make_ref()
+           }, conn}
 
         {:too_large, conn} ->
           {:too_large, conn}

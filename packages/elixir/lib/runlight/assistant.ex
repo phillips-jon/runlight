@@ -20,13 +20,62 @@ defmodule Runlight.Assistant do
   @doc "The services the assistant can use, as the setup form lists them."
   def providers do
     [
-      JS.obj(id: "anthropic", name: "Anthropic (Claude)", protocol: "anthropic", baseUrl: "https://api.anthropic.com/v1", model: "claude-sonnet-5-5", key: "yes"),
-      JS.obj(id: "openai", name: "OpenAI", protocol: "openai", baseUrl: "https://api.openai.com/v1", model: "", key: "yes"),
-      JS.obj(id: "gemini", name: "Google Gemini", protocol: "openai", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "", key: "yes"),
-      JS.obj(id: "openrouter", name: "OpenRouter", protocol: "openai", baseUrl: "https://openrouter.ai/api/v1", model: "", key: "yes"),
-      JS.obj(id: "ollama", name: "Ollama", protocol: "openai", baseUrl: "http://localhost:11434/v1", model: "", key: "no"),
-      JS.obj(id: "lmstudio", name: "LM Studio", protocol: "openai", baseUrl: "http://localhost:1234/v1", model: "", key: "no"),
-      JS.obj(id: "custom", name: "Another OpenAI-compatible service", protocol: "openai", baseUrl: "", model: "", key: "optional")
+      JS.obj(
+        id: "anthropic",
+        name: "Anthropic (Claude)",
+        protocol: "anthropic",
+        baseUrl: "https://api.anthropic.com/v1",
+        model: "claude-sonnet-5-5",
+        key: "yes"
+      ),
+      JS.obj(
+        id: "openai",
+        name: "OpenAI",
+        protocol: "openai",
+        baseUrl: "https://api.openai.com/v1",
+        model: "",
+        key: "yes"
+      ),
+      JS.obj(
+        id: "gemini",
+        name: "Google Gemini",
+        protocol: "openai",
+        baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai",
+        model: "",
+        key: "yes"
+      ),
+      JS.obj(
+        id: "openrouter",
+        name: "OpenRouter",
+        protocol: "openai",
+        baseUrl: "https://openrouter.ai/api/v1",
+        model: "",
+        key: "yes"
+      ),
+      JS.obj(
+        id: "ollama",
+        name: "Ollama",
+        protocol: "openai",
+        baseUrl: "http://localhost:11434/v1",
+        model: "",
+        key: "no"
+      ),
+      JS.obj(
+        id: "lmstudio",
+        name: "LM Studio",
+        protocol: "openai",
+        baseUrl: "http://localhost:1234/v1",
+        model: "",
+        key: "no"
+      ),
+      JS.obj(
+        id: "custom",
+        name: "Another OpenAI-compatible service",
+        protocol: "openai",
+        baseUrl: "",
+        model: "",
+        key: "optional"
+      )
     ]
   end
 
@@ -64,14 +113,27 @@ defmodule Runlight.Assistant do
          ) do
       {:error, :timeout} ->
         host = host_of(url)
-        raise AssistantError, message: "Could not reach #{host}: it took too long to answer", code: "assistant_timeout", params: [{"host", host}]
+
+        raise AssistantError,
+          message: "Could not reach #{host}: it took too long to answer",
+          code: "assistant_timeout",
+          params: [{"host", host}]
 
       {:error, _} ->
         host = host_of(url)
-        raise AssistantError, message: "Could not reach #{host}: the connection failed", code: "unreachable", params: [{"host", host}]
+
+        raise AssistantError,
+          message: "Could not reach #{host}: the connection failed",
+          code: "unreachable",
+          params: [{"host", host}]
 
       {:ok, answer} ->
-        data = case Response.json(answer), do: ({:ok, d} -> d; :error -> nil)
+        data =
+          case Response.json(answer),
+            do: (
+              {:ok, d} -> d
+              :error -> nil
+            )
 
         if Response.ok?(answer) do
           if data == nil, do: Object.new(), else: data
@@ -95,15 +157,24 @@ defmodule Runlight.Assistant do
     host = host_of(url)
 
     if message == "" do
-      raise AssistantError, message: "#{host}: it answered #{status}", code: "assistant_status", params: [{"host", host}, {"status", "#{status}"}]
+      raise AssistantError,
+        message: "#{host}: it answered #{status}",
+        code: "assistant_status",
+        params: [{"host", host}, {"status", "#{status}"}]
     else
       detail = JS.slice(message, 0, 300)
-      raise AssistantError, message: "#{host}: #{detail}", code: "assistant_refused", params: [{"host", host}, {"detail", detail}]
+
+      raise AssistantError,
+        message: "#{host}: #{detail}",
+        code: "assistant_refused",
+        params: [{"host", host}, {"detail", detail}]
     end
   end
 
   defp tool_text(name, args, read_api) do
-    result = Mcp.call_tool(JS.obj(name: name, arguments: if(JS.objectish?(args), do: args, else: Object.new())), read_api)
+    result =
+      Mcp.call_tool(JS.obj(name: name, arguments: if(JS.objectish?(args), do: args, else: Object.new())), read_api)
+
     content = result["content"]
     %{text: (List.first(content) || %{})["text"] || "", error: result["isError"] == true}
   rescue
@@ -146,11 +217,23 @@ defmodule Runlight.Assistant do
 
   @doc "Answers the last question in `messages`, calling tools as the model asks: {reply, tools}."
   def chat(rl, settings, messages, context, read_api) do
-    provider = provider!(settings) || raise(AssistantError, message: "Choose a provider in Settings, AI Assistant", code: "assistant_provider")
+    provider =
+      provider!(settings) ||
+        raise(AssistantError, message: "Choose a provider in Settings, AI Assistant", code: "assistant_provider")
+
     base = JS.or_else(settings["baseUrl"], provider["baseUrl"]) |> String.replace(~r/\/+\z/, "")
-    if base == "", do: raise(AssistantError, message: "Enter the service's address in Settings, AI Assistant", code: "assistant_address")
+
+    if base == "",
+      do:
+        raise(AssistantError,
+          message: "Enter the service's address in Settings, AI Assistant",
+          code: "assistant_address"
+        )
+
     model = JS.or_else(settings["model"], provider["model"])
-    if model == "", do: raise(AssistantError, message: "Enter a model in Settings, AI Assistant", code: "assistant_model")
+
+    if model == "",
+      do: raise(AssistantError, message: "Enter a model in Settings, AI Assistant", code: "assistant_model")
 
     # "Thanks!" needs no model, no tools, and certainly not the last answer again.
     case acknowledgement((List.last(messages) || %{content: ""}).content, context.language) do
@@ -169,8 +252,11 @@ defmodule Runlight.Assistant do
         content = m.content |> JS.string() |> JS.slice(0, 8000)
 
         case List.last(history) do
-          %{role: role} = last when role == m.role -> List.replace_at(history, -1, %{last | content: last.content <> "\n\n" <> content})
-          _ -> history ++ [%{role: m.role, content: content}]
+          %{role: role} = last when role == m.role ->
+            List.replace_at(history, -1, %{last | content: last.content <> "\n\n" <> content})
+
+          _ ->
+            history ++ [%{role: m.role, content: content}]
         end
       end)
       |> Enum.map(&JS.obj(role: &1.role, content: &1.content))
@@ -181,7 +267,11 @@ defmodule Runlight.Assistant do
   end
 
   defp steps_error,
-    do: raise(AssistantError, message: "The assistant needed too many steps for that question. Try asking something narrower.", code: "assistant_steps")
+    do:
+      raise(AssistantError,
+        message: "The assistant needed too many steps for that question. Try asking something narrower.",
+        code: "assistant_steps"
+      )
 
   defp anthropic(rl, settings, base, model, convo, context, read_api, deadline) do
     tools = Enum.map(Mcp.tools(), &JS.obj(name: &1.name, description: &1.description, input_schema: &1.input_schema))
@@ -197,11 +287,22 @@ defmodule Runlight.Assistant do
             deadline
           )
 
-        blocks = case JS.prop(data, "content"), do: (l when is_list(l) -> l; _ -> [])
+        blocks =
+          case JS.prop(data, "content"),
+            do: (
+              l when is_list(l) -> l
+              _ -> []
+            )
+
         calls = Enum.filter(blocks, &(JS.prop(&1, "type") == "tool_use"))
 
         if JS.prop(data, "stop_reason") != "tool_use" or calls == [] do
-          reply = blocks |> Enum.filter(&(JS.prop(&1, "type") == "text")) |> Enum.map_join("\n", &JS.string(JS.nullish(JS.prop(&1, "text"), ""))) |> JS.trim()
+          reply =
+            blocks
+            |> Enum.filter(&(JS.prop(&1, "type") == "text"))
+            |> Enum.map_join("\n", &JS.string(JS.nullish(JS.prop(&1, "text"), "")))
+            |> JS.trim()
+
           {:halt, {:done, JS.obj(reply: reply, tools: used)}}
         else
           convo = convo ++ [JS.obj(role: "assistant", content: blocks)]
@@ -228,7 +329,15 @@ defmodule Runlight.Assistant do
   end
 
   defp openai(rl, settings, provider, base, model, history, context, read_api, deadline) do
-    tools = Enum.map(Mcp.tools(), &JS.obj(type: "function", function: JS.obj(name: &1.name, description: &1.description, parameters: &1.input_schema)))
+    tools =
+      Enum.map(
+        Mcp.tools(),
+        &JS.obj(
+          type: "function",
+          function: JS.obj(name: &1.name, description: &1.description, parameters: &1.input_schema)
+        )
+      )
+
     convo = [JS.obj(role: "system", content: system(context)) | history]
     headers = if JS.truthy?(settings["key"]), do: [{"authorization", "Bearer #{settings["key"]}"}], else: []
 
@@ -244,16 +353,32 @@ defmodule Runlight.Assistant do
 
         message =
           case JS.prop(data, "choices") do
-            [first | _] -> case JS.prop(first, "message"), do: (%Object{} = m -> m; _ -> Object.new())
-            _ -> Object.new()
+            [first | _] ->
+              case JS.prop(first, "message"),
+                do: (
+                  %Object{} = m -> m
+                  _ -> Object.new()
+                )
+
+            _ ->
+              Object.new()
           end
 
-        calls = case JS.prop(message, "tool_calls"), do: (l when is_list(l) and l != [] -> l; _ -> nil)
+        calls =
+          case JS.prop(message, "tool_calls"),
+            do: (
+              l when is_list(l) and l != [] -> l
+              _ -> nil
+            )
 
         if calls == nil do
-          {:halt, {:done, JS.obj(reply: message |> JS.prop("content") |> JS.nullish("") |> JS.string() |> JS.trim(), tools: used)}}
+          {:halt,
+           {:done,
+            JS.obj(reply: message |> JS.prop("content") |> JS.nullish("") |> JS.string() |> JS.trim(), tools: used)}}
         else
-          convo = convo ++ [JS.obj(role: "assistant", content: JS.nullish(JS.prop(message, "content"), nil), tool_calls: calls)]
+          convo =
+            convo ++
+              [JS.obj(role: "assistant", content: JS.nullish(JS.prop(message, "content"), nil), tool_calls: calls)]
 
           {convo, used} =
             Enum.reduce(calls, {convo, used}, fn call, {convo, used} ->
@@ -286,7 +411,12 @@ defmodule Runlight.Assistant do
     if base == "", do: raise(AssistantError, message: "Enter the service's address first", code: "assistant_address")
 
     if provider["key"] == "yes" and not JS.truthy?(settings["key"]),
-      do: raise(AssistantError, message: "Enter your #{provider["name"]} key first", code: "assistant_key", params: [{"provider", provider["name"]}])
+      do:
+        raise(AssistantError,
+          message: "Enter your #{provider["name"]} key first",
+          code: "assistant_key",
+          params: [{"provider", provider["name"]}]
+        )
 
     anthropic = provider["protocol"] == "anthropic"
 
@@ -302,11 +432,20 @@ defmodule Runlight.Assistant do
 
     answer =
       case Runlight.fetch(rl, url, headers: headers, timeout: 20_000) do
-        {:ok, answer} -> answer
-        {:error, _} -> raise AssistantError, message: "Could not reach #{host}", code: "unreachable", params: [{"host", host}]
+        {:ok, answer} ->
+          answer
+
+        {:error, _} ->
+          raise AssistantError, message: "Could not reach #{host}", code: "unreachable", params: [{"host", host}]
       end
 
-    data = case Response.json(answer), do: ({:ok, d} -> d; :error -> nil)
+    data =
+      case Response.json(answer),
+        do: (
+          {:ok, d} -> d
+          :error -> nil
+        )
+
     unless Response.ok?(answer), do: refused(base, answer.status, data)
 
     models =
@@ -323,7 +462,12 @@ defmodule Runlight.Assistant do
       end)
 
     if models == [],
-      do: raise(AssistantError, message: "#{host} listed no models. Type the model's name instead.", code: "assistant_no_models", params: [{"host", host}])
+      do:
+        raise(AssistantError,
+          message: "#{host} listed no models. Type the model's name instead.",
+          code: "assistant_no_models",
+          params: [{"host", host}]
+        )
 
     # Anthropic lists newest first already; others come in no useful order.
     if anthropic, do: models, else: Enum.sort(models, &(Runlight.Collate.compare(&1["id"], &2["id"]) <= 0))

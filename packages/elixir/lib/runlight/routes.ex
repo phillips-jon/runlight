@@ -87,9 +87,11 @@ defmodule Runlight.Routes do
 
   @doc "A domain name, such as go.example.com."
   def domain_name?(value),
-    do: is_binary(value) and Regex.match?(~r/\A(?=.{1,253}\z)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\z/, value)
+    do:
+      is_binary(value) and Regex.match?(~r/\A(?=.{1,253}\z)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}\z/, value)
 
-  defp shared_path?(path), do: MapSet.member?(@shared_paths, path) or Regex.match?(~r/\A\/api\/goals\/[a-f0-9]{24}\z/, path)
+  defp shared_path?(path),
+    do: MapSet.member?(@shared_paths, path) or Regex.match?(~r/\A\/api\/goals\/[a-f0-9]{24}\z/, path)
 
   @doc """
   What a manage token, held by a Runlight hub, may read and change: one
@@ -122,8 +124,14 @@ defmodule Runlight.Routes do
         _ -> Runlight.env("RUNLIGHT_TOKEN")
       end
 
-    cron_secret = if Keyword.has_key?(opts, :cron_secret), do: Keyword.get(opts, :cron_secret), else: Runlight.env("CRON_SECRET")
-    observe_key = if Keyword.has_key?(opts, :observe_key), do: Keyword.get(opts, :observe_key), else: Runlight.env("RUNLIGHT_OBSERVE_KEY")
+    cron_secret =
+      if Keyword.has_key?(opts, :cron_secret), do: Keyword.get(opts, :cron_secret), else: Runlight.env("CRON_SECRET")
+
+    observe_key =
+      if Keyword.has_key?(opts, :observe_key),
+        do: Keyword.get(opts, :observe_key),
+        else: Runlight.env("RUNLIGHT_OBSERVE_KEY")
+
     origin = if Keyword.get(opts, :origin) not in [nil, ""], do: Url.origin(Url.new(Keyword.get(opts, :origin)))
     # A link domain leaves these paths to the app, so the dashboard stays reachable on every name.
     Runlight.add_route_base(rl, if(base == "", do: "/", else: base))
@@ -209,8 +217,11 @@ defmodule Runlight.Routes do
   # its English words as `detail`.
   defp refused(error, fallback, status \\ 400) do
     case error do
-      %{code: code} when is_binary(code) -> coded(Exception.message(error), code, status, Map.get(error, :params) || %{})
-      _ -> coded(Exception.message(error), fallback, status, %{"detail" => Exception.message(error)})
+      %{code: code} when is_binary(code) ->
+        coded(Exception.message(error), code, status, Map.get(error, :params) || %{})
+
+      _ ->
+        coded(Exception.message(error), fallback, status, %{"detail" => Exception.message(error)})
     end
   end
 
@@ -219,7 +230,11 @@ defmodule Runlight.Routes do
       JS.stringify(body),
       status,
       merge_headers(
-        [{"content-type", "application/json; charset=utf-8"}, {"cache-control", "no-store"}, {"x-content-type-options", "nosniff"}],
+        [
+          {"content-type", "application/json; charset=utf-8"},
+          {"cache-control", "no-store"},
+          {"x-content-type-options", "nosniff"}
+        ],
         headers
       )
     )
@@ -240,7 +255,8 @@ defmodule Runlight.Routes do
 
   # Whether a request's body is JSON by its media type.
   defp json?(request) do
-    (Request.header(request, "content-type") || "") |> String.split(";") |> hd() |> JS.trim() |> JS.lower() == "application/json"
+    (Request.header(request, "content-type") || "") |> String.split(";") |> hd() |> JS.trim() |> JS.lower() ==
+      "application/json"
   end
 
   @doc "A Host or X-Forwarded-Host value as a bare name: lowercase, with no port, no final dot, and no www."
@@ -258,7 +274,10 @@ defmodule Runlight.Routes do
   # Whether a domain name is one kept for private networks or tests, or has an IPv4 address inside it.
   defp private_name?(domain) do
     Regex.match?(~r/(^|\.)\d{1,3}(\.\d{1,3}){3}(\.|$)/, domain) or
-      Regex.match?(~r/\.(internal|intranet|private|local|localhost|localdomain|lan|home|corp|home\.arpa|arpa|test|invalid|example)\z/, domain)
+      Regex.match?(
+        ~r/\.(internal|intranet|private|local|localhost|localdomain|lan|home|corp|home\.arpa|arpa|test|invalid|example)\z/,
+        domain
+      )
   end
 
   defp small_page(lang, body, status \\ 200) do
@@ -269,7 +288,8 @@ defmodule Runlight.Routes do
       [
         {"content-type", "text/html; charset=utf-8"},
         {"cache-control", "no-store"},
-        {"content-security-policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'"},
+        {"content-security-policy",
+         "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'"},
         {"referrer-policy", "no-referrer"}
       ]
     )
@@ -415,7 +435,9 @@ defmodule Runlight.Routes do
              Crypto.constant_time_equal?(given, routes.token) do
           true
         else
-          answer = if routes.authorize, do: routes.authorize.(request), else: Runlight.Accounts.Web.access(routes.web, request)
+          answer =
+            if routes.authorize, do: routes.authorize.(request), else: Runlight.Accounts.Web.access(routes.web, request)
+
           if answer == "member", do: Process.put({:runlight_member, request.ref}, true)
           if answer == "read", do: "read", else: answer == true or answer == "member"
         end
@@ -466,7 +488,9 @@ defmodule Runlight.Routes do
         row ->
           now = Runlight.now(rl)
           # At most once a minute, so a busy assistant does not write on every call.
-          if row["lastUsedAt"] == nil or now - row["lastUsedAt"] > 60_000, do: Store.touch_token(rl.store, row["id"], now)
+          if row["lastUsedAt"] == nil or now - row["lastUsedAt"] > 60_000,
+            do: Store.touch_token(rl.store, row["id"], now)
+
           row
       end
     end
@@ -523,7 +547,11 @@ defmodule Runlight.Routes do
     raw_filters = SearchParams.get_all(q, "filter")
     max = Query.max_filters()
 
-    with :ok <- if(length(raw_filters) > max, do: {:error, coded("Use at most #{max} filters at once.", "filters_max", 400, %{"max" => "#{max}"})}, else: :ok),
+    with :ok <-
+           if(length(raw_filters) > max,
+             do: {:error, coded("Use at most #{max} filters at once.", "filters_max", 400, %{"max" => "#{max}"})},
+             else: :ok
+           ),
          {:ok, filters} <- parse_filters(raw_filters) do
       rl = routes.rl
       now = Runlight.now(rl)
@@ -558,13 +586,19 @@ defmodule Runlight.Routes do
         mode = if raw == "false", do: "off", else: raw
 
         if mode not in ["previous", "year", "custom", "off"] do
-          {:error, coded(~s(Bad compare "#{raw}". Use previous, year, custom, or off.), "compare_bad", 400, %{"compare" => raw})}
+          {:error,
+           coded(~s(Bad compare "#{raw}". Use previous, year, custom, or off.), "compare_bad", 400, %{"compare" => raw})}
         else
           compared =
-            Time.compare_range(range, mode, site["timezone"], %{from: SearchParams.get(q, "compare_from"), to: SearchParams.get(q, "compare_to")})
+            Time.compare_range(range, mode, site["timezone"], %{
+              from: SearchParams.get(q, "compare_from"),
+              to: SearchParams.get(q, "compare_to")
+            })
 
           if mode == "custom" and compared == nil,
-            do: {:error, coded("Bad comparison range. Use compare_from and compare_to as YYYY-MM-DD.", "compare_range_bad", 400)},
+            do:
+              {:error,
+               coded("Bad comparison range. Use compare_from and compare_to as YYYY-MM-DD.", "compare_range_bad", 400)},
             else: {:ok, %{query: query, range: range, compared: compared}}
         end
       end
@@ -575,7 +609,9 @@ defmodule Runlight.Routes do
     Enum.reduce_while(raws, {:ok, []}, fn raw, {:ok, acc} ->
       case Query.parse_filter(raw) do
         nil ->
-          {:halt, {:error, coded(~s(Bad filter "#{raw}". Use dimension:is|not|contains:value.), "filter_bad", 400, %{"filter" => raw})}}
+          {:halt,
+           {:error,
+            coded(~s(Bad filter "#{raw}". Use dimension:is|not|contains:value.), "filter_bad", 400, %{"filter" => raw})}}
 
         f ->
           {:cont, {:ok, acc ++ [f]}}
@@ -674,7 +710,9 @@ defmodule Runlight.Routes do
 
           # The install's own errors say what went wrong there; a refused token is this server's problem to report.
           answer.status == 401 ->
-            coded("#{host} refused the token. Connect it again from the site's settings.", "token_refused", 502, %{"host" => host})
+            coded("#{host} refused the token. Connect it again from the site's settings.", "token_refused", 502, %{
+              "host" => host
+            })
 
           answer.status >= 400 and not download ->
             text = Response.text(answer)
@@ -700,7 +738,11 @@ defmodule Runlight.Routes do
                   []
               end
 
-            error = if body && is_binary(body["error"]), do: JS.slice(body["error"], 0, 300), else: "answered #{answer.status}"
+            error =
+              if body && is_binary(body["error"]),
+                do: JS.slice(body["error"], 0, 300),
+                else: "answered #{answer.status}"
+
             out = JS.obj(error: "#{host}: #{error}")
             code = body && body["code"]
 
@@ -886,7 +928,14 @@ defmodule Runlight.Routes do
           method == "PATCH" ->
             with {:ok, body} <- read_json(request) do
               pick = fn key -> if Object.has_key?(body, key) and body[key] != :undefined, do: JS.string(body[key]) end
-              changes = %{"url" => pick.("url"), "name" => pick.("name"), "slug" => pick.("slug"), "domain" => pick.("domain")}
+
+              changes = %{
+                "url" => pick.("url"),
+                "name" => pick.("name"),
+                "slug" => pick.("slug"),
+                "domain" => pick.("domain")
+              }
+
               json(JS.obj(link: Runlight.Links.update(rl, id, changes)))
             else
               {:error, response} -> response
@@ -922,16 +971,31 @@ defmodule Runlight.Routes do
         coded("That is not a domain name", "domain_invalid", 400)
 
       private_name?(domain) or Runlight.Safefetch.resolves_privately?(domain) ->
-        coded("#{domain} is not a public domain name. Use one that browsers anywhere can reach.", "domain_not_public", 400, %{"domain" => domain})
+        coded(
+          "#{domain} is not a public domain name. Use one that browsers anywhere can reach.",
+          "domain_not_public",
+          400,
+          %{"domain" => domain}
+        )
 
       # A hub cannot know every name this app answers on, so it adds none until the app knows its own address.
       managed(request) != nil and routes.origin == nil ->
         origin_needed()
 
       true ->
-        here = Enum.filter([Request.header(request, "host"), Request.header(request, "x-forwarded-host"), Url.host(url)], &JS.truthy?/1)
+        here =
+          Enum.filter(
+            [Request.header(request, "host"), Request.header(request, "x-forwarded-host"), Url.host(url)],
+            &JS.truthy?/1
+          )
+
         own_hosts = if routes.own_hosts, do: Enum.to_list(routes.own_hosts.()), else: []
-        own = Enum.map((if routes.origin, do: [Url.host(Url.new(routes.origin))], else: []) ++ here ++ own_hosts, &host_name/1)
+
+        own =
+          Enum.map(
+            if(routes.origin, do: [Url.host(Url.new(routes.origin))], else: []) ++ here ++ own_hosts,
+            &host_name/1
+          )
 
         taken =
           MapSet.new(
@@ -988,12 +1052,22 @@ defmodule Runlight.Routes do
         # Only a public address is fetched, whatever the name resolves to now.
         case Runlight.Safefetch.public_fetch(rl, "https://#{domain}#{Runlight.link_domain_check()}", timeout: 5000) do
           {:ok, answer} ->
-            body = case Response.json(answer), do: ({:ok, %Object{} = b} -> b; _ -> nil)
+            body =
+              case Response.json(answer),
+                do: (
+                  {:ok, %Object{} = b} -> b
+                  _ -> nil
+                )
 
             cond do
-              Response.ok?(answer) and body != nil and body["runlight"] == true and body["domain"] == domain -> result.("", "", nil)
-              Response.ok?(answer) -> result.("check_not_runlight", "answered, but not from Runlight", nil)
-              true -> result.("check_status", "answered #{answer.status}", %{"status" => "#{answer.status}"})
+              Response.ok?(answer) and body != nil and body["runlight"] == true and body["domain"] == domain ->
+                result.("", "", nil)
+
+              Response.ok?(answer) ->
+                result.("check_not_runlight", "answered, but not from Runlight", nil)
+
+              true ->
+                result.("check_status", "answered #{answer.status}", %{"status" => "#{answer.status}"})
             end
 
           # A refused private address answers as a closed port does, so the check tells nothing about a private network.
@@ -1036,7 +1110,8 @@ defmodule Runlight.Routes do
 
   # The dashboard origin and site a picker ticket names, or nil when it is not one this install signed or has run out.
   defp pick_target(rl, ticket) do
-    with [_, expires, site, origin, mac] <- Regex.run(~r/\A(\d+)\.([a-f0-9]{2,512})\.([a-f0-9]{2,512})\.([a-f0-9]{64})\z/, ticket),
+    with [_, expires, site, origin, mac] <-
+           Regex.run(~r/\A(\d+)\.([a-f0-9]{2,512})\.([a-f0-9]{2,512})\.([a-f0-9]{64})\z/, ticket),
          false <- JS.number(expires) < Runlight.now(rl),
          true <- Crypto.constant_time_equal?(mac, Hash.hmac(pick_key(rl), "#{expires}.#{site}.#{origin}")),
          origin_text = unhex(origin),
@@ -1080,7 +1155,13 @@ defmodule Runlight.Routes do
     rules = JS.stringify(Goals.click_rules(sites, Store.goals(rl.store)))
     # Replaced as text: "$'" or "$&" in a selector must not be read as a replacement pattern.
     body = String.replace(Assets.tracker(), @rules_placeholder, rules, global: false)
-    script = %{body: body, etag: ~s("#{Assets.tracker_hash()}-#{binary_part(Hash.sha256(rules), 0, 8)}"), at: Runlight.now(rl)}
+
+    script = %{
+      body: body,
+      etag: ~s("#{Assets.tracker_hash()}-#{binary_part(Hash.sha256(rules), 0, 8)}"),
+      at: Runlight.now(rl)
+    }
+
     # One entry per site at most; a query naming no real site gets the empty script without filling the table.
     if site_id == nil or sites != [], do: put_state(routes, {:tracker, key}, script)
     script
@@ -1251,7 +1332,12 @@ defmodule Runlight.Routes do
     if path == "/api/reports" do
       case request.method do
         "GET" ->
-          json(JS.obj(reports: Enum.map(Store.reports(rl.store, site["id"]), &report_view/1), languages: Messages.languages()))
+          json(
+            JS.obj(
+              reports: Enum.map(Store.reports(rl.store, site["id"]), &report_view/1),
+              languages: Messages.languages()
+            )
+          )
 
         "POST" ->
           with {:ok, body} <- read_json(request) do
@@ -1368,7 +1454,11 @@ defmodule Runlight.Routes do
 
     cond do
       report == nil or site == nil ->
-        small_page(lang, "<h1>#{escape_html(t.("email.unsub.goneTitle", %{}))}</h1><p>#{escape_html(t.("email.unsub.gone", %{}))}</p>", 404)
+        small_page(
+          lang,
+          "<h1>#{escape_html(t.("email.unsub.goneTitle", %{}))}</h1><p>#{escape_html(t.("email.unsub.gone", %{}))}</p>",
+          404
+        )
 
       request.method == "POST" ->
         Store.delete_report(rl.store, report["id"])
@@ -1478,11 +1568,17 @@ defmodule Runlight.Routes do
             asked = JS.number(JS.nullish(JS.prop(counts, who), 0))
 
             if asked >= limit do
-              coded("Viewers can ask #{JS.string(limit)} questions a day. Ask again tomorrow.", "assistant_daily", 429, %{"limit" => JS.string(limit)})
+              coded(
+                "Viewers can ask #{JS.string(limit)} questions a day. Ask again tomorrow.",
+                "assistant_daily",
+                429,
+                %{"limit" => JS.string(limit)}
+              )
             else
               Store.set_setting(rl.store, day, JS.stringify(Object.put(counts, who, asked + 1)))
 
-              for %{key: k} <- Store.settings_starting_with(rl.store, "assistant-asked:"), k != day,
+              for %{key: k} <- Store.settings_starting_with(rl.store, "assistant-asked:"),
+                  k != day,
                   do: Store.set_setting(rl.store, k, nil)
 
               nil
@@ -1513,7 +1609,15 @@ defmodule Runlight.Routes do
     Runlight.init(rl)
 
     view = fn t ->
-      JS.obj(id: t["id"], name: t["name"], site: t["site"], scope: t["scope"], hint: t["hint"], createdAt: t["createdAt"], lastUsedAt: t["lastUsedAt"])
+      JS.obj(
+        id: t["id"],
+        name: t["name"],
+        site: t["site"],
+        scope: t["scope"],
+        hint: t["hint"],
+        createdAt: t["createdAt"],
+        lastUsedAt: t["lastUsedAt"]
+      )
     end
 
     delete = Regex.run(~r/\A\/api\/tokens\/([a-f0-9]{24})\z/, path)
@@ -1646,7 +1750,12 @@ defmodule Runlight.Routes do
             json(JS.obj(authorize: Runlight.Connect.start_connect(rl, JS.prop(body, "url"), back, site)))
           rescue
             error in Runlight.ConnectError ->
-              coded(error.message, if(error.code == "unreachable", do: "unreachable", else: "connect_#{error.code}"), 400, error.params)
+              coded(
+                error.message,
+                if(error.code == "unreachable", do: "unreachable", else: "connect_#{error.code}"),
+                400,
+                error.params
+              )
 
             error ->
               if Errors.range?(error), do: refused(error, "connect_failed"), else: reraise(error, __STACKTRACE__)
@@ -1696,7 +1805,8 @@ defmodule Runlight.Routes do
         site_match = Regex.run(~r/\A\/api\/sites\/([^\/]+)\z/, path)
 
         cond do
-          (asked != nil and asked != token["site"]) or (site_match != nil and JS.decode_uri_component(Enum.at(site_match, 1)) != token["site"]) ->
+          (asked != nil and asked != token["site"]) or
+              (site_match != nil and JS.decode_uri_component(Enum.at(site_match, 1)) != token["site"]) ->
             {coded("Unknown site", "unknown_site", 404), url}
 
           site_match != nil and json?(request) and hub_domains?(request) ->
@@ -1730,7 +1840,8 @@ defmodule Runlight.Routes do
         given = bearer(request)
 
         allowed =
-          (is_binary(routes.cron_secret) and routes.cron_secret != "" and given != "" and Crypto.constant_time_equal?(given, routes.cron_secret)) or
+          (is_binary(routes.cron_secret) and routes.cron_secret != "" and given != "" and
+             Crypto.constant_time_equal?(given, routes.cron_secret)) or
             can_read(routes, request) == true
 
         if allowed, do: json(Runlight.check(rl)), else: coded("Unauthorized", "unauthorized", 401)
@@ -1752,7 +1863,8 @@ defmodule Runlight.Routes do
     given = bearer(request)
     # The install-wide key and the owner's access can report for any site.
     any_site =
-      (is_binary(routes.observe_key) and routes.observe_key != "" and given != "" and Crypto.constant_time_equal?(given, routes.observe_key)) or
+      (is_binary(routes.observe_key) and routes.observe_key != "" and given != "" and
+         Crypto.constant_time_equal?(given, routes.observe_key)) or
         can_read(routes, request) == true
 
     if not any_site and given == "" do
@@ -1781,7 +1893,9 @@ defmodule Runlight.Routes do
                   end
 
                 user_agent = item |> JS.prop("userAgent") |> JS.nullish("") |> JS.string() |> JS.slice(0, 500)
-                {:cont, {:ok, pages ++ [%{page: page, user_agent: user_agent, at: if(at != nil and JS.finite?(at), do: at)}]}}
+
+                {:cont,
+                 {:ok, pages ++ [%{page: page, user_agent: user_agent, at: if(at != nil and JS.finite?(at), do: at)}]}}
               end
             end)
 
@@ -1850,7 +1964,8 @@ defmodule Runlight.Routes do
     connected = if asked, do: Runlight.remote(rl, asked)
 
     cond do
-      connected && connected["scope"] == "manage" && manage_path?(method, path) && not (method == "GET" and shared_path?(path)) ->
+      connected && connected["scope"] == "manage" && manage_path?(method, path) &&
+          not (method == "GET" and shared_path?(path)) ->
         access = can_read(routes, request)
 
         if access != true do
@@ -1861,7 +1976,11 @@ defmodule Runlight.Routes do
         end
 
       connected && not (method == "GET" and (shared_path?(path) or path == "/api/links")) ->
-        coded("This site is counted by its own Runlight. Connect it again from its settings to change it from here.", "site_remote", 400)
+        coded(
+          "This site is counted by its own Runlight. Connect it again from its settings to change it from here.",
+          "site_remote",
+          400
+        )
 
       # Visit history from Umami: list the account's websites, then import one a step at a time.
       path in ["/api/import/umami/websites", "/api/import/umami/visits"] and method == "POST" ->
@@ -1955,10 +2074,15 @@ defmodule Runlight.Routes do
         access = reader(routes, request)
 
         cond do
-          access in [false, "unconfigured"] -> denied(access)
+          access in [false, "unconfigured"] ->
+            denied(access)
+
           # A token limited to one site reads only that site's links, here as everywhere else.
-          access != true and access["site"] != "" and access["site"] != asked -> coded("Unknown site", "unknown_site", 404)
-          true -> pass_through(routes, connected, path, url)
+          access != true and access["site"] != "" and access["site"] != asked ->
+            coded("Unknown site", "unknown_site", 404)
+
+          true ->
+            pass_through(routes, connected, path, url)
         end
 
       # An API token, or someone signed in to read, may list links and see each one's clicks, but not change them.
@@ -2022,14 +2146,23 @@ defmodule Runlight.Routes do
           denied(access)
         else
           try do
-            Runlight.delete_site(rl, JS.decode_uri_component(binary_part(path, 11, byte_size(path) - 11)) || raise("URI malformed"))
+            Runlight.delete_site(
+              rl,
+              JS.decode_uri_component(binary_part(path, 11, byte_size(path) - 11)) || raise("URI malformed")
+            )
+
             json(JS.obj(ok: true))
           rescue
             error ->
               cond do
-                Errors.range?(error) and Exception.message(error) == "Unknown site" -> coded("Unknown site", "unknown_site", 404)
-                Errors.range?(error) -> refused(error, "site_invalid")
-                true -> reraise error, __STACKTRACE__
+                Errors.range?(error) and Exception.message(error) == "Unknown site" ->
+                  coded("Unknown site", "unknown_site", 404)
+
+                Errors.range?(error) ->
+                  refused(error, "site_invalid")
+
+                true ->
+                  reraise error, __STACKTRACE__
               end
           end
         end
@@ -2184,7 +2317,8 @@ defmodule Runlight.Routes do
             Runlight.save_assistant_settings(rl, body)
             json(JS.obj(ok: true))
           rescue
-            error -> if Errors.range?(error), do: refused(error, "assistant_invalid"), else: reraise(error, __STACKTRACE__)
+            error ->
+              if Errors.range?(error), do: refused(error, "assistant_invalid"), else: reraise(error, __STACKTRACE__)
           end
         else
           {:error, response} -> response
@@ -2204,7 +2338,10 @@ defmodule Runlight.Routes do
          {:ok, body} <- read_json(request) do
       provider = body |> JS.prop("provider") |> JS.nullish("") |> JS.string()
       saved = Runlight.assistant_settings(rl)
-      base_url = body |> JS.prop("baseUrl") |> JS.nullish("") |> JS.string() |> JS.trim() |> String.replace(~r/\/+\z/, "")
+
+      base_url =
+        body |> JS.prop("baseUrl") |> JS.nullish("") |> JS.string() |> JS.trim() |> String.replace(~r/\/+\z/, "")
+
       # The saved key only for the address it was saved with.
       same = saved != nil and saved["provider"] == provider and (saved["baseUrl"] || "") == base_url
       key = body |> JS.prop("key") |> JS.nullish("") |> JS.string() |> JS.trim()
@@ -2214,7 +2351,11 @@ defmodule Runlight.Routes do
         models =
           Runlight.Assistant.list_models(
             rl,
-            JS.obj(provider: provider, baseUrl: body |> JS.prop("baseUrl") |> JS.nullish("") |> JS.string() |> JS.trim(), key: key)
+            JS.obj(
+              provider: provider,
+              baseUrl: body |> JS.prop("baseUrl") |> JS.nullish("") |> JS.string() |> JS.trim(),
+              key: key
+            )
           )
 
         json(JS.obj(models: models))
@@ -2246,7 +2387,11 @@ defmodule Runlight.Routes do
         settings = Runlight.assistant_settings(rl)
 
         if settings == nil do
-          coded("The assistant is not set up yet. An owner can set it up in Settings, AI Assistant.", "assistant_unset", 400)
+          coded(
+            "The assistant is not set up yet. An owner can set it up in Settings, AI Assistant.",
+            "assistant_unset",
+            400
+          )
         else
           with {:ok, body} <- read_json(request) do
             site = Runlight.site(rl, JS.or_else(body |> JS.prop("site") |> JS.nullish("") |> JS.string(), nil))
@@ -2254,7 +2399,10 @@ defmodule Runlight.Routes do
             messages =
               case body["messages"] do
                 list when is_list(list) ->
-                  for m <- list, JS.object?(m), m["role"] in ["user", "assistant"], is_binary(m["content"]),
+                  for m <- list,
+                      JS.object?(m),
+                      m["role"] in ["user", "assistant"],
+                      is_binary(m["content"]),
                       do: %{role: m["role"], content: m["content"]}
 
                 _ ->
@@ -2279,7 +2427,10 @@ defmodule Runlight.Routes do
                   {:ok, finish} ->
                     try do
                       read_api = tool_reader(routes, request, url, site["id"])
-                      view = body |> JS.prop("view") |> JS.nullish("the last 30 days") |> JS.string() |> JS.slice(0, 200)
+
+                      view =
+                        body |> JS.prop("view") |> JS.nullish("the last 30 days") |> JS.string() |> JS.slice(0, 200)
+
                       lang = JS.string(JS.prop(body, "language"))
 
                       context = %{
@@ -2318,7 +2469,15 @@ defmodule Runlight.Routes do
           do: with_param(target, "site", site),
           else: target
 
-      inner = %Request{url: Url.href(target), method: "GET", headers: headers, body: "", remote_address: request.remote_address, ref: make_ref()}
+      inner = %Request{
+        url: Url.href(target),
+        method: "GET",
+        headers: headers,
+        body: "",
+        remote_address: request.remote_address,
+        ref: make_ref()
+      }
+
       api(routes, inner, api_path, target)
     end
   end
@@ -2340,7 +2499,11 @@ defmodule Runlight.Routes do
 
         # A hub's ticket only ever sends to the hub it connected from, never to an origin it names now.
         hub != nil and Store.setting(rl.store, "token-origin:#{hub["id"]}") != origin ->
-          coded("This hub's address is not the one it connected from. Connect the site again from here.", "pick_hub", 403)
+          coded(
+            "This hub's address is not the one it connected from. Connect the site again from here.",
+            "pick_hub",
+            403
+          )
 
         true ->
           json(JS.obj(ticket: pick_ticket(rl, origin, site["id"])))
@@ -2369,7 +2532,9 @@ defmodule Runlight.Routes do
           coded("A site name is 1 to 80 characters", "site_name", 400)
 
         timezone != :undefined and not Time.timezone?(JS.string(timezone)) ->
-          coded(~s(Unknown timezone "#{JS.string(timezone)}"), "unknown_timezone", 400, %{"timezone" => JS.string(timezone)})
+          coded(~s(Unknown timezone "#{JS.string(timezone)}"), "unknown_timezone", 400, %{
+            "timezone" => JS.string(timezone)
+          })
 
         retention not in [:undefined, nil] and JS.number(retention) not in Runlight.retention_months() ->
           coded("Keep visits for #{choices} months, or forever", "retention_bad", 400, %{"months" => choices})
@@ -2404,7 +2569,8 @@ defmodule Runlight.Routes do
                       ref: make_ref()
                     }
 
-                    answer = pass_through(routes, remote, "/api/sites/#{JS.encode_uri_component(remote["site"])}", url, inner)
+                    answer =
+                      pass_through(routes, remote, "/api/sites/#{JS.encode_uri_component(remote["site"])}", url, inner)
 
                     if Response.ok?(answer) do
                       Runlight.forget_remote_info(rl, id)
@@ -2415,7 +2581,12 @@ defmodule Runlight.Routes do
                   end
 
                 remote == nil and retention != :undefined ->
-                  Runlight.set_retention(rl, id, if(retention == nil, do: nil, else: JS.normalize(JS.number(retention))))
+                  Runlight.set_retention(
+                    rl,
+                    id,
+                    if(retention == nil, do: nil, else: JS.normalize(JS.number(retention)))
+                  )
+
                   nil
 
                 true ->
@@ -2452,9 +2623,14 @@ defmodule Runlight.Routes do
           rescue
             error ->
               cond do
-                Errors.range?(error) and Exception.message(error) == "Unknown site" -> coded("Unknown site", "unknown_site", 404)
-                Errors.range?(error) -> refused(error, "site_invalid")
-                true -> reraise error, __STACKTRACE__
+                Errors.range?(error) and Exception.message(error) == "Unknown site" ->
+                  coded("Unknown site", "unknown_site", 404)
+
+                Errors.range?(error) ->
+                  refused(error, "site_invalid")
+
+                true ->
+                  reraise error, __STACKTRACE__
               end
           end
       end
@@ -2526,7 +2702,11 @@ defmodule Runlight.Routes do
           out = if shared, do: Object.put(out, "hostnames", []), else: out
 
           out =
-            Object.put(out, "lastSeen", if(remote, do: Runlight.remote_last_seen(rl, site["id"]), else: Store.last_seen(rl.store, site["id"])))
+            Object.put(
+              out,
+              "lastSeen",
+              if(remote, do: Runlight.remote_last_seen(rl, site["id"]), else: Store.last_seen(rl.store, site["id"]))
+            )
 
           # Left out for a connected install that cannot be reached, so nobody reads "forever" by mistake.
           out =
@@ -2536,11 +2716,16 @@ defmodule Runlight.Routes do
               Object.put(
                 out,
                 "retentionMonths",
-                if(remote, do: Runlight.remote_info(rl, site["id"]).retention_months, else: Runlight.retention(rl, site["id"]))
+                if(remote,
+                  do: Runlight.remote_info(rl, site["id"]).retention_months,
+                  else: Runlight.retention(rl, site["id"])
+                )
               )
             end
 
-          if remote && shared == nil, do: Object.put(out, "connection", Runlight.remote_info(rl, site["id"]).connection), else: out
+          if remote && shared == nil,
+            do: Object.put(out, "connection", Runlight.remote_info(rl, site["id"]).connection),
+            else: out
         end)
 
       # A share never learns how the install is run.
@@ -2562,9 +2747,14 @@ defmodule Runlight.Routes do
 
         {:ok, site} ->
           cond do
-            only != nil and site["id"] != only -> coded("Unknown site", "unknown_site", 404)
-            Runlight.remote(rl, site["id"]) != nil -> pass_through(routes, Runlight.remote(rl, site["id"]), path, url, request)
-            true -> site_reads(routes, path, url, site)
+            only != nil and site["id"] != only ->
+              coded("Unknown site", "unknown_site", 404)
+
+            Runlight.remote(rl, site["id"]) != nil ->
+              pass_through(routes, Runlight.remote(rl, site["id"]), path, url, request)
+
+            true ->
+              site_reads(routes, path, url, site)
           end
       end
     end
@@ -2636,7 +2826,12 @@ defmodule Runlight.Routes do
             |> Object.put(
               "previous",
               if(earlier,
-                do: Object.put(earlier, "rate", if(previous_visitors != 0, do: JS.divide(earlier["visitors"], previous_visitors), else: 0)),
+                do:
+                  Object.put(
+                    earlier,
+                    "rate",
+                    if(previous_visitors != 0, do: JS.divide(earlier["visitors"], previous_visitors), else: 0)
+                  ),
                 else: :undefined
               )
             )
@@ -2659,7 +2854,8 @@ defmodule Runlight.Routes do
               site: site["id"],
               range: range_out,
               goal: goal,
-              totals: Object.put(totals, "rate", if(visitors != 0, do: JS.divide(totals["visitors"], visitors), else: 0)),
+              totals:
+                Object.put(totals, "rate", if(visitors != 0, do: JS.divide(totals["visitors"], visitors), else: 0)),
               series: series,
               sources: Store.goal_breakdown(store, query, goal, "source"),
               channels: Store.goal_breakdown(store, query, goal, "channel"),
@@ -2772,7 +2968,6 @@ defmodule Runlight.Routes do
   end
 
   defp finite_or(n, fallback), do: if(JS.finite?(n), do: n, else: fallback)
-  defp trunc_int(n) when is_float(n), do: trunc(n)
   defp trunc_int(n), do: n
 
   # `Math.min(max, Math.max(1, Number(value) || fallback))`, as a whole number for SQL.
@@ -2816,7 +3011,12 @@ defmodule Runlight.Routes do
     details =
       Enum.map(cells, fn day ->
         Enum.map(day, fn c ->
-          JS.obj(visits: c.visits, visitors: c.visitors, pageviews: c.pageviews, bounceRate: if(c.visits != 0, do: c.bounced / c.visits, else: 0))
+          JS.obj(
+            visits: c.visits,
+            visitors: c.visitors,
+            pageviews: c.pageviews,
+            bounceRate: if(c.visits != 0, do: c.bounced / c.visits, else: 0)
+          )
         end)
       end)
 
@@ -2838,13 +3038,20 @@ defmodule Runlight.Routes do
       )
 
     points = Store.series(store, query, Time.buckets(range, tz))
-    files = [%{name: "overview.csv", text: overview}, %{name: "over-time.csv", text: rows_csv(points, %{timezone: tz, interval: range.interval})}]
+
+    files = [
+      %{name: "overview.csv", text: overview},
+      %{name: "over-time.csv", text: rows_csv(points, %{timezone: tz, interval: range.interval})}
+    ]
 
     files =
       files ++
         Enum.flat_map(Query.dimensions(), fn dimension ->
           rows = Store.breakdown(store, query, dimension, 1000, 0)
-          if rows == [], do: [], else: [%{name: "#{dimension}.csv", text: rows_csv(rows, %{timezone: tz, dimension: dimension})}]
+
+          if rows == [],
+            do: [],
+            else: [%{name: "#{dimension}.csv", text: rows_csv(rows, %{timezone: tz, dimension: dimension})}]
         end)
 
     goals = Store.goals(store, site["id"])
@@ -2871,7 +3078,11 @@ defmodule Runlight.Routes do
           ]
       end
 
-    download("#{site["id"]}-#{range.from_date}-#{range.to_date}.zip", Zip.zip(files, Runlight.now(rl)), "application/zip")
+    download(
+      "#{site["id"]}-#{range.from_date}-#{range.to_date}.zip",
+      Zip.zip(files, Runlight.now(rl)),
+      "application/zip"
+    )
   end
 
   ## Answering a request
@@ -2911,7 +3122,8 @@ defmodule Runlight.Routes do
   end
 
   defp oauth_document?(path),
-    do: String.starts_with?(path, "/.well-known/oauth-") or String.starts_with?(path, "/.well-known/openid-configuration")
+    do:
+      String.starts_with?(path, "/.well-known/oauth-") or String.starts_with?(path, "/.well-known/openid-configuration")
 
   defp answer(routes, request) do
     url = Url.new(request.url)
@@ -2985,10 +3197,17 @@ defmodule Runlight.Routes do
 
         script =
           Assets.picker()
-          |> String.replace(@pick_target_placeholder, JS.stringify(if(hosts, do: (target && target.origin) || "", else: "")), global: false)
+          |> String.replace(
+            @pick_target_placeholder,
+            JS.stringify(if(hosts, do: (target && target.origin) || "", else: "")),
+            global: false
+          )
           |> String.replace(@pick_hosts_placeholder, JS.stringify(JS.stringify(hosts || [])), global: false)
 
-        Response.new(script, 200, [{"content-type", "application/javascript; charset=utf-8"}, {"cache-control", "no-store"}])
+        Response.new(script, 200, [
+          {"content-type", "application/javascript; charset=utf-8"},
+          {"cache-control", "no-store"}
+        ])
 
       path == "/assets/world.#{Assets.world_hash()}.json" and method == "GET" ->
         Response.new(Assets.world_json(), 200, [
@@ -3015,7 +3234,11 @@ defmodule Runlight.Routes do
           coded("Not found", "not_found", 404)
         else
           Response.new(asset, 200, [
-            {"content-type", if(String.ends_with?(path, ".js"), do: "application/javascript; charset=utf-8", else: "text/css; charset=utf-8")},
+            {"content-type",
+             if(String.ends_with?(path, ".js"),
+               do: "application/javascript; charset=utf-8",
+               else: "text/css; charset=utf-8"
+             )},
             {"cache-control", "public, max-age=31536000, immutable"}
           ])
         end
@@ -3083,23 +3306,29 @@ defmodule Runlight.Routes do
       path in ["/", ""] and method == "GET" ->
         given = param(url, "token")
 
-        if given not in [nil, ""] and is_binary(routes.token) and routes.token != "" and Crypto.constant_time_equal?(given, routes.token) do
+        if given not in [nil, ""] and is_binary(routes.token) and routes.token != "" and
+             Crypto.constant_time_equal?(given, routes.token) do
           cleaned = Url.with_params(url, SearchParams.delete(params_of(url), "token"))
           secure = if url.protocol == "https:", do: "; Secure", else: ""
 
           Response.new(nil, 303, [
             {"location", cleaned.pathname <> cleaned.search},
-            {"set-cookie", "#{@cookie}=#{cookie_value(routes.token)}; Path=#{if routes.base == "", do: "/", else: routes.base}; HttpOnly; SameSite=Lax; Max-Age=2592000#{secure}"}
+            {"set-cookie",
+             "#{@cookie}=#{cookie_value(routes.token)}; Path=#{if routes.base == "", do: "/", else: routes.base}; HttpOnly; SameSite=Lax; Max-Age=2592000#{secure}"}
           ])
         else
           # The page itself holds no data; the API it calls checks access and the page explains how to sign in.
-          Response.new(dashboard(routes.base, "", routes.sign_out, routes.geo_credit, routes.web != nil, routes.sign_in), 200, [
-            {"content-type", "text/html; charset=utf-8"},
-            {"cache-control", "no-store"},
-            {"content-security-policy", @dashboard_csp},
-            {"x-frame-options", "DENY"},
-            {"referrer-policy", "same-origin"}
-          ])
+          Response.new(
+            dashboard(routes.base, "", routes.sign_out, routes.geo_credit, routes.web != nil, routes.sign_in),
+            200,
+            [
+              {"content-type", "text/html; charset=utf-8"},
+              {"cache-control", "no-store"},
+              {"content-security-policy", @dashboard_csp},
+              {"x-frame-options", "DENY"},
+              {"referrer-policy", "same-origin"}
+            ]
+          )
         end
 
       true ->

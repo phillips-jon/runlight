@@ -128,7 +128,7 @@ defmodule Runlight do
     store =
       case Keyword.get(opts, :store) do
         %Store{} = store -> store
-        {Store, store_opts} -> Store.ecto(store_opts)
+        {Store, store_opts} -> apply(Store, :ecto, [store_opts])
         nil -> raise ArgumentError, ~s(Runlight: pass a store, such as {Runlight.Store, repo: MyApp.Repo})
         other -> raise ArgumentError, "Runlight: unknown store #{inspect(other)}"
       end

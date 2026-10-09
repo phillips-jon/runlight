@@ -65,7 +65,11 @@ defmodule Runlight.Test.Conformance do
           rescue
             error ->
               reraise RuntimeError,
-                      [message: "#{scenario["name"]}: #{step["method"]} #{step["path"]}: " <> Exception.format(:error, error, __STACKTRACE__)],
+                      [
+                        message:
+                          "#{scenario["name"]}: #{step["method"]} #{step["path"]}: " <>
+                            Exception.format(:error, error, __STACKTRACE__)
+                      ],
                       __STACKTRACE__
           end
         end)
@@ -86,8 +90,16 @@ defmodule Runlight.Test.Conformance do
   defp fetcher(upstream, fetched) do
     fn url, opts ->
       method = opts |> Keyword.get(:method, "GET") |> String.upcase()
-      given = opts |> Keyword.get(:headers, []) |> Enum.map(fn {k, v} -> {String.downcase(to_string(k)), to_string(v)} end)
-      given = given |> Enum.group_by(&elem(&1, 0), &elem(&1, 1)) |> Enum.map(fn {k, vs} -> {k, Enum.join(vs, ", ")} end) |> Enum.sort()
+
+      given =
+        opts |> Keyword.get(:headers, []) |> Enum.map(fn {k, v} -> {String.downcase(to_string(k)), to_string(v)} end)
+
+      given =
+        given
+        |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+        |> Enum.map(fn {k, vs} -> {k, Enum.join(vs, ", ")} end)
+        |> Enum.sort()
+
       text = Keyword.get(opts, :body) || ""
       seen = JS.obj(method: method, url: url)
       seen = if given != [], do: Object.put(seen, "headers", Object.new(given)), else: seen
@@ -117,9 +129,14 @@ defmodule Runlight.Test.Conformance do
         max = Keyword.get(opts, :max_bytes)
 
         cond do
-          max != nil and byte_size(text_body) > max and not Keyword.get(opts, :truncate, false) -> {:error, :too_long}
-          max != nil and byte_size(text_body) > max -> {:ok, %Response{status: match["status"] || 200, headers: headers, body: binary_part(text_body, 0, max)}}
-          true -> {:ok, %Response{status: match["status"] || 200, headers: headers, body: text_body}}
+          max != nil and byte_size(text_body) > max and not Keyword.get(opts, :truncate, false) ->
+            {:error, :too_long}
+
+          max != nil and byte_size(text_body) > max ->
+            {:ok, %Response{status: match["status"] || 200, headers: headers, body: binary_part(text_body, 0, max)}}
+
+          true ->
+            {:ok, %Response{status: match["status"] || 200, headers: headers, body: text_body}}
         end
       end
     end
@@ -141,12 +158,16 @@ defmodule Runlight.Test.Conformance do
     now = Agent.get(clock, & &1)
 
     headers =
-      Enum.map(Object.to_list(step["headers"] || Object.new()), fn {k, v} -> {String.downcase(k), fill_totp(v, kept, now)} end)
+      Enum.map(Object.to_list(step["headers"] || Object.new()), fn {k, v} ->
+        {String.downcase(k), fill_totp(v, kept, now)}
+      end)
 
     {body, headers} =
       cond do
         step["form"] ->
-          fields = step["form"] |> fill_deep(kept, now) |> Object.to_list() |> Enum.map(fn {k, v} -> {k, JS.string(v)} end)
+          fields =
+            step["form"] |> fill_deep(kept, now) |> Object.to_list() |> Enum.map(fn {k, v} -> {k, JS.string(v)} end)
+
           {SearchParams.to_string(fields), put_new(headers, "content-type", "application/x-www-form-urlencoded")}
 
         Object.has_key?(step, "body") ->
@@ -170,7 +191,14 @@ defmodule Runlight.Test.Conformance do
     to = step["to"] || "routes"
     prefix = if to == "routes" and not JS.truthy?(step["absolute"]), do: "/runlight", else: ""
     raw = "https://#{step["host"] || "example.com"}#{prefix}#{fill_totp(step["path"], kept, now)}"
-    url = case Url.parse(raw), do: (nil -> raw; u -> Url.href(u))
+
+    url =
+      case Url.parse(raw),
+        do: (
+          nil -> raw
+          u -> Url.href(u)
+        )
+
     request = Request.new(url, method: step["method"], headers: headers, body: body || "")
     Agent.update(fetched, fn _ -> [] end)
 
@@ -217,12 +245,19 @@ defmodule Runlight.Test.Conformance do
 
               {name, value} =
                 case :binary.match(pair, "=") do
-                  {at, _} -> {String.trim(binary_part(pair, 0, at)), String.trim(binary_part(pair, at + 1, byte_size(pair) - at - 1))}
-                  :nomatch -> {String.trim(String.slice(pair, 0..-2//1)), String.trim(pair)}
+                  {at, _} ->
+                    {String.trim(binary_part(pair, 0, at)),
+                     String.trim(binary_part(pair, at + 1, byte_size(pair) - at - 1))}
+
+                  :nomatch ->
+                    {String.trim(String.slice(pair, 0..-2//1)), String.trim(pair)}
                 end
 
               clears = Enum.any?(attributes, &Regex.match?(~r/^\s*max-age=0\s*$/i, &1))
-              if value == "" or clears, do: List.keydelete(jar, name, 0), else: List.keystore(jar, name, 0, {name, value})
+
+              if value == "" or clears,
+                do: List.keydelete(jar, name, 0),
+                else: List.keystore(jar, name, 0, {name, value})
             end)
 
           Map.put(jars, jar_name, jar)
@@ -238,7 +273,14 @@ defmodule Runlight.Test.Conformance do
               if cookies != [], do: Object.put(sent, name, Enum.map(cookies, &cookie_shape/1)), else: sent
 
             (value = Response.header(answer, name)) not in [nil, ""] ->
-              Object.put(sent, name, if(name == "content-type", do: value |> String.split(";") |> hd() |> String.trim(), else: normalize(value)))
+              Object.put(
+                sent,
+                name,
+                if(name == "content-type",
+                  do: value |> String.split(";") |> hd() |> String.trim(),
+                  else: normalize(value)
+                )
+              )
 
             true ->
               sent
@@ -247,21 +289,34 @@ defmodule Runlight.Test.Conformance do
 
       out = JS.obj(status: answer.status)
       out = if Object.size(sent) > 0, do: Object.put(out, "headers", sent), else: out
-      out = case parsed, do: ({:ok, v} -> Object.put(out, "body", normalize(v)); :none -> out)
-      out = if parsed == :none and type in ["text/plain", "text/csv"], do: Object.put(out, "text", normalize(text)), else: out
+
+      out =
+        case parsed,
+          do: (
+            {:ok, v} -> Object.put(out, "body", normalize(v))
+            :none -> out
+          )
+
+      out =
+        if parsed == :none and type in ["text/plain", "text/csv"],
+          do: Object.put(out, "text", normalize(text)),
+          else: out
 
       out =
         if type == "application/zip",
           do: Object.put(out, "files", Enum.map(unzip(bytes), &JS.obj(name: &1.name, text: normalize(&1.text)))),
           else: out
 
-      out = if step["look"], do: Object.put(out, "found", Enum.map(step["look"], &String.contains?(text, &1))), else: out
+      out =
+        if step["look"], do: Object.put(out, "found", Enum.map(step["look"], &String.contains?(text, &1))), else: out
+
       out = if outbound != [], do: Object.put(out, "fetched", outbound), else: out
       {out, kept, jars}
     end
   end
 
-  defp put_new(headers, name, value), do: if(List.keymember?(headers, name, 0), do: headers, else: headers ++ [{name, value}])
+  defp put_new(headers, name, value),
+    do: if(List.keymember?(headers, name, 0), do: headers, else: headers ++ [{name, value}])
 
   defp capture(spec, answer, text, parsed, sent_out) do
     {source, pattern} =
@@ -280,10 +335,19 @@ defmodule Runlight.Test.Conformance do
 
         String.starts_with?(source, "header:") ->
           header = source |> String.replace_prefix("header:", "") |> String.downcase()
-          if header == "set-cookie", do: Enum.join(Response.set_cookies(answer), "\n"), else: Response.header(answer, header) || ""
+
+          if header == "set-cookie",
+            do: Enum.join(Response.set_cookies(answer), "\n"),
+            else: Response.header(answer, header) || ""
 
         true ->
-          value = case parsed, do: ({:ok, v} -> dig(v, source); :none -> nil)
+          value =
+            case parsed,
+              do: (
+                {:ok, v} -> dig(v, source)
+                :none -> nil
+              )
+
           if value in [nil, :undefined], do: "", else: JS.string(value)
       end
 
@@ -322,7 +386,13 @@ defmodule Runlight.Test.Conformance do
 
   def scrub(text) do
     text
-    |> then(&Regex.replace(Regex.compile!("([?&](?:code|ticket|secret|code_challenge)=)[^&#" <> @js_space <> "\"'<>]+", "u"), &1, "\\1<value>"))
+    |> then(
+      &Regex.replace(
+        Regex.compile!("([?&](?:code|ticket|secret|code_challenge)=)[^&#" <> @js_space <> "\"'<>]+", "u"),
+        &1,
+        "\\1<value>"
+      )
+    )
     |> then(&Regex.replace(~r/(?<![A-Za-z0-9])[a-f0-9]{24,}(?![A-Za-z0-9])/u, &1, "<hex>"))
     |> then(&Regex.replace(~r/(?<![A-Za-z0-9_])rlo?_[A-Za-z0-9]{20,}(?![A-Za-z0-9])/u, &1, "<key>"))
   end
@@ -342,13 +412,22 @@ defmodule Runlight.Test.Conformance do
   def normalize(v, _key), do: v
 
   defp cookie_shape(header) do
-    Regex.replace(~r/^([^=;]+)=([^;]*)/, header, fn _, name, value -> "#{name}=#{if value != "", do: "<value>", else: ""}" end, global: false)
+    Regex.replace(
+      ~r/^([^=;]+)=([^;]*)/,
+      header,
+      fn _, name, value -> "#{name}=#{if value != "", do: "<value>", else: ""}" end,
+      global: false
+    )
   end
 
   defp unzip(bytes), do: unzip(bytes, [])
 
-  defp unzip(<<0x04034B50::little-32, _::16, _::16, method::little-16, _::32, _::32, size::little-32, _::32, name_len::little-16, extra::little-16, rest::binary>>, acc) do
-    <<name::binary-size(name_len), _::binary-size(extra), data::binary-size(size), rest::binary>> = rest
+  defp unzip(
+         <<0x04034B50::little-32, _::16, _::16, method::little-16, _::32, _::32, size::little-32, _::32,
+           name_len::little-16, extra::little-16, rest::binary>>,
+         acc
+       ) do
+    <<name::binary-size(^name_len), _::binary-size(^extra), data::binary-size(^size), rest::binary>> = rest
     text = if method == 8, do: :zlib.unzip(data), else: data
     unzip(rest, acc ++ [%{name: JS.decode_utf8(name), text: JS.decode_utf8(text)}])
   end
@@ -358,7 +437,9 @@ defmodule Runlight.Test.Conformance do
   @doc "Answers as one text to compare: object keys sorted, as deepEqual ignores their order."
   def canonical(v), do: JS.stringify(sorted(v))
 
-  defp sorted(%Object{} = o), do: o |> Object.to_list() |> Enum.sort_by(&elem(&1, 0)) |> Enum.map(fn {k, v} -> {k, sorted(v)} end) |> Object.new()
+  defp sorted(%Object{} = o),
+    do: o |> Object.to_list() |> Enum.sort_by(&elem(&1, 0)) |> Enum.map(fn {k, v} -> {k, sorted(v)} end) |> Object.new()
+
   defp sorted(l) when is_list(l), do: Enum.map(l, &sorted/1)
   defp sorted(v), do: v
 end
