@@ -115,9 +115,29 @@ final class Url
         $this->search = $text === '' ? '' : "?$text";
     }
 
+    /** Replaces the path, as assigning url.pathname does: tabs and newlines dropped, and for http and https a backslash read as a slash. */
     public function setPathname(string $path): void
     {
+        $path = str_replace(["\t", "\n", "\r"], '', $path);
+        if (isset(self::DEFAULT_PORTS[$this->protocol])) {
+            $path = str_replace('\\', '/', $path);
+        }
         $this->pathname = self::path($path === '' || $path[0] !== '/' ? "/$path" : $path);
+    }
+
+    /**
+     * Replaces the query, as assigning url.search does for http and https: one leading "?" is dropped and the
+     * rest percent-encoded, and an empty value removes the query. A lone "?" leaves an empty query, which href
+     * still writes, as JavaScript does.
+     */
+    public function setSearch(string $search): void
+    {
+        if ($search === '') {
+            $this->search = '';
+            return;
+        }
+        $search = str_replace(["\t", "\n", "\r"], '', $search);
+        $this->search = '?' . self::query(str_starts_with($search, '?') ? substr($search, 1) : $search);
     }
 
     private function resolve(string $input, self $base): void

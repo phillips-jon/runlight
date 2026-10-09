@@ -343,13 +343,32 @@ vendor/bin/runlight password someone@example.com
 
 Run `composer update runlight/runlight` in the project folder. The tables update themselves on the next request, or run `vendor/bin/runlight migrate` to update them at once. Back up the data folder and `config.php`, since saved keys cannot be read without the secret.
 
+### AI agents from a log
+
+AI agents such as GPTBot and ClaudeBot fetch pages without running JavaScript, so the script tag never sees them. A PHP app with Runlight inside counts them where the page is served, with `observe()` as [Plain PHP](#plain-php) shows. For any other site you host yourself, the web server’s access log has them, and the `agents` command reads it.
+
+```bash
+vendor/bin/runlight agents --log /var/log/nginx/access.log --to https://stats.example.com --key rlo_... --site https://example.com --follow
+```
+
+The key is the site’s own, from **Settings**, **Install**, **Key for CMS plugins**, and it can only report fetches for that site. When `--to` or `--key` is left out, the command reads `RUNLIGHT_URL` or `RUNLIGHT_OBSERVE_KEY` from the environment or `config.php`, as the other commands read their settings. `--site` is the site’s address, for logs in nginx or Apache’s usual format, which leave the host out. Caddy’s JSON logs carry the host, so it is not needed there. The user that runs the command needs to be able to read the log.
+
+With `--follow` the command keeps running, sends fetches as they happen, and carries on when the log is rotated, finishing the old file before it moves to the new one. A systemd service or a process manager keeps it going. Add `--state agents.json` so a restart picks up where it stopped. Without `--follow` it reads the log once and stops, and with `--state` the next run starts where the last one finished, which suits cron.
+
+```bash
+*/5 * * * * cd /var/www/stats && vendor/bin/runlight agents --log /var/log/nginx/access.log --to https://stats.example.com --key rlo_... --site https://example.com --state agents.json
+```
+
+Only one run at a time can use a state file. It holds a lock beside the file (`agents.json.lock`), so a second run, such as a cron job that starts while the last one is still sending, stops with a message and sends nothing twice. A lock left by a run that crashed is taken over.
+
+Only successful page fetches from known AI agents leave the machine, each with its address, its user agent, and when it was served. Visitors’ addresses and everything else in the log stay where they are. Runlight counts only page fetches from the last week, so the first run over a long log skips the old ones.
+
 ### What the Node server does that the drop-in does not
 
 PHP keeps nothing running between requests, so a few things work differently from `npx runlight.sh`.
 
 - The scheduled check and the monthly DB-IP download run from cron. Until the first `runlight cron`, visits get a location only from headers such as Cloudflare’s.
 - The setup link is written to a file once and kept until there is an account.
-- There is no `agents` command for reading a web server’s access log. Run `npx runlight.sh agents` on a machine with Node and point `--to` at the drop-in’s address, since it only sends to the API.
 - There is no Docker image, and nothing listens on a port of its own. The web server runs the drop-in.
 
 Several web servers can share one database, as copies of the Node server can. Each request reads the list of sites afresh, so a site added on one shows on the others at once.
