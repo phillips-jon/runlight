@@ -361,7 +361,7 @@ With `--follow` the command keeps running, sends fetches as they happen, and car
 
 Only one run at a time can use a state file. It holds a lock beside the file (`agents.json.lock`), so a second run, such as a cron job that starts while the last one is still sending, stops with a message and sends nothing twice. A lock left by a run that crashed is taken over.
 
-Only successful page fetches from known AI agents leave the machine, each with its address, its user agent, and when it was served. Visitors’ addresses and everything else in the log stay where they are. Runlight counts only page fetches from the last week, so the first run over a long log skips the old ones.
+Only successful page fetches from known AI agents leave the machine, each with the page’s address, the agent’s user agent, and when it was served. Visitors’ addresses and everything else in the log stay where they are. Runlight counts only page fetches from the last week, so the first run over a long log skips the old ones.
 
 ### What the Node server does that the drop-in does not
 
