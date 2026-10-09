@@ -434,10 +434,12 @@ export class Runlight {
       tokenSite = String(info?.site ?? "");
     } catch {}
     const there = body.sites.find((s) => s.id === (tokenSite || input.site)) ?? body.sites[0]!;
+    // An install's answer is read as given: a site without a list of hostnames has none.
+    const hostnames = Array.isArray(there.hostnames) ? there.hostnames.filter((h): h is string => typeof h === "string") : [];
     // Connecting the same site again (to allow changes, or with a new token) updates it in place.
     for (const [existing, known] of this.remotes) {
       if (known.url === url && known.site === there.id) {
-        const updated: Remote = { ...known, token, scope, hostnames: there.hostnames };
+        const updated: Remote = { ...known, token, scope, hostnames };
         if (known.token !== token) await this.revokeRemoteToken(known);
         await this.store.setSetting(`remote:${existing}`, await seal(JSON.stringify(updated), this.secret));
         this.remotes.set(existing, updated);
@@ -445,13 +447,13 @@ export class Runlight {
         return this.site(existing)!;
       }
     }
-    const host = (there.hostnames[0] ?? new URL(url).host).replace(/[^a-z0-9._-]/gi, "-").toLowerCase();
+    const host = (hostnames[0] ?? new URL(url).host).replace(/[^a-z0-9._-]/gi, "-").toLowerCase();
     let id = host.slice(0, 56);
     for (let n = 2; this.configured.some((site) => site.id === id); n++) id = `${host.slice(0, 56)}-${n}`;
     const name = String(input.name ?? "").trim().slice(0, 80) || there.name;
     // No hostnames: tracker hits never land on a site that is counted elsewhere.
     const site: SiteRow = { id, name, hostnames: [], timezone: isTimezone(there.timezone) ? there.timezone : "UTC" };
-    const remote: Remote = { url, token, site: there.id, hostnames: there.hostnames, scope };
+    const remote: Remote = { url, token, site: there.id, hostnames, scope };
     await this.store.upsertSite(site, this.now());
     await this.store.setSetting(`remote:${id}`, await seal(JSON.stringify(remote), this.secret));
     this.remotes.set(id, remote);

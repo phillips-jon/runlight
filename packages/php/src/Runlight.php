@@ -583,7 +583,7 @@ final class Runlight
             }
         }
         $there ??= $sites[0];
-        $thereHostnames = is_array($there['hostnames'] ?? null) ? array_values($there['hostnames']) : [];
+        $thereHostnames = is_array($there['hostnames'] ?? null) ? array_values(array_filter($there['hostnames'], 'is_string')) : [];
         // Connecting the same site again (to allow changes, or with a new token) updates it in place.
         foreach ($this->remotes as $existing => $known) {
             if ($known['url'] === $url && $known['site'] === ($there['id'] ?? null)) {
