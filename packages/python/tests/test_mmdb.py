@@ -11,10 +11,12 @@ from typing import Any
 
 import pytest
 from support import fixtures
+from support.fake_fetcher import FakeFetcher
 
 from runlight import _js
 from runlight.mmdb import Mmdb
-from runlight.server.dbip import DbIp, lookup_from, month
+from runlight.http import Response
+from runlight.server.dbip import DbIp, city_name, file_lookup, lookup_from, month
 
 
 def test_mmdb() -> None:
@@ -88,38 +90,48 @@ def test_db_ip_records_become_a_country_code_a_readable_region_and_a_plain_city(
     assert lookup_from(Broken())("nonsense") is None
 
 
-def test_db_ip_downloads_this_months_release_or_last_months_and_keeps_only_the_newest(tmp_path: Any) -> None:
+def test_db_ip_opens_what_is_on_disk_downloads_this_months_release_or_last_months_and_keeps_only_the_newest(tmp_path: Any) -> None:
     data = base64.b64decode(fixtures.load("geo")["databases"][0]["base64"])
-    asked: list[str] = []
+
+    def answer(url: str, init: dict[str, Any]) -> Response:
+        return Response("", 404) if "2026-10" in url else Response(gzip.compress(data), 200)
+
+    fetcher = FakeFetcher(answer)
     said: list[str] = []
-
-    def download(url: str, file: str) -> bool:
-        asked.append(url)
-        if "2026-10" in url:
-            return False
-        with gzip.open(file, "wb") as out:
-            out.write(data)
-        return True
-
-    dbip = DbIp(str(tmp_path), "city", download, said.append)
-    assert dbip.lookup() is None, "nothing to read before the first download"
+    dbip = DbIp(str(tmp_path / "geo"), "city", said.append, fetcher)
+    assert dbip.lookup("8.8.8.8") is None, "nothing to read before the first download"
     now = 1_791_288_000_000
     assert month(now) == "2026-10"
-    (tmp_path / "dbip-city-lite-2026-08.mmdb").write_bytes(b"old")
+    (tmp_path / "geo" / "dbip-city-lite-2026-08.mmdb").write_bytes(data)
     dbip.refresh(now)
-    assert asked == ["https://download.db-ip.com/free/dbip-city-lite-2026-10.mmdb.gz", "https://download.db-ip.com/free/dbip-city-lite-2026-09.mmdb.gz"]
+    assert [r["url"] for r in fetcher.requests] == [
+        "https://download.db-ip.com/free/dbip-city-lite-2026-10.mmdb.gz",
+        "https://download.db-ip.com/free/dbip-city-lite-2026-09.mmdb.gz",
+    ]
     assert said == ["Runlight: location data from DB-IP (2026-09) is ready."]
-    assert sorted(os.listdir(tmp_path)) == ["dbip-city-lite-2026-09.mmdb"], "older releases go"
-    lookup = dbip.lookup()
-    assert lookup is not None
-    assert lookup("8.8.8.8") == {"country": "US", "region": "CA", "city": "Mountain View"}
+    assert sorted(os.listdir(tmp_path / "geo")) == ["dbip-city-lite-2026-09.mmdb"], "older releases go"
+    assert dbip.lookup("8.8.8.8") == {"country": "US", "region": "CA", "city": "Mountain View"}
+
+    # Last month's file is open, so a later refresh in the same month only looks for this month's again.
+    dbip.refresh(now + 60_000)
+    assert len(fetcher.requests) == 3
+
+    # A new process opens the newest file on disk before it fetches anything.
+    other = DbIp(str(tmp_path / "geo"), "city", said.append, FakeFetcher(lambda url, init: Response("", 404)))
+    other.refresh(now)
+    assert other.lookup("8.8.8.8") == {"country": "US", "region": "CA", "city": "Mountain View"}
 
     # A download that is no database is never kept.
-    def broken(url: str, file: str) -> bool:
-        with gzip.open(file, "wb") as out:
-            out.write(b"not a database")
-        return True
-
-    DbIp(str(tmp_path), "country", broken, said.append).refresh(now)
+    broken = DbIp(str(tmp_path / "geo"), "country", said.append, FakeFetcher(lambda url, init: Response(gzip.compress(b"not a database"), 200)))
+    broken.refresh(now)
     assert said[-1].startswith("Runlight: could not download location data from https://download.db-ip.com/free/dbip-country-lite-2026-09.mmdb.gz")
-    assert sorted(os.listdir(tmp_path)) == ["dbip-city-lite-2026-09.mmdb"]
+    assert sorted(os.listdir(tmp_path / "geo")) == ["dbip-city-lite-2026-09.mmdb"]
+    assert broken.lookup("8.8.8.8") is None
+
+
+def test_a_file_the_owner_gives_is_looked_up(tmp_path: Any) -> None:
+    file = tmp_path / "own.mmdb"
+    file.write_bytes(base64.b64decode(fixtures.load("geo")["databases"][0]["base64"]))
+    assert file_lookup(str(file))("8.8.8.8") == {"country": "US", "region": "CA", "city": "Mountain View"}
+    assert city_name("Toronto (Old Toronto)") == "Toronto"
+    assert city_name("Boxford ( West Berkshire )") == "Boxford"

@@ -2,26 +2,24 @@
 Netlify send their own, and those always win), from DB-IP's free databases
 (CC BY 4.0, https://db-ip.com), or any MMDB file the owner points at.
 
-The port of packages/server/src/geo.ts, split as the PHP port splits it: the
-scheduled check downloads each month's release with refresh(), and requests
-read the newest file on disk with lookup(), a page at a time.
+The port of packages/server/src/geo.ts. Downloaded on first start and
+refreshed each month; lookups read the open file a page at a time.
 """
 
 from __future__ import annotations
 
 import datetime
-import glob
 import gzip
 import os
 import re
 import shutil
-import sys
 import urllib.error
 import urllib.request
 from collections.abc import Callable
 from typing import Any
 
 from .. import _js
+from ..http import Fetcher
 from ..mmdb import Mmdb
 
 GeoLookup = Callable[[str], "dict[str, Any] | None"]
@@ -80,8 +78,8 @@ def month(ms: int) -> str:
 
 
 def _download(url: str, file: str) -> bool:
-    """Downloads a file straight to disk, since a city database is too big to hold in memory. This is the one
-    download that does not go through a Fetcher, which keeps whole answers in memory. Says whether it got one."""
+    """Downloads a file straight to disk, since a city database is too big to hold in memory. Says whether it got
+    one."""
     if not url.startswith("https://"):
         return False
     try:
@@ -96,83 +94,93 @@ def _download(url: str, file: str) -> bool:
 
 
 class DbIp:
-    """Keeps a DB-IP database current in `dir` and answers lookups from the newest one there. `mode` is "city" or
-    "country". `download(url, file)` writes the gzipped file at the URL to the file and says whether it got one;
-    `log` takes each line it has to say."""
+    """Keeps a DB-IP database current in `dir` and answers lookups from it, as the TS server's Geo does. `mode` is
+    "city" or "country". `lookup` answers nothing until the first file opens, so startup never waits; refresh()
+    opens the newest file on disk, then fetches this month's if it is missing, and is safe to call often.
 
-    def __init__(
-        self,
-        dir: str,
-        mode: str,
-        download: Callable[[str, str], bool] | None = None,
-        log: Callable[[str], None] | None = None,
-    ) -> None:
+    The download goes through `fetcher` when one is given (it holds the whole answer in memory), else straight to
+    disk with urllib, since a city database is large."""
+
+    def __init__(self, dir: str, mode: str, log: Callable[[str], None] = print, fetcher: Fetcher | None = None) -> None:
         self.dir = dir
         self.mode = mode
-        self._download = download or _download
-        self._log = log or (lambda line: print(line, file=sys.stderr))
+        self._log = log
+        self._fetcher = fetcher
+        self._reader: Mmdb | None = None
+        self._loaded = ""
+        os.makedirs(dir, exist_ok=True)
+
+    def lookup(self, ip: str) -> dict[str, Any] | None:
+        return lookup_from(self._reader)(ip) if self._reader is not None else None
 
     def _file(self, release: str) -> str:
         return os.path.join(self.dir, f"dbip-{self.mode}-lite-{release}.mmdb")
 
     def newest(self) -> str | None:
         """The newest release on disk, or None before the first download."""
-        found = sorted(glob.glob(os.path.join(glob.escape(self.dir), f"dbip-{self.mode}-lite-*.mmdb")))
-        return found[-1] if found else None
+        found = sorted(
+            name for name in os.listdir(self.dir) if name.startswith(f"dbip-{self.mode}-lite-") and name.endswith(".mmdb")
+        )
+        return os.path.join(self.dir, found[-1]) if found else None
 
-    def lookup(self) -> GeoLookup | None:
-        """A lookup answering from the newest release on disk, opened at the first lookup, or None when there is
-        none yet. Lookups that fail answer nothing, as they do before the first download in TypeScript."""
-        file = self.newest()
-        if file is None:
-            return None
-        opened: list[GeoLookup] = []
-
-        def lookup(ip: str) -> dict[str, Any] | None:
-            if not opened:
-                try:
-                    opened.append(lookup_from(Mmdb.open(file)))
-                except Exception:
-                    return None
-            return opened[0](ip)
-
-        return lookup
+    def _open(self, file: str) -> None:
+        reader = Mmdb.open(file)
+        if self._reader is not None:
+            self._reader.close()
+        self._reader = reader
+        self._loaded = os.path.basename(file)[-12:-5]
 
     def refresh(self, now: int) -> None:
-        """Fetches this month's release when it is missing. A new month's file appears a day or so after the month
-        starts, so until then last month's is fetched when that is missing too. Older releases go once a new
-        one is ready. Safe to call often: once this month's file is there it reads only the folder."""
+        """Opens the newest file on disk, then fetches this month's if it is missing. Safe to call often."""
         current = month(now)
+        if self._loaded == current:
+            return
+        newest = self.newest()
+        if newest and os.path.basename(newest) != os.path.basename(self._file(self._loaded or "none")):
+            self._open(newest)
         if os.path.isfile(self._file(current)):
             return
-        try:
-            os.makedirs(self.dir, exist_ok=True)
-        except OSError:
-            self._log(f"Runlight: could not make the folder for location data, {self.dir}")
-            return
+        self._fetch(current, now)
+
+    def _get(self, url: str, file: str) -> bool:
+        if self._fetcher is None:
+            return _download(url, file)
+        answer = self._fetcher.fetch(url, {"timeoutMs": 10 * 60_000})
+        if not answer.ok:
+            return False
+        with open(file, "wb") as out:
+            out.write(answer.content())
+        return True
+
+    def _fetch(self, release: str, now: int) -> None:
+        # A new month's file appears a day or so after the month starts; until then, last month's is current.
         today = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC) + datetime.timedelta(milliseconds=now)
         last_month = (today.replace(day=15) - datetime.timedelta(days=30)).strftime("%Y-%m")
-        for release in (current, last_month):
-            if os.path.isfile(self._file(release)):
+        for name in (release, last_month):
+            if os.path.isfile(self._file(name)):
+                if self._loaded != name:
+                    self._open(self._file(name))
                 return
-            url = f"https://download.db-ip.com/free/dbip-{self.mode}-lite-{release}.mmdb.gz"
-            gz = f"{self._file(release)}.gz.partial"
-            partial = f"{self._file(release)}.partial"
+            url = f"https://download.db-ip.com/free/dbip-{self.mode}-lite-{name}.mmdb.gz"
+            gz = f"{self._file(name)}.gz.partial"
+            partial = f"{self._file(name)}.partial"
             try:
-                if not self._download(url, gz):
+                if not self._get(url, gz):
                     continue
                 with gzip.open(gz, "rb") as source, open(partial, "wb") as out:
                     shutil.copyfileobj(source, out, 1 << 20)
                 # A file that does not open as a database is never kept.
                 Mmdb.open(partial).close()
-                os.replace(partial, self._file(release))
-                for old in glob.glob(os.path.join(glob.escape(self.dir), f"dbip-{self.mode}-lite-*")):
-                    if old != self._file(release):
+                os.replace(partial, self._file(name))
+                self._open(self._file(name))
+                # Older releases go once the new one opens.
+                for old in os.listdir(self.dir):
+                    if old.startswith(f"dbip-{self.mode}-lite-") and old != os.path.basename(self._file(name)):
                         try:
-                            os.unlink(old)
+                            os.unlink(os.path.join(self.dir, old))
                         except OSError:
                             pass
-                self._log(f"Runlight: location data from DB-IP ({release}) is ready.")
+                self._log(f"Runlight: location data from DB-IP ({name}) is ready.")
                 return
             except Exception as error:
                 self._log(f"Runlight: could not download location data from {url}: {error}")

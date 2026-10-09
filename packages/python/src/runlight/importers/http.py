@@ -241,9 +241,9 @@ def parse_date(text: Any) -> int | float:
 
 
 def iso_string(ms: Any) -> str:
-    """new Date(ms).toISOString(); a ValueError where JavaScript throws a RangeError."""
+    """new Date(ms).toISOString(); a RangeError for a time out of range."""
     if not _js.is_finite(ms) or abs(ms) > 8_640_000_000_000_000:
-        raise ValueError("Invalid time value")
+        raise _js.RangeError("Invalid time value")
     # TimeClip truncates toward zero.
     ms = int(ms)
     at = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC) + datetime.timedelta(milliseconds=ms) if -62135596800000 <= ms < 253402300800000 else None
