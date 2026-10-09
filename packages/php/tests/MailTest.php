@@ -59,7 +59,10 @@ final class MailTest extends TestCase
         foreach (self::fixture()['sealed'] as $case) {
             $this->assertSame($case['value'], Secret::unseal($case['sealed'], $case['secret']));
             $this->assertNull(Secret::unseal($case['sealed'], "{$case['secret']}!"));
-            $this->assertSame($case['value'], Secret::unseal(Secret::seal($case['value'], $case['secret']), $case['secret']));
+            // A value of null is a sealed form TypeScript cannot open (an IV under 12 bytes), so there is nothing to seal again.
+            if ($case['value'] !== null) {
+                $this->assertSame($case['value'], Secret::unseal(Secret::seal($case['value'], $case['secret']), $case['secret']));
+            }
         }
     }
 
@@ -245,6 +248,16 @@ final class MailTest extends TestCase
             }
             $this->assertLessThan(2, microtime(true) - $started, 'the send gives up at its deadline');
             $this->assertTrue($server->conversation(2)['closed'] ?? false, 'the connection is closed');
+        } finally {
+            $server->stop();
+        }
+    }
+
+    public function testSmtpReplyJustBeforeTheServerClosesIsTheErrorNotTheClose(): void
+    {
+        $server = new SmtpServer('refuse');
+        try {
+            $this->assertThrowsMatching('/^SMTP greeting: 535 no$/', fn () => Smtp::send(['service' => 'smtp', 'host' => '127.0.0.1', 'port' => (string) $server->port, 'security' => 'none'], self::MESSAGE, 'reports@example.com'));
         } finally {
             $server->stop();
         }

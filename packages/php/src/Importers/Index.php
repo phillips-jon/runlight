@@ -44,7 +44,10 @@ final class Index
             return $taken !== null && Write::sameUrl($taken['url'], Js::string($url));
         };
         $result = $importer->step($credentials, $cursor, $known);
-        $step = ['cursor' => $result['cursor'], 'done' => $done, 'total' => $result['total'], 'links' => 0, 'clicks' => 0, 'skipped' => 0, 'failed' => []];
+        // A total that is not a number is as good as none.
+        $total = $result['total'] ?? null;
+        $total = is_int($total) || (is_float($total) && is_finite($total)) ? $total : null;
+        $step = ['cursor' => $result['cursor'], 'done' => $done, 'total' => $total, 'links' => 0, 'clicks' => 0, 'skipped' => 0, 'failed' => []];
         foreach ($result['links'] as $item) {
             if (!empty($item['known'])) {
                 $step['done']++;
@@ -63,8 +66,8 @@ final class Index
             }
         }
         // Links the source skipped (deleted ones) still count toward progress.
-        if (($result['cursor'] === null || $result['cursor'] === '') && $result['total'] !== null) {
-            $step['done'] = max($step['done'], $result['total']);
+        if (($result['cursor'] === null || $result['cursor'] === '') && $total !== null) {
+            $step['done'] = max($step['done'], $total);
         }
         return $step;
     }
