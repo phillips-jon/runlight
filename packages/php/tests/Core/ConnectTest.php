@@ -135,4 +135,33 @@ final class ConnectTest extends TestCase
         $e = self::refused(fn () => Connect::startConnect($hub, self::APP, 'https://hub.example/done'), 'unreachable');
         self::assertSame(['host' => '127.0.0.1:4100'], $e->params);
     }
+
+    public function testAnAddressTheUrlParserRefusesIsTheAddressError(): void
+    {
+        foreach (['https://[', 'https://[::1', 'https://a b'] as $url) {
+            self::refused(fn () => Connect::installUrl($url), 'url');
+        }
+        self::assertSame('https://example.com/runlight', Connect::installUrl('https://example.com/runlight/'));
+    }
+
+    public function testAnAttemptSavedWithoutAnExpiryHasExpired(): void
+    {
+        $router = new Router([]);
+        $hub = $this->hub($router);
+        $hub->init();
+        $state = str_repeat('a', 32);
+        foreach ([['url' => self::APP, 'client' => 'c', 'verifier' => 'v', 'redirect' => 'https://hub.example/done', 'token' => self::APP . '/oauth/token'], null, 5, ['expires' => '9999999999999']] as $stored) {
+            $hub->store->setSetting("connect:$state", Json::encode($stored));
+            self::refused(fn () => Connect::finishConnect($hub, new SearchParams(['state' => $state, 'code' => 'c'])), 'expired');
+        }
+        self::assertSame([], $router->requests, 'nothing was fetched');
+        // Starting clears every attempt that cannot be read or has no expiry.
+        $fresh = $this->hub(self::install());
+        $fresh->init();
+        foreach (['b' => 'null', 'c' => '5', 'd' => 'not json', 'e' => '{"url":"x"}'] as $letter => $value) {
+            $fresh->store->setSetting('connect:' . str_repeat($letter, 32), $value);
+        }
+        Connect::startConnect($fresh, self::APP, 'https://hub.example/done');
+        self::assertCount(1, $fresh->store->settingsStartingWith('connect:'));
+    }
 }

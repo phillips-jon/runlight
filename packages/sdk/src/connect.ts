@@ -22,15 +22,37 @@ const PENDING_MS = 15 * 60_000;
 /** The install's address as its dashboard is, without a trailing slash. */
 export function installUrl(value: unknown): string {
   const url = String(value ?? "").trim().replace(/\/+$/, "");
-  if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) throw new ConnectError("Enter the install's address, like https://example.com/runlight", "url");
+  // The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
+  if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url) || !parses(url)) throw new ConnectError("Enter the install's address, like https://example.com/runlight", "url");
   return url;
+}
+
+function parses(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** A saved attempt, or null when it cannot be read or has no time it runs out, which counts as expired. */
+function pendingFrom(value: string | null, now: number): Pending | null {
+  let pending: unknown;
+  try {
+    pending = JSON.parse(value ?? "");
+  } catch {
+    return null;
+  }
+  if (!pending || typeof pending !== "object") return null;
+  const expires = (pending as Partial<Pending>).expires;
+  return typeof expires === "number" && expires >= now ? (pending as Pending) : null;
 }
 
 /** Attempts nobody came back from are removed, so they do not pile up in settings. */
 async function clearExpired(runlight: Runlight): Promise<void> {
   for (const { key, value } of await runlight.store.settingsStartingWith("connect:")) {
-    const pending = JSON.parse(value) as Partial<Pending>;
-    if (!pending.expires || pending.expires < runlight.now()) await runlight.store.setSetting(key, null);
+    if (!pendingFrom(value, runlight.now())) await runlight.store.setSetting(key, null);
   }
 }
 
@@ -113,8 +135,8 @@ export async function finishConnect(runlight: Runlight, params: URLSearchParams)
   const stored = /^[a-f0-9]{32}$/.test(state) ? await runlight.store.setting(key) : null;
   // Each attempt works once.
   if (stored) await runlight.store.setSetting(key, null);
-  const pending = stored ? (JSON.parse(stored) as Pending) : null;
-  if (!pending || pending.expires < runlight.now()) throw new ConnectError("That connection took too long or was already used. Start again.", "expired");
+  const pending = stored ? pendingFrom(stored, runlight.now()) : null;
+  if (!pending) throw new ConnectError("That connection took too long or was already used. Start again.", "expired");
   if (params.get("error") === "access_denied") throw new ConnectError("The connection was not allowed.", "denied");
   if (params.get("error")) throw new ConnectError(String(params.get("error_description") ?? params.get("error")), "refused");
 

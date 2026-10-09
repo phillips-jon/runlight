@@ -16,17 +16,27 @@ interface Icon {
 
 const cache = new Map<string, { at: number; icon: Icon | null }>();
 
-function attr(tag: string, name: string): string {
-  const match = new RegExp(`\\b${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, "i").exec(tag);
-  return (match?.[2] ?? match?.[3] ?? match?.[4] ?? "").trim();
+/**
+ * A tag's attributes, read one after another so a name inside another
+ * (data-rel) or inside a value (title="rel=icon") is never taken for one.
+ * The first of a repeated name counts, as in a browser.
+ */
+function attrs(tag: string): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const m of tag.slice("<link".length).matchAll(/([^\s"'>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)) {
+    const name = m[1]!.toLowerCase();
+    if (!out.has(name)) out.set(name, (m[2] ?? m[3] ?? m[4] ?? "").trim());
+  }
+  return out;
 }
 
 /** Icon URLs a page links to, best first: apple-touch-icon, then SVG and PNG icons, then any icon. */
 export function iconLinks(html: string, base: string): string[] {
   const found: Array<{ url: string; score: number }> = [];
   for (const tag of html.match(/<link\b[^>]*>/gi) ?? []) {
-    const rel = attr(tag, "rel").toLowerCase().split(/\s+/);
-    const href = attr(tag, "href");
+    const attributes = attrs(tag);
+    const rel = (attributes.get("rel") ?? "").toLowerCase().split(/\s+/);
+    const href = attributes.get("href") ?? "";
     if (!href || !(rel.includes("icon") || rel.includes("apple-touch-icon"))) continue;
     let url: string;
     try {
@@ -36,7 +46,7 @@ export function iconLinks(html: string, base: string): string[] {
     }
     // Only https, which is all the fetch below takes.
     if (!url.startsWith("https://")) continue;
-    const type = attr(tag, "type").toLowerCase();
+    const type = (attributes.get("type") ?? "").toLowerCase();
     const score = rel.includes("apple-touch-icon") ? 3 : type.includes("svg") || url.endsWith(".svg") ? 2 : type.includes("png") || url.endsWith(".png") ? 1 : 0;
     found.push({ url, score });
   }

@@ -29,6 +29,17 @@ export const DEVICES: Record<string, string> = { desktop: "desktop", laptop: "de
 
 export const title = (v: string) => (v ? v[0]!.toUpperCase() + v.slice(1) : "");
 
+/** A table's own entry for a name as another tool wrote it; "constructor" is a browser name, not Object's. */
+const known = (table: Record<string, string>, name: string): string | undefined => {
+  const key = name.toLowerCase();
+  return Object.hasOwn(table, key) ? table[key] : undefined;
+};
+/** A browser name in Runlight's spelling: a known one, or the name with a capital first letter. */
+export const browserName = (name: string) => known(BROWSERS, name) ?? title(name);
+/** A system name in Runlight's spelling, or the name as given. */
+export const systemName = (name: string) => known(SYSTEMS, name) ?? name;
+export const deviceName = (name: string) => known(DEVICES, name) ?? "";
+
 export interface WriteResult {
   status: "created" | "skipped" | "failed";
   clicks: number;
@@ -106,11 +117,11 @@ export async function writeLink(
           country: /^[A-Z]{2}$/.test(country) ? country : "",
           region: country ? region : "",
           city: (c.city || "").slice(0, 100),
-          browser: BROWSERS[(c.browser || "").toLowerCase()] ?? title(c.browser || ""),
+          browser: browserName(c.browser || ""),
           browserVersion: "",
-          os: SYSTEMS[(c.os || "").toLowerCase()] ?? c.os ?? "",
+          os: systemName(c.os || ""),
           osVersion: "",
-          device: DEVICES[(c.device || "").toLowerCase()] ?? "",
+          device: deviceName(c.device || ""),
           screen: c.screen ?? "",
           language: c.language ?? "",
         });

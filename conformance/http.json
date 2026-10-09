@@ -17511,6 +17511,32 @@
         },
         {
           "method": "POST",
+          "path": "/api/links/import/constructor?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "credentials": {}
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Runlight cannot import from constructor",
+              "code": "import_source",
+              "params": {
+                "source": "constructor"
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
           "path": "/api/links/import/dub?site=blog",
           "headers": {
             "authorization": "Bearer conformance",
@@ -22649,6 +22675,71 @@
           ],
           "expect": {
             "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "method": "tools/call",
+            "params": {
+              "name": "list_sites"
+            }
+          },
+          "expect": {
+            "status": 202
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": [
+            null,
+            {
+              "jsonrpc": "2.0",
+              "id": 40,
+              "method": "ping"
+            },
+            7
+          ],
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store"
+            },
+            "body": [
+              {
+                "jsonrpc": "2.0",
+                "id": null,
+                "error": {
+                  "code": -32600,
+                  "message": "Invalid request"
+                }
+              },
+              {
+                "jsonrpc": "2.0",
+                "id": 40,
+                "result": {}
+              },
+              {
+                "jsonrpc": "2.0",
+                "id": null,
+                "error": {
+                  "code": -32600,
+                  "message": "Invalid request"
+                }
+              }
+            ]
           }
         },
         {
@@ -28074,6 +28165,60 @@
             "content-type": "application/json"
           },
           "body": {
+            "service": "smtp",
+            "host": "smtp.example.com",
+            "port": "70000",
+            "security": "starttls",
+            "from": "r@example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "The port must be a whole number from 1 to 65535",
+              "code": "mail_port",
+              "params": {}
+            }
+          }
+        },
+        {
+          "method": "PUT",
+          "path": "/api/mail",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "service": "webhook",
+            "url": "https://",
+            "from": "r@example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Enter the webhook's whole URL, like https://example.com/hooks/mail",
+              "code": "mail_url",
+              "params": {}
+            }
+          }
+        },
+        {
+          "method": "PUT",
+          "path": "/api/mail",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
             "service": "webhook",
             "url": "https://hooks.example.net/runlight",
             "secret": "whsec",
@@ -28744,6 +28889,76 @@
                   "TextBody": "This test came through Postmark. Reports for your sites will arrive the same way.",
                   "MessageStream": "outbound",
                   "Headers": []
+                }
+              }
+            ]
+          }
+        },
+        {
+          "method": "PUT",
+          "path": "/api/mail",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "service": "mailgun",
+            "domain": "mg.example.com",
+            "apiKey": "ключ",
+            "region": "eu",
+            "from": "reports@example.com"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "ok": true
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/mail/test",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "to": "me@example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Could not reach api.eu.mailgun.net: fetch failed",
+              "code": "mail_unreachable",
+              "params": {
+                "host": "api.eu.mailgun.net",
+                "detail": "fetch failed"
+              }
+            },
+            "fetched": [
+              {
+                "method": "POST",
+                "url": "https://api.eu.mailgun.net/v3/mg.example.com/messages",
+                "headers": {
+                  "authorization": "Basic YXBpOtC60LvRjtGH",
+                  "content-type": "application/x-www-form-urlencoded"
+                },
+                "body": {
+                  "from": "reports@example.com",
+                  "to": "me@example.com",
+                  "subject": "Runlight can send email",
+                  "html": "<p style=\"font-family:sans-serif;font-size:15px\">This test came through Mailgun. Reports for your sites will arrive the same way.</p>",
+                  "text": "This test came through Mailgun. Reports for your sites will arrive the same way."
                 }
               }
             ]
@@ -31518,6 +31733,30 @@
             "content-type": "application/json"
           },
           "body": {
+            "url": "https://["
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Enter the install's address, like https://example.com/runlight",
+              "code": "connect_url",
+              "params": {}
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/sites/connect",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
             "url": "https://down.example.net/runlight"
           },
           "expect": {
@@ -33665,6 +33904,136 @@
                   "visitors": 0
                 }
               ]
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/import/csv/visits",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "rows": [
+              {
+                "time": "2026-09-20T10:00:00Z",
+                "path": "/odd",
+                "visitor": "v9",
+                "browser": "constructor",
+                "os": "toString",
+                "device": "valueOf"
+              }
+            ]
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "pageviews": 1,
+              "events": 0,
+              "visits": 1,
+              "skipped": 0
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?from=2026-09-20&to=2026-09-20&dimension=browser",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-09-20",
+                "to": "2026-09-20",
+                "interval": "hour",
+                "timezone": "UTC"
+              },
+              "dimension": "browser",
+              "rows": [
+                {
+                  "value": "Constructor",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?from=2026-09-20&to=2026-09-20&dimension=os",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-09-20",
+                "to": "2026-09-20",
+                "interval": "hour",
+                "timezone": "UTC"
+              },
+              "dimension": "os",
+              "rows": [
+                {
+                  "value": "toString",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?from=2026-09-20&to=2026-09-20&dimension=device",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "site": "default",
+              "range": {
+                "from": "2026-09-20",
+                "to": "2026-09-20",
+                "interval": "hour",
+                "timezone": "UTC"
+              },
+              "dimension": "device",
+              "rows": []
             }
           }
         }

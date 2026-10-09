@@ -112,7 +112,8 @@ async function post(url: string, init: { headers: Record<string, string>; body: 
 }
 
 const json = (headers: Record<string, string> = {}) => ({ "content-type": "application/json", ...headers });
-const basic = (user: string, pass: string) => `Basic ${btoa(`${user}:${pass}`)}`;
+/** Basic auth over the UTF-8 bytes, so a key with any character is sent (btoa alone takes only Latin-1). */
+const basic = (user: string, pass: string) => `Basic ${btoa(Array.from(new TextEncoder().encode(`${user}:${pass}`), (b) => String.fromCharCode(b)).join(""))}`;
 
 async function hmacHex(secret: string, body: string): Promise<string> {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
@@ -132,6 +133,23 @@ export function checkConfig(config: MailConfig): void {
   }
   if (config.service === "webhook" && !/^https:\/\//.test(config.url ?? "") && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(config.url ?? "")) {
     throw new MailError("The webhook URL must use https", "mail_https", {});
+  }
+  if (config.service === "webhook" && !parses(config.url ?? "")) {
+    throw new MailError("Enter the webhook's whole URL, like https://example.com/hooks/mail", "mail_url", {});
+  }
+  // A port a socket can connect to, read with Number() as the SMTP client reads it.
+  const port = Number(config.port);
+  if (config.service === "smtp" && !(Number.isInteger(port) && port >= 1 && port <= 65535)) {
+    throw new MailError("The port must be a whole number from 1 to 65535", "mail_port", {});
+  }
+}
+
+function parses(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch {
+    return false;
   }
 }
 

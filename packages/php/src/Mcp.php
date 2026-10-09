@@ -308,11 +308,13 @@ TEXT;
         if (!$parsed) {
             $body = Json::object();
         }
+        // Any body that is not an object (null included) carries no words of its own.
+        $object = $body instanceof \stdClass ? $body : null;
         if (!$answer->ok()) {
-            $error = Js::get($body, 'error');
+            $error = $object === null ? null : Js::get($object, 'error');
             return ['content' => [['type' => 'text', 'text' => Js::string($error === null || $error instanceof Undefined ? "Runlight answered {$answer->status}" : $error)]], 'isError' => true];
         }
-        return ['content' => [['type' => 'text', 'text' => Json::encode($tool['shape'] ? ($tool['shape'])($body) : $body)]]];
+        return ['content' => [['type' => 'text', 'text' => Json::encode($tool['shape'] && $object !== null ? ($tool['shape'])($object) : $body)]]];
     }
 
     private static function version(): string
@@ -327,11 +329,19 @@ TEXT;
     /** @return array<string, mixed>|null the answer, or null for a notification */
     private static function answer(mixed $message, callable $readApi): ?array
     {
+        // A batch element that is not an object is an invalid request, answered with a null id.
+        if (!$message instanceof \stdClass) {
+            return self::rpcError(null, -32600, 'Invalid request');
+        }
         $id = Js::get($message, 'id');
         $isNotification = $id instanceof Undefined;
         $method = Js::get($message, 'method');
         if (Js::get($message, 'jsonrpc') !== '2.0' || !is_string($method)) {
             return $isNotification ? null : self::rpcError($id, -32600, 'Invalid request');
+        }
+        // A notification is never answered, so it never runs anything either.
+        if ($isNotification) {
+            return null;
         }
         $given = Js::get($message, 'params');
         $params = Js::truthy($given) && Js::isObject($given) ? $given : [];
@@ -365,16 +375,10 @@ TEXT;
                     $result = self::callTool($params, $readApi);
                     break;
                 default:
-                    if ($isNotification) {
-                        return null;
-                    }
                     return self::rpcError($id, -32601, "Unknown method \"$method\"");
             }
-            return $isNotification ? null : ['jsonrpc' => '2.0', 'id' => $id, 'result' => $result];
+            return ['jsonrpc' => '2.0', 'id' => $id, 'result' => $result];
         } catch (\Throwable $error) {
-            if ($isNotification) {
-                return null;
-            }
             return $error instanceof McpError ? self::rpcError($id, $error->getCode(), $error->getMessage()) : self::rpcError($id, -32603, 'Internal error');
         }
     }
