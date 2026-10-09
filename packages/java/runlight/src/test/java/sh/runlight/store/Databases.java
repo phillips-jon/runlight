@@ -13,8 +13,7 @@ import sh.runlight.db.Db;
  * The databases the store tests run on: SQLite always; Postgres when RUNLIGHT_TEST_PG holds a
  * connection string (each test gets a schema of its own); MySQL 8.4 and MariaDB 11.4 when
  * RUNLIGHT_TEST_MYSQL is set. RUNLIGHT_TEST_MYSQL may hold the URLs, separated by spaces or commas;
- * any other value means the two local test servers. A MySQL database is used by one test at a time:
- * its Runlight tables are dropped before each.
+ * any other value means the two local test servers. Each MySQL test gets a database of its own.
  */
 public final class Databases {
   private Databases() {}
@@ -76,24 +75,6 @@ public final class Databases {
     return out;
   }
 
-  private static final List<String> TABLES =
-      List.of(
-          "rl_meta",
-          "rl_sites",
-          "rl_salts",
-          "rl_sessions",
-          "rl_events",
-          "rl_links",
-          "rl_link_domains",
-          "rl_shares",
-          "rl_goals",
-          "rl_settings",
-          "rl_reports",
-          "rl_tokens",
-          "rl_funnels",
-          "rl_rollup_days",
-          "rl_rollups");
-
   /** A fresh, empty store of a kind, dropped by cleanup(). */
   public static SqlStore fresh(String kind) {
     if (kind.equals("sqlite")) {
@@ -105,15 +86,25 @@ public final class Databases {
       CLEANUPS.add(store::close);
       return store;
     }
-    String url = mysqlUrls().get(kind);
-    Db admin = Connect.mysql(url, 0);
-    for (String table : TABLES) {
-      admin.run("DROP TABLE IF EXISTS " + table);
-    }
-    admin.close();
-    SqlStore store = Stores.mysql(url);
+    SqlStore store = Stores.mysql(mysqlDatabase(mysqlUrls().get(kind)));
     CLEANUPS.add(store::close);
     return store;
+  }
+
+  /**
+   * A database of its own on a MySQL server, made empty for one test and dropped by cleanup(), so
+   * tables another test made (accounts, say) never show up in it.
+   */
+  public static String mysqlDatabase(String url) {
+    String name = "rl_test_" + HexFormat.of().formatHex(Hash.randomBytes(5));
+    Db admin = Connect.mysql(url, 0);
+    admin.run("CREATE DATABASE `" + name + "`");
+    CLEANUPS.add(
+        () -> {
+          admin.run("DROP DATABASE IF EXISTS `" + name + "`");
+          admin.close();
+        });
+    return url.replaceFirst("^([a-z]+://[^/?#]*)(/[^?#]*)?", "$1/" + name);
   }
 
   /** A schema of its own in the Postgres test database, dropped by cleanup(). */
