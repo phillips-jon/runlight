@@ -317,6 +317,10 @@ final class PdoDb implements Db
             if (count($this->texts) > 500) {
                 $this->texts = [$sql => $text];
             }
+        } elseif ($this->dialect === 'postgres') {
+            // Before PHP 8.4, PDO read a backslash as escaping the quote after it, so ESCAPE '\' hid every `?`
+            // that followed and the parameters no longer lined up. E'\\' is the same one backslash to Postgres.
+            $text = str_replace("ESCAPE '\\'", "ESCAPE E'\\\\'", $sql);
         } else {
             $text = $sql;
         }

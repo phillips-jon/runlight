@@ -64,6 +64,10 @@ final class ReportsTest extends TestCase
         foreach ($set['currency'] as [$n, $currency, $text]) {
             self::assertSame($text, Intl::currency($lang, $n, $currency, is_int($n) ? 0 : 2), "$lang $n $currency");
         }
+        // Region names change between ICU releases; the fixture's are ICU 78's, as Node 24 has it.
+        if ((int) INTL_ICU_VERSION !== 78) {
+            self::markTestSkipped('ICU ' . INTL_ICU_VERSION . ' names regions in its own words; the fixture holds ICU 78\'s');
+        }
         $differ = [];
         foreach ($set['region'] as [$code, $name]) {
             if (Intl::region($lang, $code) !== $name) {
