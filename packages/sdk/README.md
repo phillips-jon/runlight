@@ -40,7 +40,7 @@ Add the script to every page, just before `</head>`.
 
 Set `RUNLIGHT_TOKEN` to a long random string and open `/runlight/?token=` followed by that string once to sign in.
 
-The [documentation](https://runlight.sh/docs/) covers every framework and every database, Postgres, Turso, and Cloudflare D1 among them. It also covers goals, short links, email reports, and the API.
+The [documentation](https://runlight.sh/docs/) covers every framework and every database, Postgres, MySQL, Turso, and Cloudflare D1 among them. It also covers goals, short links, email reports, and the API.
 
 ## License
 

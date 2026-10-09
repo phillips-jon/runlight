@@ -6,7 +6,7 @@ Documentation is at [runlight.sh/docs](https://runlight.sh/docs/).
 
 ## Two ways to run it
 
-The library, `@runlight/sdk`, runs inside an app you already have. You mount its routes, add one script tag, and read your stats at `/runlight`. It works with Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, and anything else that handles a web `Request`, on Node 22 or later, Bun, Deno, or Cloudflare Workers. It stores its data in SQLite, Postgres, Turso, or Cloudflare D1.
+The library, `@runlight/sdk`, runs inside an app you already have. You mount its routes, add one script tag, and read your stats at `/runlight`. It works with Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, and anything else that handles a web `Request`, on Node 22 or later, Bun, Deno, or Cloudflare Workers. It stores its data in SQLite, Postgres, MySQL, MariaDB, Turso, or Cloudflare D1.
 
 ```bash
 npm install @runlight/sdk better-sqlite3

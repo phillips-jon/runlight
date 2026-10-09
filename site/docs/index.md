@@ -17,7 +17,7 @@ Runlight needs an app that can serve routes, such as Next.js, Nuxt, SvelteKit, A
 npm install @runlight/sdk better-sqlite3
 ```
 
-`better-sqlite3` is the SQLite driver. For Postgres, Turso, Cloudflare D1, or Bun’s own SQLite, see [Configuration](/docs/configuration/#stores).
+`better-sqlite3` is the SQLite driver. For Postgres, MySQL, MariaDB, Turso, Cloudflare D1, or Bun’s own SQLite, see [Configuration](/docs/configuration/#stores).
 
 ## 2. Create the instance
 
