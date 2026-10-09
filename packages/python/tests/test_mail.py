@@ -6,6 +6,7 @@ from __future__ import annotations
 import base64
 import re
 import socket
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -17,6 +18,7 @@ from support.smtp_server import SmtpServer
 from runlight import _js
 from runlight.http import FetchError, Response, SearchParams
 from runlight.mail import SERVICES, MailError, mime, seal, send, service_message, sign_v4, smtp_send, unseal
+from runlight.mail.smtp import _Session
 
 MESSAGE = {
     "to": "jon@example.com",
@@ -68,7 +70,9 @@ def test_keys_sealed_by_typescript_open_here():
     for case in fixture()["sealed"]:
         assert unseal(case["sealed"], case["secret"]) == case["value"]
         assert unseal(case["sealed"], f"{case['secret']}!") is None
-        assert unseal(seal(case["value"], case["secret"]), case["secret"]) == case["value"]
+        # A value of None is a sealed form TypeScript cannot open (an IV under 12 bytes), so there is nothing to seal again.
+        if case["value"] is not None:
+            assert unseal(seal(case["value"], case["secret"]), case["secret"]) == case["value"]
 
 
 def test_sig_v4_matches_aws_published_example():
@@ -216,6 +220,30 @@ def test_smtp_starttls_refused_is_an_error_and_a_plain_relay_takes_the_message(s
 def test_smtp_through_transports_sends_too(server):
     send({"service": "smtp", "host": "127.0.0.1", "port": str(server.port), "security": "none"}, MESSAGE)
     assert "From: Runlight <reports@example.com>\r\n" in server.conversation()["received"]
+
+
+def test_smtp_reply_just_before_the_server_closes_is_the_error_not_the_close():
+    server = SmtpServer("refuse")
+    try:
+        with pytest.raises(MailError, match=r"\ASMTP greeting: 535 no\Z"):
+            smtp_send({"service": "smtp", "host": "127.0.0.1", "port": str(server.port), "security": "none"}, MESSAGE, "reports@example.com")
+    finally:
+        server.stop()
+
+
+def test_smtp_character_split_across_two_reads_comes_through_whole():
+    ours, theirs = socket.socketpair()
+    try:
+        session = _Session("127.0.0.1", 25, time.monotonic() + 5, "late")
+        session.sock = ours
+        data = "250 café ok\r\n".encode()
+        split = data.index(0xC3) + 1
+        theirs.sendall(data[:split])
+        threading.Timer(0.1, lambda: theirs.sendall(data[split:])).start()
+        assert session.next(2000) == {"code": 250, "text": "café ok"}
+    finally:
+        ours.close()
+        theirs.close()
 
 
 def test_smtp_server_that_trickles_is_cut_off_at_the_deadline():

@@ -12,6 +12,12 @@ BASE = "https://api.dub.co"
 PAGE = 10
 
 
+def _plan_refused(error: HttpError) -> bool:
+    """Whether Dub said the plan does not include what was asked (403, or 402). Any other failure (a server error
+    that outlasts the retries, say) fails the step and leaves the history mode as it was."""
+    return error.status in (403, 402)
+
+
 class Dub:
     """Dub. Links come from GET /links (cursor pages of up to 100, archived
     included). Click history is per click from /events where the plan allows,
@@ -82,7 +88,7 @@ class Dub:
                         page += 1
                     history = "events"
                 except HttpError as error:
-                    if error.status == 401:
+                    if not _plan_refused(error):
                         raise
                     clicks = None
                     history = "daily"
@@ -96,7 +102,7 @@ class Dub:
                         {"day": _js.slice16(_js.get(p, "start"), 0, 10), "clicks": _js.get(p, "clicks")} for p in items(series) if positive(_js.get(p, "clicks"))
                     ]
                 except HttpError as error:
-                    if error.status == 401:
+                    if not _plan_refused(error):
                         raise
                     history = "none"
             created = parse_date(_js.get(link, "createdAt"))

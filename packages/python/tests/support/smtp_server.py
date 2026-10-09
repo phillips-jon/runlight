@@ -3,6 +3,7 @@ connection at a time, and after each one reports every byte the client sent.
 
 relay: answers as the TS tests' relay does (AUTH PLAIN checks jon/pw, no STARTTLS).
 trickle: sends "220-still here" every 100 ms and never finishes its greeting.
+refuse: sends "535 no" and closes at once.
 """
 
 from __future__ import annotations
@@ -48,7 +49,10 @@ class SmtpServer:
             except OSError:
                 continue
             with conn:
-                if self.mode == "trickle":
+                if self.mode == "refuse":
+                    conn.sendall(b"535 no\r\n")
+                    self._done.put({"received": "", "closed": True})
+                elif self.mode == "trickle":
                     self._trickle(conn)
                 else:
                     self._relay(conn)

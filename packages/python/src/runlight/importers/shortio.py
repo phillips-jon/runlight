@@ -65,7 +65,12 @@ class Shortio:
                     y = _js.get(p, "y")
                     if positive(y):
                         x = _js.get(p, "x")
-                        daily.append({"day": iso_string(x if _js.is_number(x) else parse_date(x))[:10], "clicks": y})
+                        # A point whose date cannot be read is left out, not the link.
+                        try:
+                            day = iso_string(x if _js.is_number(x) else parse_date(x))[:10]
+                        except _js.RangeError:
+                            continue
+                        daily.append({"day": day, "clicks": y})
             except HttpError as error:
                 if error.status == 401:
                     raise

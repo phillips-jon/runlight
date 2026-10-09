@@ -74,8 +74,9 @@ class Http:
             if response.status == 401:
                 raise HttpError("The key or sign-in was refused", 401, "import_refused")
             if (response.status == 429 or response.status >= 500) and attempt < 4:
+                # Retry-After in seconds; none, zero, negative, or not a number waits the default backoff.
                 wait = _js.number(response.headers.get("retry-after")) * 1000
-                if not _js.truthy(wait):
+                if not wait > 0:
                     wait = 800 * attempt
                 self.pause(_js.whole(min(wait, 10_000)))
                 attempt += 1

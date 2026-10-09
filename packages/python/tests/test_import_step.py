@@ -249,6 +249,28 @@ def test_umami_a_link_already_here_with_the_same_slug_and_destination_is_skipped
     assert [c for c in router.calls if "/websites/u-9/" in c] == [], "no history was fetched for it"
 
 
+def test_umami_a_link_list_without_a_count_gives_no_total_and_pages_on_while_pages_are_full() -> None:
+    def link(i: int) -> dict[str, Any]:
+        return {"id": f"u{i}", "name": f"N{i}", "url": f"https://a.com/{i}", "slug": f"s{i}", "createdAt": "2026-01-01T00:00:00Z", "deletedAt": None}
+
+    router = Router(
+        [
+            (r"/api/links\?page=1&", lambda u, i: {"data": [link(n) for n in range(5)]}),
+            (r"/api/links\?page=2&", lambda u, i: {"data": [link(5)], "count": "six"}),
+            (r"/websites/", lambda u, i: {"data": [], "count": 0}),
+        ]
+    )
+    rl = runlight(router)
+    creds = {"url": "https://stats.example.com", "apiKey": "k"}
+    first = import_step(rl, "default", "umami", creds, None, 0)
+    assert first["total"] is None
+    assert first["cursor"] is not None, "a full page may have more after it"
+    second = import_step(rl, "default", "umami", creds, first["cursor"], first["done"])
+    assert [second["cursor"], second["done"], second["total"]] == [None, 6, None]
+    empty = import_step(runlight(Router([(r"/api/links\?", lambda u, i: {"data": []})])), "default", "umami", creds, None, 0)
+    assert [empty["cursor"], empty["done"], empty["total"]] == [None, 0, None]
+
+
 def test_a_link_whose_slug_is_taken_or_unusable_is_reported_with_a_code() -> None:
     rl = runlight()
     rl.init()

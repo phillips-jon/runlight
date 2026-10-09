@@ -212,6 +212,13 @@ def test_umami_visit_history_skips_days_older_than_the_site_keeps(databases: Any
     assert import_all(t)["pageviews"] == 1, "only March 2nd comes in"
 
 
+def test_an_unreadable_saved_progress_setting_starts_as_if_there_were_none(databases: Any) -> None:
+    t = harness(store_of(databases, "sqlite"), umami(fake_events(), SESSIONS), at("2026-03-04T00:00:00Z"))
+    t.rl.init()
+    t.rl.store.set_setting("import:umami-visits:default:w1", "not a number")
+    assert import_all(t)["pageviews"] == 4, "every day is read from the website's start"
+
+
 def test_an_imported_visit_across_utc_midnight_is_one_visit_on_the_sites_own_day(databases: Any) -> None:
     common = {"hostname": "blog.example.com", "eventType": 1, "country": "CA", "device": "desktop", "os": "Mac OS", "browser": "chrome"}
     events = [

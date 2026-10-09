@@ -16,7 +16,7 @@ PAGE = 5
 def umami_sign_in(credentials: dict[str, Any], token: Any = None, http: Http | None = None) -> dict[str, Any]:
     """Signs in to an Umami: an API key, or a username and password (stock
     self-hosted Umami has no API keys). A token from an earlier step is reused.
-    Gives {base, token}; a token the sign-in did not give is UNDEFINED, as TS's `login.token` is then."""
+    Gives {base, token}."""
     http = http or Http()
     base = re.sub(r"/+\Z", "", credential(credentials, "url"))
     if not re.match(r"https?://[^/]+", base):
@@ -34,7 +34,11 @@ def umami_sign_in(credentials: dict[str, Any], token: Any = None, http: Http | N
             "body": _js.dumps({"username": credentials["username"], "password": credentials["password"]}),
         },
     )
-    return {"base": base, "token": _js.get(login, "token")}
+    # A sign-in that answers without a token was refused, whatever its status.
+    token = at(login, "token")
+    if not isinstance(token, str) or token == "":
+        raise ImportError("The key or sign-in was refused", "import_refused")
+    return {"base": base, "token": token}
 
 
 def at_least(count: int, total: Any) -> bool:
@@ -130,8 +134,11 @@ class Umami:
                 }
             )
         page = _js.number(state["page"])
+        # Without a count there is no total, and a full page may have more after it.
         count = _js.get(listed, "count")
-        more = page * PAGE < _js.number(count) and len(_js.get(listed, "data")) > 0
+        count = count if _js.is_number(count) and _js.is_finite(count) else None
+        data = _js.get(listed, "data")
+        more = len(data) == PAGE if count is None else page * PAGE < count and len(data) > 0
         following = {"page": _js.whole(page + 1)} if key else {"page": _js.whole(page + 1), "token": state["token"]}
         return {"cursor": _js.dumps(following) if more else None, "total": count, "links": links}
 

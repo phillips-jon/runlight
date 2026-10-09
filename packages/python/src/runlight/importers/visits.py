@@ -115,7 +115,9 @@ def import_umami_visits(runlight: Any, site_id: str, credentials: dict[str, Any]
         created = created if _js.truthy(created) else runlight.now()
         # Carry on where an earlier run stopped, and end where Runlight's own visits begin.
         stored = runlight.store.setting(_progress_key(site_id, website))
+        # A saved place that does not read as a number is ignored, as if there were none.
         resumed = _js.number(0 if stored is None else stored)
+        resumed = resumed if _js.is_finite(resumed) else 0
         # Never older than the site keeps, or the next scheduled check would delete it again.
         cutoff = runlight.retention_cutoff(site_id) or 0
         start = _js.whole(_max(math.floor(created / DAY) * DAY, resumed, math.ceil(cutoff / DAY) * DAY))

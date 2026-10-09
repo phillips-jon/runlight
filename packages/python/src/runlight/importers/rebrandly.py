@@ -35,7 +35,7 @@ class Rebrandly:
             links.append(
                 {
                     "link": {
-                        "sourceId": _js.get(link, "id"),
+                        "sourceId": _js.string(_js.get(link, "id")),
                         "slug": _js.get(link, "slashtag"),
                         "domain": either(at(link, "domain", "fullName"), ""),
                         "name": title if _js.truthy(title) else "",
@@ -45,7 +45,7 @@ class Rebrandly:
                 }
             )
         end = listed[-1] if listed else None
-        return {"cursor": _js.get(end, "id") if len(listed) == PAGE and _js.truthy(end) else None, "total": None, "links": links}
+        return {"cursor": _js.string(_js.get(end, "id")) if len(listed) == PAGE and _js.truthy(end) else None, "total": None, "links": links}
 
 
 rebrandly = Rebrandly()

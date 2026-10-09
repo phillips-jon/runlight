@@ -50,7 +50,11 @@ def unseal(sealed: str, secret: str | None) -> str | None:
     if version != "v1" or not iv or not data or not secret:
         return None
     try:
-        plain = _aesgcm.decrypt(_key_for(secret), _from_base64(iv), _from_base64(data))
+        nonce = _from_base64(iv)
+        # Web Crypto refuses an AES-GCM IV under 12 bytes, so such a value opens nowhere.
+        if len(nonce) < 12:
+            return None
+        plain = _aesgcm.decrypt(_key_for(secret), nonce, _from_base64(data))
     except (ValueError, binascii.Error):
         return None
     return _js.utf8(plain)

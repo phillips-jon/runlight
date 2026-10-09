@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 from .. import _js
@@ -38,7 +37,10 @@ def import_step(runlight: Any, site: str, source: str, credentials: Credentials,
         return bool(taken and same_url(taken["url"], _js.string(url)))
 
     result = importer.step({"credentials": credentials, "cursor": cursor, "known": known, "now": runlight.now(), "http": Http(runlight.fetcher)})
-    step: dict[str, Any] = {"cursor": result["cursor"], "done": done, "total": result["total"], "links": 0, "clicks": 0, "skipped": 0, "failed": []}
+    # A total that is not a number is as good as none.
+    total = result["total"]
+    total = total if _js.is_number(total) and _js.is_finite(total) else None
+    step: dict[str, Any] = {"cursor": result["cursor"], "done": done, "total": total, "links": 0, "clicks": 0, "skipped": 0, "failed": []}
     for item in result["links"]:
         if item.get("known"):
             step["done"] += 1
@@ -58,8 +60,6 @@ def import_step(runlight: Any, site: str, source: str, credentials: Credentials,
                 failed["params"] = written.get("params") or {}
             step["failed"].append(failed)
     # Links the source skipped (deleted ones) still count toward progress.
-    total = result["total"]
     if not result["cursor"] and total is not None:
-        n = _js.number(total)
-        step["done"] = math.nan if math.isnan(n) else max(step["done"], n)
+        step["done"] = max(step["done"], total)
     return step
