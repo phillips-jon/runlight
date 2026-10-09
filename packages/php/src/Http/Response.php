@@ -77,9 +77,14 @@ final class Response
                 }
             }
         }
-        if (!$withBody) {
-            return;
+        if ($withBody) {
+            $this->write();
         }
+    }
+
+    /** Echoes the body alone, as a framework's streamed response asks, after it has sent the headers itself. */
+    public function write(): void
+    {
         if (is_string($this->body)) {
             echo $this->body;
             return;
