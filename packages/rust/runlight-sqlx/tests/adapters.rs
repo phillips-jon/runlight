@@ -37,7 +37,13 @@ async fn the_routes_answer_through_an_axum_router() {
         .unwrap();
     let (status, kind, body) = text(app.clone().oneshot(request).await.unwrap()).await;
     assert_eq!((status, kind.as_str()), (200, "application/json; charset=utf-8"));
-    assert_eq!(body, r#"{"name":"runlight","version":"0.0.0","api":1,"library":"runlight","language":"rust"}"#);
+    assert_eq!(
+        body,
+        format!(
+            r#"{{"name":"runlight","version":"{}","api":1,"library":"runlight","language":"rust"}}"#,
+            runlight::version::VERSION
+        )
+    );
 
     let hit = r#"{"k":"pageview","u":"https://example.com/","s":""}"#;
     let request = http::Request::post("http://example.com/runlight/e")

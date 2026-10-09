@@ -9,8 +9,7 @@ use crate::importers::{Http, ImportError, credentials_from};
 
 pub(crate) use super::wired::*;
 
-pub(crate) const VERSION: &str = "0.0.0";
-pub(crate) const API_VERSION: u32 = 1;
+pub(crate) use crate::version::{API_VERSION, VERSION};
 
 /// What the standalone server adds to the routes.
 #[derive(Clone, Default)]
