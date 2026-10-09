@@ -35,7 +35,9 @@ func bucketsOf(v any) []runlight.Bucket {
 	return out
 }
 
-func filtersOf(v any) []runlight.Filter { return queryOf(js.NewObject("filters", js.Dig(v, "filters"))).Filters }
+func filtersOf(v any) []runlight.Filter {
+	return queryOf(js.NewObject("filters", js.Dig(v, "filters"))).Filters
+}
 
 func ptrValue(p *int64) any {
 	if p == nil {

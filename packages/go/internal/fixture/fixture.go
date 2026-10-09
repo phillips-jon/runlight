@@ -18,7 +18,7 @@ func Root() string {
 	_, file, _, _ := runtime.Caller(0)
 	dir := filepath.Dir(file)
 	for {
-		if st, err := os.Stat(filepath.Join(dir, "conformance")); err == nil && st.IsDir() {
+		if st, err := os.Stat(filepath.Join(dir, "conformance", "http.json")); err == nil && !st.IsDir() {
 			return dir
 		}
 		parent := filepath.Dir(dir)

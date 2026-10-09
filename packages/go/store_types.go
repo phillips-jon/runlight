@@ -10,7 +10,6 @@ type SiteRow struct {
 	Timezone  string   `json:"timezone"`
 }
 
-
 // GoalRow is something worth counting. An event goal counts a named event;
 // a page goal counts pageviews of a path or pattern (/thanks*); a click goal
 // is a rule the tracker applies itself, sending an event named after the
