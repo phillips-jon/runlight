@@ -1,0 +1,114 @@
+name: Go
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/go/**"
+      - "packages/php/tests/fixtures/**"
+      - "packages/sdk/src/generated/**"
+      - "conformance/**"
+      - "scripts/go-*"
+      - ".github/workflows/go.yml"
+  pull_request:
+    paths:
+      - "packages/go/**"
+      - "packages/php/tests/fixtures/**"
+      - "packages/sdk/src/generated/**"
+      - "conformance/**"
+      - "scripts/go-*"
+      - ".github/workflows/go.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  # The Go module (packages/go) on the two Go releases Go supports, against
+  # the same kinds of database as the other ports: SQLite, Postgres, and one
+  # of MySQL and MariaDB for each Go release.
+  go:
+    name: go (Go ${{ matrix.go }}, ${{ matrix.mysql }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - go: "1.25"
+            mysql: mysql:8.4
+            mysql-env: RUNLIGHT_TEST_MYSQL
+            mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
+          - go: "1.26"
+            mysql: mariadb:11.4
+            mysql-env: RUNLIGHT_TEST_MARIADB
+            mysql-health: healthcheck.sh --connect --innodb_initialized
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: runlight_test_go
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: ${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: pw
+          MARIADB_ROOT_PASSWORD: pw
+          MYSQL_DATABASE: runlight_test_go
+          MARIADB_DATABASE: runlight_test_go
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "${{ matrix.mysql-health }}" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RUNLIGHT_TEST_PG: postgres://postgres:pw@127.0.0.1:5432/runlight_test_go
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # The dashboard, the tracker, and the case table are copies of what the
+      # TypeScript SDK and Node write, so they must be current.
+      - run: node --import tsx scripts/go-assets.mts --check
+      - run: node scripts/go-casing.mjs --check
+      - run: node scripts/go-intl.mjs --check
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ matrix.go }}
+          # The core module has no go.sum: it requires nothing.
+          cache-dependency-path: packages/go/*/go.sum
+      - name: The core module requires nothing
+        working-directory: packages/go
+        run: |
+          go mod tidy -diff
+          test -z "$(go list -m -f '{{if not .Main}}{{.Path}}{{end}}' all)"
+      - name: The nested modules are tidy
+        run: |
+          for module in dbtest cmd/runlight chi echo; do
+            (cd "packages/go/$module" && go mod tidy -diff) || exit 1
+          done
+      - name: gofmt
+        run: test -z "$(gofmt -l packages/go)" || { gofmt -l packages/go; exit 1; }
+      - name: go vet
+        run: |
+          for module in . dbtest cmd/runlight chi echo; do
+            (cd "packages/go/$module" && go vet ./...) || exit 1
+          done
+      # staticcheck 0.8 needs Go 1.26 to build, so it lints on the newest entry;
+      # the tests still run on both.
+      - name: staticcheck
+        if: matrix.go == '1.26'
+        run: |
+          go install honnef.co/go/tools/cmd/staticcheck@v0.8.1
+          for module in . dbtest cmd/runlight chi echo; do
+            (cd "packages/go/$module" && "$(go env GOPATH)/bin/staticcheck" ./...) || exit 1
+          done
+      # Each entry tests one of MySQL and MariaDB, on the one service.
+      - name: Tests
+        run: |
+          export ${{ matrix.mysql-env }}=mysql://root:pw@127.0.0.1:3306/runlight_test_go
+          for module in . dbtest cmd/runlight chi echo; do
+            (cd "packages/go/$module" && go test -race -count=1 ./...) || exit 1
+          done
