@@ -32,7 +32,6 @@ defmodule Runlight.Routes do
   alias Runlight.Errors
   alias Runlight.Goals
   alias Runlight.Hash
-  alias Runlight.Http.Headers
   alias Runlight.Http.Request
   alias Runlight.Http.Response
   alias Runlight.JS
@@ -1210,12 +1209,13 @@ defmodule Runlight.Routes do
       path == "/api/mail/test" and request.method == "POST" ->
         with {:ok, body} <- read_json(request) do
           to = body |> JS.prop("to") |> JS.nullish("") |> JS.string() |> JS.trim()
+          settings = if Runlight.email?(to), do: Runlight.mail_settings(rl)
 
           cond do
             not Runlight.email?(to) ->
               coded("Enter an email address to send the test to", "test_email", 400)
 
-            (settings = Runlight.mail_settings(rl)) == nil ->
+            settings == nil ->
               coded("Set up a mail service first", "mail_unset", 400)
 
             true ->
@@ -1675,7 +1675,7 @@ defmodule Runlight.Routes do
           error ->
             if Errors.range?(error) do
               # A code, never the message: the dashboard shows its own words for it, so a link cannot put text there.
-              "#{home}?connect_error=#{if is_struct(error, Runlight.ConnectError), do: error.code, else: "failed"}"
+              "#{home}?connect_error=#{if is_struct(error, Runlight.ConnectError), do: Map.get(error, :code), else: "failed"}"
             else
               reraise error, __STACKTRACE__
             end
@@ -2563,7 +2563,7 @@ defmodule Runlight.Routes do
         {:ok, site} ->
           cond do
             only != nil and site["id"] != only -> coded("Unknown site", "unknown_site", 404)
-            (remote = Runlight.remote(rl, site["id"])) != nil -> pass_through(routes, remote, path, url, request)
+            Runlight.remote(rl, site["id"]) != nil -> pass_through(routes, Runlight.remote(rl, site["id"]), path, url, request)
             true -> site_reads(routes, path, url, site)
           end
       end
@@ -2940,7 +2940,6 @@ defmodule Runlight.Routes do
   end
 
   defp route(routes, request, path, url) do
-    rl = routes.rl
     method = request.method
 
     cond do
@@ -2948,9 +2947,22 @@ defmodule Runlight.Routes do
       admin_only?(path, method) and can_read(routes, request) == true and member?(request) ->
         coded("Only an owner or admin can change this", "admin_only", 403)
 
-      routes.web != nil and (web_answer = Runlight.Accounts.Web.handle(routes.web, request, path)) != nil ->
-        web_answer
+      true ->
+        case routes.web && Runlight.Accounts.Web.handle(routes.web, request, path) do
+          nil -> route_rest(routes, request, path, url)
+          web_answer -> web_answer
+        end
+    end
+  end
 
+  defp route_rest(routes, request, path, url) do
+    rl = routes.rl
+    method = request.method
+    locale = Regex.run(~r/\A\/assets\/locale\.([a-z]{2,3})\.([a-f0-9]+)\.json\z/, path)
+    unsubscribe = Regex.run(~r/\A\/unsubscribe\/([^\/]+)\/?\z/, path)
+    share = Regex.run(~r/\A\/share\/([^\/]+)\/?\z/, path)
+
+    cond do
       path == "/s.js" and method == "GET" ->
         script = tracker_script(routes, param(url, "site"))
 
@@ -2984,7 +2996,7 @@ defmodule Runlight.Routes do
           {"cache-control", "public, max-age=31536000, immutable"}
         ])
 
-      (locale = Regex.run(~r/\A\/assets\/locale\.([a-z]{2,3})\.([a-f0-9]+)\.json\z/, path)) != nil and
+      locale != nil and
         Enum.at(locale, 2) == Assets.locales_hash() and Enum.at(locale, 1) in Assets.locale_codes() and method == "GET" ->
         Response.new(Map.fetch!(Assets.locales(), Enum.at(locale, 1)), 200, [
           {"content-type", "application/json; charset=utf-8"},
@@ -3034,17 +3046,16 @@ defmodule Runlight.Routes do
       path == "/api" or String.starts_with?(path, "/api/") ->
         api(routes, request, path, url)
 
-      (String.starts_with?(path, "/oauth/") or oauth_document?(path)) and
-          (oauth = Runlight.OAuth.response(oauth_ctx(routes), request, path, url)) != nil ->
-        oauth
+      String.starts_with?(path, "/oauth/") or oauth_document?(path) ->
+        Runlight.OAuth.response(oauth_ctx(routes), request, path, url) || coded("Not found", "not_found", 404)
 
       path == "/mcp" ->
         mcp(routes, request, url)
 
-      (unsubscribe = Regex.run(~r/\A\/unsubscribe\/([^\/]+)\/?\z/, path)) != nil and method in ["GET", "POST"] ->
+      unsubscribe != nil and method in ["GET", "POST"] ->
         unsubscribe_page(routes, request, Enum.at(unsubscribe, 1))
 
-      (share = Regex.run(~r/\A\/share\/([^\/]+)\/?\z/, path)) != nil and method == "GET" ->
+      share != nil and method == "GET" ->
         Runlight.init(rl)
         id = Enum.at(share, 1)
         found = if Regex.match?(~r/\A[a-f0-9]{32}\z/, id), do: Store.share_by_id(rl.store, id)
