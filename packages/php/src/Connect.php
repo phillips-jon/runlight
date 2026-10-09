@@ -24,7 +24,8 @@ final class Connect
     public static function installUrl(mixed $value): string
     {
         $url = (string) preg_replace('#/+$#', '', Js::trim(Js::string($value ?? '')));
-        if (!preg_match('#^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)#D', $url)) {
+        // The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
+        if (!preg_match('#^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)#D', $url) || !Url::canParse($url)) {
             throw new ConnectError("Enter the install's address, like https://example.com/runlight", 'url');
         }
         return $url;
@@ -34,12 +35,26 @@ final class Connect
     private static function clearExpired(Runlight $runlight): void
     {
         foreach ($runlight->store->settingsStartingWith('connect:') as ['key' => $key, 'value' => $value]) {
-            $pending = Json::tryDecode($value, true);
-            $expires = is_array($pending) ? ($pending['expires'] ?? null) : null;
-            if (!Js::truthy($expires) || $expires < $runlight->now()) {
+            if (self::pendingFrom($value, $runlight->now()) === null) {
                 $runlight->store->setSetting($key, null);
             }
         }
+    }
+
+    /**
+     * A saved attempt, or null when it cannot be read or has no time it runs out, which counts as expired.
+     *
+     * @return array<string, mixed>|null
+     */
+    private static function pendingFrom(?string $value, int|float $now): ?array
+    {
+        $pending = Json::tryDecode((string) $value, true);
+        // A JSON object, not a list or a scalar.
+        if (!is_array($pending) || ($pending !== [] && array_is_list($pending))) {
+            return null;
+        }
+        $expires = $pending['expires'] ?? null;
+        return (is_int($expires) || is_float($expires)) && $expires >= $now ? $pending : null;
     }
 
     /** The PKCE challenge for a verifier: SHA-256, base64url without padding (oauth.ts's s256). */
@@ -133,8 +148,8 @@ final class Connect
         if ($stored !== null && $stored !== '') {
             $runlight->store->setSetting($key, null);
         }
-        $pending = $stored !== null && $stored !== '' ? Json::decode($stored, true) : null;
-        if ($pending === null || $pending['expires'] < $runlight->now()) {
+        $pending = $stored !== null && $stored !== '' ? self::pendingFrom($stored, $runlight->now()) : null;
+        if ($pending === null) {
             throw new ConnectError('That connection took too long or was already used. Start again.', 'expired');
         }
         if ($params->get('error') === 'access_denied') {

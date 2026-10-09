@@ -17,7 +17,7 @@ import { getJson } from "./http.js";
 import { ImportError } from "./types.js";
 import { umamiSignIn } from "./umami.js";
 import { CSV_BATCH, csvFormat, csvHit } from "./csvvisits.js";
-import { BROWSERS, DEVICES, SYSTEMS, hexId, title } from "./write.js";
+import { browserName, deviceName, hexId, systemName } from "./write.js";
 
 const DAY = 86_400_000;
 /** Each step reads at most this many days, or stops after this many events. */
@@ -347,11 +347,11 @@ async function writeEvent(store: SqlStore, site: { id: string; hostnames: string
       country: /^[A-Z]{2}$/.test(country) ? country : "",
       region: /^[A-Z]{2}$/.test(country) ? region : "",
       city: (e.city || "").slice(0, 100),
-      browser: BROWSERS[(e.browser || "").toLowerCase()] ?? title(e.browser || ""),
+      browser: browserName(e.browser || ""),
       browserVersion: "",
-      os: SYSTEMS[(e.os || "").toLowerCase()] ?? e.os ?? "",
+      os: systemName(e.os || ""),
       osVersion: "",
-      device: DEVICES[(e.device || "").toLowerCase()] ?? "",
+      device: deviceName(e.device || ""),
       screen: e.screen.slice(0, 20),
       language: e.language.slice(0, 35),
     });

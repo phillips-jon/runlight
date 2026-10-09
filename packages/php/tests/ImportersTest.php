@@ -148,4 +148,21 @@ final class ImportersTest extends TestCase
         $this->assertNan(Http::number('soon'));
         $this->assertSame("a%20b%2Fc!'()*~", Http::encodeURIComponent("a b/c!'()*~"));
     }
+
+    /** Names JavaScript objects carry on their prototype are just names, as edges.test.ts checks in the SDK. */
+    public function testNamesLikeObjectPropertiesAreJustNames(): void
+    {
+        $runlight = new \Runlight\Runlight(['store' => \Runlight\Store\Stores::sqlite(':memory:')]);
+        foreach (['constructor', 'toString', '__proto__', 'hasOwnProperty'] as $source) {
+            try {
+                \Runlight\Importers\Index::importStep($runlight, 'default', $source, [], null, 0);
+                $this->fail("$source imported");
+            } catch (ImportError $e) {
+                $this->assertSame('import_source', $e->code, $source);
+            }
+        }
+        $this->assertSame(['Constructor', '__proto__', 'ToString'], array_map(\Runlight\Importers\Write::browser(...), ['constructor', '__proto__', 'toString']));
+        $this->assertSame(['constructor', 'toString'], array_map(\Runlight\Importers\Write::system(...), ['constructor', 'toString']));
+        $this->assertSame(['', ''], array_map(\Runlight\Importers\Write::device(...), ['constructor', 'valueOf']));
+    }
 }

@@ -22,7 +22,8 @@ export async function importStep(
   cursor: string | null,
   done: number,
 ): Promise<ImportStep> {
-  const importer = IMPORTERS[source];
+  // Own keys only: a source named "constructor" is not an importer.
+  const importer = Object.hasOwn(IMPORTERS, source) ? IMPORTERS[source] : undefined;
   if (!importer) throw new ImportError(`Runlight cannot import from ${source}`, "import_source", { source });
   await runlight.init();
   const known = async (sourceId: string, slug?: string, url?: string) => {
