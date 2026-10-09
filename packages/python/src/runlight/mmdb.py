@@ -57,7 +57,12 @@ class Mmdb:
         """A database read from its file as lookups need it. Raises OSError when the file cannot be read."""
         if not os.path.isfile(file):
             raise OSError(f"Could not read {file}")
-        return cls(b"", open(file, "rb"))  # noqa: SIM115
+        handle = open(file, "rb")  # noqa: SIM115
+        try:
+            return cls(b"", handle)
+        except Exception:
+            handle.close()
+            raise
 
     def close(self) -> None:
         if self._handle is not None:
