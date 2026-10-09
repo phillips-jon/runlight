@@ -222,10 +222,19 @@ struct Reply {
 }
 
 /// One SMTP connection and the replies read from it, multi-line included, one at a time.
+///
+/// The bytes are kept until a whole line is in, so a character split across two reads comes
+/// through whole, as one streaming TextDecoder gives it; like that decoder, a byte order mark at
+/// the start of the stream is dropped. A write that fails is held back: replies that came before
+/// it are answered first, and it is the error once there is nothing more to read.
 struct Session {
     conn: Option<Conn>,
     buffer: Vec<u8>,
     lines: Vec<String>,
+    /// Whether nothing has been read yet on this stream.
+    fresh: bool,
+    /// The first error a write met, given once the replies before it are read.
+    failure: Option<MailError>,
 }
 
 fn closed() -> MailError {
@@ -241,7 +250,12 @@ impl Session {
         let conn = self.conn.as_mut().ok_or_else(closed)?;
         match tokio::time::timeout(REPLY_TIMEOUT, conn.write_all(data)).await {
             Err(_) => Err(mail_error("SMTP: timed out")),
-            Ok(Err(e)) => Err(mail_error(format!("SMTP: {}", node_message(&e, "write", None)))),
+            Ok(Err(e)) => {
+                if self.failure.is_none() {
+                    self.failure = Some(mail_error(format!("SMTP: {}", node_message(&e, "write", None))));
+                }
+                Ok(())
+            }
             Ok(Ok(())) => Ok(()),
         }
     }
@@ -263,10 +277,21 @@ impl Session {
             let conn = self.conn.as_mut().ok_or_else(closed)?;
             let mut chunk = [0u8; 8192];
             match tokio::time::timeout(timeout, conn.read(&mut chunk)).await {
-                Err(_) => return Err(mail_error("SMTP: timed out")),
-                Ok(Err(e)) => return Err(mail_error(format!("SMTP: {}", node_message(&e, "read", None)))),
-                Ok(Ok(0)) => return Err(closed()),
+                Err(_) => return Err(self.failure.take().unwrap_or_else(|| mail_error("SMTP: timed out"))),
+                Ok(Err(e)) => {
+                    let error = mail_error(format!("SMTP: {}", node_message(&e, "read", None)));
+                    return Err(self.failure.take().unwrap_or(error));
+                }
+                Ok(Ok(0)) => return Err(self.failure.take().unwrap_or_else(closed)),
                 Ok(Ok(n)) => self.buffer.extend_from_slice(&chunk[..n]),
+            }
+            if self.fresh && self.buffer.len() >= 3 {
+                self.fresh = false;
+                if self.buffer.starts_with(b"\xef\xbb\xbf") {
+                    self.buffer.drain(..3);
+                }
+            } else if self.fresh && !b"\xef\xbb\xbf".starts_with(&self.buffer) {
+                self.fresh = false;
             }
         }
     }
@@ -286,6 +311,7 @@ impl Session {
     async fn start_tls(&mut self, host: &str) -> Result<(), MailError> {
         self.buffer.clear();
         self.lines.clear();
+        self.fresh = true;
         let stream = match self.conn.take() {
             Some(Conn::Plain(s)) => s,
             _ => return Err(closed()),
@@ -365,7 +391,7 @@ async fn converse(
         Ok(Err(detail)) => return Err(unreachable(detail)),
         Ok(Ok(conn)) => conn,
     };
-    let mut s = Session { conn: Some(conn), buffer: Vec::new(), lines: Vec::new() };
+    let mut s = Session { conn: Some(conn), buffer: Vec::new(), lines: Vec::new(), fresh: true, failure: None };
     let result = talk(&mut s, config, m, from, host, security, now, uuid).await;
     if let Some(conn) = s.conn.as_mut() {
         conn.shutdown().await;

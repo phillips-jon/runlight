@@ -54,8 +54,8 @@ pub fn seal(value: &str, secret: Option<&str>) -> String {
 
 /// The sealed value, or `None` when it cannot be opened (a different secret, or damaged).
 ///
-/// Web Crypto takes an IV of any length; every sealed value has a 12 byte one, and one of another
-/// length is taken as damaged here.
+/// Web Crypto refuses an IV under 12 bytes, so such a value opens nowhere. It takes a longer one,
+/// which no sealed value has; this port takes that as damaged too.
 pub fn unseal(sealed: &str, secret: Option<&str>) -> Option<String> {
     if let Some(rest) = sealed.strip_prefix("plain:") {
         return Some(rest.to_string());

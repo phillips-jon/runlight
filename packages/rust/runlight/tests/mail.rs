@@ -123,9 +123,14 @@ fn sealed_keys_open_only_with_the_same_secret() {
 fn keys_sealed_by_typescript_open_here() {
     let f = fixture("outbound");
     let cases = list(&f, "sealed");
-    assert_eq!(cases.len(), 4);
+    assert_eq!(cases.len(), 5);
     for case in cases {
-        let (value, secret, sealed) = (s(case, "value"), s(case, "secret"), s(case, "sealed"));
+        let (secret, sealed) = (s(case, "secret"), s(case, "sealed"));
+        let Some(value) = case.at("value").as_str() else {
+            // A sealed form TypeScript cannot open (an IV under 12 bytes), so there is nothing to seal again.
+            assert_eq!(unseal(sealed, Some(secret)), None, "{sealed}");
+            continue;
+        };
         assert_eq!(unseal(sealed, Some(secret)).as_deref(), Some(value));
         assert_eq!(unseal(sealed, Some(&format!("{secret}!"))), None);
         assert_eq!(unseal(&seal(value, Some(secret)), Some(secret)).as_deref(), Some(value));
@@ -620,4 +625,41 @@ async fn smtp_tls_that_fails_its_handshake_says_so() {
     let error = smtp_send(&starttls, &message(), "reports@example.com", 60_000, NOW, &mut uuids()).await.unwrap_err();
     assert_eq!(error.code, "mail_failed");
     assert!(error.message.starts_with("SMTP: TLS failed: "), "{}", error.message);
+}
+
+#[tokio::test]
+async fn smtp_reply_just_before_the_server_closes_is_the_error_not_the_close() {
+    let listener = listen(5445).await;
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut a, _) = listener.accept().await.unwrap();
+        a.write_all(b"535 no\r\n").await.unwrap();
+        drop(a);
+    });
+    let cfg = smtp_config(port, obj! { "security" => "none" });
+    let error = smtp_send(&cfg, &message(), "reports@example.com", 60_000, NOW, &mut uuids()).await.unwrap_err();
+    assert_eq!((error.message.as_str(), error.code.as_str()), ("SMTP greeting: 535 no", "mail_failed"));
+}
+
+#[tokio::test]
+async fn smtp_character_split_across_two_reads_comes_through_whole() {
+    let listener = listen(5447).await;
+    let port = listener.local_addr().unwrap().port();
+    tokio::spawn(async move {
+        let (mut a, _) = listener.accept().await.unwrap();
+        a.set_nodelay(true).unwrap();
+        // A byte order mark first, which a TextDecoder drops, then a character cut in two.
+        let bytes = "\u{feff}554 caf\u{e9} ok\r\n".as_bytes();
+        let split = bytes.iter().position(|b| *b == 0xc3).unwrap() + 1;
+        a.write_all(&bytes[..2]).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        a.write_all(&bytes[2..split]).await.unwrap();
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        a.write_all(&bytes[split..]).await.unwrap();
+        let mut chunk = [0u8; 256];
+        let _ = a.read(&mut chunk).await;
+    });
+    let cfg = smtp_config(port, obj! { "security" => "none" });
+    let error = smtp_send(&cfg, &message(), "reports@example.com", 60_000, NOW, &mut uuids()).await.unwrap_err();
+    assert_eq!(error.message, "SMTP greeting: 554 caf\u{e9} ok");
 }
