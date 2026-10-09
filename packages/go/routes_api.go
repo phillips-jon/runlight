@@ -19,7 +19,6 @@ var (
 	goalAnyPath = regexp.MustCompile(`^/api/goals/[^/]+$`)
 	siteOnePath = regexp.MustCompile(`^/api/sites/([^/]+)$`)
 	linkGetPath = regexp.MustCompile(`^/api/links/[a-f0-9]+$`)
-	languageTwo = regexp.MustCompile(`^[a-z]{2}$`)
 	throughStep = regexp.MustCompile(`^(\d+):(.+)$`)
 	propName64  = regexp.MustCompile(`^[^"\\]{1,64}$`)
 	localePath  = regexp.MustCompile(`^/assets/locale\.([a-z]{2,3})\.([a-f0-9]+)\.json$`)

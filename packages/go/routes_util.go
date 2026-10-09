@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/subtle"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -460,6 +459,3 @@ var (
 	fileName  = regexp.MustCompile(`filename="([A-Za-z0-9._-]+)"`)
 	errorCode = regexp.MustCompile(`^[a-z_]{1,40}$`)
 )
-
-// errUnknownSite is the refusal for a site that is not there.
-var errUnknownSite = errors.New("Unknown site")

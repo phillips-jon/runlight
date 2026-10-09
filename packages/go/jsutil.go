@@ -62,23 +62,6 @@ func encodeURIComponent(text string) string {
 	return b.String()
 }
 
-// encodeURI is encodeURI(text).
-func encodeURI(text string) string {
-	text = js.WellFormed(text)
-	var b strings.Builder
-	for i := 0; i < len(text); i++ {
-		c := text[i]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || strings.IndexByte("-_.!~*'();/?:@&=+$,#", c) >= 0 {
-			b.WriteByte(c)
-			continue
-		}
-		b.WriteByte('%')
-		b.WriteByte("0123456789ABCDEF"[c>>4])
-		b.WriteByte("0123456789ABCDEF"[c&15])
-	}
-	return b.String()
-}
-
 // compare16 orders two strings as JavaScript's < does, by UTF-16 code
 // units: negative, zero, or positive.
 func compare16(a, b string) int {
