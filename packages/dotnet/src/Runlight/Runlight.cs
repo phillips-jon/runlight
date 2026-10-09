@@ -232,7 +232,7 @@ public sealed partial class Runlight
     {
         if (_mailInCode != null)
         {
-            throw new MailError("The mail service is set in code", "mail_in_code");
+            throw new MailError("The mail service is set in code", "mail_in_code", new JsObject());
         }
         if (input == null)
         {
@@ -240,7 +240,7 @@ public sealed partial class Runlight
             return;
         }
         var before = await MailSettingsAsync(cancellationToken).ConfigureAwait(false);
-        var service = Transports.Services.FirstOrDefault(s => Same(s.Get("id"), input.Prop("service"))) ?? throw new MailError("Pick a mail service", "mail_service");
+        var service = Transports.Services.FirstOrDefault(s => Same(s.Get("id"), input.Prop("service"))) ?? throw new MailError("Pick a mail service", "mail_service", new JsObject());
         var fields = service.Arr("fields")!.Cast<JsObject>().ToList();
         var settings = new JsObject { ["service"] = service.Get("id") };
         foreach (var f in fields.Where(f => !f.Bool("secret")))
@@ -270,7 +270,7 @@ public sealed partial class Runlight
         string from = Js.Trim(Js.String(Given(input, "from") ?? ""));
         if (!Email.IsMatch(from))
         {
-            throw new MailError("Enter the address reports come from, like reports@example.com", "mail_from");
+            throw new MailError("Enter the address reports come from, like reports@example.com", "mail_from", new JsObject());
         }
         string fromName = Js.Slice(Js.Trim(Js.String(Given(input, "fromName") ?? "")), 0, 80);
         var config = settings.With(new JsObject { ["from"] = from });
@@ -286,7 +286,7 @@ public sealed partial class Runlight
     public async Task SendMailAsync(JsObject message, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(message);
-        var settings = await MailSettingsAsync(cancellationToken).ConfigureAwait(false) ?? throw new MailError("Set up a mail service first", "mail_unset");
+        var settings = await MailSettingsAsync(cancellationToken).ConfigureAwait(false) ?? throw new MailError("Set up a mail service first", "mail_unset", new JsObject());
         var full = message.With(new JsObject { ["from"] = settings.Get("from") });
         if (settings.Get("fromName") != null)
         {
