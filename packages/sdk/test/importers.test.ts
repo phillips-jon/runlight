@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
+import { getJson } from "../src/importers/http.js";
 import { importStep } from "../src/importers/index.js";
 import { runlight } from "../src/index.js";
 import { sqlite } from "../src/stores/sqlite.js";
@@ -157,4 +158,115 @@ test("Umami: a link already here with the same slug and destination is skipped b
   assert.equal(step.skipped, 1);
   assert.equal(step.links, 0);
   assert.ok(!calls.some((c) => c.includes("/websites/u-9/")), "no history was fetched for it");
+});
+
+/** Runs `work` with setTimeout firing at once, recording each wait. */
+async function withoutWaits<T>(work: () => Promise<T>): Promise<{ waits: number[]; result: Promise<T> }> {
+  const realTimeout = globalThis.setTimeout;
+  const waits: number[] = [];
+  globalThis.setTimeout = ((fn: () => void, ms: number) => {
+    waits.push(ms);
+    queueMicrotask(fn);
+    return 0;
+  }) as never;
+  const result = work();
+  try {
+    await result;
+  } catch {
+    // The caller looks at the result.
+  } finally {
+    globalThis.setTimeout = realTimeout;
+  }
+  return { waits, result };
+}
+
+test("Short.io: a point whose date cannot be read is skipped, not the whole step", async () => {
+  serve([
+    [/api\.short\.io\/api\/domains/, () => ({ body: [{ id: 7, hostname: "s.brand.com" }] })],
+    [/api\/links\?domain_id=7/, () => ({ body: { links: [{ idString: "lnk1", id: 1, path: "one", originalURL: "https://a.com/1", createdAt: "2026-01-01T00:00:00Z" }], nextPageToken: null } })],
+    [/statistics\/link\/lnk1\/by_interval/, () => ({ body: { clickStatistics: [{ x: "1772409600000", y: 1 }, { x: "2026-03-01T00:00:00Z", y: 4 }, { x: 9e15, y: 2 }] } })],
+  ]);
+  const { totals } = await runAll("shortio", { apiKey: "sk_test" });
+  assert.equal(totals.links, 1);
+  assert.equal(totals.clicks, 4);
+});
+
+test("Umami: a link list without a count gives no total, and pages on while pages are full", async () => {
+  const link = (i: number) => ({ id: `u${i}`, name: `N${i}`, url: `https://a.com/${i}`, slug: `s${i}`, createdAt: "2026-01-01T00:00:00Z", deletedAt: null });
+  serve([
+    [/\/api\/links\?page=1&/, () => ({ body: { data: Array.from({ length: 5 }, (_, i) => link(i)) } })],
+    [/\/api\/links\?page=2&/, () => ({ body: { data: [link(5)], count: "six" } })],
+    [/\/websites\//, () => ({ body: { data: [], count: 0 } })],
+  ]);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }) });
+  const creds = { url: "https://stats.example.com", apiKey: "k" };
+  const first = await importStep(rl, "default", "umami", creds, null, 0);
+  assert.equal(first.total, null);
+  assert.ok(first.cursor, "a full page may have more after it");
+  const second = await importStep(rl, "default", "umami", creds, first.cursor, first.done);
+  assert.deepEqual([second.cursor, second.done, second.total], [null, 6, null]);
+  serve([[/\/api\/links\?/, () => ({ body: { data: [] } })]]);
+  const empty = await importStep(rl, "default", "umami", creds, null, 0);
+  assert.deepEqual([empty.cursor, empty.done, empty.total], [null, 0, null]);
+});
+
+test("Umami: a sign-in that answers without a token is refused there", async () => {
+  const calls = serve([
+    [/\/api\/auth\/login/, () => ({ body: {} })],
+    [/\/api\/links\?/, () => ({ body: { data: [], count: 0 } })],
+  ]);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }) });
+  await assert.rejects(importStep(rl, "default", "umami", { url: "https://stats.example.com", username: "jon", password: "bad" }, null, 0), (error: Error & { code?: string }) => {
+    assert.equal(error.code, "import_refused");
+    return true;
+  });
+  assert.deepEqual(calls, ["POST stats.example.com/api/auth/login"], "nothing is asked with a missing token");
+});
+
+test("Dub: a failed events request fails the step and keeps per-click history for the rest", async () => {
+  let failing = true;
+  const calls = serve([
+    [/api\.dub\.co\/links\?.*startingAfter=l2/, () => ({ body: [] })],
+    [/api\.dub\.co\/links\?/, () => ({ body: [
+      { id: "l1", domain: "dub.sh", key: "a", url: "https://a.com/a", title: "A", createdAt: "2026-01-02T00:00:00Z" },
+      { id: "l2", domain: "dub.sh", key: "b", url: "https://a.com/b", title: "B", createdAt: "2026-01-02T00:00:00Z" },
+    ] })],
+    [/\/events\?.*linkId=l1/, () => (failing ? { status: 500, body: {} } : { body: [{ timestamp: "2026-03-01T10:00:00Z", click: { id: "c1" } }] })],
+    [/\/events\?.*linkId=l2/, () => ({ body: [{ timestamp: "2026-03-02T10:00:00Z", click: { id: "c2" } }] })],
+    [/\/analytics\?/, () => ({ body: [{ start: "2026-03-01T00:00:00.000Z", clicks: 9 }] })],
+  ]);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }) });
+  await rl.init();
+  const { result } = await withoutWaits(() => importStep(rl, "default", "dub", { apiKey: "k" }, null, 0));
+  await assert.rejects(result, (error: Error & { code?: string }) => {
+    assert.equal(error.code, "import_status");
+    return true;
+  });
+  assert.ok(!calls.some((c) => c.includes("/analytics")), "a server error does not switch to daily counts");
+  failing = false;
+  const step = await importStep(rl, "default", "dub", { apiKey: "k" }, null, 0);
+  assert.equal(step.links, 2);
+  assert.equal(step.clicks, 2, "both links keep every click");
+  assert.ok(!calls.some((c) => c.includes("/analytics")));
+});
+
+test("Rebrandly: a numeric id still gives a text cursor", async () => {
+  serve([
+    [/\/links\?.*last=24/, () => ({ body: [] })],
+    [/rebrandly\.com\/v1\/links\?/, () => ({ body: Array.from({ length: 25 }, (_, i) => ({ id: i, slashtag: `s${i}`, destination: `https://a.com/${i}`, createdAt: "2026-01-01T00:00:00Z" })) })],
+  ]);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }) });
+  const step = await importStep(rl, "default", "rebrandly", { apiKey: "rb" }, null, 0);
+  assert.equal(step.cursor, "24");
+});
+
+test("HTTP: a negative Retry-After waits the default backoff", async () => {
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return calls === 1 ? new Response("{}", { status: 429, headers: { "retry-after": "-5" } }) : new Response("[]");
+  }) as typeof fetch;
+  const { waits, result } = await withoutWaits(() => getJson("https://api.example.com/x"));
+  assert.deepEqual(await result, []);
+  assert.deepEqual(waits, [800]);
 });

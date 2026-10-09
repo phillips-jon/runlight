@@ -70,8 +70,9 @@ final class Http
                 throw new HttpError('The key or sign-in was refused', 401, 'import_refused');
             }
             if (($response->status === 429 || $response->status >= 500) && $attempt < 4) {
+                // Retry-After in seconds; none, zero, negative, or not a number waits the default backoff.
                 $wait = self::number($response->headers->get('retry-after')) * 1000;
-                $wait = is_nan($wait) || $wait == 0 ? 800 * $attempt : $wait;
+                $wait = is_nan($wait) || $wait <= 0 ? 800 * $attempt : $wait;
                 $this->pause(self::whole(min($wait, 10_000)));
                 continue;
             }

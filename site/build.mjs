@@ -43,20 +43,32 @@ function frontmatter(text) {
 }
 
 /** Light syntax colour for the languages the docs use: strings, comments, and keywords. */
+const KEYWORDS = {
+  php: "use|namespace|class|final|public|private|readonly|function|fn|return|new|if|true|false|null",
+  js: "import|export|from|const|let|async|await|return|function|new|if|else|type|interface|default|null|true|false",
+  python: "import|from|as|def|class|return|if|elif|else|for|in|with|async|await|lambda|None|True|False|not|and|or|is",
+  ruby: "require|module|class|def|end|do|if|elsif|else|unless|return|yield|self|nil|true|false|new",
+  go: "package|import|func|return|if|else|for|range|var|const|type|struct|interface|go|defer|nil|true|false",
+  java: "package|import|public|private|protected|static|final|class|interface|record|void|new|return|if|else|var|null|true|false",
+  csharp: "using|namespace|public|private|static|class|record|var|new|return|if|else|async|await|null|true|false",
+  elixir: "defmodule|def|defp|do|end|use|alias|import|plug|if|else|case|fn|nil|true|false",
+  rust: "use|mod|pub|fn|let|mut|struct|enum|impl|async|await|return|if|else|match|Some|None|Ok|Err|true|false",
+};
+const ALIASES = { ts: "js", tsx: "js", jsx: "js", py: "python", rb: "ruby", erb: "ruby", kotlin: "java", cs: "csharp", ex: "elixir", exs: "elixir", rs: "rust" };
+const HASH_COMMENTS = new Set(["bash", "sh", "nginx", "apache", "python", "ruby", "elixir", "yaml", "toml"]);
+
 function highlight(code, lang) {
   const esc = escape(code);
-  if (!["ts", "tsx", "js", "jsx", "json", "bash", "sh", "html", "php", "nginx", "apache"].includes(lang)) return esc;
+  const known = ["json", "bash", "sh", "html", "xml", "nginx", "apache", "yaml", "toml", ...Object.keys(KEYWORDS), ...Object.keys(ALIASES)];
+  if (!known.includes(lang)) return esc;
+  const family = ALIASES[lang] ?? lang;
   const tokens = [];
   const stash = (html) => `\u0000${tokens.push(html) - 1}\u0000`;
-  const shell = lang === "bash" || lang === "sh" || lang === "nginx" || lang === "apache";
-  const comment = lang === "html" ? /&lt;!--[\s\S]*?--&gt;/.source : shell ? /(?<=^|\s)#[^\n]*/.source : /(?<=^|\s)\/\/[^\n]*/.source;
+  const comment =
+    lang === "html" || lang === "xml" ? /&lt;!--[\s\S]*?--&gt;/.source : HASH_COMMENTS.has(family) ? /(?<=^|\s)#[^\n]*/.source : /(?<=^|\s)\/\/[^\n]*/.source;
   const string = /&quot;(?:[^&]|&(?!quot;))*?&quot;|'[^'\n]*'|`[^`]*`/.source;
   let out = esc.replace(new RegExp(`(${comment})|${string}`, "gm"), (m, c) => stash(`<span class="${c ? "c" : "s"}">${m}</span>`));
-  if (lang === "php") {
-    out = out.replace(/\b(use|namespace|class|final|public|private|readonly|function|fn|return|new|if|true|false|null)\b/g, '<span class="k">$1</span>');
-  } else if (!shell && lang !== "html" && lang !== "json") {
-    out = out.replace(/\b(import|export|from|const|let|async|await|return|function|new|if|else|type|interface|default|null|true|false)\b/g, '<span class="k">$1</span>');
-  }
+  if (KEYWORDS[family]) out = out.replace(new RegExp(`\\b(${KEYWORDS[family]})\\b`, "g"), '<span class="k">$1</span>');
   return out.replace(/\u0000(\d+)\u0000/g, (m, i) => tokens[Number(i)]);
 }
 

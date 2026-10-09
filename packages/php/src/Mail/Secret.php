@@ -50,7 +50,8 @@ final class Secret
         }
         $iv = base64_decode($iv, true);
         $data = base64_decode($data, true);
-        if ($iv === false || $iv === '' || $data === false || strlen($data) < 16) {
+        // Web Crypto refuses an AES-GCM IV under 12 bytes, so such a value opens nowhere.
+        if ($iv === false || strlen($iv) < 12 || $data === false || strlen($data) < 16) {
             return null;
         }
         $plain = openssl_decrypt(substr($data, 0, -16), 'aes-256-gcm', self::keyFor($secret), OPENSSL_RAW_DATA, $iv, substr($data, -16));
