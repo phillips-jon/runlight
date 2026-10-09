@@ -149,6 +149,13 @@ def _post(
     return {} if data is None else data
 
 
+def _unreadable(url: str) -> AssistantError:
+    """A service that answered, but not in its protocol's shape."""
+    host = _host(url)
+    message = f"{host} sent an answer Runlight could not read"
+    return AssistantError(message, "assistant_failed", {"host": host, "detail": message})
+
+
 def _tool_text(name: Any, args: Any, read_api: ApiRead) -> dict[str, Any]:
     try:
         result = call_tool({"name": name, "arguments": args if _js.truthy(args) and _js.is_object(args) else {}}, read_api)
@@ -284,8 +291,8 @@ def chat(
             blocks = _js.get(data, "content")
             if blocks is None or blocks is _js.UNDEFINED:
                 blocks = []
-            if not isinstance(blocks, list):
-                raise TypeError("blocks.filter is not a function")
+            if not isinstance(blocks, list) or not all(isinstance(b, dict) for b in blocks):
+                raise _unreadable(base)
             calls = [b for b in blocks if _js.get(b, "type") == "tool_use"]
             if _js.get(data, "stop_reason") != "tool_use" or not calls:
                 texts = []
@@ -323,8 +330,8 @@ def chat(
         content = _js.get(message, "content")
         if not _js.truthy(count):
             return {"reply": _js.trim("" if content is None or content is _js.UNDEFINED else _js.string(content)), "tools": used}
-        if not isinstance(calls, list):
-            raise TypeError("message.tool_calls is not iterable")
+        if not isinstance(calls, list) or not all(isinstance(c, dict) and isinstance(c.get("function"), dict) for c in calls):
+            raise _unreadable(base)
         convo.append({"role": "assistant", "content": None if content is _js.UNDEFINED else content, "tool_calls": calls})
         for call in calls:
             _in_time(deadline, now, cancelled)
@@ -419,9 +426,11 @@ def list_models(settings: dict[str, Any], fetcher: Fetcher | None = None) -> lis
     if listed is None or listed is _js.UNDEFINED:
         listed = []
     if not isinstance(listed, list):
-        raise TypeError("data.data.filter is not a function")
+        raise _unreadable(base)
     models = []
     for m in listed:
+        if not isinstance(m, dict):
+            continue
         id = _js.get(m, "id")
         if not isinstance(id, str) or not id:
             continue

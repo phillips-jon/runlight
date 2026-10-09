@@ -137,8 +137,8 @@ def _json(headers: dict[str, str] | None = None) -> dict[str, str]:
 
 
 def _basic(user: str, password: str) -> str:
-    # btoa() takes Latin-1 text only, and throws past U+00FF, as encode() raises here.
-    return "Basic " + base64.b64encode(f"{user}:{password}".encode("latin-1")).decode("ascii")
+    """Basic auth over the UTF-8 bytes, so a key with any character is sent."""
+    return "Basic " + base64.b64encode(_js.encode(f"{user}:{password}")).decode("ascii")
 
 
 def _hmac_hex(secret: str, body: str) -> str:
@@ -160,6 +160,12 @@ def check_config(config: dict[str, Any]) -> None:
     url = config.get("url") or ""
     if config["service"] == "webhook" and not re.match(r"https://", url) and not re.match(r"http://(localhost|127\.0\.0\.1)(:\d+)?(/|\Z)", url, re.ASCII):
         raise MailError("The webhook URL must use https", "mail_https", {})
+    if config["service"] == "webhook" and not Url.can_parse(url):
+        raise MailError("Enter the webhook's whole URL, like https://example.com/hooks/mail", "mail_url", {})
+    # A port a socket can connect to, read with Number() as the SMTP client reads it.
+    port = _js.number(config.get("port", _js.UNDEFINED))
+    if config["service"] == "smtp" and not (_js.is_integer(port) and 1 <= port <= 65535):
+        raise MailError("The port must be a whole number from 1 to 65535", "mail_port", {})
 
 
 def send(config: dict[str, Any], m: dict[str, Any], fetcher: Fetcher | None = None, now: int | None = None) -> None:

@@ -267,22 +267,28 @@ def call_tool(params: Any, read_api: ApiRead) -> Json:
     ok, body = _js.try_loads(answer.content())
     if not ok:
         body = {}
+    # Any body that is not an object (null included) carries no words of its own.
+    obj = body if isinstance(body, dict) else None
     if not answer.ok:
-        # body.error throws on a body of null, as it does in TS.
-        error = _js.get(body, "error")
+        error = _js.UNDEFINED if obj is None else _js.get(obj, "error")
         text = f"Runlight answered {answer.status}" if error is None or error is _js.UNDEFINED else error
         return {"content": [{"type": "text", "text": _js.string(text)}], "isError": True}
     shape = tool["shape"]
-    return {"content": [{"type": "text", "text": _js.dumps(shape(body) if shape else body)}]}
+    return {"content": [{"type": "text", "text": _js.dumps(shape(obj) if shape and obj is not None else body)}]}
 
 
 def _answer(message: Any, read_api: ApiRead) -> Json | None:
-    # message.id throws on null, as it does in TS.
+    # A batch element that is not an object is an invalid request, answered with a null id.
+    if not isinstance(message, dict):
+        return _rpc_error(None, -32600, "Invalid request")
     id = _js.get(message, "id")
     is_notification = id is _js.UNDEFINED
     method = _js.get(message, "method")
     if _js.get(message, "jsonrpc") != "2.0" or not isinstance(method, str):
         return None if is_notification else _rpc_error(id, -32600, "Invalid request")
+    # A notification is never answered, so it never runs anything either.
+    if is_notification:
+        return None
     given = _js.get(message, "params")
     params = given if _js.truthy(given) and _js.is_object(given) else {}
     try:
@@ -315,13 +321,9 @@ def _answer(message: Any, read_api: ApiRead) -> Json | None:
         elif method == "tools/call":
             result = call_tool(params, read_api)
         else:
-            if is_notification:
-                return None
             return _rpc_error(id, -32601, f'Unknown method "{method}"')
-        return None if is_notification else {"jsonrpc": "2.0", "id": id, "result": result}
+        return {"jsonrpc": "2.0", "id": id, "result": result}
     except Exception as error:
-        if is_notification:
-            return None
         code = getattr(error, "code", None)
         return _rpc_error(id, -32603 if code is None else code, str(error) if _js.truthy(code) else "Internal error")
 

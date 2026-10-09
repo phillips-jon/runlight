@@ -186,3 +186,28 @@ def test_install_addresses():
     for bad in ["http://example.com", "http://localhost.evil.com", None, "", "example.com"]:
         refused(lambda bad=bad: install_url(bad), "url")
     assert isinstance(ConnectError("x", "url"), _js.RangeError), "a RangeError in TypeScript"
+
+
+def test_an_address_the_url_parser_refuses_is_the_address_error():
+    for url in ["https://[", "https://[::1", "https://a b"]:
+        refused(lambda url=url: install_url(url), "url")
+    assert install_url("https://example.com/runlight/") == "https://example.com/runlight"
+
+
+def test_an_attempt_saved_without_an_expiry_has_expired(clock):
+    router = Router([])
+    hub = clock.hub(router)
+    hub.init()
+    state = "a" * 32
+    attempt = {"url": APP, "client": "c", "verifier": "v", "redirect": "https://hub.example/done", "token": f"{APP}/oauth/token"}
+    for stored in [attempt, None, 5, {"expires": "9999999999999"}]:
+        hub.store.set_setting(f"connect:{state}", _js.dumps(stored))
+        refused(lambda: finish_connect(hub, SearchParams({"state": state, "code": "c"})), "expired")
+    assert router.requests == [], "nothing was fetched"
+    # Starting clears every attempt that cannot be read or has no expiry.
+    fresh = clock.hub(install())
+    fresh.init()
+    for letter, value in {"b": "null", "c": "5", "d": "not json", "e": '{"url":"x"}'}.items():
+        fresh.store.set_setting(f"connect:{letter * 32}", value)
+    start_connect(fresh, APP, "https://hub.example/done")
+    assert len(fresh.store.settings_starting_with("connect:")) == 1

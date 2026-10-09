@@ -30,18 +30,21 @@ _guard = threading.Lock()
 _S = _js.WHITESPACE
 
 
-def _attr(tag: str, name: str) -> str:
-    match = re.search(
-        rf"\b{name}[{_S}]*=[{_S}]*(\"([^\"]*)\"|'([^']*)'|([^{_S}>]+))", tag, re.IGNORECASE | re.ASCII
-    )
-    if not match:
-        return ""
-    value = match.group(2)
-    if value is None:
-        value = match.group(3)
-    if value is None:
-        value = match.group(4)
-    return _js.trim(value or "")
+_ATTRIBUTE = re.compile(
+    rf"([^{_S}\"'>/=]+)(?:[{_S}]*=[{_S}]*(?:\"([^\"]*)\"|'([^']*)'|([^{_S}>]+)))?", re.ASCII
+)
+
+
+def _attrs(tag: str) -> dict[str, str]:
+    """A tag's attributes, read one after another so a name inside another (data-rel) or inside a value
+    (title="rel=icon") is never taken for one. The first of a repeated name counts, as in a browser."""
+    out: dict[str, str] = {}
+    for m in _ATTRIBUTE.finditer(tag[len("<link"):]):
+        name = _js.lower(m.group(1))
+        if name not in out:
+            value = next((v for v in (m.group(2), m.group(3), m.group(4)) if v is not None), "")
+            out[name] = _js.trim(value)
+    return out
 
 
 _LINK = re.compile(r"<link\b[^>]*>", re.IGNORECASE | re.ASCII)
@@ -52,8 +55,9 @@ def icon_links(html: str, base: str) -> list[str]:
     """Icon URLs a page links to, best first: apple-touch-icon, then SVG and PNG icons, then any icon."""
     found: list[tuple[str, int]] = []
     for tag in _LINK.findall(html):
-        rel = _SPACES.split(_attr(tag, "rel").lower())
-        href = _attr(tag, "href")
+        attributes = _attrs(tag)
+        rel = _SPACES.split(attributes.get("rel", "").lower())
+        href = attributes.get("href", "")
         if not href or not ("icon" in rel or "apple-touch-icon" in rel):
             continue
         parsed = Url.parse(href, base)
@@ -63,7 +67,7 @@ def icon_links(html: str, base: str) -> list[str]:
         # Only https, which is all the fetch below takes.
         if not url.startswith("https://"):
             continue
-        type = _attr(tag, "type").lower()
+        type = attributes.get("type", "").lower()
         if "apple-touch-icon" in rel:
             score = 3
         elif "svg" in type or url.endswith(".svg"):

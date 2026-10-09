@@ -282,3 +282,30 @@ def test_errors_carry_codes_and_params():
     assert error.code == "mail_failed"
     assert error.params == {"detail": "Something"}
     assert SERVICES[0]["id"] == "ses"
+
+
+def _config_code(config: dict[str, str]) -> str | None:
+    from runlight.mail.transports import check_config
+
+    try:
+        check_config(config)
+    except MailError as error:
+        return error.code
+    return None
+
+
+def test_an_smtp_port_out_of_range_is_refused_before_anything_is_saved_or_sent():
+    def smtp(port: str) -> dict[str, str]:
+        return {"service": "smtp", "host": "smtp.example.com", "port": port, "security": "starttls"}
+
+    for port in ["70000", "65536", "0", "-1", "1.5", "abc", "Infinity", "0x10000"]:
+        assert _config_code(smtp(port)) == "mail_port", port
+    for port in ["587", " 465 ", "65535", "1", "0o1747", "0b1001001011", "0x24b", "587.0"]:
+        assert _config_code(smtp(port)) is None, port
+
+
+def test_a_webhook_address_that_is_not_a_url_is_refused_before_anything_is_saved_or_sent():
+    for url in ["https://", "https://[", "https:// /x"]:
+        assert _config_code({"service": "webhook", "url": url}) == "mail_url", url
+    assert _config_code({"service": "webhook", "url": "https://hooks.example.com/mail"}) is None
+    assert _config_code({"service": "webhook", "url": "http://example.com/x"}) == "mail_https"
