@@ -2,6 +2,7 @@
 // picking, and link importers against recording fakes, and writes what they send and return to
 // packages/php/tests/fixtures/outbound.json, so the PHP port's tests can require the very same requests.
 // Run with: TZ=UTC node --import tsx scripts/php-fixtures-outbound.mts
+import { createCipheriv, createHash } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { mock } from "node:test";
@@ -12,7 +13,7 @@ import { rebrandly } from "../packages/sdk/src/importers/rebrandly.ts";
 import { shortio } from "../packages/sdk/src/importers/shortio.ts";
 import type { Importer } from "../packages/sdk/src/importers/types.ts";
 import { umami } from "../packages/sdk/src/importers/umami.ts";
-import { seal } from "../packages/sdk/src/mail/secret.ts";
+import { seal, unseal } from "../packages/sdk/src/mail/secret.ts";
 import { signV4 } from "../packages/sdk/src/mail/ses.ts";
 import { mime, smtpSend } from "../packages/sdk/src/mail/smtp.ts";
 import { send, serviceMessage } from "../packages/sdk/src/mail/transports.ts";
@@ -177,6 +178,14 @@ const smtp = [
 const sealed = [];
 for (const [value, secret] of [['{"apiKey":"re_123"}', "server secret"], ["café \u{1F600}", "s"], ["", "s"], ["x".repeat(1000), "long"]] as const) {
   sealed.push({ value, secret, sealed: await seal(value, secret) });
+}
+// AES-GCM under an 11 byte IV is valid to OpenSSL, but Web Crypto refuses any IV under 12 bytes, so it opens to null.
+{
+  const iv = Buffer.alloc(11, 7);
+  const cipher = createCipheriv("aes-256-gcm", createHash("sha256").update("runlight-mail:s").digest(), iv);
+  const data = Buffer.concat([cipher.update("short iv"), cipher.final(), cipher.getAuthTag()]);
+  const short = `v1:${iv.toString("base64")}:${data.toString("base64")}`;
+  sealed.push({ value: await unseal(short, "s"), secret: "s", sealed: short });
 }
 
 const ips = [

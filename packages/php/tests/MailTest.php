@@ -59,7 +59,10 @@ final class MailTest extends TestCase
         foreach (self::fixture()['sealed'] as $case) {
             $this->assertSame($case['value'], Secret::unseal($case['sealed'], $case['secret']));
             $this->assertNull(Secret::unseal($case['sealed'], "{$case['secret']}!"));
-            $this->assertSame($case['value'], Secret::unseal(Secret::seal($case['value'], $case['secret']), $case['secret']));
+            // A value of null is a sealed form TypeScript cannot open (an IV under 12 bytes), so there is nothing to seal again.
+            if ($case['value'] !== null) {
+                $this->assertSame($case['value'], Secret::unseal(Secret::seal($case['value'], $case['secret']), $case['secret']));
+            }
         }
     }
 
