@@ -112,14 +112,16 @@ final class TimeTest extends TestCase
     private const SYSTEM_V_SUMMER = ['systemv/ast4adt', 'systemv/est5edt', 'systemv/cst6cdt', 'systemv/mst7mdt', 'systemv/pst8pdt', 'systemv/yst9ydt'];
 
     /**
-     * The fixture came from Node's ICU with time zone data 2025c. PHP carries its own copy of the data, and an
-     * older one disagrees wherever a zone changed since, so these comparisons need 2025c or newer (the
-     * timezonedb extension brings PHP's copy up to date).
+     * The fixture came from Node's ICU with time zone data 2025c. PHP carries its own copy of the data, which
+     * disagrees wherever a zone's rules changed between the two: older data misses changes, and newer data
+     * has ones Node did not (Morocco and British Columbia since). These comparisons run on the versions known
+     * to agree with the fixture, and are skipped on others; regenerate the fixture to move them on.
      */
     private static function needCurrentZones(): void
     {
-        if (version_compare(timezone_version_get(), '2025.3', '<')) {
-            self::markTestSkipped('PHP time zone data ' . timezone_version_get() . ' is older than the fixture\'s 2025c; install the timezonedb extension');
+        $version = timezone_version_get();
+        if (version_compare($version, '2025.3', '<') || version_compare($version, '2026.1', '>')) {
+            self::markTestSkipped("PHP time zone data $version is not one the fixture's 2025c agrees with (2025.3 to 2026.1)");
         }
     }
 
