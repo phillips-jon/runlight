@@ -285,6 +285,10 @@ const API: Record<string, { status: number; body: string }> = {
   "/api/goals": { status: 200, body: `﻿{"goals":[]}` },
   "/api/journeys": { status: 400, body: `{"error":null}` },
   "/api/links": { status: 200, body: `null` },
+  // Refusals whose bodies are not objects read like any other refusal.
+  "/api/goals/refused-null": { status: 404, body: `null` },
+  "/api/goals/refused-list": { status: 403, body: `[{"error":"no"}]` },
+  "/api/goals/refused-text": { status: 500, body: `"text"` },
 };
 const readApiFor = (log: unknown[], api: Record<string, { status: number; body: string }> = API) => async (path: string, params: [string, string][]) => {
   log.push({ path, params });
@@ -362,6 +366,12 @@ const bodies: string[] = [
   rpc([{ jsonrpc: "2.0", id: 1, method: "ping" }, { jsonrpc: "2.0", method: "notifications/initialized" }, 5, "x", [], { jsonrpc: "2.0", id: 2, method: "nope" }]),
   rpc([{ jsonrpc: "2.0", method: "notifications/initialized" }]),
   rpc([null]),
+  // A notification never runs a tool, alone or in a batch; a batch element that is not an object is an invalid request of its own.
+  rpc({ jsonrpc: "2.0", method: "tools/call", params: { name: "get_stats", arguments: { period: "today" } } }),
+  rpc([{ jsonrpc: "2.0", method: "tools/call", params: { name: "list_sites" } }, null, { jsonrpc: "2.0", id: 30, method: "ping" }, true, { jsonrpc: "2.0", method: "initialize" }]),
+  rpc({ jsonrpc: "2.0", id: 31, method: "tools/call", params: { name: "get_goal", arguments: { goal_id: "refused-null" } } }),
+  rpc({ jsonrpc: "2.0", id: 32, method: "tools/call", params: { name: "get_goal", arguments: { goal_id: "refused-list" } } }),
+  rpc({ jsonrpc: "2.0", id: 33, method: "tools/call", params: { name: "get_goal", arguments: { goal_id: "refused-text" } } }),
   rpc({ jsonrpc: "2.0", id: 15, method: "tools/call", params: { name: "get_realtime" } }),
   rpc({ jsonrpc: "2.0", id: 16, method: "tools/call", params: { name: "list_links" } }),
   rpc({ jsonrpc: "2.0", id: 17, method: "tools/call", params: { name: "get_goal", arguments: { goal_id: "x" } } }),
@@ -538,6 +548,19 @@ const scenarios: Scenario[] = [
   { name: "models unreachable", call: "listModels", settings: { provider: "lmstudio", baseUrl: "", key: "" }, responses: [{ throws: "network" }] },
   { name: "models answer without words", call: "listModels", settings: { provider: "openrouter", baseUrl: "", key: "k" }, responses: [{ status: 500, body: "" }] },
   { name: "models answer null", call: "listModels", settings: { provider: "openrouter", baseUrl: "", key: "k" }, responses: [{ status: 200, body: "null" }] },
+  // Answers in a shape the protocol does not have are assistant_failed, never a crash.
+  { name: "anthropic content as text", call: "chat", settings: { provider: "anthropic", model: "m", baseUrl: "", key: "k" }, messages: [{ role: "user", content: "How many?" }], context, responses: [json({ content: "text" })] },
+  { name: "anthropic content as an object", call: "chat", settings: { provider: "anthropic", model: "m", baseUrl: "", key: "k" }, messages: [{ role: "user", content: "How many?" }], context, responses: [json({ stop_reason: "end_turn", content: { type: "text", text: "x" } })] },
+  { name: "anthropic block that is null", call: "chat", settings: { provider: "anthropic", model: "m", baseUrl: "", key: "k" }, messages: [{ role: "user", content: "How many?" }], context, responses: [json({ stop_reason: "end_turn", content: [{ type: "text", text: "x" }, null] })] },
+  { name: "anthropic tool call beside a number", call: "chat", settings: { provider: "anthropic", model: "m", baseUrl: "", key: "k" }, messages: [{ role: "user", content: "How many?" }], context, responses: [json({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "t1", name: "list_sites", input: {} }, 5] })] },
+  { name: "openai tool calls as text", call: "chat", settings: { provider: "openai", model: "m", baseUrl: "", key: "k" }, messages: [{ role: "user", content: "How many?" }], context, responses: [json({ choices: [{ message: { content: null, tool_calls: "abc" } }] })] },
+  { name: "openai tool calls as an object", call: "chat", settings: { provider: "openai", model: "m", baseUrl: "", key: "k" }, messages: [{ role: "user", content: "How many?" }], context, responses: [json({ choices: [{ message: { tool_calls: { length: 1 } } }] })] },
+  { name: "openai tool call that is null", call: "chat", settings: { provider: "openrouter", model: "m", baseUrl: "", key: "k" }, messages: [{ role: "user", content: "How many?" }], context, responses: [json({ choices: [{ message: { tool_calls: [null] } }] })] },
+  { name: "openai tool call without a function", call: "chat", settings: { provider: "openai", model: "m", baseUrl: "", key: "k" }, messages: [{ role: "user", content: "How many?" }], context, responses: [json({ choices: [{ message: { tool_calls: [{ id: "c1", type: "function", function: null }] } }] })] },
+  { name: "openai empty tool calls answer", call: "chat", settings: { provider: "openai", model: "m", baseUrl: "", key: "k" }, messages: [{ role: "user", content: "How many?" }], context, responses: [json({ choices: [{ message: { content: "Two.", tool_calls: [] } }] })] },
+  { name: "models listed as text", call: "listModels", settings: { provider: "openai", baseUrl: "", key: "k" }, responses: [json({ data: "x" })] },
+  { name: "models listed as an object", call: "listModels", settings: { provider: "anthropic", baseUrl: "", key: "k" }, responses: [json({ data: { id: "m" } })] },
+  { name: "models list with entries that are not models", call: "listModels", settings: { provider: "openai", baseUrl: "", key: "k" }, responses: [json({ data: [null, 5, "x", [], { id: "m1" }] })] },
 ];
 
 const realFetch = globalThis.fetch;

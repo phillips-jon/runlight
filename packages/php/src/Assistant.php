@@ -141,6 +141,25 @@ Rule: answer only the newest message. If it asks nothing new (thanks, a greeting
         return $data ?? Json::object();
     }
 
+    /** A service that answered, but not in its protocol's shape. */
+    private static function unreadable(string $url): AssistantError
+    {
+        $host = (new Url($url))->host();
+        $message = "$host sent an answer Runlight could not read";
+        return new AssistantError($message, 'assistant_failed', ['host' => $host, 'detail' => $message]);
+    }
+
+    /** Whether every item is a JSON object (not null, a list, or a scalar). */
+    private static function allObjects(array $items): bool
+    {
+        foreach ($items as $item) {
+            if (!$item instanceof \stdClass) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * @param callable(string, list<array{0: string, 1: string}>): Response $readApi
      * @return array{text: string, error: bool}
@@ -244,8 +263,8 @@ Rule: answer only the newest message. If it asks nothing new (thanks, a greeting
                 if ($blocks === null || $blocks instanceof Undefined) {
                     $blocks = [];
                 }
-                if (!is_array($blocks) || !array_is_list($blocks)) {
-                    throw new \TypeError('blocks.filter is not a function');
+                if (!is_array($blocks) || !array_is_list($blocks) || !self::allObjects($blocks)) {
+                    throw self::unreadable($base);
                 }
                 $calls = array_values(array_filter($blocks, static fn ($b) => Js::get($b, 'type') === 'tool_use'));
                 if (Js::get($data, 'stop_reason') !== 'tool_use' || !$calls) {
@@ -292,8 +311,8 @@ Rule: answer only the newest message. If it asks nothing new (thanks, a greeting
             if (!Js::truthy($count)) {
                 return ['reply' => Js::trim($content === null || $content instanceof Undefined ? '' : Js::string($content)), 'tools' => $used];
             }
-            if (!is_array($calls) || !array_is_list($calls)) {
-                throw new \TypeError('message.tool_calls is not iterable');
+            if (!is_array($calls) || !array_is_list($calls) || !self::allObjects($calls) || !self::allObjects(array_map(static fn ($call) => $call->function ?? null, $calls))) {
+                throw self::unreadable($base);
             }
             $convo[] = ['role' => 'assistant', 'content' => $content instanceof Undefined ? null : $content, 'tool_calls' => $calls];
             foreach ($calls as $call) {
@@ -379,11 +398,12 @@ Rule: answer only the newest message. If it asks nothing new (thanks, a greeting
             $list = [];
         }
         if (!is_array($list) || !array_is_list($list)) {
-            throw new \TypeError('data.data.filter is not a function');
+            throw self::unreadable($base);
         }
         $models = [];
         foreach ($list as $m) {
-            $id = Js::get($m, 'id');
+            // An entry that is not an object is skipped, like one without an id.
+            $id = $m instanceof \stdClass ? Js::get($m, 'id') : null;
             if (!is_string($id) || $id === '') {
                 continue;
             }

@@ -210,18 +210,26 @@ export async function callTool(params: Json, readApi: ApiRead): Promise<Json> {
   const args = (params.arguments && typeof params.arguments === "object" ? params.arguments : {}) as Json;
   const { path, params: query } = tool.request(args);
   const answer = await readApi(path, query);
-  const body = (await answer.json().catch(() => ({}))) as Json;
-  if (!answer.ok) return { content: [{ type: "text", text: String(body.error ?? `Runlight answered ${answer.status}`) }], isError: true };
-  return { content: [{ type: "text", text: JSON.stringify(tool.shape ? tool.shape(body) : body) }] };
+  const body = (await answer.json().catch(() => ({}))) as unknown;
+  // Any body that is not an object (null included) carries no words of its own.
+  const object = body !== null && typeof body === "object" && !Array.isArray(body) ? (body as Json) : null;
+  if (!answer.ok) return { content: [{ type: "text", text: String(object?.error ?? `Runlight answered ${answer.status}`) }], isError: true };
+  return { content: [{ type: "text", text: JSON.stringify(tool.shape && object ? tool.shape(object) : body) }] };
 }
 
-async function answer(message: RpcRequest, readApi: ApiRead): Promise<Json | null> {
-  const isNotification = message.id === undefined;
-  if (message.jsonrpc !== "2.0" || typeof message.method !== "string") return isNotification ? null : rpcError(message.id, -32600, "Invalid request");
-  const params = (message.params && typeof message.params === "object" ? message.params : {}) as Json;
+async function answer(message: unknown, readApi: ApiRead): Promise<Json | null> {
+  // A batch element that is not an object is an invalid request, answered with a null id.
+  if (message === null || typeof message !== "object" || Array.isArray(message)) return rpcError(null, -32600, "Invalid request");
+  const { jsonrpc, id, method } = message as RpcRequest;
+  const isNotification = id === undefined;
+  if (jsonrpc !== "2.0" || typeof method !== "string") return isNotification ? null : rpcError(id, -32600, "Invalid request");
+  // A notification is never answered, so it never runs anything either.
+  if (isNotification) return null;
+  const given = (message as RpcRequest).params;
+  const params = (given && typeof given === "object" ? given : {}) as Json;
   try {
     let result: Json;
-    switch (message.method) {
+    switch (method) {
       case "initialize": {
         const asked = String(params.protocolVersion ?? "");
         result = {
@@ -244,14 +252,12 @@ async function answer(message: RpcRequest, readApi: ApiRead): Promise<Json | nul
         result = await callTool(params, readApi);
         break;
       default:
-        if (isNotification) return null;
-        return rpcError(message.id, -32601, `Unknown method "${message.method}"`);
+        return rpcError(id, -32601, `Unknown method "${method}"`);
     }
-    return isNotification ? null : { jsonrpc: "2.0", id: message.id, result };
+    return { jsonrpc: "2.0", id, result };
   } catch (error) {
-    if (isNotification) return null;
     const code = (error as { code?: number }).code;
-    return rpcError(message.id, code ?? -32603, error instanceof Error && code ? error.message : "Internal error");
+    return rpcError(id, code ?? -32603, error instanceof Error && code ? error.message : "Internal error");
   }
 }
 
@@ -264,7 +270,7 @@ export async function mcpResponse(request: Request, readApi: ApiRead): Promise<R
   }
   // Batches were in the 2025-03-26 protocol; answering them costs nothing.
   if (Array.isArray(body)) {
-    const answers = (await Promise.all(body.map((m) => answer(m as RpcRequest, readApi)))).filter((a) => a !== null);
+    const answers = (await Promise.all(body.map((m) => answer(m, readApi)))).filter((a) => a !== null);
     return answers.length ? new Response(JSON.stringify(answers), { headers }) : new Response(null, { status: 202 });
   }
   const one = await answer(body as RpcRequest, readApi);

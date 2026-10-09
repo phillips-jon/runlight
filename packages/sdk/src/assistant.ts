@@ -115,6 +115,15 @@ async function post(url: string, headers: Record<string, string>, body: unknown,
   return data ?? {};
 }
 
+/** A service that answered, but not in its protocol's shape. */
+function unreadable(url: string): AssistantError {
+  const host = new URL(url).host;
+  const message = `${host} sent an answer Runlight could not read`;
+  return new AssistantError(message, "assistant_failed", { host, detail: message });
+}
+
+const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
+
 const toolText = async (name: string, args: unknown, readApi: ApiRead): Promise<{ text: string; error: boolean }> => {
   try {
     const result = await callTool({ name, arguments: args && typeof args === "object" ? args : {} }, readApi);
@@ -139,8 +148,9 @@ const WELCOME: Record<string, string> = {
 /** A short reply to a message that only says thanks or OK, or null when the message asks something. */
 export function acknowledgement(text: string, language: string): string | null {
   const plain = text.replace(/\p{Extended_Pictographic}|\uFE0F/gu, " ").trim();
-  if (!plain && text.trim()) return WELCOME[language] ?? WELCOME.en!;
-  return THANKS.test(plain) ? (WELCOME[language] ?? WELCOME.en!) : null;
+  const welcome = Object.hasOwn(WELCOME, language) ? WELCOME[language]! : WELCOME.en!;
+  if (!plain && text.trim()) return welcome;
+  return THANKS.test(plain) ? welcome : null;
 }
 
 /** Answers the last question in `messages`, calling tools as the model asks. Returns the reply and the tools it used. */
@@ -180,6 +190,7 @@ export async function chat(
     for (let round = 0; round < MAX_ROUNDS; round++) {
       const data = await post(`${base}/messages`, { "x-api-key": settings.key, "anthropic-version": "2023-06-01" }, { model, max_tokens: MAX_TOKENS, system: system(context), tools, messages: convo }, deadline, signal);
       const blocks = (data.content ?? []) as Array<{ type: string; text?: string; id?: string; name?: string; input?: unknown }>;
+      if (!Array.isArray(blocks) || !blocks.every(isObject)) throw unreadable(base);
       const calls = blocks.filter((b) => b.type === "tool_use");
       if (data.stop_reason !== "tool_use" || !calls.length) {
         return { reply: blocks.filter((b) => b.type === "text").map((b) => b.text ?? "").join("\n").trim(), tools: used };
@@ -210,6 +221,7 @@ export async function chat(
       tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }>;
     };
     if (!message.tool_calls?.length) return { reply: String(message.content ?? "").trim(), tools: used };
+    if (!Array.isArray(message.tool_calls) || !message.tool_calls.every((call) => isObject(call) && isObject(call.function))) throw unreadable(base);
     convo.push({ role: "assistant", content: message.content ?? null, tool_calls: message.tool_calls });
     for (const call of message.tool_calls) {
       inTime(deadline, signal);
@@ -251,8 +263,10 @@ export async function listModels(settings: Omit<AssistantSettings, "model">): Pr
     if (!message) throw new AssistantError(`${host}: it answered ${answer.status}`, "assistant_status", { host, status: String(answer.status) });
     throw new AssistantError(`${host}: ${String(message).slice(0, 300)}`, "assistant_refused", { host, detail: String(message).slice(0, 300) });
   }
-  const models = (data?.data ?? [])
-    .filter((m) => typeof m.id === "string" && m.id)
+  const listed = data?.data ?? [];
+  if (!Array.isArray(listed)) throw unreadable(base);
+  const models = listed
+    .filter((m) => isObject(m) && typeof m.id === "string" && m.id)
     // Gemini lists ids as "models/gemini-...", which its OpenAI-compatible API takes without the prefix.
     .map((m) => {
       const id = String(m.id).replace(/^models\//, "");

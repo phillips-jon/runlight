@@ -99,4 +99,15 @@ final class McpTest extends TestCase
         $this->assertSame(202, $note->status);
         $this->assertSame('', $note->text());
     }
+
+    /** As edges.test.ts: a body that is fine but not an object passes as it is, even through a tool that reshapes. */
+    public function testAnAnswerThatIsNotAnObjectIsPassedOnAsItIs(): void
+    {
+        foreach (['null', '[1]', '5'] as $body) {
+            $result = Mcp::callTool(['name' => 'get_visit_times'], static fn (): Response => new Response($body, 200));
+            $this->assertSame($body, $result['content'][0]['text'], $body);
+            $refused = Mcp::callTool(['name' => 'list_sites'], static fn (): Response => new Response($body, 403));
+            $this->assertSame(['content' => [['type' => 'text', 'text' => 'Runlight answered 403']], 'isError' => true], $refused, $body);
+        }
+    }
 }
