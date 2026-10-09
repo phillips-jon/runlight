@@ -767,6 +767,15 @@ impl Runlight {
         self.0.pruning.lock().unwrap_or_else(|e| e.into_inner()).push(handle);
     }
 
+    /// Runs work after the answer, such as an email that must not slow a sign-in down. `idle()` waits for it.
+    pub fn later<F>(&self, work: F)
+    where
+        F: std::future::Future<Output = ()> + Send + 'static,
+    {
+        let handle = tokio::spawn(work);
+        self.0.pruning.lock().unwrap_or_else(|e| e.into_inner()).push(handle);
+    }
+
     /// Waits for retention work still running; the scheduled check and tests wait for it.
     pub async fn idle(&self) {
         loop {

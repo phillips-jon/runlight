@@ -436,7 +436,7 @@ async fn play(scenario: &Value, store: runlight::store::SqlStore) -> Result<Vec<
             }
         }
         let mut out = Object::new();
-        out.set("status", answer.status);
+        out.set("status", i64::from(answer.status));
         if !shown.is_empty() {
             out.set("headers", shown);
         }
