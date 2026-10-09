@@ -61,6 +61,10 @@ public final class Secret {
     try {
       byte[] ivBytes = Base64.getDecoder().decode(iv);
       byte[] dataBytes = Base64.getDecoder().decode(data);
+      // Web Crypto refuses an AES-GCM IV under 12 bytes, so such a value opens nowhere.
+      if (ivBytes.length < 12) {
+        return null;
+      }
       Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
       cipher.init(Cipher.DECRYPT_MODE, keyFor(secret), new GCMParameterSpec(128, ivBytes));
       return Js.decodeUtf8(cipher.doFinal(dataBytes));

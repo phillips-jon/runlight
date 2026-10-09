@@ -99,8 +99,9 @@ public final class Http {
       }
       if ((status == 429 || status >= 500) && attempt < 4) {
         String retry = response.headers().get("retry-after");
+        // Retry-After in seconds; none, zero, negative, or not a number waits the default backoff.
         double wait = Js.toNumber(retry) * 1000;
-        if (Double.isNaN(wait) || wait == 0) {
+        if (!(wait > 0)) {
           wait = 800.0 * attempt;
         }
         pause(Math.min(wait, 10_000));

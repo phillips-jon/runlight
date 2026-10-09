@@ -101,7 +101,9 @@ public final class Index {
         failed.add(failure);
       }
     }
-    Object total = result.get("total");
+    // A total that is not a number is as good as none.
+    Object total =
+        result.get("total") instanceof Number n && Double.isFinite(n.doubleValue()) ? n : null;
     // Links the source skipped (deleted ones) still count toward progress.
     if (!Js.truthy(result.get("cursor")) && total != null) {
       stepDone = Math.max(stepDone, Js.toNumber(total));

@@ -114,11 +114,7 @@ public final class Connect {
       }
     }
     Object scopes = Js.get(meta, "scopes_supported");
-    boolean manage =
-        scopes instanceof List<?> list
-            ? list.contains("manage")
-            : scopes instanceof String s && s.contains("manage");
-    if (!manage) {
+    if (!(scopes instanceof List<?> list && list.contains("manage"))) {
       throw new ConnectError(
           url
               + " runs an older Runlight. Update it, or connect it with an API token from its Settings.",

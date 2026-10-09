@@ -5,6 +5,10 @@ import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +36,20 @@ public final class SmtpSession {
   private Socket socket;
   private InputStream in;
   private final StringBuilder buffer = new StringBuilder();
+
+  /**
+   * One decoder for the stream, so a character split across two reads comes through whole, as
+   * TextDecoder's stream mode does; bytes that are not UTF-8 read as U+FFFD.
+   */
+  private final CharsetDecoder decoder =
+      StandardCharsets.UTF_8
+          .newDecoder()
+          .onMalformedInput(CodingErrorAction.REPLACE)
+          .onUnmappableCharacter(CodingErrorAction.REPLACE);
+
+  /** The start of a character whose other bytes have not come yet. */
+  private byte[] carry = new byte[0];
+
   private final List<String> lines = new ArrayList<>();
 
   /**
@@ -194,11 +212,21 @@ public final class SmtpSession {
         throw new MailError("SMTP: the server closed the connection");
       }
       if (n > 0) {
-        // Each chunk decoded on its own, as Node's chunk.toString("utf8") does.
-        buffer.append(new String(chunk, 0, n, StandardCharsets.UTF_8));
+        decode(chunk, n);
         idleUntil = System.nanoTime() + timeoutMs * 1_000_000L;
       }
     }
+  }
+
+  private void decode(byte[] chunk, int n) {
+    ByteBuffer bytes = ByteBuffer.allocate(carry.length + n);
+    bytes.put(carry).put(chunk, 0, n).flip();
+    CharBuffer chars = CharBuffer.allocate(bytes.remaining() + 1);
+    decoder.decode(bytes, chars, false);
+    chars.flip();
+    buffer.append(chars);
+    carry = new byte[bytes.remaining()];
+    bytes.get(carry);
   }
 
   /**
@@ -208,6 +236,8 @@ public final class SmtpSession {
   public void startTls() {
     buffer.setLength(0);
     lines.clear();
+    decoder.reset();
+    carry = new byte[0];
     if (left() <= 0) {
       throw late();
     }

@@ -208,6 +208,23 @@ class ConnectTest {
   }
 
   @Test
+  void anInstallWhoseScopesSupportedIsNotAListCountsAsAnOlderRunlight() {
+    for (Object scopes : List.of("unmanaged", "manage", 7L)) {
+      FakeService odd =
+          install(
+              Json.object(
+                  "authorization_endpoint", APP + "/oauth/authorize",
+                  "token_endpoint", APP + "/oauth/token",
+                  "registration_endpoint", APP + "/oauth/register",
+                  "scopes_supported", scopes),
+              Json.object("client_id", "c1"),
+              201);
+      ConnectError e = refused(() -> new Hub(odd).start(APP, "https://hub.example/done"), "old");
+      assertTrue(e.getMessage().contains("older Runlight"), Json.stringify(scopes));
+    }
+  }
+
+  @Test
   void anInstallThatCannotConnectSaysWhy() {
     refused(() -> new Hub(install()).start("ftp://x", "https://hub.example/done"), "url");
     refused(

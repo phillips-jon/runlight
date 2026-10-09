@@ -121,7 +121,14 @@ public final class Shortio implements Importer {
           if (Js.toNumber(y) > 0) {
             Object x = Js.get(p, "x");
             double ms = x instanceof Number n ? n.doubleValue() : Http.parseDate(x);
-            daily.add(Json.object("day", Js.slice(Http.isoString(ms), 0, 10), "clicks", y));
+            // A point whose date cannot be read is left out, not the link.
+            String day;
+            try {
+              day = Js.slice(Http.isoString(ms), 0, 10);
+            } catch (IllegalArgumentException e) {
+              continue;
+            }
+            daily.add(Json.object("day", day, "clicks", y));
           }
         }
       } catch (HttpError error) {

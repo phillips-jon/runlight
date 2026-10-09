@@ -1,6 +1,8 @@
 package sh.runlight.importers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -533,6 +535,59 @@ class ImportStepTest {
     for (String call : router.calls) {
       assertTrue(!call.contains("/websites/u-9/"), "no history was fetched for it");
     }
+  }
+
+  private static Map<String, Object> umamiLink(int i) {
+    return Json.object(
+        "id", "u" + i,
+        "name", "N" + i,
+        "url", "https://a.com/" + i,
+        "slug", "s" + i,
+        "createdAt", "2026-01-01T00:00:00Z",
+        "deletedAt", null);
+  }
+
+  @Test
+  void umamiALinkListWithoutACountGivesNoTotalAndPagesOnWhilePagesAreFull() {
+    List<Object> full = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      full.add(umamiLink(i));
+    }
+    FakeService router =
+        new FakeService()
+            .route("/api/links\\?page=1&", Json.object("data", full))
+            .route(
+                "/api/links\\?page=2&",
+                Json.object("data", Json.array(umamiLink(5)), "count", "six"))
+            .route("/websites/", Json.object("data", Json.array(), "count", 0L));
+    TestHost rl = new TestHost(router, NOW);
+    Map<String, String> creds = Map.of("url", "https://stats.example.com", "apiKey", "k");
+    Map<String, Object> first = Index.importStep(rl, "default", "umami", creds, null, 0);
+    assertNull(first.get("total"));
+    assertNotNull(first.get("cursor"), "a full page may have more after it");
+    Map<String, Object> second =
+        Index.importStep(
+            rl,
+            "default",
+            "umami",
+            creds,
+            (String) first.get("cursor"),
+            Js.asDouble(first.get("done")));
+    assertEquals(
+        Json.stringify(Json.array(null, 6L, null)),
+        Json.stringify(Json.array(second.get("cursor"), second.get("done"), second.get("total"))));
+    Map<String, Object> empty =
+        Index.importStep(
+            new TestHost(
+                new FakeService().route("/api/links\\?", Json.object("data", Json.array())), NOW),
+            "default",
+            "umami",
+            creds,
+            null,
+            0);
+    assertEquals(
+        Json.stringify(Json.array(null, 0L, null)),
+        Json.stringify(Json.array(empty.get("cursor"), empty.get("done"), empty.get("total"))));
   }
 
   @Test

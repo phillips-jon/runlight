@@ -148,7 +148,9 @@ public final class Visits {
       }
       // Carry on where an earlier run stopped, and end where Runlight's own visits begin.
       String progress = runlight.store().setting(progressKey(siteId, website));
-      double resumed = Js.toNumber(progress == null ? 0L : progress);
+      // A saved place that does not read as a number is ignored, as if there were none.
+      double stored = Js.toNumber(progress == null ? 0L : progress);
+      double resumed = Double.isFinite(stored) ? stored : 0;
       // Never older than the site keeps, or the next scheduled check would delete it again.
       Long cutoffValue = runlight.retentionCutoff(siteId);
       double cutoff = cutoffValue == null ? 0 : cutoffValue;

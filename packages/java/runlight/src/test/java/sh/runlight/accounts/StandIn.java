@@ -16,9 +16,24 @@ final class StandIn implements Web.Host {
   Map<String, Object> mail;
   RuntimeException mailFails;
   private final SqlStore store;
+  private final List<Runnable> later = new ArrayList<>();
 
   StandIn(SqlStore store) {
     this.store = store;
+  }
+
+  /**
+   * Work Runlight runs after the answer; idle() runs it, as an adapter does once the answer is out.
+   */
+  @Override
+  public void later(Runnable work) {
+    later.add(work);
+  }
+
+  void idle() {
+    while (!later.isEmpty()) {
+      later.remove(0).run();
+    }
   }
 
   @Override

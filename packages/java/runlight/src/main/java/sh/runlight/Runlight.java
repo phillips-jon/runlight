@@ -263,6 +263,9 @@ public final class Runlight
   /** Retention work asked for and not yet done: a site's id, or "" for every site. */
   private final ConcurrentLinkedQueue<String> pruning = new ConcurrentLinkedQueue<>();
 
+  /** Work to do once the answer is sent, such as an email whose timing must not show in it. */
+  private final ConcurrentLinkedQueue<Runnable> later = new ConcurrentLinkedQueue<>();
+
   /**
    * Locks taken per visitor, so one visitor's pageview and the event right after find one session.
    */
@@ -1245,10 +1248,20 @@ public final class Runlight
   }
 
   /**
-   * Runs the work still waiting from earlier calls (a retention change's deletions); the scheduled
-   * check and tests wait for it.
+   * Queues work for idle(), so it runs after the answer is sent, as TypeScript leaves a promise
+   * running. The scheduled check runs any an adapter left waiting.
+   */
+  @Override
+  public void later(Runnable work) {
+    later.add(work);
+  }
+
+  /**
+   * Runs the work still waiting from earlier calls (later() work and a retention change's
+   * deletions); the scheduled check and tests wait for it.
    */
   public void idle() {
+    runLater();
     String only;
     while ((only = pruning.poll()) != null) {
       try {
@@ -2230,8 +2243,20 @@ public final class Runlight
     }
   }
 
+  private void runLater() {
+    Runnable work;
+    while ((work = later.poll()) != null) {
+      try {
+        work.run();
+      } catch (RuntimeException error) {
+        log("Runlight: " + error.getMessage());
+      }
+    }
+  }
+
   private Map<String, Object> runCheck() {
     init();
+    runLater();
     // Requests take a current schema version on trust; the scheduled check goes over every table
     // and index.
     store.migrate(true);

@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import javax.net.ssl.SSLSocketFactory;
 import sh.runlight.Js;
 import sh.runlight.Json;
 
@@ -124,6 +125,23 @@ public final class Smtp {
       long deadline,
       Long now,
       Supplier<String> uuid) {
+    send(config, m, from, deadline, now, uuid, null);
+  }
+
+  /**
+   * Sends one message as {@link #send(Map, Map, String, long, Long, Supplier)} does, with TLS
+   * connections from {@code tls}, so a test can trust a certificate of its own.
+   *
+   * @param tls where TLS connections come from; null for the JDK's default
+   */
+  static void send(
+      Map<String, Object> config,
+      Map<String, Object> m,
+      String from,
+      long deadline,
+      Long now,
+      Supplier<String> uuid,
+      SSLSocketFactory tls) {
     String host = Js.trim(Transports.value(config, "host"));
     String security = Transports.value(config, "security");
     if (security == null || security.isEmpty()) {
@@ -145,7 +163,7 @@ public final class Smtp {
                 + " took longer than "
                 + Json.number(Js.round(deadline / 1000.0))
                 + " s",
-            null);
+            tls);
     try {
       converse(session, config, m, from, security, now, uuid);
     } finally {

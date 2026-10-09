@@ -35,8 +35,7 @@ public final class Umami implements Importer {
 
   /**
    * Signs in to an Umami: an API key, or a username and password (stock self-hosted Umami has no
-   * API keys). A token from an earlier step is reused. A token the sign-in did not give is {@link
-   * Json#UNDEFINED}, as TS's {@code login.token} is then.
+   * API keys). A token from an earlier step is reused.
    *
    * @param token a token from an earlier step, or null
    */
@@ -61,7 +60,11 @@ public final class Umami implements Importer {
             Map.of("content-type", "application/json"),
             "POST",
             Json.stringify(Json.object("username", username, "password", password)));
-    return new SignIn(base, Js.get(login, "token"));
+    // A sign-in that answers without a token was refused, whatever its status.
+    if (!(Js.get(login, "token") instanceof String signedIn) || signedIn.isEmpty()) {
+      throw new ImportError("The key or sign-in was refused", "import_refused");
+    }
+    return new SignIn(base, signedIn);
   }
 
   /** Every page of an Umami list for a time window. */
@@ -175,19 +178,19 @@ public final class Umami implements Importer {
               "clicks",
               clicks));
     }
-    double count = Js.toNumber(Js.get(list, "count"));
-    boolean more = Js.toNumber(page) * PAGE < count && !data.isEmpty();
+    // Without a count there is no total, and a full page may have more after it.
+    Object count =
+        Js.get(list, "count") instanceof Number n && Double.isFinite(n.doubleValue()) ? n : null;
+    boolean more =
+        count == null
+            ? data.size() == PAGE
+            : Js.toNumber(page) * PAGE < ((Number) count).doubleValue() && !data.isEmpty();
     Object nextPage = Js.num(Js.toNumber(page) + 1);
     Map<String, Object> next =
         !key.isEmpty()
             ? Json.object("page", nextPage)
             : Json.object("page", nextPage, "token", token);
     return Json.object(
-        "cursor",
-        more ? Json.stringify(next) : null,
-        "total",
-        Js.get(list, "count"),
-        "links",
-        links);
+        "cursor", more ? Json.stringify(next) : null, "total", count, "links", links);
   }
 }

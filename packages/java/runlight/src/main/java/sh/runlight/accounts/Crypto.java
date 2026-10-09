@@ -165,27 +165,39 @@ public final class Crypto {
    */
   public static boolean checkPassword(String password, String stored) {
     String[] parts = stored.split("\\$", -1);
+    // A stored hash whose salt or key is not base64url matches nothing, rather than failing the
+    // sign-in.
     if (parts[0].equals("scrypt") && parts.length == 3) {
-      byte[] expected = fromBase64url(parts[2]);
-      if (expected.length < MIN_KEY_BYTES) {
+      byte[] expected = decode(parts[2]);
+      byte[] salt = decode(parts[1]);
+      if (expected == null || salt == null || expected.length < MIN_KEY_BYTES) {
         return false;
       }
-      return sameBytes(scrypt(password, fromBase64url(parts[1]), expected.length), expected);
+      return sameBytes(scrypt(password, salt, expected.length), expected);
     }
     if (parts[0].equals("pbkdf2") && parts.length == 4) {
       double rounds = Js.toNumber(parts[1]);
       if (!Js.isInteger(rounds) || rounds < 1 || rounds > 10_000_000) {
         return false;
       }
-      byte[] expected = fromBase64url(parts[3]);
-      if (expected.length < MIN_KEY_BYTES) {
+      byte[] expected = decode(parts[3]);
+      byte[] salt = decode(parts[2]);
+      if (expected == null || salt == null || expected.length < MIN_KEY_BYTES) {
         return false;
       }
       return sameBytes(
-          pbkdf2Bytes(Js.utf8(password), fromBase64url(parts[2]), (int) rounds, expected.length),
-          expected);
+          pbkdf2Bytes(Js.utf8(password), salt, (int) rounds, expected.length), expected);
     }
     return false;
+  }
+
+  /** Bytes from base64url, or null for text that is not base64url. */
+  private static byte[] decode(String text) {
+    try {
+      return fromBase64url(text);
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
   }
 
   private static byte[] scrypt(String password, byte[] salt, int length) {

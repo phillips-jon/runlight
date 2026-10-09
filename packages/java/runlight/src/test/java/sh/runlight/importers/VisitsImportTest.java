@@ -367,6 +367,14 @@ class VisitsImportTest {
   }
 
   @Test
+  void anUnreadableSavedProgressSettingStartsAsIfThereWereNone() {
+    TestHost t = harness("sqlite", umami(fakeEvents(), SESSIONS), at("2026-03-04T00:00:00Z"));
+    t.init();
+    t.store.setSetting("import:umami-visits:default:w1", "not a number");
+    assertEquals(4L, importAll(t)[0], "every day is read from the website's start");
+  }
+
+  @Test
   void anImportedVisitAcrossUtcMidnightIsOneVisitOnTheSitesOwnDay() {
     List<Map<String, Object>> events =
         List.of(

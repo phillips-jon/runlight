@@ -18,6 +18,7 @@ import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -109,7 +110,11 @@ class MailTest {
       String secret = (String) c.get("secret");
       assertEquals(value, Secret.unseal((String) c.get("sealed"), secret));
       assertNull(Secret.unseal((String) c.get("sealed"), secret + "!"));
-      assertEquals(value, Secret.unseal(Secret.seal(value, secret), secret));
+      // A value of null is a sealed form TypeScript cannot open (an IV under 12 bytes), so there is
+      // nothing to seal again.
+      if (value != null) {
+        assertEquals(value, Secret.unseal(Secret.seal(value, secret), secret));
+      }
     }
   }
 
@@ -380,6 +385,80 @@ class MailTest {
       Map<String, Object> conversation = server.conversation(2000);
       assertNotNull(conversation);
       assertEquals(true, conversation.get("closed"), "the connection is closed");
+    }
+  }
+
+  /**
+   * A server on 127.0.0.1 that writes each of {@code parts} to the first connection, pausing
+   * between them so each is a read of its own, and then hangs up.
+   */
+  private static ServerSocket sayAndHangUp(byte[]... parts) throws IOException {
+    ServerSocket server = new ServerSocket(0, 1, InetAddress.getLoopbackAddress());
+    Thread thread =
+        new Thread(
+            () -> {
+              try (Socket socket = server.accept()) {
+                socket.setTcpNoDelay(true);
+                OutputStream out = socket.getOutputStream();
+                for (int i = 0; i < parts.length; i++) {
+                  if (i > 0) {
+                    Thread.sleep(150);
+                  }
+                  out.write(parts[i]);
+                  out.flush();
+                }
+              } catch (IOException | InterruptedException e) {
+                // The test sees what came of it.
+              }
+            },
+            "say-and-hang-up");
+    thread.setDaemon(true);
+    thread.start();
+    return server;
+  }
+
+  @Test
+  void smtpReplyJustBeforeTheServerClosesIsTheErrorNotTheClose() throws Exception {
+    try (ServerSocket server = sayAndHangUp("535 no\r\n".getBytes(StandardCharsets.US_ASCII))) {
+      SmtpSession session =
+          new SmtpSession(
+              "127.0.0.1", server.getLocalPort(), System.nanoTime() + 5_000_000_000L, "late", null);
+      session.connect(false, 5000);
+      // Both the reply and the close are in before anyone asks.
+      Thread.sleep(300);
+      assertEquals(Json.object("code", 535L, "text", "no"), session.next(5000, false));
+      MailError closed = assertThrows(MailError.class, () -> session.next(5000, false));
+      assertEquals("SMTP: the server closed the connection", closed.getMessage());
+      session.close();
+    }
+    try (ServerSocket server = sayAndHangUp("535 no\r\n".getBytes(StandardCharsets.US_ASCII))) {
+      assertThrowsMatching(
+          "^SMTP greeting: 535 no\\z",
+          () ->
+              Smtp.send(
+                  config(
+                      "service", "smtp",
+                      "host", "127.0.0.1",
+                      "port", Integer.toString(server.getLocalPort()),
+                      "security", "none"),
+                  message(),
+                  "reports@example.com"));
+    }
+  }
+
+  @Test
+  void smtpCharacterSplitAcrossTwoReadsComesThroughWhole() throws Exception {
+    byte[] bytes = "250 caf\u00e9 ok\r\n".getBytes(StandardCharsets.UTF_8);
+    int split = "250 caf".length() + 1;
+    try (ServerSocket server =
+        sayAndHangUp(
+            Arrays.copyOfRange(bytes, 0, split), Arrays.copyOfRange(bytes, split, bytes.length))) {
+      SmtpSession session =
+          new SmtpSession(
+              "127.0.0.1", server.getLocalPort(), System.nanoTime() + 5_000_000_000L, "late", null);
+      session.connect(false, 5000);
+      assertEquals(Json.object("code", 250L, "text", "caf\u00e9 ok"), session.next(5000, false));
+      session.close();
     }
   }
 

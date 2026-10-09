@@ -966,6 +966,11 @@ class WebTest {
                 "/runlight/?a=1"));
     assertEquals(429, held.status());
     assertTrue(held.text().contains("a link to sign in is on its way"));
+    assertEquals(
+        0,
+        rl.sent.size(),
+        "the link goes out after the answer, so its timing cannot show a right password");
+    rl.idle();
     assertEquals(1, rl.sent.size());
     assertEquals("Sign in to Runlight", rl.sent.get(0).get("subject"));
     Matcher m =
@@ -975,6 +980,7 @@ class WebTest {
     Url link = new Url(m.group(1));
     assertEquals("/runlight/?a=1", link.searchParams().get("next"));
     handle(web, form("/login", "email", "jon@example.com", "password", "a long password"));
+    rl.idle();
     assertEquals(1, rl.sent.size(), "at most one link a minute");
     Response wrongToo =
         handle(web, form("/login", "email", "jon@example.com", "password", "a wrong password"));

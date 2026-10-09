@@ -119,7 +119,7 @@ public final class Dub implements Importer {
           }
           history = "events";
         } catch (HttpError error) {
-          if (error.status() == 401) {
+          if (!planRefused(error)) {
             throw error;
           }
           clicks = null;
@@ -147,7 +147,7 @@ public final class Dub implements Importer {
             }
           }
         } catch (HttpError error) {
-          if (error.status() == 401) {
+          if (!planRefused(error)) {
             throw error;
           }
           history = "none";
@@ -187,5 +187,14 @@ public final class Dub implements Importer {
         null,
         "links",
         links);
+  }
+
+  /**
+   * Whether Dub said the plan does not include what was asked (403, or 402). Any other failure (a
+   * server error that outlasts the retries, say) fails the step and leaves the history mode as it
+   * was.
+   */
+  private static boolean planRefused(HttpError error) {
+    return error.status() == 403 || error.status() == 402;
   }
 }

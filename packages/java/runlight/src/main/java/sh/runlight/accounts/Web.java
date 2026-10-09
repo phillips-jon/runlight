@@ -45,6 +45,12 @@ public final class Web {
 
     /** The client's address as the install reads it, or "" when unknown. */
     String clientIp(Request request, Map<String, Object> context);
+
+    /**
+     * Queues work to run once the answer is sent (an adapter calls Runlight.idle() then), as
+     * TypeScript leaves a promise running.
+     */
+    void later(Runnable work);
   }
 
   private static final Logger LOG = Logger.getLogger("sh.runlight");
@@ -768,11 +774,17 @@ public final class Web {
       }
       Map<String, Object> user = accounts.signIn(email, password);
       if (user != null) {
-        try {
-          sendLink(user, next);
-        } catch (RuntimeException error) {
-          LOG.log(Level.SEVERE, "Runlight: could not send a sign-in link " + error.getMessage());
-        }
+        // Sent once the answer is out, as TypeScript does, so a right password takes no longer to
+        // answer than a wrong one.
+        rl.later(
+            () -> {
+              try {
+                sendLink(user, next);
+              } catch (RuntimeException error) {
+                LOG.log(
+                    Level.SEVERE, "Runlight: could not send a sign-in link " + error.getMessage());
+              }
+            });
       }
       return loginAgain(
           "Too many tries for this account. If the password was right, a link to sign in is on its way to its email address.",

@@ -56,7 +56,7 @@ public final class Rebrandly implements Importer {
           Json.object(
               "link",
               Json.object(
-                  "sourceId", Js.get(l, "id"),
+                  "sourceId", Js.string(Js.get(l, "id")),
                   "slug", Js.get(l, "slashtag"),
                   "domain", Http.coalesce(Js.get(Js.get(l, "domain"), "fullName"), ""),
                   "name", Js.truthy(title) ? title : "",
