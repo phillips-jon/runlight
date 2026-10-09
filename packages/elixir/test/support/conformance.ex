@@ -117,8 +117,8 @@ defmodule Runlight.Test.Conformance do
         max = Keyword.get(opts, :max_bytes)
 
         cond do
-          max && byte_size(text_body) > max and not Keyword.get(opts, :truncate, false) -> {:error, :too_long}
-          max && byte_size(text_body) > max -> {:ok, %Response{status: match["status"] || 200, headers: headers, body: binary_part(text_body, 0, max)}}
+          max != nil and byte_size(text_body) > max and not Keyword.get(opts, :truncate, false) -> {:error, :too_long}
+          max != nil and byte_size(text_body) > max -> {:ok, %Response{status: match["status"] || 200, headers: headers, body: binary_part(text_body, 0, max)}}
           true -> {:ok, %Response{status: match["status"] || 200, headers: headers, body: text_body}}
         end
       end
