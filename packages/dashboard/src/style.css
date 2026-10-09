@@ -3044,6 +3044,11 @@ h1 .home:hover {
   background: var(--sunk);
 }
 
+.remote-callout {
+  display: grid;
+  gap: 10px;
+}
+
 .prompt-row .callout-icon {
   display: grid;
   place-items: center;
@@ -3259,12 +3264,24 @@ select.field,
   }
 }
 
+/* Something worked, as a green callout to match the warning one. */
 .settings-ok-text {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin: 0;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--up) 40%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--up) 8%, transparent);
   font-size: 14px;
+  color: var(--ink);
+}
+
+.settings-ok-text .icon {
+  flex: none;
+  width: 16px;
+  height: 16px;
   color: var(--up);
 }
 

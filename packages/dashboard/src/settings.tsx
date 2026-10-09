@@ -329,7 +329,7 @@ function RemoteCallout({ site }: { site: Site }) {
       });
   };
   return (
-    <>
+    <div class="remote-callout">
       {JUST_CONNECTED ? (
         <p class="settings-ok-text" role="status">
           <Icon name="check" />
@@ -364,7 +364,7 @@ function RemoteCallout({ site }: { site: Site }) {
       </div>
       {site.connection === "refused" && !JUST_CONNECTED ? <p class="settings-error">{t("sites.refused", { host: hostOf(site.remote!) })}</p> : null}
       {error ? <p class="settings-error">{error}</p> : null}
-    </>
+    </div>
   );
 }
 
