@@ -108,7 +108,8 @@ export function journeys(rows: Array<{ session: string; path: string }>, options
   return {
     visits: sequences.length,
     columns,
-    links: [...linkCounts.values()].sort((a, b) => a.step - b.step || b.visits - a.visits),
+    // Ties go by page, as the columns and paths do, so the order never follows the visits' random ids.
+    links: [...linkCounts.values()].sort((a, b) => a.step - b.step || b.visits - a.visits || (a.from < b.from ? -1 : a.from > b.from ? 1 : a.to < b.to ? -1 : a.to > b.to ? 1 : 0)),
     paths: [...pathCounts.entries()].sort(([a, x], [b, y]) => y.visits - x.visits || (a < b ? -1 : 1)).map(([, p]) => p).slice(0, 20),
   };
 }
