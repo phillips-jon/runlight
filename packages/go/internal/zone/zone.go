@@ -128,8 +128,13 @@ func fixedOffset(name string) (*time.Location, bool) {
 
 // icuOnly are zone names ICU takes that the time zone database no longer
 // has, or never had: Java's three-letter ids and the System V zones, each
-// with the zone ICU reads it as.
+// with the zone ICU reads it as. It also holds the old names the database
+// made links in 2024b (WET is Europe/Lisbon), which some systems, Debian and
+// Ubuntu among them, still build as zones of their own with other history:
+// ICU reads them as the links, as the PHP, Python, and Ruby ports do.
 var icuOnly = map[string]string{
+	"cet": "Europe/Brussels", "eet": "Europe/Athens", "est": "America/Panama", "hst": "Pacific/Honolulu",
+	"met": "Europe/Brussels", "mst": "America/Phoenix", "wet": "Europe/Lisbon",
 	"act": "Australia/Darwin", "aet": "Australia/Sydney", "agt": "America/Argentina/Buenos_Aires", "art": "Africa/Cairo",
 	"ast": "America/Anchorage", "bet": "America/Sao_Paulo", "bst": "Asia/Dhaka", "cat": "Africa/Maputo",
 	"cnt": "America/St_Johns", "cst": "America/Chicago", "ctt": "Asia/Shanghai", "eat": "Africa/Nairobi",
