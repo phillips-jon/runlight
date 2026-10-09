@@ -113,6 +113,9 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
+/** The discovery documents OAuth clients read: two of OAuth's own, and OpenID's, which some clients try first. */
+const isOauthDocument = (path: string): boolean => path.startsWith("/.well-known/oauth-") || path.startsWith("/.well-known/openid-configuration");
+
 function isDevelopment(): boolean {
   return env("NODE_ENV") === "development";
 }
@@ -1794,7 +1797,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   const handler: FetchHandler = async (request, context = {}) => {
     const url = new URL(request.url);
     // OAuth clients look for these at the site's root; an app routes them here when it wants OAuth.
-    if (base && url.pathname.startsWith("/.well-known/oauth-")) return (await oauthResponse(oauth, request, url.pathname, url, context)) ?? coded("Not found", "not_found", 404);
+    if (base && isOauthDocument(url.pathname)) return (await oauthResponse(oauth, request, url.pathname, url, context)) ?? coded("Not found", "not_found", 404);
     if (base && url.pathname !== base && !url.pathname.startsWith(`${base}/`)) return coded("Not found", "not_found", 404);
     const path = url.pathname.slice(base.length) || "/";
 
@@ -1873,7 +1876,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
       if (path === "/api" || path.startsWith("/api/")) return await api(request, path, url);
 
-      if (path.startsWith("/oauth/") || path.startsWith("/.well-known/oauth-")) {
+      if (path.startsWith("/oauth/") || isOauthDocument(path)) {
         const answer = await oauthResponse(oauth, request, path, url, context);
         if (answer) return answer;
       }

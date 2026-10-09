@@ -136,7 +136,7 @@ export async function oauthResponse(ctx: OAuthContext, request: Request, path: s
   const { runlight, base } = ctx;
   const issuer = `${url.origin}${base}`;
   const known = path;
-  if (request.method === "OPTIONS" && (known.startsWith("/.well-known/oauth-") || path.startsWith("/oauth/"))) return new Response(null, { status: 204, headers: CORS });
+  if (request.method === "OPTIONS" && (known.startsWith("/.well-known/oauth-") || known.startsWith("/.well-known/openid-configuration") || path.startsWith("/oauth/"))) return new Response(null, { status: 204, headers: CORS });
 
   if (known.startsWith("/.well-known/oauth-protected-resource")) {
     return json({ resource: `${issuer}/mcp`, authorization_servers: [issuer], scopes_supported: ["read", "manage"], bearer_methods_supported: ["header"] });
