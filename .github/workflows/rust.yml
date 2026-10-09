@@ -1,0 +1,85 @@
+# The Rust package (packages/rust): the runlight crate and runlight-sqlx, on
+# the core's rust-version (1.88), on 1.94 (runlight-sqlx, whose sqlx 0.9 needs
+# it), and on the current stable, against SQLite, Postgres, MySQL 8.4, and
+# MariaDB 11.4. The conformance runner replays conformance/http.json on every
+# one of them. rustfmt and clippy run on stable.
+name: Rust
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  rust:
+    name: rust (Rust ${{ matrix.rust }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust: ["1.88", "1.94", "stable"]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: runlight
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: pw
+          MYSQL_DATABASE: runlight
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -ppw" --health-interval 5s --health-timeout 5s --health-retries 20
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: pw
+          MARIADB_DATABASE: runlight
+        ports: ["3307:3306"]
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RUNLIGHT_TEST_PG: postgres://postgres:pw@127.0.0.1:5432/runlight
+      RUNLIGHT_TEST_MYSQL: mysql://root:pw@127.0.0.1:3306/runlight
+      RUNLIGHT_TEST_MARIADB: mysql://root:pw@127.0.0.1:3307/runlight
+    defaults:
+      run:
+        working-directory: packages/rust
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+        working-directory: .
+      # The dashboard and tracker the crate serves are the SDK's, copied; this fails when the copy is stale.
+      - run: node --import tsx scripts/rust-assets.mts --check
+        working-directory: .
+      # rustup is on the runner, so no third-party action is needed.
+      - name: Install Rust ${{ matrix.rust }}
+        run: |
+          rustup toolchain install ${{ matrix.rust }} --profile minimal --component rustfmt,clippy
+          rustup default ${{ matrix.rust }}
+      - name: cargo fmt
+        if: matrix.rust == 'stable'
+        run: cargo fmt --check
+      - name: cargo clippy
+        if: matrix.rust == 'stable'
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      # The workspace's .cargo/config.toml sets TZ=UTC, as the fixtures are made.
+      - name: cargo test
+        run: |
+          if [ "${{ matrix.rust }}" = "1.88" ]; then
+            cargo test -p runlight --all-features
+          else
+            cargo test --workspace --all-features
+          fi

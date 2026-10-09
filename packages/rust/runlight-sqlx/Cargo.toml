@@ -1,0 +1,42 @@
+[package]
+name = "runlight-sqlx"
+description = "Runlight's store over sqlx: its tables in the app's own SQLite, Postgres, MySQL, or MariaDB database"
+readme = "README.md"
+version.workspace = true
+edition.workspace = true
+# sqlx 0.9 needs Rust 1.94; the core stays at the workspace's version.
+rust-version = "1.94"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords = ["analytics", "sqlx", "sqlite", "postgres", "mysql"]
+categories.workspace = true
+include = ["src/**/*", "Cargo.toml", "README.md", "LICENSE"]
+
+[features]
+# SQLite, built from source (libsqlite3-sys bundled), so an app needs a C
+# compiler, as every SQLite crate asks.
+sqlite = ["sqlx/sqlite-bundled"]
+# Postgres.
+postgres = ["sqlx/postgres"]
+# MySQL 8.4 or MariaDB 11.4 and later.
+mysql = ["sqlx/mysql"]
+
+[dependencies]
+runlight.workspace = true
+sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio"] }
+tokio = { version = "1.44", default-features = false, features = ["sync", "time"] }
+
+[dev-dependencies]
+runlight = { workspace = true, features = ["axum"] }
+# MySQL 8's default sign-in (caching_sha2_password) over a connection without
+# TLS, as the CI and local test servers have it. An app picks its own.
+sqlx = { version = "0.9", default-features = false, features = ["mysql-rsa"] }
+tokio = { version = "1.44", features = ["full"] }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true
