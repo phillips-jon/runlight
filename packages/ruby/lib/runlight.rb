@@ -132,4 +132,43 @@ module Runlight
   def self.new(options = {}, **keywords)
     Core.new(options.merge(keywords))
   end
+
+  @lock = Mutex.new
+
+  class << self
+    # The Runlight an app shares, as the Rails engine serves it: the Core's options, plus `routes:` with the
+    # routes' own (base_path, token, accounts, and the rest). Nothing is opened until the first request.
+    #
+    #   Runlight.configure(store: Runlight::Stores.active_record, site: { hostnames: ["example.com"] },
+    #                      routes: { base_path: "/runlight" })
+    def configure(options = {}, **keywords)
+      options = options.merge(keywords)
+      @lock.synchronize do
+        @routes_options = Options.normalize(options.fetch(:routes, options.fetch("routes", {})))
+        @options = options.reject { |key, _| key.to_s == "routes" }
+        @instance = nil
+      end
+      self
+    end
+
+    def configured?
+      !@options.nil?
+    end
+
+    # The Runlight configure set up, made on first use.
+    def instance
+      @instance || @lock.synchronize do
+        raise "Runlight: call Runlight.configure first, in config/initializers/runlight.rb" if @options.nil?
+
+        @instance ||= Core.new(@options)
+      end
+    end
+
+    # The routes' options configure was given.
+    def routes_options
+      @routes_options || {}
+    end
+  end
 end
+
+require_relative "runlight/rails" if defined?(::Rails::Engine)

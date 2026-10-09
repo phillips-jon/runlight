@@ -65,6 +65,8 @@ module Runlight
           begin
             FileUtils.mkdir_p(File.dirname(file), mode: 0o700)
             File.open(file, File::WRONLY | File::CREAT | File::TRUNC | File::BINARY, 0o600) do |f|
+              # Rails sets Encoding.default_internal, which would transcode the bytes without binmode.
+              f.binmode
               f.flock(File::LOCK_EX)
               f.write(made)
             end
