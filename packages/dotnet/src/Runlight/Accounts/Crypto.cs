@@ -136,18 +136,18 @@ public static class Crypto
     /// Whether a password matches a hash, scrypt or PBKDF2. A stored key under <see cref="MinKeyBytes"/> is
     /// refused, since an empty or cut key would match too easily, or anything.
     /// </summary>
-    /// <exception cref="ArgumentException">when a part of the hash is not base64, as the TypeScript rejects then</exception>
     public static bool CheckPassword(string password, string stored)
     {
         string[] parts = stored.Split('$');
         if (parts[0] == "scrypt" && parts.Length == 3)
         {
-            byte[] expected = FromBase64url(parts[2]);
-            if (expected.Length < MinKeyBytes)
+            byte[]? expected = Decode(parts[2]);
+            byte[]? salt = Decode(parts[1]);
+            if (expected == null || salt == null || expected.Length < MinKeyBytes)
             {
                 return false;
             }
-            return SameBytes(ScryptKey(password, FromBase64url(parts[1]), expected.Length), expected);
+            return SameBytes(ScryptKey(password, salt, expected.Length), expected);
         }
         if (parts[0] == "pbkdf2" && parts.Length == 4)
         {
@@ -156,14 +156,28 @@ public static class Crypto
             {
                 return false;
             }
-            byte[] expected = FromBase64url(parts[3]);
-            if (expected.Length < MinKeyBytes)
+            byte[]? expected = Decode(parts[3]);
+            byte[]? salt = Decode(parts[2]);
+            if (expected == null || salt == null || expected.Length < MinKeyBytes)
             {
                 return false;
             }
-            return SameBytes(Pbkdf2(password, FromBase64url(parts[2]), (int)rounds, expected.Length), expected);
+            return SameBytes(Pbkdf2(password, salt, (int)rounds, expected.Length), expected);
         }
         return false;
+    }
+
+    /// <summary>A stored hash whose salt or key is not base64url matches nothing, rather than failing the sign-in.</summary>
+    private static byte[]? Decode(string text)
+    {
+        try
+        {
+            return FromBase64url(text);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
     }
 
     private static byte[] ScryptKey(string password, byte[] salt, int length) =>
