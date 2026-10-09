@@ -250,9 +250,13 @@ export function planEdits(rows, readFile, current, next) {
 
 /**
  * Lines that name a version which is not the release's, though it may look
- * like it: the MCP server's fallback for a build.json with no version.
+ * like it: the MCP server's fallback for a build.json with no version, and
+ * the Elixir install line's requirement, which admits any release.
  */
-const NOT_THE_RELEASE = [{ file: "packages/php/src/Mcp.php", line: /\?\? '0\.0\.0'\);$/ }];
+const NOT_THE_RELEASE = [
+  { file: "packages/php/src/Mcp.php", line: /\?\? '0\.0\.0'\);$/ },
+  ...["packages/elixir/README.md", "site/docs/elixir.md"].map((file) => ({ file, line: /\{:runlight, ">= 0\.0\.0"\}/ })),
+];
 
 /** Tracked files, outside the table and the regenerated ones, that still mention the old version. */
 function strays(current) {
@@ -260,8 +264,10 @@ function strays(current) {
   let found = [];
   try {
     // A version inside a longer dotted number (Chrome/129.0.0.0) is not one.
+    // go.sum lists the Go modules' requirements, whose pseudo-versions
+    // (v0.0.0-20240606120523-5a60cdf6a761) are never Runlight's.
     const escaped = current.replace(/\./g, "\\.");
-    found = git("grep", "-n", "-I", "-P", `(?<![.\\d])${escaped}(?![.\\d])`, "--", ".", ":!package-lock.json").split("\n");
+    found = git("grep", "-n", "-I", "-P", `(?<![.\\d])${escaped}(?![.\\d])`, "--", ".", ":!package-lock.json", ":!**/go.sum").split("\n");
   } catch {}
   const known = (line) => {
     const [file, , ...rest] = line.split(":");
