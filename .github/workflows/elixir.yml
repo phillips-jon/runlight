@@ -1,0 +1,121 @@
+# The Elixir package (packages/elixir), on its floor (Elixir 1.18 on OTP 27,
+# what Debian 13 ships) and the current release, against SQLite, Postgres, and
+# one of MySQL and MariaDB each, as the PHP job runs. The tests replay
+# conformance/http.json on every database the job has. The newest entry also
+# runs the formatter, Credo, and Dialyzer (its PLTs cached with the build),
+# builds the docs, and checks the Hex package's file list; the floor also
+# compiles without the optional dependencies, as an app with neither Ecto nor
+# Plug builds the package.
+name: Elixir
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  elixir:
+    name: elixir (Elixir ${{ matrix.elixir }}, OTP ${{ matrix.otp }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.18.5"
+            otp: "27.3"
+            newest: false
+            mysql: mysql:8.4
+            mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
+          - elixir: "1.20"
+            otp: "29"
+            newest: true
+            mysql: mariadb:11.4
+            mysql-health: healthcheck.sh --connect --innodb_initialized
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: runlight
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      mysql:
+        image: ${{ matrix.mysql }}
+        env:
+          MYSQL_ROOT_PASSWORD: pw
+          MARIADB_ROOT_PASSWORD: pw
+          MYSQL_DATABASE: runlight
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "${{ matrix.mysql-health }}" --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      RUNLIGHT_TEST_PG: postgres://postgres:pw@127.0.0.1:5432/runlight
+      RUNLIGHT_TEST_MYSQL: mysql://root:pw@127.0.0.1:3306/runlight
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      # The dashboard and tracker the package serves are the SDK's own build, copied by a script.
+      - name: The copied assets are current
+        run: node --import tsx scripts/elixir-assets.mts --check
+      # The Intl data email reports format with, made from Node's ICU by a script.
+      - name: The Intl data is current
+        run: node --import tsx scripts/elixir-intl.mts --check
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        id: beam
+        with:
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
+      # deps, the build, and the PLTs (under _build/plts).
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            packages/elixir/deps
+            packages/elixir/_build
+          key: elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('packages/elixir/mix.exs') }}
+          restore-keys: elixir-${{ steps.beam.outputs.elixir-version }}-otp-${{ steps.beam.outputs.otp-version }}-
+      - name: mix deps.get
+        working-directory: packages/elixir
+        run: mix deps.get
+      - name: mix format
+        if: matrix.newest
+        working-directory: packages/elixir
+        run: mix format --check-formatted
+      - name: mix compile
+        working-directory: packages/elixir
+        run: |
+          MIX_ENV=test mix compile --warnings-as-errors
+          if [ "${{ matrix.newest }}" = "false" ]; then
+            MIX_ENV=dev MIX_BUILD_ROOT=_build/no-optional mix compile --no-optional-deps --warnings-as-errors
+          fi
+      # The test alias sets TZ=UTC, as the fixtures are made.
+      - name: mix test
+        working-directory: packages/elixir
+        run: mix test
+      - name: mix credo
+        if: matrix.newest
+        working-directory: packages/elixir
+        run: mix credo --strict
+      - name: mix dialyzer
+        if: matrix.newest
+        working-directory: packages/elixir
+        run: mix dialyzer --format github
+      # The docs HexDocs will build, with warnings as errors, and the Hex tarball's file list: lib, priv,
+      # the project files, the README, and the licence, and nothing from test.
+      - name: mix docs and the package's files
+        if: matrix.newest
+        working-directory: packages/elixir
+        run: |
+          mix docs --warnings-as-errors
+          mix hex.build --unpack -o "$RUNNER_TEMP/runlight-hex"
+          files=$(cd "$RUNNER_TEMP/runlight-hex" && find . -type f ! -path './lib/*' ! -path './priv/*' | LC_ALL=C sort | tr '\n' ' ')
+          test "$files" = "./.formatter.exs ./LICENSE ./README.md ./hex_metadata.config ./mix.exs " || { echo "unexpected files: $files"; exit 1; }
+          test -f "$RUNNER_TEMP/runlight-hex/lib/runlight.ex"
+          test -f "$RUNNER_TEMP/runlight-hex/priv/assets/dashboard.js"
