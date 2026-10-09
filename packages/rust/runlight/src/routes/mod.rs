@@ -492,6 +492,11 @@ impl Routes {
         })))
     }
 
+    /// Where the routes are mounted, such as "/runlight", or "" at the root.
+    pub fn base_path(&self) -> &str {
+        &self.0.base
+    }
+
     /// The token in use, if any.
     pub fn token(&self) -> Option<&str> {
         self.0.token.as_deref().filter(|t| !t.is_empty())
