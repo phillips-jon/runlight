@@ -66,6 +66,10 @@ final class Response
     public function emit(bool $withBody = true): void
     {
         if (!headers_sent()) {
+            // PHP adds its default Content-Type to every answer; one sent without a type, such as a 202, carries none.
+            if (!$this->headers->has('content-type')) {
+                ini_set('default_mimetype', '');
+            }
             http_response_code($this->status);
             foreach ($this->headers->all() as $name => $values) {
                 foreach ($values as $i => $value) {
