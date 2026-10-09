@@ -479,8 +479,10 @@ public final class Mcp {
     Response answer = readApi.read((String) request.get("path"), query);
     Json.Parsed parsed = Json.tryParse(answer.text());
     Object body = parsed.ok() ? parsed.value() : new LinkedHashMap<String, Object>();
+    // Any body that is not an object (null included) carries no words of its own.
+    Object object = body instanceof Map<?, ?> ? body : null;
     if (!answer.ok()) {
-      Object error = prop(body, "error");
+      Object error = object == null ? null : prop(object, "error");
       return Json.object(
           "content",
           List.of(
@@ -502,16 +504,25 @@ public final class Mcp {
                 "type",
                 "text",
                 "text",
-                Json.stringify(tool.shape() != null ? tool.shape().apply(body) : body))));
+                Json.stringify(
+                    tool.shape() != null && object != null ? tool.shape().apply(object) : body))));
   }
 
   /** The answer to one message, or null for a notification. */
   private static Map<String, Object> answer(Object message, ApiRead readApi) {
+    // A batch element that is not an object is an invalid request, answered with a null id.
+    if (!(message instanceof Map<?, ?>)) {
+      return rpcError(null, -32600, "Invalid request");
+    }
     Object id = prop(message, "id");
     boolean isNotification = id == Json.UNDEFINED;
     Object method = Js.get(message, "method");
     if (!"2.0".equals(Js.get(message, "jsonrpc")) || !(method instanceof String name)) {
       return isNotification ? null : rpcError(id, -32600, "Invalid request");
+    }
+    // A notification is never answered, so it never runs anything either.
+    if (isNotification) {
+      return null;
     }
     Object given = Js.get(message, "params");
     Object params = Js.truthy(given) && Js.isObject(given) ? given : new LinkedHashMap<>();
@@ -554,17 +565,11 @@ public final class Mcp {
         }
         case "tools/call" -> result = callTool(params, readApi);
         default -> {
-          if (isNotification) {
-            return null;
-          }
           return rpcError(id, -32601, "Unknown method \"" + name + "\"");
         }
       }
-      return isNotification ? null : Json.object("jsonrpc", "2.0", "id", id, "result", result);
+      return Json.object("jsonrpc", "2.0", "id", id, "result", result);
     } catch (RuntimeException error) {
-      if (isNotification) {
-        return null;
-      }
       return error instanceof McpError e && e.code() != 0
           ? rpcError(id, e.code(), e.getMessage())
           : rpcError(id, -32603, "Internal error");
@@ -576,12 +581,7 @@ public final class Mcp {
         "content-type", "application/json; charset=utf-8", "cache-control", "no-store");
   }
 
-  /**
-   * Answers one POST to the MCP endpoint, already authorised.
-   *
-   * @throws IllegalArgumentException where the TypeScript rejects with a TypeError: a batch holding
-   *     null
-   */
+  /** Answers one POST to the MCP endpoint, already authorised. */
   public static Response mcpResponse(Request request, ApiRead readApi) {
     Json.Parsed parsed = Json.tryParse(request.text());
     Object body = parsed.ok() ? parsed.value() : Json.UNDEFINED;
@@ -592,22 +592,11 @@ public final class Mcp {
     // Batches were in the 2025-03-26 protocol; answering them costs nothing.
     if (body instanceof List<?> batch) {
       List<Object> answers = new ArrayList<>();
-      RuntimeException failed = null;
       for (Object message : batch) {
-        try {
-          Map<String, Object> one = answer(message, readApi);
-          if (one != null) {
-            answers.add(one);
-          }
-        } catch (RuntimeException error) {
-          // Promise.all rejects with the first, once every message has run.
-          if (failed == null) {
-            failed = error;
-          }
+        Map<String, Object> one = answer(message, readApi);
+        if (one != null) {
+          answers.add(one);
         }
-      }
-      if (failed != null) {
-        throw failed;
       }
       return answers.isEmpty()
           ? new Response("", 202)

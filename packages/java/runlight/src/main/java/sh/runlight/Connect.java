@@ -41,19 +41,33 @@ public final class Connect {
     String url =
         Js.trim(Js.string(value == null || value == Json.UNDEFINED ? "" : value))
             .replaceFirst("/+\\z", "");
-    if (!INSTALL.matcher(url).find()) {
+    // The pattern says which addresses are allowed; the parser, that it is an address at all
+    // ("https://[" is not).
+    if (!INSTALL.matcher(url).find() || !Url.canParse(url)) {
       throw new ConnectError(
           "Enter the install's address, like https://example.com/runlight", "url");
     }
     return url;
   }
 
+  /**
+   * A saved attempt, or null when it cannot be read or has no time it runs out, which counts as
+   * expired.
+   */
+  private static Object pendingFrom(String value, long now) {
+    Json.Parsed parsed = Json.tryParse(value == null ? "" : value);
+    if (!parsed.ok() || !(parsed.value() instanceof Map<?, ?> pending)) {
+      return null;
+    }
+    return pending.get("expires") instanceof Number expires && expires.doubleValue() >= now
+        ? pending
+        : null;
+  }
+
   /** Attempts nobody came back from are removed, so they do not pile up in settings. */
   private static void clearExpired(SqlStore store, LongSupplier now) {
     for (Map<String, Object> setting : store.settingsStartingWith("connect:")) {
-      Object pending = Json.parse((String) setting.get("value"));
-      Object expires = Js.get(pending, "expires");
-      if (!Js.truthy(expires) || Js.toNumber(expires) < now.getAsLong()) {
+      if (pendingFrom((String) setting.get("value"), now.getAsLong()) == null) {
         store.setSetting((String) setting.get("key"), null);
       }
     }
@@ -208,8 +222,8 @@ public final class Connect {
     if (found) {
       store.setSetting(key, null);
     }
-    Object pending = found ? Json.parse(stored) : null;
-    if (!Js.truthy(pending) || Js.toNumber(Js.get(pending, "expires")) < now.getAsLong()) {
+    Object pending = found ? pendingFrom(stored, now.getAsLong()) : null;
+    if (pending == null) {
       throw new ConnectError(
           "That connection took too long or was already used. Start again.", "expired");
     }

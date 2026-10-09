@@ -1,6 +1,5 @@
 package sh.runlight.mail;
 
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedHashMap;
@@ -196,8 +195,9 @@ public final class Transports {
     return headers;
   }
 
+  /** Basic auth over the UTF-8 bytes, so a key with any character is sent. */
   private static String basic(String user, String pass) {
-    return "Basic " + btoa(user + ":" + pass);
+    return "Basic " + Base64.getEncoder().encodeToString(Js.utf8(user + ":" + pass));
   }
 
   private static final Pattern WEBHOOK_HTTPS = Pattern.compile("^https://");
@@ -239,6 +239,20 @@ public final class Transports {
         && !WEBHOOK_HTTPS.matcher(url).find()
         && !WEBHOOK_LOCAL.matcher(url).find()) {
       throw new MailError("The webhook URL must use https", "mail_https", Json.object());
+    }
+    if ("webhook".equals(value(config, "service")) && !Url.canParse(url)) {
+      throw new MailError(
+          "Enter the webhook's whole URL, like https://example.com/hooks/mail",
+          "mail_url",
+          Json.object());
+    }
+    // A port a socket can connect to, read with Number() as the SMTP client reads it.
+    Object given = config.get("port");
+    double port = Js.toNumber(given == null ? Json.UNDEFINED : given);
+    if ("smtp".equals(value(config, "service"))
+        && !(port == Math.floor(port) && port >= 1 && port <= 65535)) {
+      throw new MailError(
+          "The port must be a whole number from 1 to 65535", "mail_port", Json.object());
     }
   }
 
@@ -490,15 +504,5 @@ public final class Transports {
       out.put(nameKey, m.get("fromName"));
     }
     return out;
-  }
-
-  /** btoa(): base64 of Latin-1 text, refusing a character past U+00FF as the browser's does. */
-  private static String btoa(String text) {
-    for (int i = 0; i < text.length(); i++) {
-      if (text.charAt(i) > 0xff) {
-        throw new IllegalArgumentException("Invalid character");
-      }
-    }
-    return Base64.getEncoder().encodeToString(text.getBytes(StandardCharsets.ISO_8859_1));
   }
 }

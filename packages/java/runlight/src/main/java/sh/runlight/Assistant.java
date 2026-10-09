@@ -189,6 +189,24 @@ public final class Assistant {
         host + ": " + detail, "assistant_refused", Json.object("host", host, "detail", detail));
   }
 
+  /** A service that answered, but not in its protocol's shape. */
+  private static AssistantError unreadable(String url) {
+    String host = new Url(url).host();
+    String message = host + " sent an answer Runlight could not read";
+    return new AssistantError(
+        message, "assistant_failed", Json.object("host", host, "detail", message));
+  }
+
+  /** Every item is a JSON object, not null or an array. */
+  private static boolean allObjects(List<?> items) {
+    for (Object item : items) {
+      if (!(item instanceof Map<?, ?>)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static Object parse(Response answer) {
     Json.Parsed parsed = Json.tryParse(answer.text());
     return parsed.ok() ? parsed.value() : null;
@@ -392,8 +410,8 @@ public final class Assistant {
         if (content == null || content == Json.UNDEFINED) {
           content = new ArrayList<>();
         }
-        if (!(content instanceof List<?> blocks)) {
-          throw new IllegalArgumentException("blocks.filter is not a function");
+        if (!(content instanceof List<?> blocks) || !allObjects(blocks)) {
+          throw unreadable(base);
         }
         List<Object> calls = new ArrayList<>();
         for (Object b : blocks) {
@@ -476,8 +494,13 @@ public final class Assistant {
             "tools",
             used);
       }
-      if (!(calls instanceof List<?> list)) {
-        throw new IllegalArgumentException("message.tool_calls is not iterable");
+      if (!(calls instanceof List<?> list) || !allObjects(list)) {
+        throw unreadable(base);
+      }
+      for (Object call : list) {
+        if (!(Mcp.prop(call, "function") instanceof Map<?, ?>)) {
+          throw unreadable(base);
+        }
       }
       convo.add(
           Json.object(
@@ -567,11 +590,11 @@ public final class Assistant {
       list = List.of();
     }
     if (!(list instanceof List<?> items)) {
-      throw new IllegalArgumentException("data.data.filter is not a function");
+      throw unreadable(base);
     }
     List<Map<String, Object>> models = new ArrayList<>();
     for (Object m : items) {
-      if (!(Mcp.prop(m, "id") instanceof String id) || id.isEmpty()) {
+      if (!(m instanceof Map<?, ?>) || !(Mcp.prop(m, "id") instanceof String id) || id.isEmpty()) {
         continue;
       }
       // Gemini lists ids as "models/gemini-...", which its OpenAI-compatible API takes without the

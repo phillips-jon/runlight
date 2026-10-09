@@ -266,4 +266,47 @@ class ConnectTest {
     e = refused(() -> new Hub(down).start(APP, "https://hub.example/done"), "unreachable");
     assertEquals(Map.of("host", "127.0.0.1:4100"), e.params());
   }
+
+  @Test
+  void anAddressTheUrlParserRefusesIsTheAddressError() {
+    for (String url : List.of("https://[", "https://[::1", "https://a b")) {
+      refused(() -> Connect.installUrl(url), "url");
+    }
+    assertEquals(
+        "https://example.com/runlight", Connect.installUrl("https://example.com/runlight/"));
+  }
+
+  @Test
+  void anAttemptSavedWithoutAnExpiryHasExpired() {
+    FakeService router = install();
+    Hub hub = new Hub(router);
+    String state = "a".repeat(32);
+    for (Object stored :
+        Json.array(
+            Json.object(
+                "url",
+                APP,
+                "client",
+                "c",
+                "verifier",
+                "v",
+                "redirect",
+                "https://hub.example/done",
+                "token",
+                APP + "/oauth/token"),
+            null,
+            5L,
+            Json.object("expires", "9999999999999"))) {
+      hub.store.setSetting("connect:" + state, Json.stringify(stored));
+      refused(() -> hub.finish(params("state", state, "code", "c")), "expired");
+    }
+    assertEquals(List.of(), router.requests, "nothing was fetched");
+    // Starting clears every attempt that cannot be read or has no expiry.
+    Hub fresh = new Hub(install());
+    Map<String, String> saved =
+        Map.of("b", "null", "c", "5", "d", "not json", "e", "{\"url\":\"x\"}");
+    saved.forEach((letter, value) -> fresh.store.setSetting("connect:" + letter.repeat(32), value));
+    var unused = fresh.start(APP, "https://hub.example/done");
+    assertEquals(1, fresh.store.settingsStartingWith("connect:").size());
+  }
 }

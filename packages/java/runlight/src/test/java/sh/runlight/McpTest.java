@@ -165,4 +165,22 @@ final class McpTest {
       assertEquals("Unknown tool \"nope\"", error.getMessage());
     }
   }
+
+  /** As edges.test.ts: a body that is fine but not an object passes as it is, even reshaped. */
+  @Test
+  void anAnswerThatIsNotAnObjectIsPassedOnAsItIs() {
+    for (String body : List.of("null", "[1]", "5")) {
+      Map<String, Object> result =
+          Mcp.callTool(
+              Json.object("name", "get_visit_times"), (path, params) -> new Response(body, 200));
+      assertEquals(body, Js.get(Js.get(Js.get(result, "content"), "0"), "text"), body);
+      Map<String, Object> refused =
+          Mcp.callTool(
+              Json.object("name", "list_sites"), (path, params) -> new Response(body, 403));
+      assertEquals(
+          "{\"content\":[{\"type\":\"text\",\"text\":\"Runlight answered 403\"}],\"isError\":true}",
+          Json.stringify(refused),
+          body);
+    }
+  }
 }

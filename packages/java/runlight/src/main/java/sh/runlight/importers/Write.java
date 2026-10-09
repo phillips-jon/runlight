@@ -272,8 +272,7 @@ public final class Write {
               row.put("city", Js.slice(str(c, "city"), 0, 100));
               row.put("browser", browser(str(c, "browser")));
               row.put("browserVersion", "");
-              String os = SYSTEMS.get(Js.lower(str(c, "os")));
-              row.put("os", os != null ? os : nullish(c, "os"));
+              row.put("os", system(str(c, "os")));
               row.put("osVersion", "");
               row.put("device", device(str(c, "device")));
               row.put("screen", nullish(c, "screen"));
