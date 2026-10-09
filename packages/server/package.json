@@ -39,6 +39,7 @@
     "@runlight/sdk": "*",
     "better-sqlite3": "^13.0.3",
     "mmdb-lib": "^3.0.3",
+    "mysql2": "^3.24.5",
     "pg": "^8.23.1"
   },
   "devDependencies": {

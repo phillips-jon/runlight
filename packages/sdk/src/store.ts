@@ -10,13 +10,17 @@ import {
 import { recordedPath } from "./sources.js";
 
 /**
- * The little a store needs from a database driver. SQL uses `?` placeholders;
- * the Postgres driver numbers them.
+ * The little a store needs from a database driver. SQL uses `?` placeholders and
+ * "double quotes" around a name that is a keyword somewhere; the Postgres driver
+ * numbers the placeholders, and the MySQL driver fills them in and quotes names
+ * its own way.
  */
 export interface Db {
-  dialect: "sqlite" | "postgres";
+  dialect: "sqlite" | "postgres" | "mysql";
   all<T = Record<string, unknown>>(sql: string, params?: unknown[]): Promise<T[]>;
   run(sql: string, params?: unknown[]): Promise<void>;
+  /** Runs an UPDATE or DELETE and says how many rows it matched. MySQL has no RETURNING, so its driver has this. */
+  affected?(sql: string, params?: unknown[]): Promise<number>;
   /**
    * Runs `fn` while holding a database-wide lock, so two processes starting
    * at once do not race to create the same tables. Optional: SQLite's file
@@ -349,84 +353,111 @@ const DURATION = "COALESCE(s.engaged_ms, s.last_at - s.started_at)";
 
 const SCHEMA_VERSION = 11;
 
+/**
+ * MySQL's text collation: UTF-8 compared and sorted by code point, case and trailing spaces included,
+ * as SQLite and Postgres's "C" collation do. MariaDB has it too, from 11.4.
+ */
+export const MYSQL_COLLATION = "utf8mb4_0900_bin";
+
 function schema(dialect: Db["dialect"]): string[] {
-  const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
-  const text = "TEXT NOT NULL DEFAULT ''";
+  const my = dialect === "mysql";
+  const id = dialect === "postgres" ? "BIGSERIAL PRIMARY KEY" : my ? "BIGINT AUTO_INCREMENT PRIMARY KEY" : "INTEGER PRIMARY KEY AUTOINCREMENT";
+  // MySQL keys and indexes TEXT only by a prefix, so there a column that is keyed, indexed, grouped, or
+  // sorted is VARCHAR, sized past anything Runlight writes to it. Elsewhere text is text.
+  const str = (n: number) => (my ? `VARCHAR(${n})` : "TEXT");
+  const text = (n: number) => `${str(n)} NOT NULL DEFAULT ''`;
+  // Free text that is never keyed. MySQL takes a default for it only as an expression.
+  const long = (fallback: string) => (my ? `MEDIUMTEXT NOT NULL DEFAULT ('${fallback}')` : `TEXT NOT NULL DEFAULT '${fallback}'`);
+  const table = my ? ` DEFAULT CHARSET=utf8mb4 COLLATE=${MYSQL_COLLATION}` : "";
+  const site = str(100);
+  const key = str(100);
+  const path = 1000;
   return [
-    `CREATE TABLE IF NOT EXISTS rl_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS rl_meta ("key" ${str(100)} PRIMARY KEY, value ${my ? "MEDIUMTEXT" : "TEXT"} NOT NULL)${table}`,
     `CREATE TABLE IF NOT EXISTS rl_sites (
-      id TEXT PRIMARY KEY, name ${text}, hostnames TEXT NOT NULL DEFAULT '[]',
-      timezone TEXT NOT NULL DEFAULT 'UTC', created_at BIGINT NOT NULL,
-      overrides TEXT NOT NULL DEFAULT '{}')`,
-    `CREATE TABLE IF NOT EXISTS rl_salts (day TEXT PRIMARY KEY, salt TEXT NOT NULL)`,
+      id ${site} PRIMARY KEY, name ${text(200)}, hostnames ${long("[]")},
+      timezone ${str(64)} NOT NULL DEFAULT 'UTC', created_at BIGINT NOT NULL,
+      overrides ${long("{}")})${table}`,
+    `CREATE TABLE IF NOT EXISTS rl_salts (day ${str(32)} PRIMARY KEY, salt ${str(255)} NOT NULL)${table}`,
     `CREATE TABLE IF NOT EXISTS rl_sessions (
-      id TEXT PRIMARY KEY, site TEXT NOT NULL, visitor TEXT NOT NULL,
+      id ${key} PRIMARY KEY, site ${site} NOT NULL, visitor ${key} NOT NULL,
       started_at BIGINT NOT NULL, last_at BIGINT NOT NULL,
-      entry_path ${text}, exit_path ${text},
+      entry_path ${text(path)}, exit_path ${text(path)},
       pageviews INTEGER NOT NULL DEFAULT 0, events INTEGER NOT NULL DEFAULT 0,
       engaged_ms BIGINT, imported INTEGER NOT NULL DEFAULT 0,
-      hostname ${text}, referrer_host ${text}, referrer_path ${text},
-      source ${text}, channel ${text},
-      utm_source ${text}, utm_medium ${text}, utm_campaign ${text}, utm_term ${text}, utm_content ${text},
-      country ${text}, region ${text}, city ${text},
-      browser ${text}, browser_version ${text}, os ${text}, os_version ${text},
-      device ${text}, screen ${text}, language ${text})`,
+      hostname ${text(255)}, referrer_host ${text(255)}, referrer_path ${text(500)},
+      source ${text(200)}, channel ${text(100)},
+      utm_source ${text(200)}, utm_medium ${text(200)}, utm_campaign ${text(200)}, utm_term ${text(200)}, utm_content ${text(200)},
+      country ${text(16)}, region ${text(100)}, city ${text(100)},
+      browser ${text(100)}, browser_version ${text(100)}, os ${text(100)}, os_version ${text(100)},
+      device ${text(50)}, screen ${text(50)}, language ${text(50)})${table}`,
     `CREATE INDEX IF NOT EXISTS rl_sessions_site_started ON rl_sessions (site, started_at)`,
-    `CREATE INDEX IF NOT EXISTS rl_sessions_visitor ON rl_sessions (site, visitor, last_at)`,
+    // MySQL takes an index that leads with the site as a way to read all of a site's rows, even where a
+    // range of time would read far fewer, so there an index for looking a value up leads with that value.
+    `CREATE INDEX IF NOT EXISTS rl_sessions_visitor ON rl_sessions (${my ? "visitor, site" : "site, visitor"}, last_at)`,
     `CREATE TABLE IF NOT EXISTS rl_events (
-      id ${id}, site TEXT NOT NULL, ts BIGINT NOT NULL, kind TEXT NOT NULL,
-      visitor ${text}, session ${text}, pageview ${text},
-      path ${text}, hostname ${text}, title ${text}, name ${text}, props TEXT,
-      engaged_ms BIGINT NOT NULL DEFAULT 0, scroll INTEGER, link ${text})`,
+      id ${id}, site ${site} NOT NULL, ts BIGINT NOT NULL, kind ${str(20)} NOT NULL,
+      visitor ${text(100)}, session ${text(100)}, pageview ${text(100)},
+      path ${text(path)}, hostname ${text(255)}, title ${text(500)}, name ${text(255)}, props ${my ? "MEDIUMTEXT" : "TEXT"},
+      engaged_ms BIGINT NOT NULL DEFAULT 0, scroll INTEGER, link ${text(100)})${table}`,
     `CREATE INDEX IF NOT EXISTS rl_events_site_ts ON rl_events (site, ts)`,
     // Goals and events read one kind of row in a range; created on start for older databases too.
     `CREATE INDEX IF NOT EXISTS rl_events_site_kind_ts ON rl_events (site, kind, ts)`,
-    `CREATE INDEX IF NOT EXISTS rl_events_pageview ON rl_events (site, pageview)`,
+    `CREATE INDEX IF NOT EXISTS rl_events_pageview ON rl_events (${my ? "pageview, site" : "site, pageview"})`,
     // Page and event filters find the visits they pick through these, rather than reading every row in the range.
-    `CREATE INDEX IF NOT EXISTS rl_events_site_path ON rl_events (site, path, ts)`,
-    `CREATE INDEX IF NOT EXISTS rl_events_site_name ON rl_events (site, name, ts) WHERE kind = 'event'`,
+    // MySQL indexes the first 255 characters of a path, which is enough to find it.
+    `CREATE INDEX IF NOT EXISTS rl_events_site_path ON rl_events (${my ? "path(255), site" : "site, path"}, ts)`,
+    // MySQL has no partial index, so its index of event names holds the kind too.
+    my
+      ? `CREATE INDEX IF NOT EXISTS rl_events_site_name ON rl_events (name, site, kind, ts)`
+      : `CREATE INDEX IF NOT EXISTS rl_events_site_name ON rl_events (site, name, ts) WHERE kind = 'event'`,
     // Version 3: short links; "" is the app's own domain. Version 4: a slug is unique
     // across every domain, so a link whose domain is removed can fall back to the
-    // app's own link path without colliding with another.
+    // app's own link path without colliding with another. MySQL has no partial index,
+    // so there a generated column holds the slug of a live link only, and is unique.
     `CREATE TABLE IF NOT EXISTS rl_links (
-      id TEXT PRIMARY KEY, site TEXT NOT NULL, domain ${text}, slug TEXT NOT NULL,
-      name ${text}, url TEXT NOT NULL, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL,
-      deleted_at BIGINT)`,
-    `CREATE UNIQUE INDEX IF NOT EXISTS rl_links_slug_unique ON rl_links (slug) WHERE deleted_at IS NULL`,
+      id ${key} PRIMARY KEY, site ${site} NOT NULL, domain ${text(255)}, slug ${str(255)} NOT NULL,
+      name ${text(255)}, url ${str(4000)} NOT NULL, created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL,
+      deleted_at BIGINT${my ? ", live_slug VARCHAR(255) AS (CASE WHEN deleted_at IS NULL THEN slug END) VIRTUAL" : ""})${table}`,
+    my
+      ? `CREATE UNIQUE INDEX IF NOT EXISTS rl_links_slug_unique ON rl_links (live_slug)`
+      : `CREATE UNIQUE INDEX IF NOT EXISTS rl_links_slug_unique ON rl_links (slug) WHERE deleted_at IS NULL`,
     `CREATE INDEX IF NOT EXISTS rl_events_link ON rl_events (link, ts)`,
-    `CREATE TABLE IF NOT EXISTS rl_link_domains (domain TEXT PRIMARY KEY, site TEXT NOT NULL, created_at BIGINT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS rl_link_domains (domain ${str(255)} PRIMARY KEY, site ${site} NOT NULL, created_at BIGINT NOT NULL)${table}`,
     // Version 5: share links.
-    `CREATE TABLE IF NOT EXISTS rl_shares (id TEXT PRIMARY KEY, site TEXT NOT NULL, name ${text}, created_at BIGINT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS rl_shares (id ${key} PRIMARY KEY, site ${site} NOT NULL, name ${text(255)}, created_at BIGINT NOT NULL)${table}`,
     // Version 6: goals.
     `CREATE TABLE IF NOT EXISTS rl_goals (
-      id TEXT PRIMARY KEY, site TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL, match TEXT NOT NULL,
-      click_by ${text}, value_mode TEXT NOT NULL DEFAULT 'none', value REAL NOT NULL DEFAULT 0,
-      value_prop ${text}, currency TEXT NOT NULL DEFAULT 'USD', created_at BIGINT NOT NULL)`,
+      id ${key} PRIMARY KEY, site ${site} NOT NULL, name ${str(255)} NOT NULL, kind ${str(20)} NOT NULL, "match" ${str(1000)} NOT NULL,
+      click_by ${text(20)}, value_mode ${str(20)} NOT NULL DEFAULT 'none', value ${my ? "DOUBLE" : "REAL"} NOT NULL DEFAULT 0,
+      value_prop ${text(255)}, currency ${str(10)} NOT NULL DEFAULT 'USD', created_at BIGINT NOT NULL)${table}`,
     // Version 7: install-wide settings (the mail service) and email report subscriptions.
-    `CREATE TABLE IF NOT EXISTS rl_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS rl_settings ("key" ${str(255)} PRIMARY KEY, value ${my ? "MEDIUMTEXT" : "TEXT"} NOT NULL)${table}`,
     `CREATE TABLE IF NOT EXISTS rl_reports (
-      id TEXT PRIMARY KEY, site TEXT NOT NULL, email TEXT NOT NULL, frequency TEXT NOT NULL,
-      lang TEXT NOT NULL DEFAULT 'en', token TEXT NOT NULL, origin ${text},
-      last_period ${text}, last_sent_at BIGINT, created_at BIGINT NOT NULL)`,
+      id ${key} PRIMARY KEY, site ${site} NOT NULL, email ${str(320)} NOT NULL, frequency ${str(20)} NOT NULL,
+      lang ${str(20)} NOT NULL DEFAULT 'en', token ${str(128)} NOT NULL, origin ${text(500)},
+      last_period ${text(40)}, last_sent_at BIGINT, created_at BIGINT NOT NULL)${table}`,
     `CREATE UNIQUE INDEX IF NOT EXISTS rl_reports_token ON rl_reports (token)`,
     // Version 8: read-only API tokens, for scripts and AI assistants over MCP.
     `CREATE TABLE IF NOT EXISTS rl_tokens (
-      id TEXT PRIMARY KEY, name TEXT NOT NULL, site ${text}, hash TEXT NOT NULL, hint ${text},
-      created_at BIGINT NOT NULL, last_used_at BIGINT, scope TEXT NOT NULL DEFAULT 'read')`,
+      id ${key} PRIMARY KEY, name ${str(255)} NOT NULL, site ${text(100)}, hash ${str(128)} NOT NULL, hint ${text(20)},
+      created_at BIGINT NOT NULL, last_used_at BIGINT, scope ${str(20)} NOT NULL DEFAULT 'read')${table}`,
     `CREATE UNIQUE INDEX IF NOT EXISTS rl_tokens_hash ON rl_tokens (hash)`,
     // Version 9: funnels.
-    `CREATE TABLE IF NOT EXISTS rl_funnels (id TEXT PRIMARY KEY, site TEXT NOT NULL, name TEXT NOT NULL, steps TEXT NOT NULL, created_at BIGINT NOT NULL)`,
+    `CREATE TABLE IF NOT EXISTS rl_funnels (id ${key} PRIMARY KEY, site ${site} NOT NULL, name ${str(255)} NOT NULL, steps ${my ? "MEDIUMTEXT" : "TEXT"} NOT NULL, created_at BIGINT NOT NULL)${table}`,
     // Version 11: daily rollups. A day is the site's own local day; rl_rollup_days
     // says which days are built and where they begin and end.
-    `CREATE TABLE IF NOT EXISTS rl_rollup_days (site TEXT NOT NULL, day TEXT NOT NULL, start_at BIGINT NOT NULL, end_at BIGINT NOT NULL, PRIMARY KEY (site, day))`,
+    `CREATE TABLE IF NOT EXISTS rl_rollup_days (site ${site} NOT NULL, day ${str(32)} NOT NULL, start_at BIGINT NOT NULL, end_at BIGINT NOT NULL, PRIMARY KEY (site, day))${table}`,
     `CREATE INDEX IF NOT EXISTS rl_rollup_days_range ON rl_rollup_days (site, start_at)`,
+    // A value can be a whole path, longer than MySQL's keys allow, so there the rows of a day are
+    // found by an index without it; a day's rows are only ever written all at once.
     `CREATE TABLE IF NOT EXISTS rl_rollups (
-      site TEXT NOT NULL, day TEXT NOT NULL, dim TEXT NOT NULL, value ${text},
+      site ${site} NOT NULL, day ${str(32)} NOT NULL, dim ${str(32)} NOT NULL, value ${text(path)},
       visitors BIGINT NOT NULL DEFAULT 0, visits BIGINT NOT NULL DEFAULT 0, pageviews BIGINT NOT NULL DEFAULT 0,
       bounced BIGINT NOT NULL DEFAULT 0, duration BIGINT NOT NULL DEFAULT 0,
       engaged BIGINT NOT NULL DEFAULT 0, views BIGINT NOT NULL DEFAULT 0, scroll_sum BIGINT NOT NULL DEFAULT 0, scroll_n BIGINT NOT NULL DEFAULT 0,
       events BIGINT NOT NULL DEFAULT 0,
-      PRIMARY KEY (site, dim, day, value))`,
+      ${my ? "KEY rl_rollups_day (site, dim, day)" : "PRIMARY KEY (site, dim, day, value)"})${table}`,
   ];
 }
 
@@ -451,6 +482,32 @@ const globPattern = (pattern: string): string => pattern.split("*").map((part) =
 
 /** A `*` pattern as SQL LIKE, everything else taken literally. */
 const likePattern = (pattern: string): string => pattern.split("*").map(escapeLike).join("%");
+
+/**
+ * An INSERT that updates the row already there with the same key, or with `update` empty leaves it be.
+ * MySQL says it its own way, and has no other unique key on these tables to trip over.
+ */
+function upsert(dialect: Db["dialect"], table: string, columns: string[], key: string[], update: string[]): string {
+  const insert = `INSERT INTO ${table} (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`;
+  if (dialect === "mysql") return `${insert} ON DUPLICATE KEY UPDATE ${(update.length ? update : [key[0]!]).map((c) => `${c} = ${update.length ? `VALUES(${c})` : c}`).join(", ")}`;
+  return `${insert} ON CONFLICT (${key.join(", ")}) DO ${update.length ? `UPDATE SET ${update.map((c) => `${c} = excluded.${c}`).join(", ")}` : "NOTHING"}`;
+}
+
+/** Whole-number division, which MySQL's `/` is not. */
+const div = (dialect: Db["dialect"], a: string, b: number): string => (dialect === "mysql" ? `(${a} DIV ${b})` : `(${a} / ${b})`);
+
+/** A value as text: MySQL casts to CHAR, and has no TEXT type to cast to. */
+const asText = (dialect: Db["dialect"], value: string): string => `CAST(${value} AS ${dialect === "mysql" ? "CHAR" : "TEXT"})`;
+
+/**
+ * A table of buckets (i, bs, be) for a WITH clause. Postgres is told the first row's types; MySQL
+ * and MariaDB write a table of values differently from each other, so they get a UNION of rows.
+ */
+function bucketTable(dialect: Db["dialect"], buckets: Bucket[]): string {
+  if (dialect === "mysql") return buckets.map((_, i) => (i === 0 ? "SELECT ? AS i, ? AS bs, ? AS be" : "SELECT ?, ?, ?")).join(" UNION ALL ");
+  const cast = dialect === "postgres";
+  return `VALUES ${buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ")}`;
+}
 
 function linkRow(row: Record<string, unknown>): LinkRow {
   return {
@@ -510,10 +567,13 @@ function condition(filter: Filter, dialect: Db["dialect"], positive = false): { 
     // path is also tried in lower, upper, and title case, encoded each way.
     const title = filter.value.toLowerCase().replace(/(^|[\s\-/_.])(\p{L})/gu, (_, gap: string, letter: string) => gap + letter.toUpperCase());
     const forms = [...new Set([filter.value, filter.value.toLowerCase(), filter.value.toUpperCase(), title].map((f) => asRecorded(f, false)))];
-    const one = dialect === "postgres" ? `LOWER(${col}) LIKE ? ESCAPE '\\'` : `${col} LIKE ? ESCAPE '\\'`;
-    return { sql: `(${forms.map(() => one).join(" OR ")})`, params: forms.map((f) => `%${escapeLike(dialect === "postgres" ? f.toLowerCase() : f)}%`) };
+    const lower = dialect !== "sqlite";
+    const one = lower ? `LOWER(${col}) LIKE ? ESCAPE '\\'` : `${col} LIKE ? ESCAPE '\\'`;
+    return { sql: `(${forms.map(() => one).join(" OR ")})`, params: forms.map((f) => `%${escapeLike(lower ? f.toLowerCase() : f)}%`) };
   }
-  if (dialect === "postgres") return { sql: `LOWER(${col}) LIKE ? ESCAPE '\\'`, params: [`%${escapeLike(filter.value.toLowerCase())}%`] };
+  // Postgres and MySQL lower case any letter, so both sides lowered find any mix. Their LIKE then
+  // compares exactly: Postgres's always, MySQL's under Runlight's binary collation.
+  if (dialect !== "sqlite") return { sql: `LOWER(${col}) LIKE ? ESCAPE '\\'`, params: [`%${escapeLike(filter.value.toLowerCase())}%`] };
   // SQLite's LIKE and LOWER ignore case for ASCII letters only, so "über" would never find "Über". GLOB with
   // both cases of every letter finds any mix, Unicode included.
   return { sql: `${col} GLOB ?`, params: [anyCase(filter.value)] };
@@ -616,8 +676,9 @@ export class SqlStore {
       }
     };
     const upgrade = async (db: Db, postgres: boolean) => {
-      await db.run(`CREATE TABLE IF NOT EXISTS rl_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)`);
-      const [found] = await db.all<{ value: string }>(`SELECT value FROM rl_meta WHERE key = 'schema'`);
+      const statements = schema(db.dialect);
+      await db.run(statements[0]!);
+      const [found] = await db.all<{ value: string }>(`SELECT value FROM rl_meta WHERE "key" = 'schema'`);
       const from = found ? Number(found.value) : SCHEMA_VERSION;
       if (postgres) {
         // A concurrent build that was stopped leaves its index unusable; it goes, and is built again below.
@@ -627,7 +688,17 @@ export class SqlStore {
         );
         for (const { name } of broken) await db.run(`DROP INDEX IF EXISTS "${name.replace(/"/g, "")}"`);
       }
-      for (const statement of schema(db.dialect)) await db.run(postgres ? statement.replace(/^CREATE (UNIQUE )?INDEX IF NOT EXISTS/, "CREATE $1INDEX CONCURRENTLY IF NOT EXISTS") : statement);
+      for (const statement of statements) {
+        const index = /^CREATE (UNIQUE )?INDEX IF NOT EXISTS (\w+) ON (\w+)/.exec(statement);
+        if (index && db.dialect === "mysql") {
+          // MySQL has no CREATE INDEX IF NOT EXISTS, so it is looked for first.
+          const [, unique, name, table] = index;
+          const there = await db.all(`SELECT 1 AS there FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ? LIMIT 1`, [table, name]);
+          if (!there.length) await db.run(statement.replace(/^CREATE (UNIQUE )?INDEX IF NOT EXISTS/, `CREATE ${unique ?? ""}INDEX`));
+        } else {
+          await db.run(postgres ? statement.replace(/^CREATE (UNIQUE )?INDEX IF NOT EXISTS/, "CREATE $1INDEX CONCURRENTLY IF NOT EXISTS") : statement);
+        }
+      }
       // A column added by an upgrade that stopped before it recorded the new version is already there.
       const addColumn = (sql: string) =>
         db.run(sql).catch((error) => {
@@ -640,10 +711,7 @@ export class SqlStore {
       if (from >= 8 && from < 10) await addColumn(`ALTER TABLE rl_tokens ADD COLUMN scope TEXT NOT NULL DEFAULT 'read'`);
       // Written only when it changes, so a database opened read-only can still be read.
       if (!found || found.value !== String(SCHEMA_VERSION)) {
-        await db.run(
-          `INSERT INTO rl_meta (key, value) VALUES ('schema', ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`,
-          [String(SCHEMA_VERSION)],
-        );
+        await db.run(upsert(db.dialect, "rl_meta", ['"key"', "value"], ['"key"'], ["value"]), ["schema", String(SCHEMA_VERSION)]);
       }
     };
     this.ready ??= (this.db.exclusive ? this.db.exclusive(create) : create(this.db)).catch((error) => {
@@ -673,6 +741,12 @@ export class SqlStore {
     await this.db.close?.();
   }
 
+  /** How many rows an UPDATE or DELETE of rows with an id matched. */
+  private async changed(sql: string, params: unknown[]): Promise<number> {
+    if (this.db.affected) return this.db.affected(sql, params);
+    return (await this.db.all(`${sql} RETURNING id`, params)).length;
+  }
+
   /** Runs `fn` with a store whose every query is in one transaction. */
   async transaction<T>(fn: (store: SqlStore) => Promise<T>): Promise<T> {
     if (this.db.transaction) return this.db.transaction((db) => fn(new SqlStore(db)));
@@ -694,8 +768,7 @@ export class SqlStore {
     const [row] = await this.db.all(`SELECT name, hostnames, timezone FROM rl_sites WHERE id = ?`, [site.id]);
     if (row && row.name === site.name && row.hostnames === JSON.stringify(site.hostnames) && row.timezone === site.timezone) return;
     await this.db.run(
-      `INSERT INTO rl_sites (id, name, hostnames, timezone, created_at) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT (id) DO UPDATE SET name = excluded.name, hostnames = excluded.hostnames, timezone = excluded.timezone`,
+      upsert(this.db.dialect, "rl_sites", ["id", "name", "hostnames", "timezone", "created_at"], ["id"], ["name", "hostnames", "timezone"]),
       [site.id, site.name, JSON.stringify(site.hostnames), site.timezone, now],
     );
   }
@@ -793,14 +866,16 @@ export class SqlStore {
     const sums = `COUNT(DISTINCT s.visitor), COUNT(*), COALESCE(SUM(s.pageviews), 0), COALESCE(SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END), 0), COALESCE(SUM(${DURATION}), 0)`;
     const cols = "(site, day, dim, value, visitors, visits, pageviews, bounced, duration)";
     // Each piece names its own site and day, as text, so Postgres knows their type inside a UNION.
-    const head = "CAST(? AS TEXT), CAST(? AS TEXT)";
+    const dialect = this.db.dialect;
+    const head = `${asText(dialect, "?")}, ${asText(dialect, "?")}`;
+    const quarter = div(dialect, "s.started_at", 900000);
     // The day's totals, each visit dimension, and the heatmap's quarter hours (counted as hourly() counts
     // them: every visit that started), in one statement over the day's visits, since a Cloudflare D1
     // check may only send so many.
     const pieces = [
       `SELECT ${head}, '', '', ${sums} FROM v s`,
       ...Object.entries(SESSION_DIMENSIONS).map(([dim, col]) => `SELECT ${head}, '${dim}', s.${col}, ${sums} FROM v s WHERE s.${col} <> '' GROUP BY s.${col}`),
-      `SELECT ${head}, 'quarter', CAST(s.started_at / 900000 AS TEXT), COUNT(DISTINCT s.visitor), COUNT(*), COALESCE(SUM(s.pageviews), 0), COALESCE(SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END), 0), 0 FROM v s GROUP BY s.started_at / 900000`,
+      `SELECT ${head}, 'quarter', ${asText(dialect, quarter)}, COUNT(DISTINCT s.visitor), COUNT(*), COALESCE(SUM(s.pageviews), 0), COALESCE(SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END), 0), 0 FROM v s GROUP BY ${asText(dialect, quarter)}`,
     ];
     // Pages and events, from the rows of the day's visits. The time bounds let the (site, kind, ts) index
     // find them; a visit's last row comes at most EVENT_TAIL_MS after it starts.
@@ -811,9 +886,11 @@ export class SqlStore {
     await this.transaction(async (store) => {
       const db = store.db;
       await db.run(`DELETE FROM rl_rollups WHERE site = ? AND day = ?`, [site, day]);
+      // The WITH goes after INSERT INTO, the one place every database takes it.
       await db.run(
-        `WITH v AS (SELECT * FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT})
-         INSERT INTO rl_rollups ${cols} ${pieces.join(" UNION ALL ")}`,
+        `INSERT INTO rl_rollups ${cols}
+         WITH v AS (SELECT * FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT})
+         ${pieces.join(" UNION ALL ")}`,
         [site, start, end, ...pieces.flatMap(() => [site, day])],
       );
       // A page's engaged time and scroll come per pageview first (its time added up, its deepest scroll),
@@ -1028,7 +1105,7 @@ export class SqlStore {
 
   /** The salt for a day, made on first ask. Two racing callers agree on one. */
   async salt(day: string, fresh: string): Promise<string> {
-    await this.db.run(`INSERT INTO rl_salts (day, salt) VALUES (?, ?) ON CONFLICT (day) DO NOTHING`, [day, fresh]);
+    await this.db.run(upsert(this.db.dialect, "rl_salts", ["day", "salt"], ["day"], []), [day, fresh]);
     const rows = await this.db.all<{ salt: string }>(`SELECT salt FROM rl_salts WHERE day = ?`, [day]);
     return rows[0]?.salt ?? fresh;
   }
@@ -1203,8 +1280,7 @@ export class SqlStore {
 
   async saveFunnel(f: FunnelRow): Promise<void> {
     await this.db.run(
-      `INSERT INTO rl_funnels (id, site, name, steps, created_at) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT (id) DO UPDATE SET name = excluded.name, steps = excluded.steps`,
+      upsert(this.db.dialect, "rl_funnels", ["id", "site", "name", "steps", "created_at"], ["id"], ["name", "steps"]),
       [f.id, f.site, f.name, JSON.stringify(f.steps), f.createdAt],
     );
   }
@@ -1265,18 +1341,20 @@ export class SqlStore {
     const [first] = await this.db.all(`SELECT COUNT(*) AS n, MIN(started_at) AS t FROM (${newest("s.started_at AS started_at", JOURNEY_VISITS + 1)}) x`, visitParams);
     if (!num(first?.n)) return { rows: [], sampled: false };
     const from = Math.max(query.from, num(first?.t));
+    // MySQL takes no LIMIT in an IN list, but does in a table inside one.
+    const visits = this.db.dialect === "mysql" ? `SELECT id FROM (${newest("s.id AS id", JOURNEY_VISITS)}) x` : newest("s.id", JOURNEY_VISITS);
     const rows = await this.db.all(
       // The visits are read as an IN list, which every database probes from the events side, so the
       // plan does not depend on the planner's statistics. Refreshes (the same page twice in a row) are
       // dropped before counting, so they never use up the steps.
       `WITH raw AS (
          SELECT e.session AS session, e.path AS path, e.ts AS ts, e.id AS id,
-           LAG(e.path) OVER (PARTITION BY e.session ORDER BY e.ts, e.id) AS before
+           LAG(e.path) OVER (PARTITION BY e.session ORDER BY e.ts, e.id) AS prev
          FROM rl_events e
-         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ? AND e.session IN (${newest("s.id", JOURNEY_VISITS)})),
+         WHERE e.site = ? AND e.kind = 'pageview' AND e.ts >= ? AND e.ts < ? AND e.session IN (${visits})),
        v AS (
          SELECT session, path, ROW_NUMBER() OVER (PARTITION BY session ORDER BY ts, id) AS n
-         FROM raw WHERE before IS NULL OR before <> path)
+         FROM raw WHERE prev IS NULL OR prev <> path)
        SELECT session, path FROM v WHERE n <= ? ORDER BY session, n`,
       [query.site, from, query.to + EVENT_TAIL_MS, ...visitParams, perVisit],
     );
@@ -1326,26 +1404,25 @@ export class SqlStore {
 
   /** Deleting a token is how it is revoked: it stops working at once. */
   async deleteToken(id: string): Promise<boolean> {
-    const rows = await this.db.all(`DELETE FROM rl_tokens WHERE id = ? RETURNING id`, [id]);
-    return rows.length === 1;
+    return (await this.changed(`DELETE FROM rl_tokens WHERE id = ?`, [id])) === 1;
   }
 
   // Settings
 
   async setting(key: string): Promise<string | null> {
-    const [row] = await this.db.all(`SELECT value FROM rl_settings WHERE key = ?`, [key]);
+    const [row] = await this.db.all(`SELECT value FROM rl_settings WHERE "key" = ?`, [key]);
     return row ? String(row.value) : null;
   }
 
   /** Every setting whose key starts with a prefix, such as each connected install's. */
   async settingsStartingWith(prefix: string): Promise<Array<{ key: string; value: string }>> {
-    const rows = await this.db.all(`SELECT key, value FROM rl_settings WHERE key LIKE ? ESCAPE '\\'`, [`${escapeLike(prefix)}%`]);
+    const rows = await this.db.all(`SELECT "key", value FROM rl_settings WHERE "key" LIKE ? ESCAPE '\\'`, [`${escapeLike(prefix)}%`]);
     return rows.map((r) => ({ key: String(r.key), value: String(r.value) }));
   }
 
   async setSetting(key: string, value: string | null): Promise<void> {
-    if (value === null) await this.db.run(`DELETE FROM rl_settings WHERE key = ?`, [key]);
-    else await this.db.run(`INSERT INTO rl_settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value`, [key, value]);
+    if (value === null) await this.db.run(`DELETE FROM rl_settings WHERE "key" = ?`, [key]);
+    else await this.db.run(upsert(this.db.dialect, "rl_settings", ['"key"', "value"], ['"key"'], ["value"]), [key, value]);
   }
 
   // Email reports
@@ -1387,11 +1464,7 @@ export class SqlStore {
   /** Records a period as sent. Only one caller wins, so two cron runs at once cannot both send it. */
   async claimReport(id: string, period: string, now: number): Promise<boolean> {
     // One statement, so of two cron runs at once only one gets the row back.
-    const rows = await this.db.all(
-      `UPDATE rl_reports SET last_period = ?, last_sent_at = ? WHERE id = ? AND last_period <> ? RETURNING id`,
-      [period, now, id, period],
-    );
-    return rows.length === 1;
+    return (await this.changed(`UPDATE rl_reports SET last_period = ?, last_sent_at = ? WHERE id = ? AND last_period <> ?`, [period, now, id, period])) === 1;
   }
 
   /** Puts a period back when its email failed, so the next run tries again. */
@@ -1424,11 +1497,13 @@ export class SqlStore {
       await this.db.run(`UPDATE rl_events SET name = ? WHERE site = ? AND kind = 'event' AND name = ?`, [g.name, g.site, before.name]);
     }
     await this.db.run(
-      `INSERT INTO rl_goals (id, site, name, kind, match, click_by, value_mode, value, value_prop, currency, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT (id) DO UPDATE SET name = excluded.name, kind = excluded.kind, match = excluded.match,
-         click_by = excluded.click_by, value_mode = excluded.value_mode, value = excluded.value,
-         value_prop = excluded.value_prop, currency = excluded.currency`,
+      upsert(
+        this.db.dialect,
+        "rl_goals",
+        ["id", "site", "name", "kind", '"match"', "click_by", "value_mode", "value", "value_prop", "currency", "created_at"],
+        ["id"],
+        ["name", "kind", '"match"', "click_by", "value_mode", "value", "value_prop", "currency"],
+      ),
       [g.id, g.site, g.name, g.kind, g.match, g.clickBy, g.valueMode, g.value, g.valueProp, g.currency, g.createdAt],
     );
   }
@@ -1441,9 +1516,10 @@ export class SqlStore {
   private goalScope(goal: GoalRow): { sql: string; params: unknown[] } {
     if (goal.kind === "page") {
       return goal.match.includes("*")
-        ? this.db.dialect === "postgres"
-          ? { sql: `e.kind = 'pageview' AND e.path LIKE ? ESCAPE '\\'`, params: [likePattern(goal.match)] }
-          : // SQLite's LIKE ignores case; GLOB does not, so both databases agree with each other and with exact matches.
+        ? this.db.dialect !== "sqlite"
+          ? // Postgres's LIKE heeds case, and so does MySQL's under Runlight's binary collation.
+            { sql: `e.kind = 'pageview' AND e.path LIKE ? ESCAPE '\\'`, params: [likePattern(goal.match)] }
+          : // SQLite's LIKE ignores case; GLOB does not, so every database agrees with the others and with exact matches.
             { sql: `e.kind = 'pageview' AND e.path GLOB ?`, params: [globPattern(goal.match)] }
         : { sql: `e.kind = 'pageview' AND e.path = ?`, params: [goal.match] };
     }
@@ -1459,8 +1535,19 @@ export class SqlStore {
         params: [prop, prop],
       };
     }
-    // As Postgres's pattern: a JSON number, or text of digits with an optional sign and one decimal point.
     const path = `$."${prop}"`;
+    if (this.db.dialect === "mysql") {
+      // As SQLite: a JSON number as it is, or text of digits with an optional sign and one decimal point.
+      const value = `JSON_EXTRACT(e.props, ?)`;
+      return {
+        sql: `(CASE
+          WHEN JSON_TYPE(${value}) IN ('INTEGER', 'UNSIGNED INTEGER', 'DOUBLE', 'DECIMAL') THEN CAST(${value} AS DOUBLE)
+          WHEN JSON_TYPE(${value}) = 'STRING' AND JSON_UNQUOTE(${value}) REGEXP '^-?[0-9]+([.][0-9]+)?$' THEN CAST(JSON_UNQUOTE(${value}) AS DOUBLE)
+          ELSE 0 END)`,
+        params: new Array(5).fill(path),
+      };
+    }
+    // As Postgres's pattern: a JSON number, or text of digits with an optional sign and one decimal point.
     const text = `CAST(json_extract(e.props, ?) AS TEXT)`;
     return {
       sql: `(CASE
@@ -1478,14 +1565,22 @@ export class SqlStore {
     const where = `${v.sql} AND e.kind = 'event' AND e.name = ? AND e.props IS NOT NULL`;
     const params = [...v.params, event];
     const rows =
-      this.db.dialect === "postgres"
+      this.db.dialect === "mysql"
+        ? // Each key as a row of its own, compared and sorted by code point like every other value.
+          await this.db.all(
+            `SELECT j.k AS "key", COUNT(*) AS events FROM ${v.from}
+             CROSS JOIN JSON_TABLE(JSON_KEYS(CASE WHEN JSON_TYPE(e.props) = 'OBJECT' THEN e.props ELSE '{}' END), '$[*]' COLUMNS (k VARCHAR(255) COLLATE ${MYSQL_COLLATION} PATH '$')) j
+             WHERE ${where} GROUP BY j.k ORDER BY events DESC, j.k LIMIT 30`,
+            params,
+          )
+        : this.db.dialect === "postgres"
         ? await this.db.all(
-            `SELECT k AS key, COUNT(*) AS events FROM ${v.from} CROSS JOIN LATERAL jsonb_object_keys(CASE WHEN jsonb_typeof(e.props::jsonb) = 'object' THEN e.props::jsonb ELSE '{}'::jsonb END) AS k
+            `SELECT k AS "key", COUNT(*) AS events FROM ${v.from} CROSS JOIN LATERAL jsonb_object_keys(CASE WHEN jsonb_typeof(e.props::jsonb) = 'object' THEN e.props::jsonb ELSE '{}'::jsonb END) AS k
              WHERE ${where} GROUP BY k ORDER BY events DESC, k${this.textOrder} LIMIT 30`,
             params,
           )
         : await this.db.all(
-            `SELECT j.key AS key, COUNT(*) AS events FROM ${v.from}, json_each(e.props) j
+            `SELECT j.key AS "key", COUNT(*) AS events FROM ${v.from}, json_each(e.props) j
              WHERE ${where} AND json_type(e.props) = 'object' GROUP BY j.key ORDER BY events DESC, key${this.textOrder} LIMIT 30`,
             params,
           );
@@ -1495,7 +1590,12 @@ export class SqlStore {
   /** The values one property of an event took, with how often and by how many visitors. */
   async eventPropValues(query: Query, event: string, key: string, limit: number): Promise<Array<{ value: string; events: number; visitors: number }>> {
     const v = visitRows(query.filters, query.site, query.from, query.to, this.db.dialect);
-    const value = this.db.dialect === "postgres" ? `(e.props::jsonb ->> ?)` : `CAST(json_extract(e.props, ?) AS TEXT)`;
+    const value =
+      this.db.dialect === "postgres"
+        ? `(e.props::jsonb ->> ?)`
+        : this.db.dialect === "mysql"
+          ? `(JSON_UNQUOTE(JSON_EXTRACT(e.props, ?)) COLLATE ${MYSQL_COLLATION})`
+          : `CAST(json_extract(e.props, ?) AS TEXT)`;
     const path = this.db.dialect === "postgres" ? key : `$."${key}"`;
     const rows = await this.db.all(
       `SELECT * FROM (SELECT ${value} AS value, COUNT(*) AS events, COUNT(DISTINCT e.visitor) AS visitors FROM ${v.from}
@@ -1506,10 +1606,15 @@ export class SqlStore {
     return rows.map((r) => ({ value: String(r.value), events: num(r.events), visitors: num(r.visitors) }));
   }
 
+  /** The floating point type to cast to, which MySQL names in one word. */
+  private get double(): string {
+    return this.db.dialect === "mysql" ? "DOUBLE" : "DOUBLE PRECISION";
+  }
+
   /** A goal's worth for one converting row, as SQL. */
   private revenueValue(goal: GoalRow): { sql: string; params: unknown[] } {
     if (goal.valueMode === "prop" && goal.valueProp) return this.propValue(goal.valueProp);
-    if (goal.valueMode === "fixed") return { sql: `CAST(? AS DOUBLE PRECISION)`, params: [goal.value] };
+    if (goal.valueMode === "fixed") return { sql: `CAST(? AS ${this.double})`, params: [goal.value] };
     return { sql: `0`, params: [] };
   }
 
@@ -1569,7 +1674,7 @@ export class SqlStore {
       return { sql: `SUM(${value.sql})`, params: value.params };
     }
     // Cast, so Postgres does not read the bound value as a bigint and refuse 9.99.
-    if (goal.valueMode === "fixed") return { sql: `COUNT(*) * CAST(? AS DOUBLE PRECISION)`, params: [goal.value] };
+    if (goal.valueMode === "fixed") return { sql: `COUNT(*) * CAST(? AS ${this.double})`, params: [goal.value] };
     return { sql: `0`, params: [] };
   }
 
@@ -1616,10 +1721,8 @@ export class SqlStore {
     const size = Math.max(1, Math.min(BUCKETS_PER_QUERY, Math.floor((MAX_PARAMS - fixed) / 3)));
     if (buckets.length > size) return inPieces(buckets, size, (piece) => this.goalSeries(query, goal, piece));
     const v = visitRows(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end, this.db.dialect);
-    const cast = this.db.dialect === "postgres";
-    const values = buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ");
     const rows = await this.db.all(
-      `WITH b (i, bs, be) AS (VALUES ${values})
+      `WITH b (i, bs, be) AS (${bucketTable(this.db.dialect, buckets)})
        SELECT b.i AS i, COUNT(*) AS conversions, ${revenue.sql} AS revenue
        FROM ${v.from} CROSS JOIN b
        WHERE ${v.sql} AND s.started_at >= b.bs AND s.started_at < b.be AND ${scope.sql}
@@ -1635,7 +1738,7 @@ export class SqlStore {
   }
 
   async addLinkDomain(domain: string, site: string, now: number): Promise<void> {
-    await this.db.run(`INSERT INTO rl_link_domains (domain, site, created_at) VALUES (?, ?, ?) ON CONFLICT (domain) DO NOTHING`, [domain, site, now]);
+    await this.db.run(upsert(this.db.dialect, "rl_link_domains", ["domain", "site", "created_at"], ["domain"], []), [domain, site, now]);
   }
 
   /**
@@ -1668,10 +1771,8 @@ export class SqlStore {
   async linkSeries(site: string, link: string, buckets: Bucket[]): Promise<Array<{ start: number; clicks: number; visitors: number }>> {
     if (buckets.length === 0) return [];
     if (buckets.length > BUCKETS_PER_QUERY) return inPieces(buckets, BUCKETS_PER_QUERY, (piece) => this.linkSeries(site, link, piece));
-    const cast = this.db.dialect === "postgres";
-    const values = buckets.map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)")).join(", ");
     const rows = await this.db.all(
-      `WITH b (i, bs, be) AS (VALUES ${values})
+      `WITH b (i, bs, be) AS (${bucketTable(this.db.dialect, buckets)})
        SELECT b.i AS i, COUNT(*) AS clicks, COUNT(DISTINCT NULLIF(e.visitor, '')) AS visitors
        FROM b JOIN rl_events e ON e.link = ? AND e.ts >= b.bs AND e.ts < b.be
        WHERE e.site = ? AND e.kind = 'click' GROUP BY b.i`,
@@ -1699,9 +1800,10 @@ export class SqlStore {
   /**
    * Ties are broken by the value in code point order, the order the rolled-up path sorts in, so a report
    * reads the same before and after its days are built. Postgres would otherwise use its locale's order.
+   * MySQL's columns already sort this way; a value worked out from JSON may not.
    */
   private get textOrder(): string {
-    return this.db.dialect === "postgres" ? ' COLLATE "C"' : "";
+    return this.db.dialect === "postgres" ? ' COLLATE "C"' : this.db.dialect === "mysql" ? ` COLLATE ${MYSQL_COLLATION}` : "";
   }
 
   /** When Runlight itself first counted a visit, leaving out imported history. */
@@ -1755,10 +1857,6 @@ export class SqlStore {
   async series(query: Omit<Query, "from" | "to">, buckets: Bucket[]): Promise<SeriesPoint[]> {
     if (buckets.length === 0) return [];
     if (buckets.length > BUCKETS_PER_QUERY) return inPieces(buckets, BUCKETS_PER_QUERY, (piece) => this.series(query, piece));
-    const cast = this.db.dialect === "postgres";
-    const values = buckets
-      .map((_, i) => (cast && i === 0 ? "(CAST(? AS INTEGER), CAST(? AS BIGINT), CAST(? AS BIGINT))" : "(?, ?, ?)"))
-      .join(", ");
     const params: unknown[] = buckets.flatMap((b, i) => [i, b.start, b.end]);
     // Filtered or not, each bucket counts the visits that started in it (see visitScope).
     const scope = visitScope(query.filters, query.site, buckets[0]!.start, buckets[buckets.length - 1]!.end, this.db.dialect);
@@ -1777,7 +1875,8 @@ export class SqlStore {
       }
       if (from < buckets[buckets.length - 1]!.end) rest.push([from, buckets[buckets.length - 1]!.end]);
     }
-    const w = rest ? SqlStore.within(rest) : { sql: "1 = 1", params: [] };
+    // MySQL joins the buckets to every visit of the site unless told the whole range as well.
+    const w = rest ? SqlStore.within(rest) : this.db.dialect === "mysql" ? SqlStore.within([[buckets[0]!.start, buckets[buckets.length - 1]!.end]]) : { sql: "1 = 1", params: [] };
     // Filters and scattered unbuilt days add values of their own; when they would pass D1's 100, the
     // buckets go in halves.
     if (params.length + 1 + w.params.length + scope.params.length + (pv?.params.length ?? 0) > MAX_PARAMS && buckets.length > 1) {
@@ -1799,7 +1898,7 @@ export class SqlStore {
       for (const row of rolled) if (at.has(String(row.day))) bump(at.get(String(row.day))!, row);
     }
     const rows = await this.db.all<Record<string, unknown>>(
-      `WITH b (i, bs, be) AS (VALUES ${values})
+      `WITH b (i, bs, be) AS (${bucketTable(this.db.dialect, buckets)})
        SELECT b.i AS i, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS n, SUM(${pv ? "COALESCE(pv.n, 0)" : "s.pageviews"}) AS views,
          SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced, SUM(${DURATION}) AS duration
        FROM b JOIN rl_sessions s ON s.site = ? AND s.started_at >= b.bs AND s.started_at < b.be
@@ -1956,7 +2055,7 @@ export class SqlStore {
       for (const row of rolled) bump(Number(row.value), row);
       const w = SqlStore.within(plan.rest);
       const raw = await this.db.all(
-        `SELECT s.started_at / 900000 AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
+        `SELECT ${div(this.db.dialect, "s.started_at", 900000)} AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
            SUM(s.pageviews) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
          FROM rl_sessions s WHERE s.site = ? AND ${w.sql} AND ${IS_VISIT} GROUP BY 1`,
         [query.site, ...w.params],
@@ -1968,7 +2067,7 @@ export class SqlStore {
     // A page filter counts that page's views as pageviews here too, as the cards do.
     const pv = pageviewsOf(query.filters, query.site, query.from, query.to, this.db.dialect);
     const rows = await this.db.all(
-      `SELECT s.started_at / 900000 AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
+      `SELECT ${div(this.db.dialect, "s.started_at", 900000)} AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
          SUM(${pv ? "COALESCE(pv.n, 0)" : "s.pageviews"}) AS pageviews, SUM(CASE WHEN ${BOUNCE} THEN 1 ELSE 0 END) AS bounced
        FROM rl_sessions s ${pv ? `LEFT JOIN ${pv.sql} pv ON pv.session = s.id` : ""}
        WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${matching.sql}
@@ -2003,7 +2102,7 @@ export class SqlStore {
     );
     const start = Math.floor(now / 60_000) * 60_000 - 29 * 60_000;
     const perMinute = await this.db.all(
-      `SELECT (ts - ?) / 60000 AS m, COUNT(*) AS n FROM rl_events
+      `SELECT ${div(this.db.dialect, "(ts - ?)", 60000)} AS m, COUNT(*) AS n FROM rl_events
        WHERE site = ? AND ts >= ? AND kind = 'pageview' GROUP BY 1`,
       [start, site, start],
     );

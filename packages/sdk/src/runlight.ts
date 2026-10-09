@@ -1151,7 +1151,7 @@ export class Runlight {
 
 /** True for a database that could not take a statement just now and may a moment later. */
 function busy(error: unknown): boolean {
-  return /timeout exceeded when trying to connect|connection timeout|SQLITE_BUSY|database is locked/i.test(String((error as Error)?.message ?? error));
+  return /timeout exceeded when trying to connect|connection timeout|no MySQL connection was free|SQLITE_BUSY|database is locked/i.test(String((error as Error)?.message ?? error));
 }
 
 /** A request body as text, or null when it is longer than `max` bytes. */

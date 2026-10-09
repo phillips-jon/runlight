@@ -53,6 +53,16 @@
         "default": "./dist/postgres.cjs"
       }
     },
+    "./mysql": {
+      "import": {
+        "types": "./dist/mysql.d.ts",
+        "default": "./dist/mysql.js"
+      },
+      "require": {
+        "types": "./dist/mysql.d.cts",
+        "default": "./dist/mysql.cjs"
+      }
+    },
     "./node": {
       "import": {
         "types": "./dist/node.d.ts",
@@ -103,6 +113,7 @@
   "peerDependencies": {
     "@libsql/client": ">=0.14",
     "better-sqlite3": ">=11",
+    "mysql2": ">=3.9",
     "pg": ">=8"
   },
   "peerDependenciesMeta": {
@@ -110,6 +121,9 @@
       "optional": true
     },
     "pg": {
+      "optional": true
+    },
+    "mysql2": {
       "optional": true
     },
     "@libsql/client": {
@@ -122,6 +136,7 @@
     "@types/node": "^22.20.4",
     "@types/pg": "^8.23.1",
     "better-sqlite3": "^13.0.3",
+    "mysql2": "^3.24.5",
     "pg": "^8.23.1",
     "tsup": "^8.5.1",
     "tsx": "^4.23.0",

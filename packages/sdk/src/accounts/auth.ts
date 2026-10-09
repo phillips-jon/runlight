@@ -2,7 +2,7 @@
  * Accounts: who may sign in, their password hashes, two-factor, invites, and the signed cookie that keeps them
  * signed in. The standalone server always has them, and an app turns them on with routes({ accounts: true }).
  */
-import type { SqlStore } from "../store.js";
+import { MYSQL_COLLATION, type SqlStore } from "../store.js";
 import { base64url, checkPassword, hashPassword, hex, hmac, randomBytes, sameText, sealText, sha256, unsealText } from "./crypto.js";
 
 export { checkPassword, hashPassword };
@@ -158,18 +158,25 @@ export class Accounts {
   private init(): Promise<void> {
     // Several processes starting at once create the tables one at a time.
     const create = async () => {
-      await this.store.db.run(`CREATE TABLE IF NOT EXISTS rl_users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, hash TEXT NOT NULL, created_at BIGINT NOT NULL)`);
+      // MySQL keys TEXT only by a prefix, so there the keyed columns are VARCHAR, in the binary collation the store's tables use.
+      const my = this.store.db.dialect === "mysql";
+      const str = (n: number) => (my ? `VARCHAR(${n})` : "TEXT");
+      const table = my ? ` DEFAULT CHARSET=utf8mb4 COLLATE=${MYSQL_COLLATION}` : "";
+      await this.store.db.run(`CREATE TABLE IF NOT EXISTS rl_users (id ${str(100)} PRIMARY KEY, email ${str(320)} NOT NULL UNIQUE, hash TEXT NOT NULL, created_at BIGINT NOT NULL)${table}`);
       // Roles came later; a table from before them gains the column, and its accounts stay owners.
-      const columns = this.store.db.dialect === "postgres"
-        ? await this.store.db.all(`SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'rl_users' AND table_schema = current_schema()`)
-        : await this.store.db.all(`PRAGMA table_info(rl_users)`);
-      if (!columns.some((c) => c.name === "role")) await this.store.db.run(`ALTER TABLE rl_users ADD COLUMN role TEXT NOT NULL DEFAULT 'owner'`);
+      const columns =
+        this.store.db.dialect === "sqlite"
+          ? await this.store.db.all(`PRAGMA table_info(rl_users)`)
+          : await this.store.db.all(
+              `SELECT column_name AS name FROM information_schema.columns WHERE table_name = 'rl_users' AND table_schema = ${my ? "DATABASE()" : "current_schema()"}`,
+            );
+      if (!columns.some((c) => c.name === "role")) await this.store.db.run(`ALTER TABLE rl_users ADD COLUMN role ${str(20)} NOT NULL DEFAULT 'owner'`);
       // Two-factor came later still: the secret (sealed), one being set up, recovery code hashes, and the last code's step.
       for (const [name, type] of [["totp_secret", "TEXT"], ["totp_pending", "TEXT"], ["totp_recovery", "TEXT"], ["totp_step", "BIGINT"]] as const) {
         if (!columns.some((c) => c.name === name)) await this.store.db.run(`ALTER TABLE rl_users ADD COLUMN ${name} ${type}`);
       }
       await this.store.db.run(
-        `CREATE TABLE IF NOT EXISTS rl_invites (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, role TEXT NOT NULL, code_hash TEXT NOT NULL UNIQUE, invited_by TEXT NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL)`,
+        `CREATE TABLE IF NOT EXISTS rl_invites (id ${str(100)} PRIMARY KEY, email ${str(320)} NOT NULL UNIQUE, role ${str(20)} NOT NULL, code_hash ${str(128)} NOT NULL UNIQUE, invited_by ${str(100)} NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL)${table}`,
       );
       // A server has one owner. One from before, with several, keeps the first and the rest become admins,
       // who can still do everything but remove the owner. Invites to join as an owner become invites as an admin.
