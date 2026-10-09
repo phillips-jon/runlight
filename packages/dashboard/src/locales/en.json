@@ -1,5 +1,6 @@
 {
   "app.site": "Site",
+  "app.confirmDelete": "Delete {name}?",
   "app.signedOut": "Open this page once with {token} followed by your {env} to sign in.",
   "app.live.title": "Visitors in the last five minutes",
   "app.live_one": "{n} here now",
@@ -607,6 +608,9 @@
   "sites.remoteNote": "This site is counted by its own Runlight at {url}, which lets this server read it. Allow changes to manage its settings from here too.",
   "sites.disconnect": "Disconnect this site",
   "sites.disconnectHint": "Disconnecting removes the site from this server. Its own Runlight and everything it has counted stay as they are.",
+  "sites.disconnectButton": "Disconnect site",
+  "sites.confirmDisconnect": "Confirm disconnect",
+  "sites.disconnectName": "Disconnect {name}?",
   "settings.data": "Data",
   "data.retention": "Keep visits for",
   "data.retentionHint": "Older visits and events are deleted for good when you save, then every day after. Goals, links, and settings stay.",

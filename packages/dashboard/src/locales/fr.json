@@ -1,5 +1,6 @@
 {
   "app.site": "Site",
+  "app.confirmDelete": "Supprimer {name} ?",
   "app.signedOut": "Ouvrez cette page une fois avec {token} suivi de votre {env} pour vous connecter.",
   "app.live.title": "Visiteurs des cinq dernières minutes",
   "app.live_one": "{n} en ce moment",
@@ -607,6 +608,9 @@
   "sites.remoteNote": "Ce site est compté par son propre Runlight à {url}, qui autorise ce serveur à le lire. Autorisez les modifications pour gérer aussi ses réglages d’ici.",
   "sites.disconnect": "Déconnecter ce site",
   "sites.disconnectHint": "La déconnexion retire le site de ce serveur. Son propre Runlight et tout ce qu’il a compté restent tels quels.",
+  "sites.disconnectButton": "Déconnecter le site",
+  "sites.confirmDisconnect": "Confirmer la déconnexion",
+  "sites.disconnectName": "Déconnecter {name} ?",
   "settings.data": "Données",
   "data.retention": "Conserver les visites",
   "data.retentionHint": "Les visites et événements plus anciens sont supprimés définitivement à l’enregistrement, puis chaque jour. Les objectifs, liens et réglages restent.",

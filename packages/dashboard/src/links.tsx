@@ -6,7 +6,7 @@ import { count, countryName, day, flag } from "./format.js";
 import { errorText, t, tn, type Key } from "./i18n.js";
 import { label } from "./panel.js";
 import { Empty } from "./empty.js";
-import { Icon } from "./icons.js";
+import { Icon, type IconName } from "./icons.js";
 import { useDialogFocus } from "./focus.js";
 
 /**
@@ -346,7 +346,7 @@ type Sort = "clicks" | "newest" | "name";
 const PAGE = 100;
 
 /** Two steps, so a stray click never deletes: the first arms it for a few seconds. */
-export function DeleteButton({ name, onDelete }: { name: string; onDelete: () => void }) {
+export function DeleteButton({ name, onDelete, label, confirm, icon = "trash", hint }: { name: string; onDelete: () => void; label?: string; confirm?: string; icon?: IconName; hint?: string }) {
   const [armed, setArmed] = useState(false);
   useEffect(() => {
     if (!armed) return;
@@ -357,11 +357,11 @@ export function DeleteButton({ name, onDelete }: { name: string; onDelete: () =>
     <button
       type="button"
       class={armed ? "copy inline danger armed" : "copy inline danger"}
-      title={armed ? t("links.confirmDelete", { name }) : undefined}
+      title={armed ? (hint ?? t("app.confirmDelete", { name })) : undefined}
       onClick={() => (armed ? onDelete() : setArmed(true))}
     >
-      <Icon name="trash" />
-      {armed ? t("links.confirm") : t("links.delete")}
+      <Icon name={icon} />
+      {armed ? (confirm ?? t("links.confirm")) : (label ?? t("links.delete"))}
     </button>
   );
 }
@@ -514,7 +514,7 @@ export function LinkManager({ view, site, readOnly, onClose, onChanged }: { view
                           <Icon name="edit" />
                           {t("links.editButton")}
                         </button>
-                        <DeleteButton name={l.name} onDelete={() => api.deleteLink(site, l.id).then(changed, (e: Error) => setMessage({ text: e.message, failures: [] }))} />
+                        <DeleteButton name={l.name} hint={t("links.confirmDelete", { name: l.name })} onDelete={() => api.deleteLink(site, l.id).then(changed, (e: Error) => setMessage({ text: e.message, failures: [] }))} />
                       </>
                     )}
                   </td>

@@ -211,6 +211,9 @@ function General({ site, admin, onSaved, onLanguage, onDeleted }: { site: Site; 
             <div>
               <DeleteButton
                 name={site.name}
+                {...(site.remote
+                  ? { label: t("sites.disconnectButton"), confirm: t("sites.confirmDisconnect"), hint: t("sites.disconnectName", { name: site.name }), icon: "unlink" as const }
+                  : {})}
                 onDelete={() =>
                   void api
                     .deleteSite(site.id)

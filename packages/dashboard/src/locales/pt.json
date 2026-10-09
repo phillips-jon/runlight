@@ -1,5 +1,6 @@
 {
   "app.site": "Site",
+  "app.confirmDelete": "Excluir {name}?",
   "app.signedOut": "Abra esta página uma vez com {token} seguido do seu {env} para entrar.",
   "app.live.title": "Visitantes nos últimos cinco minutos",
   "app.live_one": "{n} agora",
@@ -607,6 +608,9 @@
   "sites.remoteNote": "Este site é contado pelo próprio Runlight em {url}, que deixa este servidor lê-lo. Permita mudanças para gerenciar também as configurações daqui.",
   "sites.disconnect": "Desconectar este site",
   "sites.disconnectHint": "Desconectar remove o site deste servidor. O próprio Runlight dele e tudo o que contou continuam como estão.",
+  "sites.disconnectButton": "Desconectar site",
+  "sites.confirmDisconnect": "Confirmar desconexão",
+  "sites.disconnectName": "Desconectar {name}?",
   "settings.data": "Dados",
   "data.retention": "Manter visitas por",
   "data.retentionHint": "Visitas e eventos mais antigos são apagados de vez ao salvar e depois todos os dias. Metas, links e configurações continuam.",
