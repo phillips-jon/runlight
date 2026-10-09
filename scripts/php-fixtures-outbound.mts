@@ -236,6 +236,17 @@ const scenarios: Scenario[] = [
     { pattern: "api\\.dub\\.co\\/links\\?", body: dubLinks },
     { pattern: "\\/events\\?", status: 401, body: {} },
   ] },
+  { name: "dub events fail", source: "dub", credentials: { apiKey: "dub_test" }, routes: [
+    { pattern: "api\\.dub\\.co\\/links\\?", body: dubLinks },
+    { pattern: "\\/events\\?.*linkId=l1", status: 500, body: {} },
+    { pattern: "\\/events\\?.*linkId=l2", body: [] },
+    { pattern: "\\/analytics\\?", body: [{ start: "2026-03-01T00:00:00.000Z", clicks: 3 }] },
+  ] },
+  { name: "dub analytics fail", source: "dub", credentials: { apiKey: "dub_test" }, routes: [
+    { pattern: "api\\.dub\\.co\\/links\\?", body: dubLinks },
+    { pattern: "\\/events\\?", status: 403, body: {} },
+    { pattern: "\\/analytics\\?", status: 404, body: {} },
+  ] },
   { name: "dub cursor", source: "dub", credentials: { apiKey: "k" }, cursor: '{"after":"l&1","history":"none"}', routes: [{ pattern: "links\\?", body: dubLinks }] },
   { name: "dub no key", source: "dub", credentials: { apiKey: "  " }, routes: [] },
   { name: "bitly", source: "bitly", credentials: { token: "bitly_test" }, routes: [
@@ -267,6 +278,11 @@ const scenarios: Scenario[] = [
     { pattern: "statistics\\/link\\/33\\/by_interval", body: { clickStatistics: {} } },
     { pattern: "statistics\\/link\\/34\\/by_interval", status: 503, body: {} },
   ], known: [] },
+  { name: "shortio unreadable dates", source: "shortio", credentials: { apiKey: "sk_test" }, routes: [
+    { pattern: "api\\.short\\.io\\/api\\/domains", body: [{ id: 7, hostname: "s.brand.com" }] },
+    { pattern: "api\\/links\\?domain_id=7", body: { links: [{ idString: "lnk1", id: 1, path: "one", originalURL: "https://a.com/1", createdAt: "2026-01-01T00:00:00Z" }] } },
+    { pattern: "statistics\\/link\\/lnk1\\/by_interval", body: { clickStatistics: [{ x: "1772409600000", y: 1 }, { x: "2026-03-01T00:00:00Z", y: 4 }, { x: 9e15, y: 2 }, { x: "nope", y: 3 }, { x: Date.UTC(2026, 2, 2), y: 5 }] } },
+  ] },
   { name: "shortio no key", source: "shortio", credentials: {}, routes: [] },
   { name: "rebrandly", source: "rebrandly", credentials: { apiKey: "rb_test", workspace: " ws1 " }, routes: [
     { pattern: "\\/links\\?.*last=r24", body: Array.from({ length: 3 }, (_, i) => ({ id: `r${25 + i}`, slashtag: `s${25 + i}`, destination: `https://a.com/${25 + i}`, domain: { fullName: "rebrand.ly" }, createdAt: "2026-01-01T00:00:00Z" })) },
@@ -277,6 +293,15 @@ const scenarios: Scenario[] = [
     { pattern: "links", status: 500, headers: { "retry-after": "soon" }, body: {}, times: 1 },
     { pattern: "links", status: 502, headers: { "retry-after": "60" }, body: {}, times: 1 },
     { pattern: "links", body: [] },
+  ] },
+  { name: "rebrandly negative retry-after", source: "rebrandly", credentials: { apiKey: "rb" }, routes: [
+    { pattern: "links", status: 429, headers: { "retry-after": "-5" }, body: {}, times: 1 },
+    { pattern: "links", status: 503, headers: { "retry-after": "-0.5" }, body: {}, times: 1 },
+    { pattern: "links", body: [] },
+  ] },
+  { name: "rebrandly numeric ids", source: "rebrandly", credentials: { apiKey: "rb" }, routes: [
+    { pattern: "last=24", body: [{ id: 25, slashtag: "s25", destination: "https://a.com/25", createdAt: "2026-01-01T00:00:00Z" }] },
+    { pattern: "rebrandly\\.com\\/v1\\/links\\?", body: Array.from({ length: 25 }, (_, i) => ({ id: i, slashtag: `s${i}`, destination: `https://a.com/${i}`, createdAt: "2026-01-01T00:00:00Z" })) },
   ] },
   { name: "rebrandly gives up", source: "rebrandly", credentials: { apiKey: "rb" }, routes: [{ pattern: "links", status: 500, body: {} }] },
   { name: "rebrandly unreachable", source: "rebrandly", credentials: { apiKey: "rb" }, routes: [{ pattern: "links", unreachable: true }] },
@@ -308,6 +333,14 @@ const scenarios: Scenario[] = [
   { name: "umami wrong password", source: "umami", credentials: { url: "https://stats.example.com", username: "jon", password: "bad" }, routes: [
     { pattern: "\\/api\\/auth\\/login", body: {} },
     { pattern: "\\/api\\/links\\?", body: { data: [], count: 0 } },
+  ] },
+  { name: "umami no count", source: "umami", credentials: { url: "https://stats.example.com", apiKey: "k" }, routes: [
+    { pattern: "\\/api\\/links\\?page=1&", body: { data: Array.from({ length: 5 }, (_, i) => ({ id: `u${i}`, name: `N${i}`, url: `https://a.com/${i}`, slug: `s${i}`, createdAt: "2026-01-01T00:00:00Z", deletedAt: null })) } },
+    { pattern: "\\/api\\/links\\?page=2&", body: { data: [{ id: "u5", name: "N5", url: "https://a.com/5", slug: "s5", createdAt: "2026-01-01T00:00:00Z", deletedAt: null }], count: "six" } },
+    { pattern: "\\/websites\\/", body: { data: [] } },
+  ], known: ["u0", "u1", "u2", "u3", "u4"] },
+  { name: "umami login token not text", source: "umami", credentials: { url: "https://stats.example.com", username: "jon", password: "pw" }, routes: [
+    { pattern: "\\/api\\/auth\\/login", body: { token: 42 } },
   ] },
   { name: "umami no address", source: "umami", credentials: { url: "nope" }, routes: [] },
   { name: "umami no login", source: "umami", credentials: { url: "https://stats.example.com", username: "jon" }, routes: [] },

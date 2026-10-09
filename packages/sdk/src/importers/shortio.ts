@@ -63,9 +63,14 @@ export const shortio: Importer = {
         });
         const raw = body.clickStatistics;
         const points: Point[] = Array.isArray(raw) ? raw : (raw?.datasets?.[0]?.data ?? []);
-        daily = points
-          .filter((p) => p.y > 0)
-          .map((p) => ({ day: new Date(typeof p.x === "number" ? p.x : Date.parse(p.x)).toISOString().slice(0, 10), clicks: p.y }));
+        daily = [];
+        for (const p of points) {
+          if (!(p.y > 0)) continue;
+          // A point whose date cannot be read is left out, not the link.
+          const date = new Date(typeof p.x === "number" ? p.x : Date.parse(p.x));
+          if (Number.isNaN(date.getTime())) continue;
+          daily.push({ day: date.toISOString().slice(0, 10), clicks: p.y });
+        }
       } catch (error) {
         if (!(error instanceof HttpError) || error.status === 401) throw error;
       }
