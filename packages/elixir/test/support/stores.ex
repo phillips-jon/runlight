@@ -96,7 +96,9 @@ defmodule Runlight.Test.Stores do
     %{rows: rows} =
       MyRepo.query!(
         "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name LIKE 'rl\\\\_%'",
-        [], log: false)
+        [],
+        log: false
+      )
 
     for [table] <- rows, do: MyRepo.query!("DROP TABLE IF EXISTS `#{table}`", [], log: false)
   end
