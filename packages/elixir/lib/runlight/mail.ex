@@ -171,7 +171,29 @@ defmodule Runlight.Mail do
          not Regex.match?(~r/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/, url),
        do: raise(MailError, message: "The webhook URL must use https", code: "mail_https", params: %{})
 
+    if field(config, "service") == "webhook" and Runlight.Url.parse(url) == nil,
+      do:
+        raise(MailError,
+          message: "Enter the webhook's whole URL, like https://example.com/hooks/mail",
+          code: "mail_url",
+          params: %{}
+        )
+
+    # A port a socket can connect to, read with Number() as the SMTP client reads it.
+    if field(config, "service") == "smtp" and not port?(field(config, "port")),
+      do: raise(MailError, message: "The port must be a whole number from 1 to 65535", code: "mail_port", params: %{})
+
     :ok
+  end
+
+  defp port?(nil), do: false
+
+  defp port?(text) do
+    case JS.number(text) do
+      n when is_integer(n) -> n >= 1 and n <= 65_535
+      n when is_float(n) -> n == Float.round(n) and n >= 1 and n <= 65_535
+      _ -> false
+    end
   end
 
   defp host_of(url), do: url |> Runlight.Url.new() |> Runlight.Url.host()
@@ -212,15 +234,8 @@ defmodule Runlight.Mail do
   def fetch_message(_), do: "fetch failed"
 
   defp json(headers), do: [{"content-type", "application/json"} | headers]
-  defp basic(user, pass), do: "Basic " <> btoa("#{user}:#{pass}")
-
-  # btoa: each character one byte, which only Latin-1 text can be.
-  defp btoa(text) do
-    case :unicode.characters_to_binary(text, :utf8, :latin1) do
-      bytes when is_binary(bytes) -> Base.encode64(bytes)
-      _ -> raise ArgumentError, "Invalid character: btoa takes Latin-1 text only"
-    end
-  end
+  # Basic auth over the UTF-8 bytes, so a key with any character is sent.
+  defp basic(user, pass), do: "Basic " <> Base.encode64("#{user}:#{pass}")
 
   @doc """
   Sends one message through the configured service. The message is

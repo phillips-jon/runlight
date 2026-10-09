@@ -15,11 +15,20 @@ defmodule Runlight.Icon do
   @max_bytes 256 * 1024
   @day 86_400_000
 
-  defp attr(tag, name) do
-    case Regex.run(~r/\b#{name}\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i, tag) do
-      nil -> ""
-      match -> match |> Enum.drop(2) |> Enum.find("", &(&1 != "")) |> JS.trim()
-    end
+  # JavaScript's \s, which PCRE's differs from.
+  @js_space "\\t\\n\\x{0B}\\f\\r \\x{A0}\\x{1680}\\x{2000}-\\x{200A}\\x{2028}\\x{2029}\\x{202F}\\x{205F}\\x{3000}\\x{FEFF}"
+  @attribute "([^#{@js_space}\"'>/=]+)(?:[#{@js_space}]*=[#{@js_space}]*(?:\"([^\"]*)\"|'([^']*)'|([^#{@js_space}>]+)))?"
+
+  # A tag's attributes, read one after another so a name inside another
+  # (data-rel) or inside a value (title="rel=icon") is never taken for one.
+  # The first of a repeated name counts, as in a browser.
+  defp attrs(tag) do
+    @attribute
+    |> Regex.compile!("u")
+    |> Regex.scan(binary_part(tag, 5, byte_size(tag) - 5), capture: :all_but_first)
+    |> Enum.reduce(%{}, fn [name | values], out ->
+      Map.put_new(out, JS.lower(name), values |> Enum.find("", &(&1 != "")) |> JS.trim())
+    end)
   end
 
   @doc "Icon URLs a page links to, best first: apple-touch-icon, then SVG and PNG icons, then any icon."
@@ -28,15 +37,16 @@ defmodule Runlight.Icon do
     ~r/<link\b[^>]*>/i
     |> Regex.scan(html)
     |> Enum.flat_map(fn [tag] ->
-      rel = tag |> attr("rel") |> JS.lower() |> String.split(~r/\s+/)
-      href = attr(tag, "href")
+      attributes = attrs(tag)
+      rel = attributes |> Map.get("rel", "") |> JS.lower() |> String.split(~r/\s+/)
+      href = Map.get(attributes, "href", "")
 
       with true <- href != "" and ("icon" in rel or "apple-touch-icon" in rel),
            %Url{} = url <- Url.parse(href, base),
            text = Url.href(url),
            # Only https, which is all the fetch below takes.
            true <- String.starts_with?(text, "https://") do
-        type = tag |> attr("type") |> JS.lower()
+        type = attributes |> Map.get("type", "") |> JS.lower()
 
         score =
           cond do

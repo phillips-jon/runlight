@@ -101,6 +101,15 @@ defmodule Runlight.Assistant do
 
   defp host_of(url), do: Url.host(Url.new(url))
 
+  # A service that answered, but not in its protocol's shape.
+  defp unreadable(url) do
+    host = host_of(url)
+    message = "#{host} sent an answer Runlight could not read"
+    raise AssistantError, message: message, code: "assistant_failed", params: [{"host", host}, {"detail", message}]
+  end
+
+  defp objects?(items), do: Enum.all?(items, &is_struct(&1, Object))
+
   defp post(rl, url, headers, body, deadline) do
     in_time(deadline)
     left = deadline - clock()
@@ -288,11 +297,11 @@ defmodule Runlight.Assistant do
           )
 
         blocks =
-          case JS.prop(data, "content"),
-            do: (
-              l when is_list(l) -> l
-              _ -> []
-            )
+          case JS.prop(data, "content") do
+            empty when empty in [nil, :undefined] -> []
+            l when is_list(l) -> if objects?(l), do: l, else: unreadable(base)
+            _ -> unreadable(base)
+          end
 
         calls = Enum.filter(blocks, &(JS.prop(&1, "type") == "tool_use"))
 
@@ -365,12 +374,27 @@ defmodule Runlight.Assistant do
               Object.new()
           end
 
+        # As `tool_calls?.length` reads it: no calls when that is falsy, and calls in a shape it cannot read otherwise.
         calls =
-          case JS.prop(message, "tool_calls"),
-            do: (
-              l when is_list(l) and l != [] -> l
-              _ -> nil
-            )
+          case JS.prop(message, "tool_calls") do
+            [] ->
+              nil
+
+            l when is_list(l) ->
+              if objects?(l) and objects?(Enum.map(l, &JS.prop(&1, "function"))), do: l, else: unreadable(base)
+
+            "" ->
+              nil
+
+            text when is_binary(text) ->
+              unreadable(base)
+
+            %Object{} = o ->
+              if JS.truthy?(JS.prop(o, "length")), do: unreadable(base), else: nil
+
+            _ ->
+              nil
+          end
 
         if calls == nil do
           {:halt,
@@ -451,10 +475,12 @@ defmodule Runlight.Assistant do
 
     models =
       case JS.prop(data, "data") do
+        empty when empty in [nil, :undefined] -> []
         list when is_list(list) -> list
-        _ -> []
+        _ -> unreadable(base)
       end
-      |> Enum.filter(&(is_binary(JS.prop(&1, "id")) and JS.prop(&1, "id") != ""))
+      # An entry that is not an object is skipped, like one without an id.
+      |> Enum.filter(&(is_struct(&1, Object) and is_binary(JS.prop(&1, "id")) and JS.prop(&1, "id") != ""))
       # Gemini lists ids as "models/gemini-...", which its OpenAI-compatible API takes without the prefix.
       |> Enum.map(fn m ->
         id = String.replace(JS.prop(m, "id"), ~r/^models\//, "")
