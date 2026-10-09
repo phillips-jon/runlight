@@ -78,7 +78,7 @@ _BUSY = re.compile(
 )
 
 
-class SettingsError(ValueError):
+class SettingsError(_js.RangeError):
     """A setting refused, such as a site's domain or the assistant's service, as a code the dashboard says in its
     own words."""
 
