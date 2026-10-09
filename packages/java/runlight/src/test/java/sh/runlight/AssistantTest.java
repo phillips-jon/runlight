@@ -10,18 +10,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
-import sh.runlight.http.FetchError;
 import sh.runlight.http.FetchInit;
-import sh.runlight.http.Fetcher;
 import sh.runlight.http.Headers;
 import sh.runlight.http.Response;
 
@@ -41,50 +37,6 @@ final class AssistantTest {
           "today",
           "language",
           "en");
-
-  /**
-   * A Fetcher that records each request and answers from a queue: a Response, or "timeout" or
-   * "network" to fail.
-   */
-  private static final class Recorder implements Fetcher {
-    final List<Map<String, Object>> requests = new ArrayList<>();
-    private final Deque<Object> queue;
-
-    Recorder(List<Object> queue) {
-      this.queue = new ArrayDeque<>(queue);
-    }
-
-    @Override
-    public Response fetch(String url, FetchInit init) {
-      Map<String, Object> headers = new LinkedHashMap<>();
-      for (Map.Entry<String, List<String>> e : init.headers.all().entrySet()) {
-        headers.put(e.getKey(), String.join(", ", e.getValue()));
-      }
-      requests.add(
-          Json.object(
-              "url",
-              url,
-              "method",
-              init.method,
-              "headers",
-              headers,
-              "body",
-              init.body,
-              "timeoutMs",
-              init.timeoutMs));
-      Object next = queue.poll();
-      if (next == null) {
-        throw new IllegalStateException("No canned answer left");
-      }
-      if (next.equals("timeout")) {
-        throw new FetchError("The operation timed out", true, null);
-      }
-      if (next.equals("network")) {
-        throw new FetchError("Could not connect");
-      }
-      return (Response) next;
-    }
-  }
 
   private static Response json(String body) {
     return new Response(body, 200, Headers.of("content-type", "application/json"));
@@ -109,7 +61,7 @@ final class AssistantTest {
                     (int) Js.asLong(c.get("status")),
                     Headers.of("content-type", "application/json")));
       }
-      Recorder fetcher = new Recorder(queue);
+      RecordingFetcher fetcher = new RecordingFetcher(queue.toArray());
       List<Object> tools = new ArrayList<>();
       Map<String, Object> settings = Js.map(scenario.get("settings"));
       try {
@@ -142,11 +94,16 @@ final class AssistantTest {
         Map<String, Object> sent = fetcher.requests.get(i);
         assertEquals(expected.get("url"), sent.get("url"), name + " request " + i);
         assertEquals(expected.get("method"), sent.get("method"), name + " request " + i);
+        // The fixture keeps headers in the order they were set, so they are read from the init.
+        Map<String, Object> headers = new LinkedHashMap<>();
+        for (Map.Entry<String, List<String>> e : fetcher.inits.get(i).headers.all().entrySet()) {
+          headers.put(e.getKey(), String.join(", ", e.getValue()));
+        }
         assertEquals(
             Json.stringify(expected.get("headers")),
-            Json.stringify(sent.get("headers")),
+            Json.stringify(headers),
             name + " request " + i + " headers");
-        byte[] body = (byte[]) sent.get("body");
+        byte[] body = fetcher.inits.get(i).body;
         assertEquals(
             expected.get("bodySha256"),
             body == null ? null : HexFormat.of().formatHex(Hash.sha256Bytes(body)),
@@ -212,8 +169,8 @@ final class AssistantTest {
                                 "list_sites",
                                 "input",
                                 new LinkedHashMap<>())))));
-    Recorder fetcher =
-        new Recorder(List.of(toolUse.apply("a"), toolUse.apply("b"), toolUse.apply("c")));
+    RecordingFetcher fetcher =
+        new RecordingFetcher(toolUse.apply("a"), toolUse.apply("b"), toolUse.apply("c"));
     List<Object> log = new ArrayList<>();
     Mcp.ApiRead readApi = McpTest.readApi(log);
     Mcp.ApiRead slowApi =
@@ -235,8 +192,8 @@ final class AssistantTest {
       assertEquals("assistant_slow", error.code());
     }
     List<Object> timeouts = new ArrayList<>();
-    for (Map<String, Object> r : fetcher.requests) {
-      timeouts.add(r.get("timeoutMs"));
+    for (FetchInit init : fetcher.inits) {
+      timeouts.add(init.timeoutMs);
     }
     assertEquals(List.of(90_000L, 70_000L, 20_000L), timeouts);
     assertEquals(3, log.size());
@@ -244,7 +201,7 @@ final class AssistantTest {
 
   @Test
   void aCancelledQuestionStopsBeforeItsNextRequest() {
-    Recorder fetcher = new Recorder(List.of());
+    RecordingFetcher fetcher = new RecordingFetcher();
     try {
       Assistant.chat(
           Json.object("provider", "openai", "model", "m", "baseUrl", "", "key", "k"),
@@ -264,14 +221,14 @@ final class AssistantTest {
 
   @Test
   void modelsAreListedWithinTwentySeconds() {
-    Recorder fetcher =
-        new Recorder(List.of(new Response("{\"data\":[{\"id\":\"b\"},{\"id\":\"a\"}]}", 200)));
+    RecordingFetcher fetcher =
+        new RecordingFetcher(new Response("{\"data\":[{\"id\":\"b\"},{\"id\":\"a\"}]}", 200));
     assertEquals(
         "[{\"id\":\"a\",\"name\":\"a\"},{\"id\":\"b\",\"name\":\"b\"}]",
         Json.stringify(
             Assistant.listModels(
                 Json.object("provider", "ollama", "baseUrl", "", "key", ""), fetcher)));
-    assertEquals(20_000L, fetcher.requests.get(0).get("timeoutMs"));
+    assertEquals(20_000L, fetcher.inits.get(0).timeoutMs);
     assertEquals("http://localhost:11434/v1/models", fetcher.requests.get(0).get("url"));
   }
 
