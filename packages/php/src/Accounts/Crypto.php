@@ -100,23 +100,33 @@ final class Crypto
     public static function checkPassword(string $password, string $stored): bool
     {
         $parts = explode('$', $stored);
+        // A stored hash whose salt or key is not base64url matches nothing, rather than failing the sign-in.
+        $decode = static function (string $text): ?string {
+            try {
+                return self::fromBase64url($text);
+            } catch (\InvalidArgumentException) {
+                return null;
+            }
+        };
         if ($parts[0] === 'scrypt' && count($parts) === 3) {
-            $expected = self::fromBase64url($parts[2]);
-            if (strlen($expected) < self::MIN_KEY_BYTES) {
+            $expected = $decode($parts[2]);
+            $salt = $decode($parts[1]);
+            if ($expected === null || $salt === null || strlen($expected) < self::MIN_KEY_BYTES) {
                 return false;
             }
-            return self::sameBytes(self::scrypt($password, self::fromBase64url($parts[1]), strlen($expected)), $expected);
+            return self::sameBytes(self::scrypt($password, $salt, strlen($expected)), $expected);
         }
         if ($parts[0] === 'pbkdf2' && count($parts) === 4) {
             $rounds = Js::number($parts[1]);
             if (!is_int($rounds) || $rounds < 1 || $rounds > 10_000_000) {
                 return false;
             }
-            $expected = self::fromBase64url($parts[3]);
-            if (strlen($expected) < self::MIN_KEY_BYTES) {
+            $expected = $decode($parts[3]);
+            $salt = $decode($parts[2]);
+            if ($expected === null || $salt === null || strlen($expected) < self::MIN_KEY_BYTES) {
                 return false;
             }
-            return self::sameBytes(self::pbkdf2($password, self::fromBase64url($parts[2]), $rounds, strlen($expected)), $expected);
+            return self::sameBytes(self::pbkdf2($password, $salt, $rounds, strlen($expected)), $expected);
         }
         return false;
     }

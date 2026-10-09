@@ -16,7 +16,7 @@ The Runlight module connects a Drupal 10.3 or 11 site to a Runlight you run else
 
 ## Set it up
 
-1. Install the module (`composer require runlight/drupal`, or place it in `modules/custom/runlight`) and enable it with `drush pm:install runlight`.
+1. Install the module (`composer require drupal/runlight`, or place it in `modules/custom/runlight`) and enable it with `drush pm:install runlight`.
 2. In your Runlight, make sure the site’s hostname is counted (see [Configuration](/docs/configuration/#sites)).
 3. Go to Configuration, System, Runlight, and enter the address Runlight is mounted at, such as `https://stats.example.com/runlight`. The page checks that the address answers.
 4. To count AI agents, copy this site’s key from **Settings**, **Install**, **Key for CMS plugins** in Runlight and enter it here. The key can only report agent fetches for this one site.

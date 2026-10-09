@@ -515,11 +515,14 @@ final class Web
             }
             $user = $this->accounts->signIn($email, $password);
             if ($user !== null) {
-                try {
-                    $this->sendLink($user, $next);
-                } catch (\Throwable $error) {
-                    error_log('Runlight: could not send a sign-in link ' . $error->getMessage());
-                }
+                // Sent once the answer is out, as TypeScript does, so a right password takes no longer to answer than a wrong one.
+                $this->rl->later(function () use ($user, $next): void {
+                    try {
+                        $this->sendLink($user, $next);
+                    } catch (\Throwable $error) {
+                        error_log('Runlight: could not send a sign-in link ' . $error->getMessage());
+                    }
+                });
             }
             return self::html($login(['error' => 'Too many tries for this account. If the password was right, a link to sign in is on its way to its email address.', 'email' => $email]), 429);
         }
