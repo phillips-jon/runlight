@@ -595,21 +595,89 @@ public final class Assistant {
   }
 
   /**
-   * The white space, punctuation, and symbols of ASCII in the order the Unicode root collation (as
-   * ICU, and so Node's localeCompare, has it) puts them: all before digits, digits before letters.
+   * Every printable ASCII character, the ASCII spaces, and U+0085 in the order Node's localeCompare
+   * (ICU's root collation) sorts them; a letter's two cases share a place, the small one first.
    */
-  private static final String SYMBOLS = "\t\n\u000B\f\r _-,;:!?.'\"()[]{}@*/\\&#%`^+<=>|~$";
+  private static final String ORDER =
+      "\t\n\u000B\f\r\u0085 _-,;:!?.'\"()[]{}@*/\\&#%`^+<=>|~$0123456789aAbBcCdDeEfFgGhHiIjJkKlLmMnNoOpPqQrRsStTuUvVwWxXyYzZ";
+
+  /** The combining marks Latin letters decompose to, in ICU's secondary order. */
+  private static final String MARKS =
+      "\u0301\u0300\u0306\u0302\u030C\u030A\u0308\u030B\u0303\u0307\u0327\u0328\u0304"
+          + "\u0309\u030F\u0311\u031B\u0323\u0324\u0325\u0326\u032D\u032E\u0330\u0331";
+
+  /** The primary weight of each character in ORDER, by code point; zero for any other. */
+  private static final int[] PRIMARIES = new int[0x86];
+
+  private static final int COMMON = 1;
+  private static final int UPPER = 2;
+
+  /** The tertiary weight of U+00A0, a space that sorts after the plain one. */
+  private static final int NO_BREAK = 3;
+
+  /** The first primary weight past those in ORDER, for characters ranked by code point. */
+  private static final int BEYOND = 1000;
+
+  static {
+    int weight = 0;
+    for (int i = 0; i < ORDER.length(); i++) {
+      char c = ORDER.charAt(i);
+      // A capital shares the small letter's weight.
+      if (c < 'A' || c > 'Z') {
+        weight++;
+      }
+      PRIMARIES[c] = weight;
+    }
+  }
+
+  private static int primary(int cp) {
+    return cp < PRIMARIES.length ? PRIMARIES[cp] : 0;
+  }
+
+  /** A collation element: a primary weight (the letter), a secondary (its marks), a tertiary. */
+  private static int[] letter(int c) {
+    return new int[] {primary(c), COMMON, c >= 'A' && c <= 'Z' ? UPPER : COMMON};
+  }
 
   /**
-   * a.localeCompare(b) as Node's ICU root collation orders the names of models: punctuation before
-   * digits before letters, digits one by one, then accents, then lowercase before uppercase.
-   * Letters outside ASCII sort after z by their lowercase code point, which only approximates ICU.
+   * The collation elements of a string, each {primary, secondary, tertiary}; zero is a weight the
+   * level skips. The string is decomposed first, as ICU compares canonically equivalent strings as
+   * equal, so a Latin letter with marks is its ASCII letter and then its marks in canonical order.
+   */
+  private static List<int[]> elements(String text) {
+    List<int[]> out = new ArrayList<>();
+    Normalizer.normalize(text, Normalizer.Form.NFD)
+        .codePoints()
+        .forEach(
+            cp -> {
+              int mark = cp < 0x10000 ? MARKS.indexOf((char) cp) + 1 : 0;
+              if (primary(cp) != 0) {
+                out.add(letter(cp));
+              } else if (cp == 0xA0) {
+                out.add(new int[] {primary(' '), COMMON, NO_BREAK});
+              } else if (cp < 0x20 || cp >= 0x7F && cp < 0xA0) {
+                // Controls are ignored altogether.
+              } else if (mark != 0) {
+                out.add(new int[] {0, COMMON + mark, COMMON});
+              } else {
+                out.add(new int[] {BEYOND + cp, COMMON, COMMON});
+              }
+            });
+    return out;
+  }
+
+  /**
+   * a.localeCompare(b) as Node has it, with ICU's root collation: letters before their marks before
+   * their case, level by level, so "e" before "\u00E9" before "f" and "ab" before "aB" before "Ab".
+   * It is exact for ASCII and for Latin letters whose marks decompose; any other character sorts
+   * after z by its code point, where ICU has an order of its own. The Go port's weights, checked
+   * against Node on the pairs of the Java and Go ports' collation.json.
    */
   static int localeCompare(String a, String b) {
-    int[][] x = collationKey(a);
-    int[][] y = collationKey(b);
+    List<int[]> x = elements(a);
+    List<int[]> y = elements(b);
     for (int level = 0; level < 3; level++) {
-      int order = java.util.Arrays.compare(x[level], y[level]);
+      int order = java.util.Arrays.compare(weights(x, level), weights(y, level));
       if (order != 0) {
         return Integer.signum(order);
       }
@@ -617,47 +685,7 @@ public final class Assistant {
     return 0;
   }
 
-  /** The primary, secondary, and tertiary weights of a string. */
-  private static int[][] collationKey(String text) {
-    String decomposed = Normalizer.normalize(text, Normalizer.Form.NFD);
-    List<Integer> primary = new ArrayList<>();
-    List<Integer> secondary = new ArrayList<>();
-    List<Integer> tertiary = new ArrayList<>();
-    decomposed
-        .codePoints()
-        .forEach(
-            cp -> {
-              int type = Character.getType(cp);
-              if (type == Character.NON_SPACING_MARK
-                  || type == Character.COMBINING_SPACING_MARK
-                  || type == Character.ENCLOSING_MARK) {
-                // A mark weighs nothing at the first level and only adds an accent.
-                secondary.add(cp);
-                return;
-              }
-              int symbol = cp < 128 ? SYMBOLS.indexOf(cp) : -1;
-              int weight;
-              if (symbol >= 0) {
-                weight = 1 + symbol;
-              } else if (cp >= '0' && cp <= '9') {
-                weight = 100 + cp - '0';
-              } else if (Character.isLetter(cp)) {
-                weight = 1000 + Character.toLowerCase(cp);
-              } else {
-                weight = 0x200000 + cp;
-              }
-              primary.add(weight);
-              secondary.add(1);
-              tertiary.add(Character.isUpperCase(cp) ? 1 : 0);
-            });
-    return new int[][] {ints(primary), ints(secondary), ints(tertiary)};
-  }
-
-  private static int[] ints(List<Integer> list) {
-    int[] out = new int[list.size()];
-    for (int i = 0; i < out.length; i++) {
-      out[i] = list.get(i);
-    }
-    return out;
+  private static int[] weights(List<int[]> elements, int level) {
+    return elements.stream().mapToInt(e -> e[level]).filter(w -> w != 0).toArray();
   }
 }

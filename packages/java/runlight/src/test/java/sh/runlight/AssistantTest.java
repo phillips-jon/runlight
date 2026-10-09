@@ -6,6 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -269,5 +273,38 @@ final class AssistantTest {
                 Json.object("provider", "ollama", "baseUrl", "", "key", ""), fetcher)));
     assertEquals(20_000L, fetcher.requests.get(0).get("timeoutMs"));
     assertEquals("http://localhost:11434/v1/models", fetcher.requests.get(0).get("url"));
+  }
+
+  /**
+   * collation.json, written by scripts/java-collation.mts, holds pairs of strings with Node 24's
+   * Math.sign(a.localeCompare(b)), over ASCII, spaces, controls, Latin letters with marks
+   * (precomposed and not), and model names.
+   */
+  @Test
+  void collationMatchesNode() {
+    List<Object> pairs;
+    try (InputStream in = AssistantTest.class.getResourceAsStream("collation.json")) {
+      pairs = Js.list(Json.parse(new String(in.readAllBytes(), StandardCharsets.UTF_8)));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+    List<String> wrong = new ArrayList<>();
+    for (Object p : pairs) {
+      List<Object> pair = Js.list(p);
+      String a = (String) pair.get(0);
+      String b = (String) pair.get(1);
+      long want = Js.asLong(pair.get(2));
+      int got = Assistant.localeCompare(a, b);
+      if (got != want) {
+        wrong.add(Json.stringify(Json.array(a, b, want, (long) got)));
+      }
+    }
+    assertTrue(
+        wrong.isEmpty(),
+        wrong.size()
+            + " of "
+            + pairs.size()
+            + " pairs differ: "
+            + String.join(", ", wrong.subList(0, Math.min(20, wrong.size()))));
   }
 }
