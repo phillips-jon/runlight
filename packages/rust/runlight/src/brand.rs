@@ -1,0 +1,4 @@
+//! The Runlight mark.
+
+/// The Runlight mark for the dashboard's tab: an R in a rounded lamp housing, one corner lit.
+pub const RUNLIGHT_ICON: &str = "data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cstyle%3E.h%7Bfill%3A%23000%7D.r%7Bstroke%3A%23fff%7D%40media%20%28prefers-color-scheme%3Adark%29%7B.h%7Bfill%3A%23fff%7D.r%7Bstroke%3A%23000%7D%7D%3C/style%3E%3Crect%20class%3D%22h%22%20x%3D%222.5%22%20y%3D%222.5%22%20width%3D%2227%22%20height%3D%2227%22%20rx%3D%227%22/%3E%3Cpath%20class%3D%22r%22%20d%3D%22M11%2023V9h6.2a4.3%204.3%200%200%201%200%208.6H11m6%200%205%205.4%22%20fill%3D%22none%22%20stroke-width%3D%222.8%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22/%3E%3Ccircle%20cx%3D%2223.6%22%20cy%3D%228.4%22%20r%3D%222.6%22%20fill%3D%22%2322c55e%22/%3E%3C/svg%3E";
