@@ -16,3 +16,8 @@ many sites. Planning docs and specs live outside the repo; never commit them.
 - Behaviour lands in TypeScript first, then `conformance/` is regenerated
   (`npm run conformance` writes `conformance/http.json`) and the other
   implementations follow.
+- Releases: `npm run release -- <version>` (try `--dry-run` first) bumps every
+  versioned file, runs the checks, commits and tags; it never pushes or
+  publishes. A new folder under `packages/` or `plugins/` needs rows in the
+  tables at the top of `scripts/release.mjs`; the script refuses to run
+  without them. Notes go under `## Unreleased` in `CHANGELOG.md`.
