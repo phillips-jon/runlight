@@ -1,0 +1,97 @@
+# A release tag -> its GitHub release, with that version's section of
+# CHANGELOG.md as the notes (scripts/release-notes.mjs) and the WordPress
+# plugin's zip (plugins/wordpress/build.php) attached twice: as
+# runlight-X.Y.Z.zip, and as runlight.zip, so that
+# https://github.com/phillips-jon/runlight/releases/latest/download/runlight.zip
+# always serves the newest stable release's plugin.
+#
+# A release that is already there keeps its title and notes, and uploads
+# replace a file of the same name, so a rerun is safe. A prerelease
+# (v0.2.0-beta.1) is marked one, and only the highest stable tag is marked
+# latest. Can also be started by hand for a tag.
+#
+# Stays off until the repository variable RELEASE_ENABLED is "true". It needs
+# no secret: it writes only to this repository's releases, with the
+# workflow's own token.
+name: GitHub release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to make the release for (v0.1.0, say)
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  # CI must pass on the tagged commit first (ci-passed.yml).
+  ci:
+    if: vars.RELEASE_ENABLED == 'true'
+    uses: ./.github/workflows/ci-passed.yml
+    permissions:
+      actions: read
+      contents: read
+    with:
+      tag: ${{ inputs.tag }}
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ needs.ci.outputs.sha }}
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.2"
+          extensions: zip
+          coverage: none
+          tools: none
+      - name: Make the release and attach the WordPress zip
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          case "$TAG" in v[0-9]*) ;; *) echo "not a release tag: $TAG"; exit 1 ;; esac
+          version="${TAG#v}"
+          # build.php refuses a zip whose header, constant, readme Stable tag
+          # and changelog disagree; the plugin's version must also be the
+          # tag's, or the release would carry another one.
+          plugin="$(sed -n 's/^ \* Version: *\([^ ]*\)$/\1/p' plugins/wordpress/runlight.php)"
+          if [ "$plugin" != "$version" ]; then echo "the plugin is $plugin, the tag is $TAG"; exit 1; fi
+          out="$RUNNER_TEMP/release"
+          mkdir -p "$out"
+          node scripts/release-notes.mjs "$version" > "$out/notes.md"
+          php plugins/wordpress/build.php "$out"
+          zip="$out/runlight-$version.zip"
+          if [ ! -f "$zip" ]; then echo "build.php did not write $zip"; exit 1; fi
+          cp "$zip" "$out/runlight.zip"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            latest=false
+            set --
+            case "$version" in
+              *-*) set -- --prerelease ;;
+              *)
+                highest="$(gh api "repos/$GH_REPO/git/matching-refs/tags/v" --paginate --jq '.[].ref' \
+                  | sed -n 's#^refs/tags/v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$#\1#p' \
+                  | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
+                if [ -z "$highest" ]; then echo "could not list the release tags"; exit 1; fi
+                if [ "$highest" = "$version" ]; then latest=true; fi
+                ;;
+            esac
+            gh release create "$TAG" --verify-tag "$@" --latest="$latest" --title "Runlight $version" --notes-file "$out/notes.md"
+          fi
+          gh release upload "$TAG" "$zip" "$out/runlight.zip" --clobber
