@@ -8,7 +8,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
 import os from "node:os";
 import path from "node:path";
 import { after, before, test } from "node:test";
-import { planEdits, PUBLISH, tableProblems, UNPUBLISHED, UNVERSIONED, VERSIONED } from "./release.mjs";
+import { minorOf, planEdits, PUBLISH, tableProblems, UNPUBLISHED, UNVERSIONED, VERSIONED } from "./release.mjs";
 
 const ROOT = path.resolve(import.meta.dirname, "..");
 const readRepo = (file) => readFileSync(path.join(ROOT, file), "utf8");
@@ -42,6 +42,31 @@ test("a release moves every version, and the MCP fixture's four serverInfo entri
   assert.match(after("plugins/wordpress/runlight.php"), new RegExp(`^ \\* Version: +${NEXT}$`, "m"));
   assert.ok(after("plugins/wordpress/runlight.php").includes(`define( 'RUNLIGHT_PLUGIN_VERSION', '${NEXT}' );`));
   assert.match(after("plugins/wordpress/readme.txt"), new RegExp(`^Stable tag: ${NEXT}$`, "m"));
+});
+
+test("the Java, .NET, and Rust versions move, and the Cargo install lines name the new minor", () => {
+  const edits = planEdits(VERSIONED, readRepo, current, NEXT);
+  const after = (file) => edits.get(file).after;
+  assert.match(after("packages/java/pom.xml"), new RegExp(`<revision>${NEXT}</revision>`));
+  assert.match(after("packages/dotnet/Directory.Build.props"), new RegExp(`<Version>${NEXT}</Version>`));
+  const cargo = after("packages/rust/Cargo.toml");
+  assert.match(cargo, new RegExp(`^version = "${NEXT}"$`, "m"));
+  assert.ok(cargo.includes(`runlight = { path = "runlight", version = "=${NEXT}" }`));
+  assert.ok(after("packages/rust/runlight/src/version.rs").includes(`pub const VERSION: &str = "${NEXT}";`));
+  for (const file of ["packages/rust/README.md", "site/docs/rust.md"]) {
+    assert.equal(edits.get(file).lines.length, 2, file);
+    assert.ok(after(file).includes(`runlight = { version = "${minorOf(NEXT)}"`), file);
+    assert.ok(after(file).includes(`runlight-sqlx = { version = "${minorOf(NEXT)}"`), file);
+  }
+});
+
+test("an install line keeps its minor across a prerelease, and takes the next stable one", () => {
+  const rows = [{ file: "x", pattern: /^(runlight = \{ version = ")([^"]+)(")/m, form: "minor" }];
+  const at = (minor) => () => `runlight = { version = "${minor}" }\n`;
+  assert.equal(planEdits(rows, at("0.1"), "0.1.0", "0.2.0-beta.1").get("x").after, 'runlight = { version = "0.1" }\n');
+  assert.equal(planEdits(rows, at("0.1"), "0.2.0-beta.1", "0.2.0").get("x").after, 'runlight = { version = "0.2" }\n');
+  assert.equal(planEdits(rows, at("0.1"), "0.1.0", "0.1.1").get("x").after, 'runlight = { version = "0.1" }\n');
+  assert.throws(() => planEdits(rows, at("0.3"), "0.1.0", "0.2.0"), /x says 0\.3, not 0\.1/);
 });
 
 test("a file out of step is refused", () => {
@@ -162,7 +187,7 @@ test("a release refuses a CHANGELOG.md without an Unreleased section", () => {
 });
 
 test("a version left behind outside the table is listed", () => {
-  writeFileSync(path.join(copy, "site/docs/stray.md"), "Install 0.0.0 now. Chrome/129.0.0.0 is not a version.\n");
+  writeFileSync(path.join(copy, "site/docs/stray.md"), 'Install 0.0.0 now. Chrome/129.0.0.0 is not a version.\nrunlight = { version = "0.0" }\n');
   git("add", "-A");
   git("commit", "-q", "-m", "stray");
   try {
@@ -170,7 +195,8 @@ test("a version left behind outside the table is listed", () => {
     assert.equal(status, 0);
     assert.match(out, /Still mentioning 0\.0\.0/);
     assert.match(out, /^ {2}site\/docs\/stray\.md:1:Install 0\.0\.0 now/m);
-    assert.equal(out.match(/^ {2}\S+:\d+:/gm).length, 1, "only the stray, not the user agent");
+    assert.match(out, /^ {2}site\/docs\/stray\.md:2:runlight = \{ version = "0\.0" \}/m);
+    assert.equal(out.match(/^ {2}\S+:\d+:/gm).length, 2, "only the strays, not the user agent");
   } finally {
     git("reset", "-q", "--hard", "HEAD~1");
   }

@@ -1,11 +1,11 @@
 # Called by every workflow a release tag starts (docker.yml, release.yml,
-# php-split.yml, php-plugins-split.yml, pypi.yml, hex.yml) before it
-# publishes: finds CI's run on the release tag's commit and waits for it, and
-# fails unless that run passed. CI runs on pushes to main, not on tags, so
-# the run it waits for is the one on the push to main that carried the tagged
-# commit (`npm run release` makes the commit and the tag, and both are pushed
-# together). A tag on a commit that never reached main has no such run and
-# publishes nothing.
+# php-split.yml, php-plugins-split.yml, pypi.yml, hex.yml, maven.yml,
+# nuget.yml, crates.yml) before it publishes: finds CI's run on the release
+# tag's commit and waits for it, and fails unless that run passed. CI runs on
+# pushes to main, not on tags, so the run it waits for is the one on the push
+# to main that carried the tagged commit (`npm run release` makes the commit
+# and the tag, and both are pushed together). A tag on a commit that never
+# reached main has no such run and publishes nothing.
 #
 # Started by the tag's push, the commit is the tag's (github.sha); started by
 # hand with a tag, it is the commit that tag names now. Either way it is the
