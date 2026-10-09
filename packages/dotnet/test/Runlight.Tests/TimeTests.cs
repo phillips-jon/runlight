@@ -125,6 +125,24 @@ public sealed class TimeTests
         NoFailures(failures);
     }
 
+    /// <summary>
+    /// The old names the time zone database made links in 2024b read as those links, as ICU reads them, even
+    /// where the system builds them as zones of their own (Ubuntu's WET kept to UTC in 1970, while Lisbon was an
+    /// hour ahead).
+    /// </summary>
+    [Theory]
+    [InlineData("WET", 0L, "1970-01-01 3 1")]
+    [InlineData("wet", 15638400000L, "1970-07-01 2 1")]
+    [InlineData("CET", 0L, "1970-01-01 3 1")]
+    [InlineData("EST", 0L, "1969-12-31 2 19")]
+    [InlineData("MST", 15638400000L, "1970-06-30 1 17")]
+    public void Linked_legacy_zones_read_as_their_links(string zone, long ts, string want)
+    {
+        Assert.True(Time.IsTimezone(zone));
+        var (weekday, hour) = Time.LocalWeekdayHour(ts, zone);
+        Assert.Equal(want, Time.LocalDate(ts, zone) + " " + weekday + " " + hour);
+    }
+
     [Fact]
     public void Instants_around_every_offset_change()
     {
