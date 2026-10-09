@@ -2,6 +2,7 @@ import { useRef, useState } from "preact/hooks";
 import { api, type Site } from "./api.js";
 import { count } from "./format.js";
 import { Secret } from "./secret.js";
+import { Callout } from "./callout.js";
 import { Icon } from "./icons.js";
 import { t } from "./i18n.js";
 
@@ -95,6 +96,9 @@ export function ImportVisits({ site }: { site: Site }) {
   return (
     <div class="settings-group">
       <p class="settings-text">{t("visits.intro")}</p>
+      <Callout icon="chart" title={t("visits.onlyUmamiTitle")}>
+        {t("visits.onlyUmami")}
+      </Callout>
       <div class="field-row">
         <span class="field-label">{t("import.signIn")}</span>
         <div class="ops" role="radiogroup" aria-label={t("import.signIn")}>

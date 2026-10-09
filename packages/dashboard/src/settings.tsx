@@ -24,8 +24,8 @@ const SECTIONS: Array<[Section, Key]> = [
   ["install", "settings.install"],
   ["goals", "settings.goals"],
   ["funnels", "settings.funnels"],
-  ["email", "settings.email"],
   ["mail", "settings.mail"],
+  ["email", "settings.email"],
   ["sharing", "settings.sharing"],
   ["api", "settings.api"],
   ["links", "settings.links"],
@@ -769,7 +769,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
   // People are this server's, whichever site is open, so they show for a connected site too.
   const own: Array<[Section, Key]> = site.remote
     ? site.manage
-      ? SECTIONS.filter(([id]) => ["general", "goals", "funnels", "email", "mail", "sharing", "links", "data", "assistant"].includes(id))
+      ? SECTIONS.filter(([id]) => ["general", "goals", "funnels", "mail", "email", "sharing", "links", "data", "assistant"].includes(id))
       : [["general", "settings.general"], ["assistant", "settings.assistant"]]
     : SECTIONS;
   const sections: Array<[Section, Key]> = me && admin ? [...own, ["people", "settings.people"]] : own;
