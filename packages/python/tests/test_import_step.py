@@ -294,3 +294,19 @@ def test_a_link_whose_slug_is_taken_or_unusable_is_reported_with_a_code() -> Non
     assert rl.store.db.all("SELECT utm_campaign FROM rl_sessions")[0]["utm_campaign"] == "c"
     again = write_link(rl, "default", "dub", {"sourceId": "z", "slug": "fine", "domain": "", "name": "", "url": "https://a.com/z", "createdAt": 0}, {})
     assert again == {"status": "skipped", "clicks": 0}, "the same link again"
+
+
+def test_names_like_object_properties_are_just_names() -> None:
+    """Names JavaScript objects carry on their prototype are just names, as edges.test.ts checks in the SDK."""
+    from runlight import Runlight
+    from runlight.importers.write import SYSTEMS, browser, device
+    from runlight.store import Stores
+
+    rl = Runlight({"store": Stores.sqlite(":memory:")})
+    for source in ["constructor", "toString", "__proto__", "hasOwnProperty"]:
+        with pytest.raises(ImportError) as caught:
+            import_step(rl, "default", source, {}, None, 0)
+        assert caught.value.code == "import_source", source
+    assert [browser(n) for n in ["constructor", "__proto__", "toString"]] == ["Constructor", "__proto__", "ToString"]
+    assert [SYSTEMS.get(n.lower(), n) for n in ["constructor", "toString"]] == ["constructor", "toString"]
+    assert [device(n) for n in ["constructor", "valueOf"]] == ["", ""]

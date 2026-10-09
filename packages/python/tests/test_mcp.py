@@ -79,3 +79,12 @@ def test_initialize_answers_the_asked_version_or_the_newest() -> None:
     note = mcp_response(Request("https://x.com/mcp", "POST", {}, '{"jsonrpc":"2.0","method":"notifications/initialized"}'), read_api(log))
     assert note.status == 202
     assert note.text() == ""
+
+
+def test_an_answer_that_is_not_an_object_is_passed_on_as_it_is() -> None:
+    """As edges.test.ts: a body that is fine but not an object passes as it is, even through a tool that reshapes."""
+    for body in ["null", "[1]", "5"]:
+        result = call_tool({"name": "get_visit_times"}, lambda path, params, body=body: Response(body, 200))
+        assert result["content"][0]["text"] == body, body
+        refused = call_tool({"name": "list_sites"}, lambda path, params, body=body: Response(body, 403))
+        assert refused == {"content": [{"type": "text", "text": "Runlight answered 403"}], "isError": True}, body

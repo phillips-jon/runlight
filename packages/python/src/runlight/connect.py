@@ -39,7 +39,8 @@ class ConnectError(_js.RangeError):
 def install_url(value: Any) -> str:
     """The install's address as its dashboard is, without a trailing slash."""
     url = re.sub(r"/+\Z", "", _js.trim(_js.string("" if value is None or value is _js.UNDEFINED else value)))
-    if not _INSTALL.match(url):
+    # The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
+    if not _INSTALL.match(url) or not Url.can_parse(url):
         raise ConnectError("Enter the install's address, like https://example.com/runlight", "url")
     return url
 
@@ -53,12 +54,22 @@ def _json(answer: Response) -> Any:
     return value if ok else None
 
 
+def _pending_from(value: str | None, now: int) -> dict[str, Any] | None:
+    """A saved attempt, or None when it cannot be read or has no time it runs out, which counts as expired."""
+    try:
+        pending = _js.loads(value or "")
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(pending, dict):
+        return None
+    expires = pending.get("expires")
+    return pending if _js.is_number(expires) and expires >= now else None
+
+
 def _clear_expired(runlight: Any) -> None:
     """Attempts nobody came back from are removed, so they do not pile up in settings."""
     for setting in runlight.store.settings_starting_with("connect:"):
-        ok, pending = _js.try_loads(setting["value"])
-        expires = pending.get("expires") if ok and isinstance(pending, dict) else None
-        if not _js.truthy(expires) or _js.number(expires) < runlight.now():
+        if _pending_from(setting["value"], runlight.now()) is None:
             runlight.store.set_setting(setting["key"], None)
 
 
@@ -149,8 +160,8 @@ def finish_connect(runlight: Any, params: SearchParams) -> str:
     # Each attempt works once.
     if stored:
         runlight.store.set_setting(key, None)
-    pending = _js.loads(stored) if stored else None
-    if not pending or pending["expires"] < runlight.now():
+    pending = _pending_from(stored, runlight.now()) if stored else None
+    if pending is None:
         raise ConnectError("That connection took too long or was already used. Start again.", "expired")
     if params.get("error") == "access_denied":
         raise ConnectError("The connection was not allowed.", "denied")
