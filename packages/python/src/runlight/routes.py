@@ -43,7 +43,7 @@ from .http import FetchError, Headers, Request, Response, Url
 
 COOKIE = "runlight_token"
 IMPLEMENTATION = {"library": "runlight", "language": "python"}
-# TS's RangeError is ValueError in this port: SettingsError, ConnectError, and "Unknown link" from Links are ones.
+# TS's RangeError is _js.RangeError (a ValueError): SettingsError, ConnectError, and "Unknown link" from Links.
 
 # runlight.ts's LINK_DOMAIN_CHECK: the path on every link domain that answers when the domain reaches this Runlight.
 LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain"
@@ -178,7 +178,7 @@ def _credentials(value: Any) -> dict[str, str]:
 
 
 class _UriError(Exception):
-    """decodeURIComponent threw. Not a ValueError, which stands for TS's RangeError here, so it ends as an internal
+    """decodeURIComponent threw. Not a RangeError, so it ends as an internal
     error, as a URIError does in the TypeScript."""
 
 
@@ -919,7 +919,7 @@ class Routes:
                     return json({"ok": True})
         except LinkError as error:
             return coded(_message(error), error.code, 400, getattr(error, "params", None))
-        except ValueError as error:
+        except _js.RangeError as error:
             return coded(_message(error), "unknown_link", 404)
         return coded("Not found", "not_found", 404)
 
@@ -1367,7 +1367,7 @@ class Routes:
                 return json({"authorize": start_connect(rl, None if given is _js.UNDEFINED else given, f"{url.origin}{self.base}/api/sites/connect/done", site if isinstance(site, str) else "")})
             except ConnectError as error:
                 return coded(_message(error), "unreachable" if error.code == "unreachable" else f"connect_{error.code}", 400, getattr(error, "params", None))
-            except ValueError as error:
+            except _js.RangeError as error:
                 return _refused(error, "connect_failed")
         if path == "/api/sites/connect/done" and method == "GET":
             from .connect import ConnectError, finish_connect
@@ -1381,7 +1381,7 @@ class Routes:
                 id_ = finish_connect(rl, url.search_params)
                 # The site's settings open with a word that the connection worked, which a reconnection otherwise lacks.
                 to = f"{home}?site={_js.encode_uri_component(id_)}&settings=general&connected=1"
-            except ValueError as error:
+            except _js.RangeError as error:
                 # A code, never the message: the dashboard shows its own words for it, so a link cannot put text there.
                 to = f"{home}?connect_error={error.code if isinstance(error, ConnectError) else 'failed'}"
             return Response(b"", 303, {"location": to, "cache-control": "no-store"})
@@ -1566,7 +1566,7 @@ class Routes:
                 try:
                     rl.save_assistant_settings(body)
                     return json({"ok": True})
-                except ValueError as error:
+                except _js.RangeError as error:
                     return _refused(error, "assistant_invalid")
             return coded("Method not allowed", "method_not_allowed", 405)
         # How many questions each viewer may ask a day; 0 keeps the assistant for owners.
@@ -1697,7 +1697,7 @@ class Routes:
                 return body
             try:
                 return json({"site": rl.add_site(body)}, 201)
-            except ValueError as error:
+            except _js.RangeError as error:
                 return _refused(error, "site_invalid")
 
         site_match = re.fullmatch(r"/api/sites/([^/]+)", path)
@@ -1708,7 +1708,7 @@ class Routes:
             try:
                 rl.delete_site(_decode(site_match.group(1)))
                 return json({"ok": True})
-            except ValueError as error:
+            except _js.RangeError as error:
                 return coded(_message(error), "unknown_site", 404) if _message(error) == "Unknown site" else _refused(error, "site_invalid")
         if site_match and method == "PATCH":
             return self._patch_site(request, site_match.group(1), url)
@@ -1895,7 +1895,7 @@ class Routes:
             if remote:
                 site = {**site, "remote": remote["url"], "remoteSite": remote["site"], "manage": remote.get("scope") == "manage", "hostnames": remote["hostnames"]}
             return json({"site": site})
-        except ValueError as error:
+        except _js.RangeError as error:
             return coded(_message(error), "unknown_site", 404) if _message(error) == "Unknown site" else _refused(error, "site_invalid")
 
     def _reports(self, request: Request, path: str, url: Url) -> Response:
