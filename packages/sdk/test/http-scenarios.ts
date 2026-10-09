@@ -501,6 +501,7 @@ const LINKS: Scenario[] = [
       }),
       post("/api/links/import?site=blog", { rows: "nope" }),
       post("/api/links/import/nope?site=blog", { credentials: {} }),
+      post("/api/links/import/constructor?site=blog", { credentials: {} }),
       post("/api/links/import/dub?site=blog", { credentials: {} }),
       // The check of a domain not added is refused before anything is fetched.
       get("/api/link-domains/elsewhere.example.org/check?site=blog"),
@@ -736,6 +737,9 @@ const MCP: Scenario[] = [
       { ...rpc(22, "tools/call", "nope") },
       post("/mcp", [{ jsonrpc: "2.0", id: 23, method: "ping" }, { jsonrpc: "2.0", method: "notifications/initialized" }, { jsonrpc: "2.0", id: 24, method: "nope" }]),
       post("/mcp", [{ jsonrpc: "2.0", method: "notifications/initialized" }]),
+      // A notification never runs a tool, and a batch element that is not an object is an invalid request of its own.
+      post("/mcp", { jsonrpc: "2.0", method: "tools/call", params: { name: "list_sites" } }),
+      post("/mcp", [null, { jsonrpc: "2.0", id: 40, method: "ping" }, 7]),
       // A token for one site sees only that site through the tools too.
       tool(25, "list_sites", {}, asJson("{{blog}}")),
       tool(26, "get_stats", { site: "shop", period: "today" }, asJson("{{blog}}")),
@@ -995,6 +999,8 @@ const MAIL: Scenario[] = [
       put("/api/mail", { service: "webhook", url: "https://hooks.example.net/runlight", from: "not an address" }),
       put("/api/mail", { service: "resend", from: "r@example.com" }),
       put("/api/mail", { service: "smtp", host: "smtp.example.com", port: "587", security: "pigeon", from: "r@example.com" }),
+      put("/api/mail", { service: "smtp", host: "smtp.example.com", port: "70000", security: "starttls", from: "r@example.com" }),
+      put("/api/mail", { service: "webhook", url: "https://", from: "r@example.com" }),
       put("/api/mail", { service: "webhook", url: "https://hooks.example.net/runlight", secret: "whsec", from: "reports@example.com", fromName: "Runlight" }),
       get("/api/mail"),
       // A blank secret keeps the saved one while the address stays the same.
@@ -1004,6 +1010,9 @@ const MAIL: Scenario[] = [
       get("/api/mail"),
       post("/api/mail/test", { to: "me@example.com" }),
       put("/api/mail", { service: "postmark", serverToken: "pm-token", from: "reports@example.com" }),
+      post("/api/mail/test", { to: "me@example.com" }),
+      // Basic auth sends a key's UTF-8 bytes, whatever its characters.
+      put("/api/mail", { service: "mailgun", domain: "mg.example.com", apiKey: "ключ", region: "eu", from: "reports@example.com" }),
       post("/api/mail/test", { to: "me@example.com" }),
       put("/api/mail", { service: "resend", apiKey: "re_key", from: "reports@example.com", fromName: "Example stats" }),
       post("/api/mail/test", { to: "me@example.com", lang: "de" }),
@@ -1121,6 +1130,7 @@ const SITES: Scenario[] = [
       patch("/api/sites/blog.example.net", { retentionMonths: 12, name: "Blog over there" }),
       // Connecting through the other install's consent page, so nobody copies a token.
       post("/api/sites/connect", { url: "javascript:alert(1)" }),
+      post("/api/sites/connect", { url: "https://[" }),
       post("/api/sites/connect", { url: "https://down.example.net/runlight" }),
       post("/api/sites/connect", { url: "https://old.example.net/runlight" }),
       post("/api/sites/connect", { url: "https://steer.example.net/runlight" }),
@@ -1235,6 +1245,11 @@ const IMPORTS: Scenario[] = [
       post("/api/links/import/dub", { credentials: { apiKey: "dub-key" }, done: 2 }),
       get("/api/links?from=2026-09-01&to=2026-09-30"),
       get("/api/links?period=today"),
+      // A browser, system, or device named like a property of every JavaScript object is just a name.
+      post("/api/import/csv/visits", { rows: [{ time: "2026-09-20T10:00:00Z", path: "/odd", visitor: "v9", browser: "constructor", os: "toString", device: "valueOf" }] }),
+      get("/api/breakdown?from=2026-09-20&to=2026-09-20&dimension=browser"),
+      get("/api/breakdown?from=2026-09-20&to=2026-09-20&dimension=os"),
+      get("/api/breakdown?from=2026-09-20&to=2026-09-20&dimension=device"),
     ],
   },
 ];
