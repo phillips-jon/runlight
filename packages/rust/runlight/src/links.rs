@@ -85,7 +85,11 @@ impl Links<'_> {
         }
         let known = self.0.store().link_domains().await?;
         if !known.iter().any(|(d, s)| *d == domain && s == site) {
-            return Err(link_error(format!("Add {domain} as a link domain in Settings first"), "link_domain", &[("domain", &domain)]));
+            return Err(link_error(
+                format!("Add {domain} as a link domain in Settings first"),
+                "link_domain",
+                &[("domain", &domain)],
+            ));
         }
         Ok(domain)
     }
@@ -94,7 +98,11 @@ impl Links<'_> {
     async fn free_slug(&self, wanted: Option<&str>, except: Option<&str>) -> Result<String, Error> {
         if let Some(wanted) = wanted.filter(|w| !w.is_empty()) {
             if !test(js_re!(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,99}$"), wanted) {
-                return Err(link_error("A slug is letters, digits, dashes, and underscores, up to 100", "link_slug", &[]));
+                return Err(link_error(
+                    "A slug is letters, digits, dashes, and underscores, up to 100",
+                    "link_slug",
+                    &[],
+                ));
             }
             if let Some(taken) = self.0.store().link_by_slug(wanted).await?
                 && Some(taken.id.as_str()) != except
@@ -119,8 +127,22 @@ impl Links<'_> {
         let domain = self.domain_for(site, input.domain.as_deref().unwrap_or("")).await?;
         let slug = self.free_slug(input.slug.as_deref().map(js::trim), None).await?;
         let now = self.0.now();
-        let name = input.name.as_deref().map(js::trim).filter(|n| !n.is_empty()).map_or_else(|| default_name(&url), str::to_string);
-        let link = LinkRow { id: new_id(), site: site.into(), domain, slug, name: js::head16(&name, 100), url, created_at: now, updated_at: now };
+        let name = input
+            .name
+            .as_deref()
+            .map(js::trim)
+            .filter(|n| !n.is_empty())
+            .map_or_else(|| default_name(&url), str::to_string);
+        let link = LinkRow {
+            id: new_id(),
+            site: site.into(),
+            domain,
+            slug,
+            name: js::head16(&name, 100),
+            url,
+            created_at: now,
+            updated_at: now,
+        };
         self.0.store().insert_link(&link).await?;
         Ok(link)
     }

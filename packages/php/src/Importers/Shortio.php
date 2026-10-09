@@ -80,7 +80,13 @@ final class Shortio implements Importer
                     if (self::positive($p['y'] ?? null)) {
                         $x = $p['x'] ?? null;
                         $ms = is_int($x) || is_float($x) ? $x : Http::parseDate($x);
-                        $daily[] = ['day' => substr(Http::isoString($ms), 0, 10), 'clicks' => $p['y']];
+                        // A point whose date cannot be read is left out, not the link.
+                        try {
+                            $day = substr(Http::isoString($ms), 0, 10);
+                        } catch (\RangeException) {
+                            continue;
+                        }
+                        $daily[] = ['day' => $day, 'clicks' => $p['y']];
                     }
                 }
             } catch (HttpError $error) {

@@ -42,7 +42,7 @@ final class Rebrandly implements Importer
         $links = array_map(function ($l) {
             $created = Http::parseDate($l['createdAt'] ?? null);
             return ['link' => [
-                'sourceId' => $l['id'], 'slug' => $l['slashtag'], 'domain' => Http::coalesce(Http::field(Http::field($l, 'domain'), 'fullName'), ''),
+                'sourceId' => Http::str($l['id']), 'slug' => $l['slashtag'], 'domain' => Http::coalesce(Http::field(Http::field($l, 'domain'), 'fullName'), ''),
                 'name' => Http::truthy($l['title'] ?? null) ? $l['title'] : '', 'url' => $l['destination'],
                 'createdAt' => Http::truthy($created) ? $created : ($this->now)(),
             ]];

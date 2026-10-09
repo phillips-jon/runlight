@@ -48,7 +48,7 @@ http-body = { version = "1", optional = true }
 http-body-util = { version = "0.1.2", optional = true }
 bytes = { version = "1.7.1", optional = true }
 tower-service = { version = "0.3.3", optional = true }
-axum = { version = "0.8.4", default-features = false, features = ["original-uri"], optional = true }
+axum = { version = "0.8.4", default-features = false, features = ["original-uri", "tokio"], optional = true }
 
 [dev-dependencies]
 tokio = { version = "1.44", features = ["full", "test-util"] }

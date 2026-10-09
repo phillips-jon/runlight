@@ -10,9 +10,12 @@ use std::future::Future;
 use std::pin::Pin;
 
 pub mod accounts;
+#[cfg(feature = "tower")]
+pub mod adapters;
 pub mod assets;
 pub mod assistant;
 pub mod brand;
+pub mod connect;
 pub mod data;
 mod error;
 pub use error::Error;
@@ -31,12 +34,14 @@ pub mod mail;
 pub mod mcp;
 pub mod messages;
 pub mod mmdb;
+pub mod oauth;
 pub mod payload;
 pub mod query;
 pub mod routes;
 pub mod runlight;
-pub use runlight::{Runlight, RunlightOptions, SiteOptions, TrustProxy};
+mod runlight_settings;
 pub use routes::{Routes, RoutesOptions, TokenOption};
+pub use runlight::{Runlight, RunlightOptions, SiteOptions, TrustProxy};
 pub(crate) mod re;
 pub mod reports;
 pub mod safefetch;

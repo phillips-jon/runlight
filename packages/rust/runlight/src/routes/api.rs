@@ -55,13 +55,17 @@ impl Routes {
         if path == "/api/sites/connect/done" && method == "GET" {
             let home = if self.0.base.is_empty() { "/".to_string() } else { self.0.base.clone() };
             let access = self.can_read(request, call).await;
-            let see_other = |to: String| Response::new(Vec::new(), 303, Headers::new().with("location", to).with("cache-control", "no-store"));
+            let see_other = |to: String| {
+                Response::new(Vec::new(), 303, Headers::new().with("location", to).with("cache-control", "no-store"))
+            };
             if access != CanRead::Yes {
                 return Ok(see_other(home));
             }
             rl.init().await?;
             let to = match glue::finish_connect(self, url).await? {
-                Ok(id) => format!("{home}?site={}&settings=general&connected=1", crate::sources::encode_uri_component(&id)),
+                Ok(id) => {
+                    format!("{home}?site={}&settings=general&connected=1", crate::sources::encode_uri_component(&id))
+                }
                 // A code, never the message: the dashboard shows its own words for it.
                 Err(code) => format!("{home}?connect_error={code}"),
             };
@@ -76,7 +80,9 @@ impl Routes {
             let asked = url.search_params().get("site").map(str::to_string);
             let site_match = crate::re::group(js_re!(r"^/api/sites/([^/]+)$"), path, 1);
             let named = site_match.as_deref().map(|s| crate::sources::decode_uri_component(s).unwrap_or_default());
-            if asked.as_deref().is_some_and(|a| !a.is_empty() && a != t.site) || named.as_deref().is_some_and(|n| n != t.site) {
+            if asked.as_deref().is_some_and(|a| !a.is_empty() && a != t.site)
+                || named.as_deref().is_some_and(|n| n != t.site)
+            {
                 return Ok(coded("Unknown site", "unknown_site", 404, None));
             }
             if site_match.is_some()
@@ -113,7 +119,8 @@ impl Routes {
         // GET too: Vercel Cron calls with GET and the cron secret as a bearer token.
         if path == "/api/check" && (method == "POST" || method == "GET") {
             let given = bearer(request);
-            let by_secret = self.0.cron_secret.as_deref().is_some_and(|s| !given.is_empty() && constant_time_equal(&given, s));
+            let by_secret =
+                self.0.cron_secret.as_deref().is_some_and(|s| !given.is_empty() && constant_time_equal(&given, s));
             if !by_secret && self.can_read(request, call).await != CanRead::Yes {
                 return Ok(coded("Unauthorized", "unauthorized", 401, None));
             }
@@ -124,7 +131,10 @@ impl Routes {
         let asked = url.search_params().get("site").map(str::to_string);
         let connected = asked.as_deref().filter(|a| !a.is_empty()).and_then(|a| rl.remote(a));
         if let Some(remote) = &connected {
-            if remote.scope.as_deref() == Some("manage") && manage_path(method, path) && !(method == "GET" && shared_path(path)) {
+            if remote.scope.as_deref() == Some("manage")
+                && manage_path(method, path)
+                && !(method == "GET" && shared_path(path))
+            {
                 let access = self.can_read(request, call).await;
                 if access != CanRead::Yes {
                     return Ok(self.denied(access));
@@ -186,7 +196,8 @@ impl Routes {
                 Err(r) => return Ok(r),
             };
             let name = format!("observe-key:{}", site.id);
-            let mut key = if path.ends_with("/new") { None } else { rl.store().setting(&name).await?.filter(|k| !k.is_empty()) };
+            let mut key =
+                if path.ends_with("/new") { None } else { rl.store().setting(&name).await?.filter(|k| !k.is_empty()) };
             if key.is_none() {
                 let made = format!("rlo_{}", random_id(20));
                 rl.store().set_setting(&name, Some(&made)).await?;
@@ -196,7 +207,9 @@ impl Routes {
         }
 
         // Making, changing, and deleting funnels; reading them is with the other reports.
-        if (path == "/api/funnels" && method == "POST") || (test(js_re!(r"^/api/funnels/[a-f0-9]{24}$"), path) && (method == "PATCH" || method == "DELETE")) {
+        if (path == "/api/funnels" && method == "POST")
+            || (test(js_re!(r"^/api/funnels/[a-f0-9]{24}$"), path) && (method == "PATCH" || method == "DELETE"))
+        {
             let access = self.can_read(request, call).await;
             if access != CanRead::Yes {
                 return Ok(self.denied(access));
@@ -231,10 +244,10 @@ impl Routes {
         }
 
         // The assistant: an owner sets it up; anyone signed in to the dashboard can ask it.
-        if path.starts_with("/api/assistant") {
-            if let Some(answer) = glue::assistant_api(self, request, path, url, call).await? {
-                return Ok(answer);
-            }
+        if path.starts_with("/api/assistant")
+            && let Some(answer) = glue::assistant_api(self, request, path, url, call).await?
+        {
+            return Ok(answer);
         }
 
         // Only the owner manages tokens: an API token cannot make or revoke one.
@@ -271,7 +284,11 @@ impl Routes {
             }
             if let Reader::Token(t) = &reader {
                 rl.init().await?;
-                let wanted = url.search_params().get("site").map(str::to_string).or_else(|| (!t.site.is_empty()).then(|| t.site.clone()));
+                let wanted = url
+                    .search_params()
+                    .get("site")
+                    .map(str::to_string)
+                    .or_else(|| (!t.site.is_empty()).then(|| t.site.clone()));
                 let site = rl.site(wanted.as_deref());
                 let Some(site) = site.filter(|s| t.site.is_empty() || s.id == t.site) else {
                     return Ok(coded("Unknown site", "unknown_site", 404, None));
@@ -284,7 +301,11 @@ impl Routes {
             }
         }
 
-        if path == "/api/links" || path.starts_with("/api/links/") || path == "/api/link-domains" || path.starts_with("/api/link-domains/") {
+        if path == "/api/links"
+            || path.starts_with("/api/links/")
+            || path == "/api/link-domains"
+            || path.starts_with("/api/link-domains/")
+        {
             let access = self.can_read(request, call).await;
             if access != CanRead::Yes {
                 return Ok(self.denied(access));
@@ -292,7 +313,11 @@ impl Routes {
             return self.links_api(request, path, url, call).await;
         }
 
-        if path == "/api/mail" || path == "/api/mail/test" || path == "/api/reports" || path.starts_with("/api/reports/") {
+        if path == "/api/mail"
+            || path == "/api/mail/test"
+            || path == "/api/reports"
+            || path.starts_with("/api/reports/")
+        {
             let access = self.can_read(request, call).await;
             if access != CanRead::Yes {
                 return Ok(self.denied(access));
@@ -317,7 +342,12 @@ impl Routes {
             };
             let origin = js::str_or_empty(body.get("origin"));
             if !test(js_re!(r"^https?://[^/?#\s]+$"), &origin) || origin.chars().any(js::is_space) {
-                return Ok(coded("Send the dashboard's origin, such as https://stats.example.com", "pick_origin", 400, None));
+                return Ok(coded(
+                    "Send the dashboard's origin, such as https://stats.example.com",
+                    "pick_origin",
+                    400,
+                    None,
+                ));
             }
             // A hub's ticket only ever sends to the hub it connected from, never to an origin it names now.
             if let Some(hub) = call.managed()
@@ -333,7 +363,9 @@ impl Routes {
             return Ok(json(&obj! { "ticket" => self.pick_ticket(&origin, &site.id).await? }, 200, &[]));
         }
 
-        if (path == "/api/goals" && method == "POST") || (test(js_re!(r"^/api/goals/[^/]+$"), path) && (method == "PATCH" || method == "DELETE")) {
+        if (path == "/api/goals" && method == "POST")
+            || (test(js_re!(r"^/api/goals/[^/]+$"), path) && (method == "PATCH" || method == "DELETE"))
+        {
             let access = self.can_read(request, call).await;
             if access != CanRead::Yes {
                 return Ok(self.denied(access));
@@ -375,7 +407,8 @@ impl Routes {
             if access != CanRead::Yes {
                 return Ok(self.denied(access));
             }
-            let id = crate::sources::decode_uri_component(raw).ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
+            let id = crate::sources::decode_uri_component(raw)
+                .ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
             return Ok(match rl.delete_site(&id).await {
                 Ok(()) => json(&obj! { "ok" => true }, 200, &[]),
                 Err(Error::Settings(e)) if e.message == "Unknown site" => coded(&e.message, "unknown_site", 404, None),
@@ -408,8 +441,14 @@ impl Routes {
         // The one site a share or a site's API token may read; None for every site.
         let mut only: Option<String> = None;
         if let Some(share_id) = share_id {
-            shared = if test(js_re!(r"^[a-f0-9]{32}$"), &share_id) { rl.store().share_by_id(&share_id).await? } else { None };
-            let Some(share) = &shared else { return Ok(coded("This share link no longer works", "share_gone", 404, None)) };
+            shared = if test(js_re!(r"^[a-f0-9]{32}$"), &share_id) {
+                rl.store().share_by_id(&share_id).await?
+            } else {
+                None
+            };
+            let Some(share) = &shared else {
+                return Ok(coded("This share link no longer works", "share_gone", 404, None));
+            };
             if !shared_path(path) {
                 return Ok(coded("Not available on a shared dashboard", "share_not_available", 403, None));
             }
@@ -456,7 +495,13 @@ impl Routes {
                 None => None,
             };
             let Some((body, kind)) = icon else {
-                return Ok(coded_with("No icon", "icon_none", 404, None, &[("cache-control", "private, max-age=3600")]));
+                return Ok(coded_with(
+                    "No icon",
+                    "icon_none",
+                    404,
+                    None,
+                    &[("cache-control", "private, max-age=3600")],
+                ));
             };
             return Ok(Response::new(
                 body,
@@ -492,7 +537,16 @@ impl Routes {
                 Some(c) => Some(store.stats(&before(c)).await?),
                 None => None,
             };
-            return Ok(json(&with_optional(&site.id, range_out, compare_out, vec![("stats", Some(stats.to_value())), ("previous", previous.map(|p| p.to_value()))]), 200, &[]));
+            return Ok(json(
+                &with_optional(
+                    &site.id,
+                    range_out,
+                    compare_out,
+                    vec![("stats", Some(stats.to_value())), ("previous", previous.map(|p| p.to_value()))],
+                ),
+                200,
+                &[],
+            ));
         }
 
         if path == "/api/goals" {
@@ -538,7 +592,9 @@ impl Routes {
 
         if let Some(goal_id) = crate::re::group(js_re!(r"^/api/goals/([a-f0-9]{24})$"), path, 1) {
             let goal = store.goal_by_id(&goal_id).await?;
-            let Some(goal) = goal.filter(|g| g.site == site.id) else { return Ok(coded("Unknown goal", "unknown_goal", 404, None)) };
+            let Some(goal) = goal.filter(|g| g.site == site.id) else {
+                return Ok(coded("Unknown goal", "unknown_goal", 404, None));
+            };
             let visitors = store.visitors(query).await?;
             let totals = store.goal_totals(query, &goal).await?;
             let series = store.goal_series(&query.site, &query.filters, &goal, &buckets(range, &site.timezone)).await?;
@@ -582,7 +638,16 @@ impl Routes {
                 }
                 None => None,
             };
-            return Ok(json(&with_optional(&site.id, range_out, compare_out, vec![("points", Some(Value::Array(points))), ("previous", previous)]), 200, &[]));
+            return Ok(json(
+                &with_optional(
+                    &site.id,
+                    range_out,
+                    compare_out,
+                    vec![("points", Some(Value::Array(points))), ("previous", previous)],
+                ),
+                200,
+                &[],
+            ));
         }
 
         if path == "/api/rhythm" {
@@ -598,7 +663,8 @@ impl Routes {
                 cells[w][h][2] += pageviews;
                 cells[w][h][3] += bounced;
             }
-            let grid: Vec<Value> = grid.iter().map(|day| Value::Array(day.iter().map(|n| Value::Number(*n)).collect())).collect();
+            let grid: Vec<Value> =
+                grid.iter().map(|day| Value::Array(day.iter().map(|n| Value::Number(*n)).collect())).collect();
             let details: Vec<Value> = cells
                 .iter()
                 .map(|day| {
@@ -609,14 +675,18 @@ impl Routes {
                     )
                 })
                 .collect();
-            return Ok(json(&obj! { "site" => site.id.clone(), "range" => range_out, "grid" => Value::Array(grid), "cells" => Value::Array(details) }, 200, &[]));
+            return Ok(json(
+                &obj! { "site" => site.id.clone(), "range" => range_out, "grid" => Value::Array(grid), "cells" => Value::Array(details) },
+                200,
+                &[],
+            ));
         }
 
         if path == "/api/journeys" {
             let q = url.search_params();
-            let through = js_re!(r"^(\d+):([^\n\r]+)$")
-                .captures(q.get("through").unwrap_or("").as_bytes())
-                .map(|c| (js::text_number(&String::from_utf8_lossy(&c[1])), String::from_utf8_lossy(&c[2]).into_owned()));
+            let through = js_re!(r"^(\d+):([^\n\r]+)$").captures(q.get("through").unwrap_or("").as_bytes()).map(|c| {
+                (js::text_number(&String::from_utf8_lossy(&c[1])), String::from_utf8_lossy(&c[2]).into_owned())
+            });
             // Journeys reads the newest visits up to a cap; say when it was reached.
             let (rows, sampled) = store.journey_pages(query, crate::journeys::PAGES_PER_VISIT).await?;
             let options = crate::journeys::JourneyOptions {
@@ -654,7 +724,11 @@ impl Routes {
                 o.set("steps", Value::Array(steps));
                 rows.push(Value::Object(o));
             }
-            return Ok(json(&obj! { "site" => site.id.clone(), "range" => range_out, "funnels" => Value::Array(rows) }, 200, &[]));
+            return Ok(json(
+                &obj! { "site" => site.id.clone(), "range" => range_out, "funnels" => Value::Array(rows) },
+                200,
+                &[],
+            ));
         }
 
         if path == "/api/event-props" {
@@ -693,7 +767,12 @@ impl Routes {
             let params = url.search_params();
             let dimension = params.get("dimension").unwrap_or("").to_string();
             if !is_dimension(&dimension) {
-                return Ok(coded(&format!("Unknown dimension \"{dimension}\""), "unknown_dimension", 400, Some(&[("dimension", &dimension)])));
+                return Ok(coded(
+                    &format!("Unknown dimension \"{dimension}\""),
+                    "unknown_dimension",
+                    400,
+                    Some(&[("dimension", &dimension)]),
+                ));
             }
             let limit = clamp_number(params.get("limit"), 10.0);
             let page = {
@@ -709,7 +788,11 @@ impl Routes {
                     "text/csv; charset=utf-8",
                 ));
             }
-            return Ok(json(&obj! { "site" => site.id.clone(), "range" => range_out, "dimension" => dimension, "rows" => Value::Array(rows) }, 200, &[]));
+            return Ok(json(
+                &obj! { "site" => site.id.clone(), "range" => range_out, "dimension" => dimension, "rows" => Value::Array(rows) },
+                200,
+                &[],
+            ));
         }
 
         // Everything the dashboard shows for a view, as a ZIP of CSV files.
@@ -752,12 +835,25 @@ impl Routes {
                     .iter()
                     .map(|g| {
                         let t = totals.get(&g.id).copied().unwrap_or_default();
-                        vec![g.name.clone(), js::format_number(t.conversions), js::format_number(t.visitors), js::format_number(t.revenue), g.currency.clone()]
+                        vec![
+                            g.name.clone(),
+                            js::format_number(t.conversions),
+                            js::format_number(t.visitors),
+                            js::format_number(t.revenue),
+                            g.currency.clone(),
+                        ]
                     })
                     .collect();
-                files.push(("goals.csv".into(), crate::zip::csv(&["goal", "conversions", "visitors", "revenue", "currency"], &rows)));
+                files.push((
+                    "goals.csv".into(),
+                    crate::zip::csv(&["goal", "conversions", "visitors", "revenue", "currency"], &rows),
+                ));
             }
-            return Ok(download(&format!("{}-{}-{}.zip", site.id, range.from_date, range.to_date), crate::zip::zip(&files, rl.now()), "application/zip"));
+            return Ok(download(
+                &format!("{}-{}-{}.zip", site.id, range.from_date, range.to_date),
+                crate::zip::zip(&files, rl.now()),
+                "application/zip",
+            ));
         }
 
         Ok(coded("Not found", "not_found", 404, None))
@@ -766,7 +862,8 @@ impl Routes {
     /// The sites a reader may see, with their last visit and retention.
     async fn sites_list(&self, only: Option<&str>, shared: bool) -> R {
         let rl = self.rl();
-        let visible: Vec<crate::store::SiteRow> = rl.sites().into_iter().filter(|s| only.is_none_or(|o| s.id == o)).collect();
+        let visible: Vec<crate::store::SiteRow> =
+            rl.sites().into_iter().filter(|s| only.is_none_or(|o| s.id == o)).collect();
         let mut sites = Vec::new();
         for site in visible {
             let Value::Object(mut o) = site.to_value() else { unreachable!() };
@@ -810,7 +907,11 @@ impl Routes {
         }
         // A share never learns how the install is run.
         Ok(json(
-            &if shared { obj! { "sites" => Value::Array(sites) } } else { obj! { "sites" => Value::Array(sites), "managed" => rl.managed_sites() } },
+            &if shared {
+                obj! { "sites" => Value::Array(sites) }
+            } else {
+                obj! { "sites" => Value::Array(sites), "managed" => rl.managed_sites() }
+            },
             200,
             &[],
         ))
@@ -830,7 +931,12 @@ impl Routes {
         if let Some(tz) = body.get("timezone") {
             let tz = js::js_string(tz);
             if !is_timezone(&tz) {
-                return Ok(coded(&format!("Unknown timezone \"{tz}\""), "unknown_timezone", 400, Some(&[("timezone", &tz)])));
+                return Ok(coded(
+                    &format!("Unknown timezone \"{tz}\""),
+                    "unknown_timezone",
+                    400,
+                    Some(&[("timezone", &tz)]),
+                ));
             }
         }
         let retention = body.get("retentionMonths");
@@ -838,10 +944,16 @@ impl Routes {
             && !r.is_null()
             && !RETENTION_MONTHS.iter().any(|m| *m as f64 == js::js_number(r))
         {
-            return Ok(coded("Keep visits for 6, 12, 24, 36, 60 months, or forever", "retention_bad", 400, Some(&[("months", "6, 12, 24, 36, 60")])));
+            return Ok(coded(
+                "Keep visits for 6, 12, 24, 36, 60 months, or forever",
+                "retention_bad",
+                400,
+                Some(&[("months", "6, 12, 24, 36, 60")]),
+            ));
         }
         let result = async {
-            let id = crate::sources::decode_uri_component(raw).ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
+            let id = crate::sources::decode_uri_component(raw)
+                .ok_or_else(|| Error::Other("URIError: URI malformed".into()))?;
             let remote = rl.remote(&id);
             // How long a connected site keeps visits, and the timezone its days follow, are the install's settings.
             let mut forward = js::Object::new();
@@ -857,13 +969,23 @@ impl Routes {
                 && !forward.is_empty()
             {
                 if remote.scope.as_deref() != Some("manage") {
-                    return Ok(Err(coded("Connect this site again to change it from here", "connect_again", 400, None)));
+                    return Ok(Err(coded(
+                        "Connect this site again to change it from here",
+                        "connect_again",
+                        400,
+                        None,
+                    )));
                 }
                 let forwarded = Request::new("PATCH", request.url.clone())
                     .header("content-type", "application/json")
                     .body(forward.to_json());
                 let answer = self
-                    .pass_through(remote, &format!("/api/sites/{}", crate::sources::encode_uri_component(&remote.site)), url, Some(&forwarded))
+                    .pass_through(
+                        remote,
+                        &format!("/api/sites/{}", crate::sources::encode_uri_component(&remote.site)),
+                        url,
+                        Some(&forwarded),
+                    )
                     .await?;
                 if !answer.ok() {
                     return Ok(Err(answer));
@@ -912,8 +1034,9 @@ impl Routes {
         let rl = self.rl();
         let given = bearer(request);
         // The install-wide key and the owner's access can report for any site.
-        let any_site = self.0.observe_key.as_deref().is_some_and(|k| !given.is_empty() && constant_time_equal(&given, k))
-            || self.can_read(request, call).await == CanRead::Yes;
+        let any_site =
+            self.0.observe_key.as_deref().is_some_and(|k| !given.is_empty() && constant_time_equal(&given, k))
+                || self.can_read(request, call).await == CanRead::Yes;
         if !any_site && given.is_empty() {
             return Ok(coded("Unauthorized", "unauthorized", 401, None));
         }
