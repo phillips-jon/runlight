@@ -476,6 +476,9 @@ func isDomainName(value string) bool {
 	return len16(value) >= 1 && len16(value) <= 253 && domainLabel.MatchString(value)
 }
 
+// IsDomainName reports whether a value is a domain name of 1 to 253 characters, such as example.com.
+func IsDomainName(value string) bool { return isDomainName(value) }
+
 // hostnamesFor checks a list of hostnames for a managed site: at least one,
 // each a domain, none taken.
 func (r *Runlight) hostnamesFor(input any, except string) ([]string, error) {
