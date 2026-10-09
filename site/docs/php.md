@@ -270,6 +270,10 @@ server {
         fastcgi_param SCRIPT_FILENAME $document_root/index.php;
         fastcgi_pass unix:/run/php/php8.3-fpm.sock;
     }
+
+    location ~ /\.ht {
+        deny all;
+    }
 }
 ```
 
