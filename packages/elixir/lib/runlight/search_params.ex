@@ -1,5 +1,12 @@
 defmodule Runlight.SearchParams do
-  @moduledoc false
+  @moduledoc """
+  A URL's query as the WHATWG `URLSearchParams` reads it: an ordered list of
+  `{name, value}` pairs, where a name may repeat.
+
+  Documented for its type; its functions are internal and can change in
+  any release.
+  """
+
   # Internal: not the package's API, and it can change in any release.
   #
   # Query parameters as JavaScript's URLSearchParams reads and writes them:

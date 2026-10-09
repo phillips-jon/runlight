@@ -26,7 +26,7 @@ defmodule Runlight.Store.Sql do
   def live_views, do: "SUM(CASE WHEN e.pageview <> '' THEN 1 ELSE 0 END)"
 
   @doc "A session that is a visit: a short link click alone opens one that is not."
-  def is_visit, do: "(s.pageviews > 0 OR s.events > 0)"
+  def visit_sql, do: "(s.pageviews > 0 OR s.events > 0)"
 
   @doc "Engaged time, or for imported visits with none, first to last request."
   def duration, do: "COALESCE(s.engaged_ms, s.last_at - s.started_at)"
@@ -383,7 +383,7 @@ defmodule Runlight.Store.Sql do
     {scope_sql, scope_params} = visit_scope(filters, site, from, to, dialect)
 
     {"rl_events e CROSS JOIN rl_sessions s",
-     "e.site = ? AND e.ts >= ? AND e.ts < ? AND s.id = e.session AND s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{is_visit()}#{scope_sql}",
+     "e.site = ? AND e.ts >= ? AND e.ts < ? AND s.id = e.session AND s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{visit_sql()}#{scope_sql}",
      [site, from, to + event_tail_ms(), site, from, to] ++ scope_params}
   end
 end

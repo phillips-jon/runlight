@@ -85,31 +85,32 @@ defmodule Runlight.ImportersTest do
     credentials = Map.new(Object.to_list(scenario["credentials"]))
     steps = scenario["steps"]
 
-    Enum.reduce(Enum.with_index(steps), List.first(steps)["cursor"], fn {want, i}, cursor ->
-      assert want["cursor"] == cursor, "#{scenario["name"]}: step #{i} starts from the same cursor"
+    _ =
+      Enum.reduce(Enum.with_index(steps), List.first(steps)["cursor"], fn {want, i}, cursor ->
+        assert want["cursor"] == cursor, "#{scenario["name"]}: step #{i} starts from the same cursor"
 
-      try do
-        result = Importers.step(http, scenario["source"], credentials, cursor, known, fixture["now"])
-        refute want["error"], "#{scenario["name"]}: step #{i} should fail"
-        assert {scenario["name"], i, JS.stringify(result)} == {scenario["name"], i, JS.stringify(want["result"])}
-        result["cursor"]
-      rescue
-        error in ImportError ->
-          assert want["error"], "#{scenario["name"]}: step #{i} should not fail: #{error.message}"
+        try do
+          result = Importers.step(http, scenario["source"], credentials, cursor, known, fixture["now"])
+          refute want["error"], "#{scenario["name"]}: step #{i} should fail"
+          assert {scenario["name"], i, JS.stringify(result)} == {scenario["name"], i, JS.stringify(want["result"])}
+          result["cursor"]
+        rescue
+          error in ImportError ->
+            assert want["error"], "#{scenario["name"]}: step #{i} should not fail: #{error.message}"
 
-          got =
-            JS.obj(
-              message: error.message,
-              code: error.code,
-              params: JS.obj(error.params),
-              status: if(Http.http_error?(error), do: error.status, else: :undefined),
-              name: if(Http.http_error?(error), do: "HttpError", else: "ImportError")
-            )
+            got =
+              JS.obj(
+                message: error.message,
+                code: error.code,
+                params: JS.obj(error.params),
+                status: if(Http.http_error?(error), do: error.status, else: :undefined),
+                name: if(Http.http_error?(error), do: "HttpError", else: "ImportError")
+              )
 
-          assert JS.stringify(got) == JS.stringify(want["error"]), scenario["name"]
-          cursor
-      end
-    end)
+            assert JS.stringify(got) == JS.stringify(want["error"]), scenario["name"]
+            cursor
+        end
+      end)
 
     state = Agent.get(agent, & &1)
     Agent.stop(agent)

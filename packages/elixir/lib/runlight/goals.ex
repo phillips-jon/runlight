@@ -44,6 +44,7 @@ defmodule Runlight.Goals do
     end
   end
 
+  @dialyzer {:nowarn_function, refuse: 2}
   defp refuse(message, code, params \\ %{}), do: raise(GoalError, message: message, code: code, params: params)
 
   defp text(input, key, max),

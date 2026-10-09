@@ -9,9 +9,9 @@ defmodule Runlight.PureTest do
   alias Runlight.Geo
   alias Runlight.Goals
   alias Runlight.Http.Headers
+  alias Runlight.Journeys
   alias Runlight.JS
   alias Runlight.JS.Object
-  alias Runlight.Journeys
   alias Runlight.Messages
   alias Runlight.Payload
   alias Runlight.Query

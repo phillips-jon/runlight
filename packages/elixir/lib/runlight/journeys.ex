@@ -42,7 +42,8 @@ defmodule Runlight.Journeys do
         {order, Map.put(visits, row.session, pages)}
       end)
 
-    # Each sequence with whether its visit went on past the last step shown, so it never counts as having gone no further.
+    # Each sequence with whether its visit went on past the last step shown, so it never counts as having gone no
+    # further.
     sequences =
       order
       |> Enum.reverse()

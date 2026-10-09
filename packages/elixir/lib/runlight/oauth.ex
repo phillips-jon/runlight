@@ -490,7 +490,8 @@ defmodule Runlight.OAuth do
         {"content-security-policy",
          "default-src 'none'; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; frame-ancestors 'none'"},
         {"x-frame-options", "DENY"},
-        # same-origin, not no-referrer: under no-referrer a form post carries Origin: null, which the consent check refuses.
+        # same-origin, not no-referrer: under no-referrer a form post carries Origin: null, which the consent check
+        # refuses.
         {"referrer-policy", "same-origin"}
       ]
     )

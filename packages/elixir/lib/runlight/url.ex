@@ -1,5 +1,12 @@
 defmodule Runlight.Url do
-  @moduledoc false
+  @moduledoc """
+  A URL parsed as the WHATWG URL standard parses one, as `new URL()` does in
+  JavaScript, so every port reads a request's address the same way.
+
+  Documented for its type; its functions are internal and can change in
+  any release.
+  """
+
   # Internal: not the package's API, and it can change in any release.
   #
   # An absolute URL, parsed the way browsers and JavaScript's URL do for http

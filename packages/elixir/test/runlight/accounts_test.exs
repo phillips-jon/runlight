@@ -82,7 +82,7 @@ defmodule Runlight.AccountsTest do
 
   test "the throttle counts, forgives, and clears", %{rl: rl} do
     t = Throttle.new(rl.table, :test, 3)
-    assert Throttle.take(t, "k", 0) and Throttle.take(t, "k", 0) and Throttle.take(t, "k", 0)
+    for _ <- 1..3, do: assert(Throttle.take(t, "k", 0))
     refute Throttle.take(t, "k", 0)
     Throttle.forgive(t, "k")
     assert Throttle.take(t, "k", 0)

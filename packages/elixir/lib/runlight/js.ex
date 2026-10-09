@@ -34,7 +34,7 @@ defmodule Runlight.JS do
   from 1e-7 up to 1e21 and exponential notation outside it, as
   `Number.prototype.toString` writes them.
   """
-  @spec format_number(number_value()) :: String.t()
+  @spec format_number(number_value() | struct()) :: String.t()
   def format_number(:nan), do: "NaN"
   def format_number(:infinity), do: "Infinity"
   def format_number(:neg_infinity), do: "-Infinity"
@@ -156,6 +156,7 @@ defmodule Runlight.JS do
 
   @doc "A Decimal from a database as the number JavaScript would read from its text."
   @spec decimal(struct()) :: number_value()
+  # credo:disable-for-next-line Credo.Check.Refactor.Apply
   def decimal(%{__struct__: Decimal} = d), do: Decimal |> apply(:to_string, [d, :normal]) |> number()
 
   @doc "`Math.round`: halves round up, towards positive infinity. Not finite stays as it is."

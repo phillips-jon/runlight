@@ -343,7 +343,8 @@ defmodule Runlight.Assistant do
 
     result =
       Enum.reduce_while(1..@max_rounds, {convo, []}, fn _, {convo, used} ->
-        # OpenAI's newer models take max_completion_tokens and refuse max_tokens; the other services still take max_tokens.
+        # OpenAI's newer models take max_completion_tokens and refuse max_tokens; the other services still take
+        # max_tokens.
         body =
           if provider["id"] == "openai",
             do: JS.obj(model: model, max_completion_tokens: @max_tokens, messages: convo, tools: tools),

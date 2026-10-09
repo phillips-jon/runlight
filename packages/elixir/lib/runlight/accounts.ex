@@ -55,6 +55,7 @@ defmodule Runlight.Accounts do
   defp first(acc, sql, params), do: acc |> all(sql, params) |> List.first()
   defp dialect(acc), do: Db.dialect(db(acc))
 
+  @dialyzer {:nowarn_function, refuse: 2}
   defp refuse(message, code, params \\ []), do: raise(AccountError, message: message, code: code, params: params)
 
   # Changes to who has an account take turns, in this process and, on Postgres and MySQL, across processes, so two
@@ -81,7 +82,8 @@ defmodule Runlight.Accounts do
   end
 
   defp create(acc) do
-    # MySQL keys TEXT only by a prefix, so there the keyed columns are VARCHAR, in the binary collation the store's tables use.
+    # MySQL keys TEXT only by a prefix, so there the keyed columns are VARCHAR, in the binary collation the store's
+    # tables use.
     my = dialect(acc) == "mysql"
     str = fn n -> if my, do: "VARCHAR(#{n})", else: "TEXT" end
     table = if my, do: " DEFAULT CHARSET=utf8mb4 COLLATE=#{Sql.mysql_collation()}", else: ""
@@ -104,7 +106,8 @@ defmodule Runlight.Accounts do
     names = Enum.map(columns, &JS.string(&1["name"] || &1["NAME"] || &1["COLUMN_NAME"]))
     unless "role" in names, do: run(acc, "ALTER TABLE rl_users ADD COLUMN role #{str.(20)} NOT NULL DEFAULT 'owner'")
 
-    # Two-factor came later still: the secret (sealed), one being set up, recovery code hashes, and the last code's step.
+    # Two-factor came later still: the secret (sealed), one being set up, recovery code hashes, and the last code's
+    # step.
     for {name, type} <- [
           {"totp_secret", "TEXT"},
           {"totp_pending", "TEXT"},

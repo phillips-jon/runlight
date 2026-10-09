@@ -292,7 +292,7 @@ defmodule Runlight.Mcp do
 
     case Enum.find(tools(), &(&1.name == name)) do
       nil ->
-        throw({:rpc, -32602, ~s(Unknown tool "#{JS.string(name)}")})
+        throw({:rpc, -32_602, ~s(Unknown tool "#{JS.string(name)}")})
 
       tool ->
         args =
@@ -331,7 +331,7 @@ defmodule Runlight.Mcp do
     method = JS.prop(message, "method")
 
     if JS.prop(message, "jsonrpc") != "2.0" or not is_binary(method) do
-      if notification, do: nil, else: rpc_error(id, -32600, "Invalid request")
+      if notification, do: nil, else: rpc_error(id, -32_600, "Invalid request")
     else
       params =
         case JS.prop(message, "params"),
@@ -380,9 +380,9 @@ defmodule Runlight.Mcp do
 
         if notification, do: nil, else: JS.obj(jsonrpc: "2.0", id: id, result: result)
       rescue
-        _ -> if notification, do: nil, else: rpc_error(id, -32603, "Internal error")
+        _ -> if notification, do: nil, else: rpc_error(id, -32_603, "Internal error")
       catch
-        {:unknown, text} -> if notification, do: nil, else: rpc_error(id, -32601, text)
+        {:unknown, text} -> if notification, do: nil, else: rpc_error(id, -32_601, text)
         {:rpc, code, text} -> if notification, do: nil, else: rpc_error(id, code, text)
       end
     end
@@ -405,7 +405,7 @@ defmodule Runlight.Mcp do
         end
 
       _ ->
-        Response.new(JS.stringify(rpc_error(nil, -32700, "Send a JSON-RPC message")), 400, headers)
+        Response.new(JS.stringify(rpc_error(nil, -32_700, "Send a JSON-RPC message")), 400, headers)
     end
   end
 end

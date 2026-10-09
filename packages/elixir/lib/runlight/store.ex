@@ -18,7 +18,7 @@ defmodule Runlight.Store do
   alias Runlight.Store.Sql
 
   import Runlight.Store.Sql,
-    only: [num: 1, str: 1, str: 2, bounce: 0, is_visit: 0, duration: 0, live_views: 0, built_days: 0, event_tail_ms: 0]
+    only: [num: 1, str: 1, str: 2, bounce: 0, visit_sql: 0, duration: 0, live_views: 0, built_days: 0, event_tail_ms: 0]
 
   defstruct [:db]
 
@@ -350,7 +350,7 @@ defmodule Runlight.Store do
     of_day = fn kind ->
       """
       FROM rl_events e JOIN rl_sessions s ON s.id = e.session
-             WHERE e.site = ? AND e.kind = '#{kind}' AND e.ts >= ? AND e.ts < ? AND s.started_at >= ? AND s.started_at < ? AND #{is_visit()}\
+             WHERE e.site = ? AND e.kind = '#{kind}' AND e.ts >= ? AND e.ts < ? AND s.started_at >= ? AND s.started_at < ? AND #{visit_sql()}\
       """
     end
 
@@ -363,7 +363,7 @@ defmodule Runlight.Store do
         store,
         """
         INSERT INTO rl_rollups #{cols}
-               WITH v AS (SELECT * FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{is_visit()})
+               WITH v AS (SELECT * FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{visit_sql()})
                #{Enum.join(pieces, " UNION ALL ")}\
         """,
         [site, start, finish] ++ Enum.flat_map(pieces, fn _ -> [site, day] end)
@@ -493,7 +493,8 @@ defmodule Runlight.Store do
         nil
 
       true ->
-        # Pages and events always go this way without filters, so a range gives the same answer whether its days are built or not.
+        # Pages and events always go this way without filters, so a range gives the same answer whether its days are
+        # built or not.
         plan =
           rollup_plan(store, query, query.from, query.to) ||
             if(page or event, do: %{days: [], rest: [{query.from, query.to}]})
@@ -546,7 +547,7 @@ defmodule Runlight.Store do
           hi = (plan.rest |> Enum.map(&elem(&1, 1)) |> Enum.max()) + event_tail_ms()
 
           of_rest = fn kind ->
-            "FROM rl_events e JOIN rl_sessions s ON s.id = e.session WHERE e.site = ? AND e.kind = '#{kind}' AND e.ts >= ? AND e.ts < ? AND #{is_visit()} AND #{w_sql}"
+            "FROM rl_events e JOIN rl_sessions s ON s.id = e.session WHERE e.site = ? AND e.kind = '#{kind}' AND e.ts >= ? AND e.ts < ? AND #{visit_sql()} AND #{w_sql}"
           end
 
           at = [query.site, lo, hi] ++ w_params
@@ -590,7 +591,7 @@ defmodule Runlight.Store do
             """
             SELECT #{col} AS value, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(s.pageviews) AS pageviews,
                        SUM(CASE WHEN #{bounce()} THEN 1 ELSE 0 END) AS bounced, SUM(#{duration()}) AS duration
-                     FROM rl_sessions s WHERE s.site = ? AND #{is_visit()} AND #{w_sql} AND #{col} <> '' GROUP BY #{col}\
+                     FROM rl_sessions s WHERE s.site = ? AND #{visit_sql()} AND #{w_sql} AND #{col} <> '' GROUP BY #{col}\
             """,
             [query.site] ++ w_params
           )
@@ -688,7 +689,7 @@ defmodule Runlight.Store do
             """
             SELECT COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(s.pageviews) AS pageviews,
                      SUM(CASE WHEN #{bounce()} THEN 1 ELSE 0 END) AS bounced, SUM(#{duration()}) AS duration
-                   FROM rl_sessions s WHERE s.site = ? AND #{is_visit()} AND #{w_sql}\
+                   FROM rl_sessions s WHERE s.site = ? AND #{visit_sql()} AND #{w_sql}\
             """,
             [query.site] ++ w_params
           )
@@ -1090,7 +1091,7 @@ defmodule Runlight.Store do
 
     newest = fn columns, limit ->
       """
-      SELECT #{columns} FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{is_visit()}#{scope_sql}
+      SELECT #{columns} FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{visit_sql()}#{scope_sql}
                ORDER BY s.started_at DESC, s.id LIMIT #{limit}\
       """
     end
@@ -1804,7 +1805,7 @@ defmodule Runlight.Store do
     row =
       first(
         store,
-        "SELECT MIN(started_at) AS t FROM rl_sessions s WHERE s.site = ? AND s.imported = 0 AND #{is_visit()}",
+        "SELECT MIN(started_at) AS t FROM rl_sessions s WHERE s.site = ? AND s.imported = 0 AND #{visit_sql()}",
         [site]
       )
 
@@ -1826,7 +1827,7 @@ defmodule Runlight.Store do
     row =
       first(
         store,
-        "SELECT COUNT(DISTINCT s.visitor) AS visitors FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{is_visit()}#{scope_sql}",
+        "SELECT COUNT(DISTINCT s.visitor) AS visitors FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{visit_sql()}#{scope_sql}",
         [query.site, query.from, query.to] ++ scope_params
       )
 
@@ -1852,7 +1853,7 @@ defmodule Runlight.Store do
         SELECT COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(#{if pv, do: "COALESCE(pv.n, 0)", else: "s.pageviews"}) AS pageviews,
                  SUM(CASE WHEN #{bounce()} THEN 1 ELSE 0 END) AS bounced, SUM(#{duration()}) AS duration
                FROM rl_sessions s #{if pv, do: "LEFT JOIN #{elem(pv, 0)} pv ON pv.session = s.id", else: ""}
-               WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{is_visit()}#{scope_sql}\
+               WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{visit_sql()}#{scope_sql}\
         """,
         pv_params(pv) ++ [query.site, query.from, query.to] ++ scope_params
       )
@@ -1954,7 +1955,7 @@ defmodule Runlight.Store do
                    SUM(CASE WHEN #{bounce()} THEN 1 ELSE 0 END) AS bounced, SUM(#{duration()}) AS duration
                  FROM b JOIN rl_sessions s ON s.site = ? AND s.started_at >= b.bs AND s.started_at < b.be
                  #{if pv, do: "LEFT JOIN #{elem(pv, 0)} pv ON pv.session = s.id", else: ""}
-                 WHERE #{is_visit()}#{scope_sql} AND #{w_sql}
+                 WHERE #{visit_sql()}#{scope_sql} AND #{w_sql}
                  GROUP BY b.i\
           """,
           params ++ [query.site] ++ pv_params(pv) ++ scope_params ++ w_params
@@ -2025,7 +2026,7 @@ defmodule Runlight.Store do
             SELECT #{col} AS value, COUNT(DISTINCT s.visitor) AS visitors, COUNT(*) AS visits, SUM(#{if pv, do: "COALESCE(pv.n, 0)", else: "s.pageviews"}) AS pageviews,
                        SUM(CASE WHEN #{bounce()} THEN 1 ELSE 0 END) AS bounced, SUM(#{duration()}) AS duration
                      FROM rl_sessions s #{if pv, do: "LEFT JOIN #{elem(pv, 0)} pv ON pv.session = s.id", else: ""}
-                     WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{is_visit()}#{scope_sql} AND #{col} <> ''
+                     WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{visit_sql()}#{scope_sql} AND #{col} <> ''
                      GROUP BY #{col} ORDER BY #{if entry_exit, do: "visits DESC", else: "visitors DESC, visits DESC"}, #{col}#{text_order(store)} LIMIT ? OFFSET ?\
             """,
             pv_params(pv) ++ [query.site, query.from, query.to] ++ scope_params ++ page
@@ -2136,7 +2137,7 @@ defmodule Runlight.Store do
   defp within_rows(store, query, scope_sql, scope_params, dimensions) do
     {rows_sql, rows_params} = Sql.row_scope(query.filters, dimensions, dialect(store))
 
-    {" AND e.session IN (SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{is_visit()}#{scope_sql})#{rows_sql}",
+    {" AND e.session IN (SELECT s.id FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{visit_sql()}#{scope_sql})#{rows_sql}",
      [query.site, query.from, query.to] ++ scope_params ++ rows_params, query.to + event_tail_ms()}
   end
 
@@ -2162,7 +2163,7 @@ defmodule Runlight.Store do
             SELECT #{Sql.div(dialect, "s.started_at", 900_000)} AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
                      SUM(#{if pv, do: "COALESCE(pv.n, 0)", else: "s.pageviews"}) AS pageviews, SUM(CASE WHEN #{bounce()} THEN 1 ELSE 0 END) AS bounced
                    FROM rl_sessions s #{if pv, do: "LEFT JOIN #{elem(pv, 0)} pv ON pv.session = s.id", else: ""}
-                   WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{is_visit()}#{matching_sql}
+                   WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND #{visit_sql()}#{matching_sql}
                    GROUP BY 1\
             """,
             pv_params(pv) ++ [query.site, query.from, query.to] ++ matching_params
@@ -2213,7 +2214,7 @@ defmodule Runlight.Store do
             """
             SELECT #{Sql.div(dialect, "s.started_at", 900_000)} AS quarter, COUNT(*) AS visits, COUNT(DISTINCT s.visitor) AS visitors,
                        SUM(s.pageviews) AS pageviews, SUM(CASE WHEN #{bounce()} THEN 1 ELSE 0 END) AS bounced
-                     FROM rl_sessions s WHERE s.site = ? AND #{w_sql} AND #{is_visit()} GROUP BY 1\
+                     FROM rl_sessions s WHERE s.site = ? AND #{w_sql} AND #{visit_sql()} GROUP BY 1\
             """,
             [query.site] ++ w_params
           )

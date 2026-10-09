@@ -1,5 +1,12 @@
 defmodule Runlight.Http.Headers do
-  @moduledoc false
+  @moduledoc """
+  A request's or a response's headers: a list of `{name, value}` pairs with
+  lowercase names, read and set as the Fetch API's `Headers` are.
+
+  Documented for its type; its functions are internal and can change in
+  any release.
+  """
+
   # Internal. Header lists as the Fetch API's Headers reads them: names
   # matched without regard to case, repeated values joined with ", " by get/2,
   # and Set-Cookie kept apart, since its values may hold commas.

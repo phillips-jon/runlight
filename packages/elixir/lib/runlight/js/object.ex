@@ -1,5 +1,14 @@
 defmodule Runlight.JS.Object do
-  @moduledoc false
+  @moduledoc """
+  A JSON object that keeps its keys in the order they were set, as a
+  JavaScript object does, so answers serialise byte for byte as the
+  TypeScript library's. Rows from the store and the bodies of the API's
+  answers are these. It implements `Access`, so `row["name"]` reads a key.
+
+  Documented for its type; its functions are internal and can change in
+  any release.
+  """
+
   # Internal: not the package's API, and it can change in any release.
   #
   # A JavaScript object: keys in JavaScript's order, which is every key that is

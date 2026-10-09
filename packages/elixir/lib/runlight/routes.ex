@@ -192,9 +192,12 @@ defmodule Runlight.Routes do
   @doc "Whether the app runs in development: NODE_ENV or RUNLIGHT_ENV is \"development\", or Mix runs in :dev."
   @spec development?() :: boolean()
   def development? do
-    Runlight.env("NODE_ENV") == "development" or Runlight.env("RUNLIGHT_ENV") == "development" or
-      (Code.ensure_loaded?(Mix) and function_exported?(Mix, :env, 0) and apply(Mix, :env, []) == :dev)
+    Runlight.env("NODE_ENV") == "development" or Runlight.env("RUNLIGHT_ENV") == "development" or mix_dev?()
   end
+
+  # Mix is not loaded in a release, so it is called through apply.
+  # credo:disable-for-next-line Credo.Check.Refactor.Apply
+  defp mix_dev?, do: Code.ensure_loaded?(Mix) and apply(Mix, :env, []) == :dev
 
   defp normalise_base(path) do
     trimmed = "/" <> String.replace(path, ~r/^\/+|\/+$/, "")
@@ -1731,6 +1734,12 @@ defmodule Runlight.Routes do
     end
   end
 
+  # The store is ready before the answer says where the sites are set.
+  defp sites_in_code?(rl) do
+    Runlight.init(rl)
+    not rl.managed_sites
+  end
+
   defp connect_start(routes, request, url) do
     rl = routes.rl
     access = can_read(routes, request)
@@ -1739,7 +1748,7 @@ defmodule Runlight.Routes do
       access != true ->
         denied(access)
 
-      Runlight.init(rl) == :ok and not rl.managed_sites ->
+      sites_in_code?(rl) ->
         coded("Sites are set in code", "sites_in_code", 400)
 
       true ->
@@ -2275,7 +2284,8 @@ defmodule Runlight.Routes do
           access in [false, "unconfigured"] ->
             denied(access)
 
-          # Only people at the dashboard, never an API token or a share, so nobody spends the owner's AI credit from outside.
+          # Only people at the dashboard, never an API token or a share, so nobody spends the owner's AI credit from
+          # outside.
           access != true and access["id"] != "" ->
             coded("Only the dashboard can use the assistant", "assistant_dashboard", 403)
 
