@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Runlight.Tests</RootNamespace>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Test code names its methods with underscores, blocks on nothing that
+         matters to an app, and is not a library other code calls. -->
+    <NoWarn>$(NoWarn);CS1591;CS8600;CS8602;CS8604;CS8605;CS8620;xUnit1051;CA1707;CA2007;CA1515;CA1861;CA2000;CA1849;CA1822;CA1031;CA1062;CA2201;CA1305;CA1307;CA1309;CA1310;CA1304;CA1311;CA5394;CA1852;CA1812;CA1825;CA1859;CA1860;CA1865;CA1866;CA1867;CA1001;CA1063;CA1816;CA2234;CA1054;CA1056;CA2227;CA1002</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3.mtp-v2" />
+    <PackageReference Include="Microsoft.Data.Sqlite" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="MySqlConnector" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+  </ItemGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Runlight/Runlight.csproj" />
+    <ProjectReference Include="../../src/Runlight.AspNetCore/Runlight.AspNetCore.csproj" />
+  </ItemGroup>
+</Project>

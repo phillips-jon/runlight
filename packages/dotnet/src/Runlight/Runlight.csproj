@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <RootNamespace>Runlight</RootNamespace>
+    <AssemblyName>Runlight</AssemblyName>
+    <IsPackable>true</IsPackable>
+    <PackageId>Runlight</PackageId>
+    <Description>Privacy friendly web analytics that lives inside your .NET app. Map the routes, add a script tag, and read your stats at /runlight.</Description>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- A faithful port of the TypeScript SDK: its doc comments carry over
+         where they help, not on every member. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
+    <InternalsVisibleTo Include="Runlight.Tests" />
+    <InternalsVisibleTo Include="Runlight.AspNetCore" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The dashboard, tracker, map, and locales: the SDK's files, byte for
+         byte, written and checked by scripts/dotnet-assets.mts. -->
+    <EmbeddedResource Include="Assets/*" LogicalName="Runlight.Assets/%(Filename)%(Extension)" />
+  </ItemGroup>
+</Project>
