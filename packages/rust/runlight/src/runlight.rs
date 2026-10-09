@@ -432,7 +432,7 @@ impl Runlight {
     async fn load_remotes(&self) -> Result<(), Error> {
         let mut remotes = Vec::new();
         for (key, value) in self.0.store.settings_starting_with("remote:").await? {
-            if let Some(opened) = crate::sealing::unseal(&value, self.0.secret.as_deref())
+            if let Some(opened) = crate::mail::secret::unseal(&value, self.0.secret.as_deref())
                 && let Ok(v) = js::parse(&opened)
             {
                 remotes.push((key["remote:".len()..].to_string(), Remote::from_value(&v)));
@@ -498,7 +498,7 @@ impl Runlight {
     }
 
     async fn seal(&self, value: &str) -> String {
-        crate::sealing::seal(value, self.0.secret.as_deref())
+        crate::mail::secret::seal(value, self.0.secret.as_deref())
     }
 
     /// Connects a site counted by another Runlight (an app's own install) so this server shows it too.
