@@ -13,9 +13,9 @@
   "scripts": {
     "check:dashes": "node scripts/check-dashes.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run check:dashes && npm test --workspaces --if-present && node --test deploy/contact/server.test.mjs && npm run test:scripts && node --import tsx scripts/php-assets.mts --check && node --import tsx scripts/python-assets.mts --check",
+    "test": "npm run check:dashes && npm test --workspaces --if-present && node --test deploy/contact/server.test.mjs && npm run test:scripts && node --import tsx scripts/php-assets.mts --check && node --import tsx scripts/python-assets.mts --check && node --import tsx scripts/ruby-assets.mts --check",
     "test:scripts": "node --test scripts/changelogs.test.mjs scripts/release.test.mjs",
-    "build": "npm run check:dashes && npm run build --workspaces --if-present && npm run php-assets && npm run python-assets",
+    "build": "npm run check:dashes && npm run build --workspaces --if-present && npm run php-assets && npm run python-assets && npm run ruby-assets",
     "test:php": "node scripts/php-test.mjs",
     "check": "npm run check:dashes && npm run typecheck && npm test && npm run test:php",
     "dev:dashboard": "node --import tsx scripts/dev-dashboard.mts",
@@ -23,6 +23,7 @@
     "conformance": "node --import tsx scripts/conformance.mts",
     "php-assets": "node --import tsx scripts/php-assets.mts",
     "python-assets": "node --import tsx scripts/python-assets.mts",
+    "ruby-assets": "node --import tsx scripts/ruby-assets.mts",
     "check:packages": "node scripts/check-packages.mjs",
     "release": "node scripts/release.mjs"
   },
