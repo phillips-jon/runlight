@@ -96,7 +96,8 @@ defmodule Runlight.MailTest do
     for c <- f["sealed"] do
       assert Crypto.unseal(c["sealed"], c["secret"]) == c["value"]
       assert Crypto.unseal(c["sealed"], c["secret"] <> "!") == nil
-      assert Crypto.unseal(Crypto.seal(c["value"], c["secret"]), c["secret"]) == c["value"]
+      # A key that does not open (an IV under 12 bytes) has no value to seal again.
+      if c["value"] != nil, do: assert(Crypto.unseal(Crypto.seal(c["value"], c["secret"]), c["secret"]) == c["value"])
     end
 
     assert Crypto.unseal(Crypto.seal("x", nil), nil) == "x"
@@ -288,7 +289,7 @@ defmodule Runlight.MailTest do
       end
 
     assert error.code == "mail_unreachable"
-    assert error.params["host"] == "127.0.0.1:#{port}"
+    assert List.keyfind(error.params, "host", 0) == {"host", "127.0.0.1:#{port}"}
     assert String.starts_with?(error.message, "SMTP: could not connect to 127.0.0.1:#{port}: ")
   end
 end

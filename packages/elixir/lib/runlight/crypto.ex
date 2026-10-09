@@ -283,7 +283,7 @@ defmodule Runlight.Crypto do
          ["v1", iv, data | _] when iv != "" and data != "" <- String.split(sealed, ":"),
          {:ok, iv} <- Base.decode64(iv),
          {:ok, data} <- Base.decode64(data),
-         true <- byte_size(data) >= 16 and byte_size(iv) > 0 do
+         true <- byte_size(data) >= 16 and byte_size(iv) >= 12 do
       body = binary_part(data, 0, byte_size(data) - 16)
       tag = binary_part(data, byte_size(data) - 16, 16)
 

@@ -286,6 +286,9 @@ defmodule Runlight.Mail.Smtp do
   defp read_reply(conn, timeout, lines) do
     case :binary.split(conn.buffer, "\r\n") do
       [line, rest] ->
+        # Bytes gather until a line ends, so a character split across two reads comes through whole, and
+        # replies that arrived before a close or an error are answered before the failure is.
+        line = Runlight.JS.scrub(line)
         conn = %{conn | buffer: rest}
         lines = lines ++ [Runlight.JS.slice(line, 4)]
 
