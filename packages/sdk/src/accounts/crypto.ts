@@ -88,18 +88,23 @@ export async function hashPassword(password: string): Promise<string> {
 }
 
 /** Whether a password matches a hash. A scrypt hash only checks out where the runtime has scrypt. */
+/** The shortest stored key accepted. Ours are 32 bytes; an empty or cut key would match too easily, or anything. */
+const MIN_KEY_BYTES = 16;
+
 export async function checkPassword(password: string, stored: string): Promise<boolean> {
   const parts = stored.split("$");
   if (parts[0] === "scrypt" && parts.length === 3) {
     const scrypt = await nodeScrypt();
     if (!scrypt) return false;
     const expected = fromBase64url(parts[2]!);
+    if (expected.length < MIN_KEY_BYTES) return false;
     return sameBytes(await runScrypt(scrypt, password, fromBase64url(parts[1]!), expected.length), expected);
   }
   if (parts[0] === "pbkdf2" && parts.length === 4) {
     const rounds = Number(parts[1]);
     if (!Number.isInteger(rounds) || rounds < 1 || rounds > 10_000_000) return false;
     const expected = fromBase64url(parts[3]!);
+    if (expected.length < MIN_KEY_BYTES) return false;
     return sameBytes(await pbkdf2(password, fromBase64url(parts[2]!), rounds, expected.length), expected);
   }
   return false;

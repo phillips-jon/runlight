@@ -89,16 +89,22 @@ final class Crypto
     }
 
     /**
-     * Whether a password matches a hash, scrypt or PBKDF2. As in TypeScript, a stored hash whose key part is
-     * empty matches every password; nothing Runlight writes has one.
+     * Whether a password matches a hash, scrypt or PBKDF2. A stored key under MIN_KEY_BYTES is refused, since an
+     * empty or cut key would match too easily, or anything.
      *
      * @throws \InvalidArgumentException when a part of the hash is not base64, as the TypeScript rejects then
      */
+    /** The shortest stored key accepted. Ours are 32 bytes. */
+    public const MIN_KEY_BYTES = 16;
+
     public static function checkPassword(string $password, string $stored): bool
     {
         $parts = explode('$', $stored);
         if ($parts[0] === 'scrypt' && count($parts) === 3) {
             $expected = self::fromBase64url($parts[2]);
+            if (strlen($expected) < self::MIN_KEY_BYTES) {
+                return false;
+            }
             return self::sameBytes(self::scrypt($password, self::fromBase64url($parts[1]), strlen($expected)), $expected);
         }
         if ($parts[0] === 'pbkdf2' && count($parts) === 4) {
@@ -107,6 +113,9 @@ final class Crypto
                 return false;
             }
             $expected = self::fromBase64url($parts[3]);
+            if (strlen($expected) < self::MIN_KEY_BYTES) {
+                return false;
+            }
             return self::sameBytes(self::pbkdf2($password, self::fromBase64url($parts[2]), $rounds, strlen($expected)), $expected);
         }
         return false;
@@ -114,7 +123,6 @@ final class Crypto
 
     private static function scrypt(string $password, string $salt, int $length): string
     {
-        // Node gives no bytes for a length of 0, so a hash with an empty key matches any password, as in TypeScript.
         return $length === 0 ? '' : Scrypt::derive($password, $salt, self::SCRYPT_N, self::SCRYPT_R, self::SCRYPT_P, $length);
     }
 
