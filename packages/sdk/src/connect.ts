@@ -51,7 +51,7 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
     }
   };
   if (![meta.authorization_endpoint, meta.token_endpoint, meta.registration_endpoint].every(own)) throw new ConnectError(`${url} named endpoints on another address`, "endpoints", { url });
-  if (!meta.scopes_supported?.includes("manage")) throw new ConnectError(`${url} runs an older Runlight. Update it, or connect it with an API token from its Settings.`, "old", { url });
+  if (!Array.isArray(meta.scopes_supported) || !meta.scopes_supported.includes("manage")) throw new ConnectError(`${url} runs an older Runlight. Update it, or connect it with an API token from its Settings.`, "old", { url });
 
   const registered = await fetch(meta.registration_endpoint, {
     method: "POST",

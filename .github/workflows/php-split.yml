@@ -1,50 +1,123 @@
 # Packagist reads a package from the root of a repository, so packages/php is
-# copied, with its own history, to a read-only repository of its own on every
-# push to main, and a tag such as php-v1.2.0 here becomes v1.2.0 there.
-# Nothing is pushed until the PHP_SPLIT_TOKEN secret holds a token that may
-# write to PHP_SPLIT_REPO (runlight/runlight-php unless the variable says else).
+# copied, with its own history, to a read-only repository of its own,
+# phillips-jon/runlight-php (or PHP_SPLIT_REPO, a repository variable, as
+# owner/name). The split is `git subtree split`, which gives the same commits
+# for the same history every time, so each push only adds to the last.
+#
+# Every push to main pushes the split to that repository's main. A release
+# tag (v0.1.0) waits for CI to pass on the tagged commit (ci-passed.yml),
+# checks that packages/php/assets/build.json carries the tag's version, and
+# pushes the same tag on the split commit, which Packagist publishes. A tag
+# already there on the same commit is a rerun and is left alone. The tag
+# can also be pushed by hand from the Actions tab.
+#
+# Nothing runs until the repository secret PHP_SPLIT_DEPLOY_KEY holds the
+# private half of a deploy key with write access on the split repository
+# alone, as the Craft plugin's split uses.
 name: PHP package split
 
 on:
   push:
     branches: [main]
-    tags: ["php-v*"]
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to push (v0.1.0, say)
+        required: true
 
 permissions:
   contents: read
 
-concurrency:
-  group: php-split
-  cancel-in-progress: false
-
 jobs:
-  split:
+  # Whether PHP_SPLIT_DEPLOY_KEY is set; a job's `if` cannot read a secret.
+  gate:
     if: github.repository == 'phillips-jon/runlight'
     runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.gate.outputs.enabled }}
+    steps:
+      - id: gate
+        env:
+          DEPLOY_KEY: ${{ secrets.PHP_SPLIT_DEPLOY_KEY }}
+        run: |
+          if [ -n "$DEPLOY_KEY" ]; then echo "enabled=true" >> "$GITHUB_OUTPUT"; else echo "PHP_SPLIT_DEPLOY_KEY is not set, so nothing is pushed."; fi
+
+  main:
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: php-split-main
+      cancel-in-progress: false
     env:
-      SPLIT_TOKEN: ${{ secrets.PHP_SPLIT_TOKEN }}
-      SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'runlight/runlight-php' }}
-      REF: ${{ github.ref }}
+      DEPLOY_KEY: ${{ secrets.PHP_SPLIT_DEPLOY_KEY }}
+      SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'phillips-jon/runlight-php' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: Push packages/php to its own repository
         run: |
-          if [ -z "$SPLIT_TOKEN" ]; then
-            echo "PHP_SPLIT_TOKEN is not set, so nothing is pushed."
-            exit 0
-          fi
-          # The same history always splits to the same commits, so each push only adds to the last.
-          split=$(git subtree split --prefix=packages/php HEAD)
-          remote="https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git"
-          case "$REF" in
-            refs/tags/php-v*)
-              tag="v${REF#refs/tags/php-v}"
-              git tag "$tag" "$split"
-              git push "$remote" "refs/tags/$tag"
-              ;;
-            *)
-              git push "$remote" "$split:refs/heads/main"
-              ;;
-          esac
+          key="$RUNNER_TEMP/split_key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          chmod 600 "$key"
+          # GitHub's published host key (https://api.github.com/meta), pinned rather than trusted on first use.
+          printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$RUNNER_TEMP/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
+          split="$(git subtree split --prefix=packages/php HEAD)"
+          git push "git@github.com:${SPLIT_REPO}.git" "$split:refs/heads/main"
+
+  # CI must pass on the tagged commit first (ci-passed.yml).
+  ci:
+    needs: gate
+    if: needs.gate.outputs.enabled == 'true' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch')
+    uses: ./.github/workflows/ci-passed.yml
+    permissions:
+      actions: read
+      contents: read
+    with:
+      tag: ${{ inputs.tag }}
+
+  tag:
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: php-split-tag
+      cancel-in-progress: false
+    env:
+      DEPLOY_KEY: ${{ secrets.PHP_SPLIT_DEPLOY_KEY }}
+      SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'phillips-jon/runlight-php' }}
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.ci.outputs.sha }}
+          persist-credentials: false
+      - name: Split packages/php and push the tag
+        run: |
+          case "$TAG" in v[0-9]*) ;; *) echo "not a release tag: $TAG"; exit 1 ;; esac
+          # The package's version must be the tag's, or Packagist would list a
+          # release whose Version::version() says otherwise.
+          version="$(node -p 'require("./packages/php/assets/build.json").version')"
+          if [ "v$version" != "$TAG" ]; then echo "packages/php/assets/build.json is $version, the tag is $TAG"; exit 1; fi
+          git config user.name "Runlight release"
+          git config user.email "noreply@runlight.sh"
+          key="$RUNNER_TEMP/split_key"
+          printf '%s\n' "$DEPLOY_KEY" > "$key"
+          chmod 600 "$key"
+          # GitHub's published host key (https://api.github.com/meta), pinned rather than trusted on first use.
+          printf '%s\n' 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl' > "$RUNNER_TEMP/known_hosts"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o UserKnownHostsFile=$RUNNER_TEMP/known_hosts"
+          split="$(git subtree split --prefix=packages/php HEAD)"
+          remote="git@github.com:${SPLIT_REPO}.git"
+          # A tag already there on this commit is a rerun; on another commit, a release changed after it shipped.
+          remote_tag="$(git ls-remote "$remote" "refs/tags/$TAG^{}" | cut -f1)"
+          if [ "$remote_tag" = "$split" ]; then echo "$TAG is already there on this commit"; exit 0; fi
+          if [ -n "$remote_tag" ]; then echo "$TAG is already there on another commit ($remote_tag)"; exit 1; fi
+          git tag -f -a "$TAG" -m "Release ${TAG#v}" "$split"
+          git push "$remote" "refs/tags/$TAG"
