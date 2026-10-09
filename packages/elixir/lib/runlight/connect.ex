@@ -22,8 +22,11 @@ defmodule Runlight.Connect do
   def install_url(value) do
     url = value |> JS.nullish("") |> JS.string() |> JS.trim() |> String.replace(~r/\/+\z/, "")
 
-    unless Regex.match?(~r/^https:\/\/[^\/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/, url),
-      do: raise(ConnectError, message: "Enter the install's address, like https://example.com/runlight", code: "url")
+    # The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
+    unless Regex.match?(~r/^https:\/\/[^\/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/, url) and
+             Url.parse(url) != nil,
+           do:
+             raise(ConnectError, message: "Enter the install's address, like https://example.com/runlight", code: "url")
 
     url
   end
@@ -42,9 +45,17 @@ defmodule Runlight.Connect do
   # Attempts nobody came back from are removed, so they do not pile up in settings.
   defp clear_expired(rl) do
     for %{key: key, value: value} <- Store.settings_starting_with(rl.store, "connect:") do
-      pending = JS.parse_or(value, nil)
-      expires = if JS.object?(pending), do: pending["expires"]
-      if not JS.truthy?(expires) or expires < Runlight.now(rl), do: Store.set_setting(rl.store, key, nil)
+      if pending_from(value, Runlight.now(rl)) == nil, do: Store.set_setting(rl.store, key, nil)
+    end
+  end
+
+  # A saved attempt, or nil when it cannot be read or has no time it runs out, which counts as expired.
+  defp pending_from(value, now) do
+    with %Object{} = pending <- JS.parse_or(value || "", nil),
+         expires when is_number(expires) and expires >= now <- pending["expires"] do
+      pending
+    else
+      _ -> nil
     end
   end
 
@@ -172,9 +183,9 @@ defmodule Runlight.Connect do
     stored = if Regex.match?(~r/\A[a-f0-9]{32}\z/, state), do: Store.setting(rl.store, key)
     # Each attempt works once.
     if stored, do: Store.set_setting(rl.store, key, nil)
-    pending = stored && JS.parse!(stored)
+    pending = if stored not in [nil, ""], do: pending_from(stored, Runlight.now(rl))
 
-    if pending == nil or pending["expires"] < Runlight.now(rl),
+    if pending == nil,
       do:
         raise(ConnectError, message: "That connection took too long or was already used. Start again.", code: "expired")
 

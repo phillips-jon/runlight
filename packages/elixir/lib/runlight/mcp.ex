@@ -313,16 +313,22 @@ defmodule Runlight.Mcp do
               :error -> Object.new()
             )
 
+        # Any body that is not an object (null included) carries no words of its own.
+        object = if match?(%Object{}, body), do: body, else: nil
+
         if Response.ok?(answer) do
-          text = JS.stringify(if tool[:shape], do: tool.shape.(body), else: body)
+          text = JS.stringify(if tool[:shape] && object, do: tool.shape.(object), else: body)
           JS.obj(content: [JS.obj(type: "text", text: text)])
         else
-          error = JS.prop(body, "error")
+          error = if object, do: JS.prop(object, "error"), else: nil
           text = if error in [:undefined, nil], do: "Runlight answered #{answer.status}", else: JS.string(error)
           JS.obj(content: [JS.obj(type: "text", text: text)], isError: true)
         end
     end
   end
+
+  # A batch element that is not an object is an invalid request, answered with a null id.
+  defp answer(message, _read_api) when not is_struct(message, Object), do: rpc_error(nil, -32_600, "Invalid request")
 
   defp answer(message, read_api) do
     id = JS.prop(message, "id")
@@ -330,61 +336,71 @@ defmodule Runlight.Mcp do
     id = if notification, do: nil, else: id
     method = JS.prop(message, "method")
 
-    if JS.prop(message, "jsonrpc") != "2.0" or not is_binary(method) do
-      if notification, do: nil, else: rpc_error(id, -32_600, "Invalid request")
-    else
-      params =
-        case JS.prop(message, "params"),
-          do: (
-            p when is_list(p) -> p
-            %Object{} = p -> p
-            _ -> Object.new()
-          )
+    cond do
+      JS.prop(message, "jsonrpc") != "2.0" or not is_binary(method) ->
+        if notification, do: nil, else: rpc_error(id, -32_600, "Invalid request")
 
-      try do
-        result =
-          case method do
-            "initialize" ->
-              asked = params |> JS.prop("protocolVersion") |> JS.nullish("") |> JS.string()
+      # A notification is never answered, so it never runs anything either.
+      notification ->
+        nil
 
-              JS.obj(
-                protocolVersion: if(asked in @protocol_versions, do: asked, else: hd(@protocol_versions)),
-                capabilities: JS.obj(tools: JS.obj(listChanged: false)),
-                serverInfo: JS.obj(name: "runlight", title: "Runlight", version: Assets.version()),
-                instructions: @instructions
-              )
+      true ->
+        run(id, method, message, read_api)
+    end
+  end
 
-            "ping" ->
-              Object.new()
+  defp run(id, method, message, read_api) do
+    params =
+      case JS.prop(message, "params"),
+        do: (
+          p when is_list(p) -> p
+          %Object{} = p -> p
+          _ -> Object.new()
+        )
 
-            "tools/list" ->
-              JS.obj(
-                tools:
-                  Enum.map(tools(), fn t ->
-                    JS.obj(
-                      name: t.name,
-                      title: t.title,
-                      description: t.description,
-                      inputSchema: t.input_schema,
-                      annotations: JS.obj(readOnlyHint: true, openWorldHint: false)
-                    )
-                  end)
-              )
+    try do
+      result =
+        case method do
+          "initialize" ->
+            asked = params |> JS.prop("protocolVersion") |> JS.nullish("") |> JS.string()
 
-            "tools/call" ->
-              call_tool(params, read_api)
+            JS.obj(
+              protocolVersion: if(asked in @protocol_versions, do: asked, else: hd(@protocol_versions)),
+              capabilities: JS.obj(tools: JS.obj(listChanged: false)),
+              serverInfo: JS.obj(name: "runlight", title: "Runlight", version: Assets.version()),
+              instructions: @instructions
+            )
 
-            _ ->
-              throw({:unknown, ~s(Unknown method "#{method}")})
-          end
+          "ping" ->
+            Object.new()
 
-        if notification, do: nil, else: JS.obj(jsonrpc: "2.0", id: id, result: result)
-      rescue
-        _ -> if notification, do: nil, else: rpc_error(id, -32_603, "Internal error")
-      catch
-        {:unknown, text} -> if notification, do: nil, else: rpc_error(id, -32_601, text)
-        {:rpc, code, text} -> if notification, do: nil, else: rpc_error(id, code, text)
-      end
+          "tools/list" ->
+            JS.obj(
+              tools:
+                Enum.map(tools(), fn t ->
+                  JS.obj(
+                    name: t.name,
+                    title: t.title,
+                    description: t.description,
+                    inputSchema: t.input_schema,
+                    annotations: JS.obj(readOnlyHint: true, openWorldHint: false)
+                  )
+                end)
+            )
+
+          "tools/call" ->
+            call_tool(params, read_api)
+
+          _ ->
+            throw({:unknown, ~s(Unknown method "#{method}")})
+        end
+
+      JS.obj(jsonrpc: "2.0", id: id, result: result)
+    rescue
+      _ -> rpc_error(id, -32_603, "Internal error")
+    catch
+      {:unknown, text} -> rpc_error(id, -32_601, text)
+      {:rpc, code, text} -> rpc_error(id, code, text)
     end
   end
 
