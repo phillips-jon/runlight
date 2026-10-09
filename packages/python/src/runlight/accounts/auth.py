@@ -48,7 +48,7 @@ __all__ = [
 T = TypeVar("T")
 
 
-class AccountError(ValueError):
+class AccountError(_js.RangeError):
     """A problem with an account change, to show the person making it. A RangeError in TypeScript, with a `code`
     and `params` the dashboard words in its own language."""
 

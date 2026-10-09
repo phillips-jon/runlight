@@ -14,7 +14,7 @@ from .auth import (
     otpauth_uri,
     totp,
 )
-# from .web import AccountsWeb, accounts_web, setup_code
+from .web import AccountsWeb, accounts_web, setup_code
 
 __all__ = [
     "INVITE_MS",
