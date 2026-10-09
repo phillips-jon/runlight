@@ -187,7 +187,7 @@ defmodule Runlight.Mail do
         raise MailError,
           message: "Could not reach #{host}: #{detail}",
           code: "mail_unreachable",
-          params: %{"host" => host, "detail" => detail}
+          params: [{"host", host}, {"detail", detail}]
 
       {:ok, response} ->
         if response.status >= 200 and response.status < 300 do
@@ -201,7 +201,7 @@ defmodule Runlight.Mail do
           raise MailError,
             message: "#{host} answered #{response.status}#{suffix}",
             code: "mail_refused",
-            params: %{"host" => host, "detail" => detail}
+            params: [{"host", host}, {"detail", detail}]
         end
     end
   end

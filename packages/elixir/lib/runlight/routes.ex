@@ -2314,7 +2314,7 @@ defmodule Runlight.Routes do
       target = Url.with_params(target, Url.search_params(target) ++ params)
 
       target =
-        if site && api_path != "/api/sites" and not SearchParams.has?(Url.search_params(target), "site"),
+        if site != nil and api_path != "/api/sites" and not SearchParams.has?(Url.search_params(target), "site"),
           do: with_param(target, "site", site),
           else: target
 

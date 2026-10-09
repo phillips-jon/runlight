@@ -125,7 +125,7 @@ defmodule Runlight.Mail.Ses do
         raise MailError,
           message: "Could not reach Amazon SES: #{detail}",
           code: "mail_unreachable",
-          params: %{"host" => "Amazon SES", "detail" => detail}
+          params: [{"host", "Amazon SES"}, {"detail", detail}]
 
       {:ok, response} when response.status >= 200 and response.status < 300 ->
         :ok

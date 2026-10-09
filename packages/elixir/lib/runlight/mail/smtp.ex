@@ -156,7 +156,7 @@ defmodule Runlight.Mail.Smtp do
          MailError.exception(
            message: "SMTP: could not connect to #{host}:#{port}: #{detail}",
            code: "mail_unreachable",
-           params: %{"host" => "#{host}:#{port}", "detail" => detail}
+           params: [{"host", "#{host}:#{port}"}, {"detail", detail}]
          )}
 
       {:ok, socket} ->
