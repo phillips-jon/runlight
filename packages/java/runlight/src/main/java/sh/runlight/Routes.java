@@ -371,6 +371,11 @@ public final class Routes {
     return web;
   }
 
+  /** Where these routes are mounted, such as "/runlight", or "" at the root. */
+  public String basePath() {
+    return base;
+  }
+
   // Helpers that need nothing of an instance.
 
   static String escapeHtml(String value) {
