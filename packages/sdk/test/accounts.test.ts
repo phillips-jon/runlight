@@ -35,6 +35,9 @@ test("passwords hashed before, with scrypt, still check, and a PBKDF2 hash made 
   assert.equal(await checkPassword("anything", `scrypt$${salt.toString("base64url")}$`), false, "an empty key matches nothing");
   assert.equal(await checkPassword("anything", `pbkdf2$1000$${salt.toString("base64url")}$`), false, "an empty key matches nothing");
   assert.equal(await checkPassword("a long password", `scrypt$${salt.toString("base64url")}$${key.subarray(0, 8).toString("base64url")}`), false, "a cut key is refused");
+  assert.equal(await checkPassword("a long password", "scrypt$Xn_mYpTI3PoQhj0lEUmHtw$a"), false, "a key that is not base64url matches nothing rather than throwing");
+  assert.equal(await checkPassword("a long password", `scrypt$@@$${key.toString("base64url")}`), false, "nor does a salt that is not base64url");
+  assert.equal(await checkPassword("a long password", `pbkdf2$1000$@@$${key.toString("base64url")}`), false);
   assert.match(await hashPassword("a long password"), /^scrypt\$/, "Node has scrypt, so new hashes use it");
 });
 

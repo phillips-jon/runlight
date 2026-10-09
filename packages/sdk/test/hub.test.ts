@@ -204,3 +204,23 @@ test("a hub only follows an install's own endpoints when connecting", async () =
     hostile.close();
   }
 });
+
+test("an install whose scopes_supported is not a list counts as an older Runlight", async () => {
+  for (const scopes of ["unmanaged", "manage", 7]) {
+    const odd = createServer((_req, res) => {
+      const origin = `http://127.0.0.1:${(odd.address() as AddressInfo).port}`;
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ authorization_endpoint: `${origin}/authorize`, token_endpoint: `${origin}/token`, registration_endpoint: `${origin}/register`, scopes_supported: scopes }));
+    });
+    await new Promise<void>((resolve) => odd.listen(0, "127.0.0.1", resolve));
+    try {
+      const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+      const { POST } = hub.routes({ token: "hub-owner" });
+      const answer = await POST(new Request("http://localhost/runlight/api/sites/connect", { method: "POST", headers: { authorization: "Bearer hub-owner", "content-type": "application/json" }, body: JSON.stringify({ url: `http://127.0.0.1:${(odd.address() as AddressInfo).port}` }) }));
+      assert.equal(answer.status, 400, `scopes_supported ${JSON.stringify(scopes)}`);
+      assert.match(((await answer.json()) as any).error, /older Runlight/);
+    } finally {
+      odd.close();
+    }
+  }
+});
