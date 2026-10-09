@@ -384,12 +384,15 @@ final class WebTest extends TestCase
         $held = self::handle($web, self::form('/login', ['email' => 'jon@example.com', 'password' => 'a long password', 'next' => '/runlight/?a=1']));
         $this->assertSame(429, $held->status);
         $this->assertStringContainsString('a link to sign in is on its way', $held->text());
+        $this->assertCount(0, $this->rl->sent, 'the link goes out after the answer, so its timing cannot show a right password');
+        $this->rl->idle();
         $this->assertCount(1, $this->rl->sent);
         $this->assertSame('Sign in to Runlight', $this->rl->sent[0]['subject']);
         $this->assertSame(1, preg_match('/(https:\/\/stats\.example\.com\/runlight\/login\/link\?\S+)/', $this->rl->sent[0]['text'], $m));
         $link = new Url($m[1]);
         $this->assertSame('/runlight/?a=1', $link->searchParams()->get('next'));
         self::handle($web, self::form('/login', ['email' => 'jon@example.com', 'password' => 'a long password']));
+        $this->rl->idle();
         $this->assertCount(1, $this->rl->sent, 'at most one link a minute');
         $wrongToo = self::handle($web, self::form('/login', ['email' => 'jon@example.com', 'password' => 'a wrong password']));
         $this->assertSame(429, $wrongToo->status, 'a wrong password gets the same answer');

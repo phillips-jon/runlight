@@ -124,6 +124,8 @@ final class Runlight
     private ?array $mailInCode;
     /** @var list<?string> retention work asked for and not yet done: a site's id, or null for every site */
     private array $pruning = [];
+    /** @var list<callable(): void> work to do once the answer is sent, such as an email whose timing must not show in the answer */
+    private array $later = [];
 
     /** @param array<string, mixed> $options */
     public function __construct(array $options)
@@ -795,9 +797,23 @@ final class Runlight
         $this->pruning[] = $site;
     }
 
-    /** Runs the work still waiting from earlier calls (a retention change's deletions); the scheduled check and tests wait for it. */
+    /** Queues work for idle(), so it runs after the answer is sent, as TypeScript leaves a promise running. */
+    public function later(callable $work): void
+    {
+        $this->later[] = $work;
+    }
+
+    /** Runs the work still waiting from earlier calls (later() work and a retention change's deletions); the scheduled check and tests wait for it. */
     public function idle(): void
     {
+        while ($this->later !== []) {
+            $work = array_shift($this->later);
+            try {
+                $work();
+            } catch (\Throwable $error) {
+                error_log('Runlight: ' . $error->getMessage());
+            }
+        }
         while ($this->pruning !== []) {
             $only = array_shift($this->pruning);
             try {

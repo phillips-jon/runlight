@@ -17,9 +17,24 @@ final class StandIn
     public array $sent = [];
     public ?array $mail = null;
     public ?\Throwable $mailFails = null;
+    /** @var list<callable(): void> */
+    private array $later = [];
 
     public function __construct(public readonly SqlStore $store)
     {
+    }
+
+    /** Work Runlight runs after the answer; idle() runs it, as an adapter does once the answer is out. */
+    public function later(callable $work): void
+    {
+        $this->later[] = $work;
+    }
+
+    public function idle(): void
+    {
+        while ($this->later !== []) {
+            (array_shift($this->later))();
+        }
     }
 
     public function mailSettings(): ?array
