@@ -5,28 +5,18 @@ from __future__ import annotations
 import select
 import socket
 from collections.abc import Callable
-from typing import Any
 
 import pytest
 from support import fixtures
+from support.fake_fetcher import FakeFetcher
 
 from runlight.http import FetchError, Response
 from runlight.safefetch import PrivateAddressError, public_address, public_addresses, public_fetch
 from runlight.safefetch import resolves_privately
 
 
-class FakeFetcher:
-    """Answers each fetch from a function, keeping what was asked."""
-
-    def __init__(self, answer: Callable[[str], Response]) -> None:
-        self.answer = answer
-        self.urls: list[str] = []
-        self.inits: list[dict[str, Any]] = []
-
-    def fetch(self, url: str, init: dict[str, Any] | None = None) -> Response:
-        self.urls.append(url)
-        self.inits.append(init or {})
-        return self.answer(url)
+def urls(fetcher: FakeFetcher) -> list[str]:
+    return [r["url"] for r in fetcher.requests]
 
 
 def dns(names: dict[str, list[str]]) -> Callable[[str], list[str]]:
@@ -36,7 +26,7 @@ def dns(names: dict[str, list[str]]) -> Callable[[str], list[str]]:
 
 def hops(answers: list[Response]) -> FakeFetcher:
     queue = list(answers)
-    return FakeFetcher(lambda url: queue.pop(0) if queue else Response("end"))
+    return FakeFetcher(lambda url, init: queue.pop(0) if queue else Response("end"))
 
 
 def test_only_addresses_on_the_public_internet_count_as_public() -> None:
@@ -82,7 +72,7 @@ def test_a_public_fetch_never_reaches_the_installs_own_network_however_the_addre
 
 
 def test_the_checked_addresses_are_pinned() -> None:
-    fetcher = FakeFetcher(lambda url: Response("ok"))
+    fetcher = FakeFetcher(lambda url, init: Response("ok"))
     answer = public_fetch(
         "https://Example.com/icon",
         {
@@ -98,16 +88,16 @@ def test_the_checked_addresses_are_pinned() -> None:
     assert fetcher.inits[0]["redirect"] == "manual"
     assert fetcher.inits[0]["maxBytes"] == 10
     assert fetcher.inits[0]["headers"] == {"user-agent": "Runlight"}
-    assert fetcher.urls == ["https://example.com/icon"]
+    assert urls(fetcher) == ["https://example.com/icon"]
 
-    literal = FakeFetcher(lambda url: Response("ok"))
+    literal = FakeFetcher(lambda url, init: Response("ok"))
     public_fetch("https://93.184.215.14:8443/", {"timeoutMs": 2000, "lookup": dns({})}, literal)
     # An address needs no pin.
     assert "resolve" not in literal.inits[0]
 
 
 def test_a_name_with_any_private_address_is_refused() -> None:
-    fetcher = FakeFetcher(lambda url: Response("ok"))
+    fetcher = FakeFetcher(lambda url, init: Response("ok"))
     for name, addresses in {
         "inside.example": ["10.0.0.5"],
         "mixed.example": ["93.184.215.14", "169.254.169.254"],
@@ -115,7 +105,7 @@ def test_a_name_with_any_private_address_is_refused() -> None:
     }.items():
         with pytest.raises(PrivateAddressError, match=f"^{name} is not a public address$"):
             public_fetch(f"https://{name}/", {"timeoutMs": 2000, "lookup": dns({name: addresses})}, fetcher)
-    assert fetcher.urls == []
+    assert urls(fetcher) == []
     with pytest.raises(FetchError):
         public_fetch("https://nowhere.example/", {"timeoutMs": 2000, "lookup": dns({})}, fetcher)
 
@@ -126,7 +116,7 @@ def test_redirects_are_followed_by_hand_under_the_same_rules() -> None:
     fetcher = hops([Response.redirect("/next", 301), Response.redirect("https://b.example/last", 302), Response("done")])
     answer = public_fetch("https://a.example/", {"timeoutMs": 2000, "redirects": 3, "lookup": lookup}, fetcher)
     assert answer.text() == "done"
-    assert fetcher.urls == ["https://a.example/", "https://a.example/next", "https://b.example/last"]
+    assert urls(fetcher) == ["https://a.example/", "https://a.example/next", "https://b.example/last"]
     assert fetcher.inits[2]["resolve"] == ["b.example:443:1.1.1.1"]
 
     fetcher = hops([Response.redirect("https://b.example/", 302)])
@@ -149,7 +139,7 @@ def test_redirects_are_followed_by_hand_under_the_same_rules() -> None:
 
 
 def test_running_out_of_time_says_so() -> None:
-    def times_out(url: str) -> Response:
+    def times_out(url: str, init: dict) -> Response:
         raise FetchError("Operation timed out", True)
 
     with pytest.raises(FetchError) as raised:
@@ -157,7 +147,7 @@ def test_running_out_of_time_says_so() -> None:
     assert raised.value.timed_out
     assert str(raised.value) == "The operation was aborted due to timeout"
 
-    def refuses(url: str) -> Response:
+    def refuses(url: str, init: dict) -> Response:
         raise FetchError("Connection refused")
 
     with pytest.raises(FetchError, match="Connection refused"):
