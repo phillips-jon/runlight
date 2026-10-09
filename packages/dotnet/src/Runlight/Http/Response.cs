@@ -55,7 +55,7 @@ public sealed class Response
                 }
             }
         }
-        return new Response(Runlight.Json.Stringify(data), status, h);
+        return new Response(global::Runlight.Json.Stringify(data), status, h);
     }
 
     public static Response Redirect(string location, int status = 302) =>

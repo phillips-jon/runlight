@@ -38,7 +38,7 @@ public sealed class Request
     public string Text() => Js.Decode(_body);
 
     /// <summary>The body as JSON. Throws <see cref="JsonParseException"/> when it is not.</summary>
-    public object? Json() => Runlight.Json.Parse(Text());
+    public object? Json() => global::Runlight.Json.Parse(Text());
 
     public Url ParsedUrl() => new(Url);
 

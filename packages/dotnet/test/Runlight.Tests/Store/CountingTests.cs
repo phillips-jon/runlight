@@ -84,9 +84,9 @@ public sealed class CountingTests : StoreTestCase
     {
         var store = await StoreAsync(kind);
         long t = NOW - HOUR;
-        await VisitAsync(store, "s1", "v1", t, [], [Pv(Runlight.Sources.RecordedPath("/café")!, t, "a")]);
+        await VisitAsync(store, "s1", "v1", t, [], [Pv(global::Runlight.Sources.RecordedPath("/café")!, t, "a")]);
         // As goalFrom makes it: its pagePattern records the path as the browser writes it.
-        var goal = Goal(new string('c', 24), new JsObject { ["name"] = "Café", ["kind"] = "page", ["match"] = Runlight.Sources.RecordedPath("/café"), ["createdAt"] = NOW });
+        var goal = Goal(new string('c', 24), new JsObject { ["name"] = "Café", ["kind"] = "page", ["match"] = global::Runlight.Sources.RecordedPath("/café"), ["createdAt"] = NOW });
         await store.SaveGoalAsync(goal);
         Same(1, (await store.GoalTotalsAsync(Today(), goal)).Get("conversions"));
         Same(1, (await store.StatsAsync(Today(F("page", "is", "/café")))).Get("visits"));
@@ -193,9 +193,9 @@ public sealed class CountingTests : StoreTestCase
     {
         var store = await StoreAsync(kind);
         long t = NOW - HOUR;
-        await VisitAsync(store, "s1", "v1", t, new JsObject { ["utmCampaign"] = "ÉcoleÉté" }, [Pv(Runlight.Sources.RecordedPath("/Über-uns")!, t, "a")]);
-        await VisitAsync(store, "s2", "v2", t, [], [Pv(Runlight.Sources.RecordedPath("/a^b")!, t, "b")]);
-        await VisitAsync(store, "s3", "v3", t, [], [Pv(Runlight.Sources.RecordedPath("/#/x{y}")!, t, "c")]);
+        await VisitAsync(store, "s1", "v1", t, new JsObject { ["utmCampaign"] = "ÉcoleÉté" }, [Pv(global::Runlight.Sources.RecordedPath("/Über-uns")!, t, "a")]);
+        await VisitAsync(store, "s2", "v2", t, [], [Pv(global::Runlight.Sources.RecordedPath("/a^b")!, t, "b")]);
+        await VisitAsync(store, "s3", "v3", t, [], [Pv(global::Runlight.Sources.RecordedPath("/#/x{y}")!, t, "c")]);
         async Task<object?> Visits(string d, string op, string v) => (await store.StatsAsync(Today(F(d, op, v)))).Get("visits");
         foreach (string value in new[] { "écoleété", "ÉCOLEÉTÉ", "eÉté" })
         {
