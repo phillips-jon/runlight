@@ -64,7 +64,15 @@ let current: string | null = null;
 try {
   current = readFileSync(file, "utf8");
 } catch {}
-if (process.argv.includes("--check")) {
+// Another ICU (CI's Node, say) writes other data, so only the ICU that wrote the file compares it, as
+// scripts/go-intl.mjs does.
+let written: unknown;
+try {
+  written = JSON.parse(current ?? "").icu;
+} catch {}
+if (process.argv.includes("--check") && typeof written === "string" && written !== process.versions.icu) {
+  console.log(`rust-intl: intl.json was written from ICU ${written}, this Node has ${process.versions.icu}`);
+} else if (process.argv.includes("--check")) {
   if (current !== text) {
     console.error("rust-intl: packages/rust/runlight/assets/intl.json is stale. Run node --import tsx scripts/rust-intl.mts");
     process.exit(1);
