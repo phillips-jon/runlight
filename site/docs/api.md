@@ -69,6 +69,7 @@ Every report takes the same query parameters.
 | `POST /api/links/import/:source` | One step of an import from `umami`, `dub`, `bitly`, `shortio`, or `rebrandly`, sent as `{ "credentials", "cursor", "done" }`. Send the `cursor` it answers with until it comes back `null`. Credentials are used and never kept. |
 | `POST /api/import/umami/websites` | List the websites in an Umami account, from `{ "credentials" }`. |
 | `POST /api/import/umami/visits` | One step of bringing an Umami website’s visit history in, from `{ "credentials", "website", "cursor" }`, repeated until `cursor` is `null`. |
+| `POST /api/import/csv/visits` | Writes up to 2,000 rows of a [visits CSV](/docs/dashboard/#bringing-history-over-from-a-csv-file), sent as `{ "rows": [...] }` with each row an object of its columns, and answers `{ "pageviews", "events", "visits", "skipped" }`. Send rows oldest first, with no moment split across two requests, since each request replaces what an earlier import wrote in its time span. |
 | `GET`, `POST /api/link-domains`, `DELETE /api/link-domains/:domain` | List, add, or remove custom link domains. A link domain must be a public name, and never the dashboard’s own or a site’s. |
 | `GET /api/link-domains/:domain/check` | Whether requests to a link domain reach Runlight, as `{ "domain", "working", "reason", "code", "target" }`, where `reason` says what answered instead, `code` names it, and `target` gives the `host` a CNAME record should point to and the public `addresses` an A or AAAA record should use. |
 | `GET`, `POST /api/shares`, `PATCH`, `DELETE /api/shares/:id` | List, add, rename, or remove share links. |
@@ -182,6 +183,8 @@ These are the codes and the params each one fills. An error a connected install 
 | `goal_selector` |  | Enter a CSS selector, like #signup or .buy-button |
 | `hub_domains` |  | A connected hub cannot change a site’s domains. |
 | `icon_none` |  | This site has no icon. |
+| `import_csv_batch` | `max` | Send at most {max} rows at a time. |
+| `import_csv_format` |  | This file is not an Umami export or in Runlight's visit format. Check its header row. |
 | `import_day_full` | `limit` | One day has more than {limit} events, more than an import step can read. |
 | `import_failed` | `detail` | The import stopped ({detail}). |
 | `import_key` | `service` | Enter your {service} key. |

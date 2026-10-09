@@ -5,6 +5,8 @@ import { Secret } from "./secret.js";
 import { Callout } from "./callout.js";
 import { Icon } from "./icons.js";
 import { t } from "./i18n.js";
+import { parseCsv } from "./links.js";
+import { CSV_BATCH, csvFormat, rowTime, type CsvFormat } from "../../sdk/src/importers/csvvisits.js";
 
 interface Website {
   id: string;
@@ -27,8 +29,164 @@ interface Progress {
 const idle: Progress = { running: false, done: 0, total: 0, pageviews: 0, events: 0, visits: 0, finished: false, stopped: false, error: "" };
 const bare = (host: string) => host.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
 
-/** Settings, Import, Visits: an Umami site's history, a few days at a time, oldest first. */
+/** Settings, Import, Visits: history from Umami's API or from a CSV file. */
 export function ImportVisits({ site }: { site: Site }) {
+  const [from, setFrom] = useState<"umami" | "csv">("umami");
+  return (
+    <div class="settings-group">
+      <p class="settings-text">{t("visits.intro")}</p>
+      <Callout icon="chart" title={t("visits.onlyUmamiTitle")}>
+        {t("visits.onlyUmami")}
+      </Callout>
+      <div class="field-row">
+        <span class="field-label">{t("visits.from")}</span>
+        <div class="ops" role="radiogroup" aria-label={t("visits.from")}>
+          {(["umami", "csv"] as const).map((f) => (
+            <button type="button" role="radio" aria-checked={from === f} class={from === f ? "op on" : "op"} onClick={() => setFrom(f)}>
+              {t(f === "umami" ? "visits.fromUmami" : "visits.fromCsv")}
+            </button>
+          ))}
+        </div>
+      </div>
+      {from === "umami" ? <UmamiVisits site={site} /> : <CsvVisits site={site} />}
+    </div>
+  );
+}
+
+/** Rows sorted oldest first, cut into batches that never split one moment, so each batch's time span is its own. */
+function batches(rows: Array<Record<string, string>>, format: CsvFormat): Array<Array<Record<string, string>>> | null {
+  const timed = rows.map((row) => ({ row, ts: rowTime(row, format) })).filter((r) => Number.isFinite(r.ts));
+  timed.sort((a, b) => a.ts - b.ts);
+  const out: Array<Array<Record<string, string>>> = [];
+  let i = 0;
+  while (i < timed.length) {
+    let j = Math.min(i + CSV_BATCH, timed.length);
+    // Back up to the start of a moment that would otherwise be split.
+    while (j < timed.length && j > i && timed[j]!.ts === timed[j - 1]!.ts) j--;
+    if (j === i) return null;
+    out.push(timed.slice(i, j).map((r) => r.row));
+    i = j;
+  }
+  return out;
+}
+
+/** Settings, Import, Visits, from a CSV file: Umami's export or Runlight's own columns, sent a batch at a time. */
+function CsvVisits({ site }: { site: Site }) {
+  const [file, setFile] = useState<{ name: string; rows: Array<Record<string, string>>; format: CsvFormat } | null>(null);
+  const [progress, setProgress] = useState<Progress & { skipped: number }>({ ...idle, skipped: 0 });
+  const input = useRef<HTMLInputElement>(null);
+  const stop = useRef(false);
+
+  const choose = async (f: File) => {
+    setFile(null);
+    setProgress({ ...idle, skipped: 0 });
+    const rows = parseCsv(await f.text());
+    const format = csvFormat(Object.keys(rows[0] ?? {}));
+    if (!format || !rows.length) {
+      setProgress({ ...idle, skipped: 0, error: t("error.import_csv_format") });
+      return;
+    }
+    setFile({ name: f.name, rows, format });
+  };
+
+  const run = async () => {
+    if (!file) return;
+    stop.current = false;
+    const parts = batches(file.rows, file.format);
+    if (!parts) {
+      setProgress({ ...idle, skipped: 0, error: t("visits.csvMoment", { max: count(CSV_BATCH) }) });
+      return;
+    }
+    const unreadable = file.rows.length - parts.reduce((n, p) => n + p.length, 0);
+    let state = { ...idle, skipped: unreadable, running: true, total: file.rows.length };
+    setProgress(state);
+    try {
+      for (const part of parts) {
+        if (stop.current) break;
+        const step = await api.importCsvVisits(site.id, part);
+        state = {
+          ...state,
+          done: state.done + part.length,
+          pageviews: state.pageviews + step.pageviews,
+          events: state.events + step.events,
+          visits: state.visits + step.visits,
+          skipped: state.skipped + step.skipped,
+        };
+        setProgress(state);
+      }
+      const finished = state.done + unreadable >= file.rows.length;
+      setProgress({ ...state, running: false, finished, stopped: !finished });
+    } catch (error) {
+      setProgress({ ...state, running: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  };
+
+  const pct = progress.total ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 0;
+  return (
+    <>
+      <p class="field-hint">{t("visits.csvHelp")}</p>
+      <div class="settings-actions start">
+        {progress.running ? (
+          <button type="button" class="ghost" onClick={() => (stop.current = true)}>
+            <Icon name="x" />
+            {t("import.stop")}
+          </button>
+        ) : (
+          <>
+            <button type="button" class={file ? "ghost" : "solid"} onClick={() => input.current?.click()}>
+              <Icon name="upload" />
+              {t(file ? "visits.csvOther" : "visits.csvChoose")}
+            </button>
+            {file ? (
+              <button type="button" class="solid" onClick={() => void run()}>
+                <Icon name="upload" />
+                {t("visits.start")}
+              </button>
+            ) : null}
+          </>
+        )}
+        <input
+          ref={input}
+          type="file"
+          accept=".csv,text/csv"
+          hidden
+          onChange={(e) => {
+            const f = (e.target as HTMLInputElement).files?.[0];
+            if (f) void choose(f);
+            (e.target as HTMLInputElement).value = "";
+          }}
+        />
+      </div>
+      {file && !progress.running && !progress.finished ? (
+        <p class="field-hint">{t(file.format === "umami" ? "visits.csvUmami" : "visits.csvRunlight", { name: file.name, rows: count(file.rows.length) })}</p>
+      ) : null}
+      {progress.running || progress.finished || progress.stopped || progress.error ? (
+        <div class="import-progress" aria-live="polite">
+          {progress.running ? (
+            <>
+              <div class="progress-bar">
+                <span class="progress-fill" style={{ width: `${pct}%` }} />
+              </div>
+              <span class="field-hint">{t("visits.csvRunning", { done: count(progress.done), total: count(progress.total), pageviews: count(progress.pageviews) })}</span>
+            </>
+          ) : null}
+          {progress.error ? <p class="settings-error">{progress.error}</p> : null}
+          {progress.finished ? (
+            <p class="settings-ok-text">
+              <Icon name="check" />
+              {t("visits.done", { pageviews: count(progress.pageviews), visits: count(progress.visits), events: count(progress.events) })}
+            </p>
+          ) : null}
+          {(progress.finished || progress.stopped) && progress.skipped ? <p class="field-hint">{t("visits.csvSkipped", { n: count(progress.skipped) })}</p> : null}
+          {progress.stopped ? <p class="field-hint">{t("visits.csvStopped")}</p> : null}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/** Settings, Import, Visits, from Umami: an Umami site's history, a few days at a time, oldest first. */
+function UmamiVisits({ site }: { site: Site }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [auth, setAuth] = useState<"key" | "password">("key");
   const [websites, setWebsites] = useState<Website[] | null>(null);
@@ -94,11 +252,7 @@ export function ImportVisits({ site }: { site: Site }) {
   const label = (f: string) => t(f === "url" ? "import.url" : f === "apiKey" ? "import.apiKey" : f === "username" ? "import.username" : "import.password");
 
   return (
-    <div class="settings-group">
-      <p class="settings-text">{t("visits.intro")}</p>
-      <Callout icon="chart" title={t("visits.onlyUmamiTitle")}>
-        {t("visits.onlyUmami")}
-      </Callout>
+    <>
       <div class="field-row">
         <span class="field-label">{t("import.signIn")}</span>
         <div class="ops" role="radiogroup" aria-label={t("import.signIn")}>
@@ -201,6 +355,6 @@ export function ImportVisits({ site }: { site: Site }) {
           {progress.stopped ? <p class="field-hint">{t("visits.stopped")}</p> : null}
         </div>
       ) : null}
-    </div>
+    </>
   );
 }

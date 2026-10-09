@@ -18,7 +18,7 @@ import { languages, translator } from "./messages.js";
 import { fetchIcon } from "./icon.js";
 import { publicAddresses, publicFetch, resolvesPrivately } from "./safefetch.js";
 import { ImportError, importStep } from "./importers/index.js";
-import { importUmamiVisits, umamiWebsites } from "./importers/visits.js";
+import { importCsvVisits, importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
 import { lastPeriod } from "./reports.js";
 import { buckets, compareRange, isTimezone, localDate, localWeekdayHour, resolveRange, type CompareMode } from "./time.js";
@@ -1211,6 +1211,23 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         if (site instanceof Response) return site;
         const step = await importUmamiVisits(runlight, site.id, credentials, String(body.website ?? ""), typeof body.cursor === "string" ? body.cursor : null);
         return json(step);
+      } catch (error) {
+        if (error instanceof ImportError) return refused(error, "import_failed");
+        throw error;
+      }
+    }
+
+    // Visit history from a CSV file, a batch at a time.
+    if (path === "/api/import/csv/visits" && request.method === "POST") {
+      const access = await canRead(request);
+      if (access !== true) return denied(access);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      await runlight.init();
+      const site = await querySite(url);
+      if (site instanceof Response) return site;
+      try {
+        return json(await importCsvVisits(runlight, site.id, body.rows));
       } catch (error) {
         if (error instanceof ImportError) return refused(error, "import_failed");
         throw error;

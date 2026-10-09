@@ -65,6 +65,31 @@ In **Settings**, **Import**, **Visits**, sign in to your Umami with an API key (
 
 The import stops where Runlight’s own visits begin, so no day is counted twice. If you stop it or close the page, running it again carries on from the last day it finished. Umami records no engaged time, so an imported visit’s length runs from its first pageview to its last. Your key or password is only used while the import runs and is never saved.
 
+## Bringing history over from a CSV file
+
+In **Settings**, **Import**, **Visits**, choose **A CSV file** and pick the file. Runlight takes two kinds of file and tells them apart by their header row. The first is the CSV from Umami’s data export, with one row for each pageview or event, which suits an Umami you can no longer reach. The second is Runlight’s own visit format, for history from anywhere else, as long as it has a row for each pageview. A script or an AI assistant can turn most raw logs into it.
+
+| Column | What it holds |
+| --- | --- |
+| `time` | When it happened, as ISO 8601 (`2024-05-01T12:34:56Z`), `2024-05-01 12:34:56` in UTC, or a Unix time in seconds or milliseconds. Required. |
+| `url` or `path` | The full address, or the path with its query string. Required. |
+| `hostname` | The host, when `path` is used. Defaults to the site’s first domain. |
+| `visitor` | Any id that stays the same for one person, such as a session id. Rows with the same visitor less than thirty minutes apart make one visit. Without it, every row is its own visit. |
+| `event` | A custom event’s name. A row with one is an event on that page, and a row without one is a pageview. |
+| `referrer` | Where the visit came from, as an address or a domain. |
+| `title` | The page title. |
+| `country`, `region`, `city` | A two-letter country code, a region code such as `CA-ON`, and a city name. |
+| `browser`, `os`, `device` | Names such as `Chrome`, `macOS`, and `mobile`, `tablet`, or `desktop`. |
+| `screen`, `language` | Such as `1440x900` and `en-CA`. |
+
+```csv
+time,url,visitor,referrer,country,device
+2024-05-01T12:34:56Z,https://example.com/?utm_source=newsletter,3f9a,news.ycombinator.com,CA,mobile
+2024-05-01T12:36:10Z,https://example.com/pricing,3f9a,,CA,mobile
+```
+
+As with Umami, only rows from before Runlight’s own first visit come across, and campaigns are read from the `utm_` parameters in each address. The file is read in your browser and sent 2,000 rows at a time. Importing the same file again replaces the rows it brought in before, so nothing is counted twice.
+
 ## Journeys
 
 The arrows button in the **Pages** box opens Journeys, the paths visits take through the site a page at a time. Each column is a step, with its most common pages and how many visits went no further, and the lines between columns show where visits went next, thicker for more. A page seen twice in a row, as a refresh makes, counts once. Pick how many steps to show, start from a page such as your pricing page, or end at one such as a thank-you page. Click any page to follow only the visits that passed through it at that step. The same answer comes from `/api/journeys` and the MCP tool `get_journeys`.
