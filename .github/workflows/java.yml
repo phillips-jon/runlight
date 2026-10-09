@@ -22,20 +22,20 @@ jobs:
       matrix:
         include:
           - java: "21"
-            mysql: mysql:8.4
+            mysql: public.ecr.aws/docker/library/mysql:8.4
             mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
             newest: false
           - java: "25"
-            mysql: mariadb:11.4
+            mysql: public.ecr.aws/docker/library/mariadb:11.4
             mysql-health: healthcheck.sh --connect --innodb_initialized
             newest: false
           - java: "27"
-            mysql: mysql:8.4
+            mysql: public.ecr.aws/docker/library/mysql:8.4
             mysql-health: mysqladmin ping -h 127.0.0.1 -ppw
             newest: true
     services:
       postgres:
-        image: postgres:16-alpine
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: pw
           POSTGRES_DB: runlight

@@ -23,7 +23,7 @@ jobs:
         rust: ["1.88", "1.94", "stable"]
     services:
       postgres:
-        image: postgres:16-alpine
+        image: public.ecr.aws/docker/library/postgres:16
         env:
           POSTGRES_PASSWORD: pw
           POSTGRES_DB: runlight
@@ -31,7 +31,7 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
       mysql:
-        image: mysql:8.4
+        image: public.ecr.aws/docker/library/mysql:8.4
         env:
           MYSQL_ROOT_PASSWORD: pw
           MYSQL_DATABASE: runlight
@@ -39,7 +39,7 @@ jobs:
         options: >-
           --health-cmd "mysqladmin ping -h 127.0.0.1 -ppw" --health-interval 5s --health-timeout 5s --health-retries 20
       mariadb:
-        image: mariadb:11.4
+        image: public.ecr.aws/docker/library/mariadb:11.4
         env:
           MARIADB_ROOT_PASSWORD: pw
           MARIADB_DATABASE: runlight
