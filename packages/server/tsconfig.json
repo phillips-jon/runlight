@@ -8,7 +8,8 @@
       "@runlight/sdk": ["../sdk/src/index.ts"],
       "@runlight/sdk/node": ["../sdk/src/node.ts"],
       "@runlight/sdk/sqlite": ["../sdk/src/stores/sqlite.ts"],
-      "@runlight/sdk/postgres": ["../sdk/src/stores/postgres.ts"]
+      "@runlight/sdk/postgres": ["../sdk/src/stores/postgres.ts"],
+      "@runlight/sdk/mysql": ["../sdk/src/stores/mysql.ts"]
     }
   },
   "include": ["src", "test", "tsup.config.ts"]

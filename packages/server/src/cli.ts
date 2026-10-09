@@ -5,7 +5,7 @@
  *   PORT              where to listen (3000)
  *   HOST              which address to listen on (0.0.0.0)
  *   DATA_DIR          where the SQLite file and the secret live (./runlight-data)
- *   DATABASE_URL      a postgres:// URL, to use Postgres instead of SQLite
+ *   DATABASE_URL      a postgres://, mysql://, or mariadb:// URL, to use that database instead of SQLite
  *   RUNLIGHT_SECRET   signs sessions and encrypts saved keys (made and kept in DATA_DIR if unset)
  *   RUNLIGHT_TOKEN    also accepted as a bearer token on the API
  *   RUNLIGHT_URL      the dashboard's public address, which can never become a link domain
@@ -34,9 +34,10 @@ Usage:
 
 Settings are environment variables. PORT (3000) and HOST (0.0.0.0) set where it
 listens. DATA_DIR (./runlight-data) holds the SQLite file and the secret, and
-DATABASE_URL switches to Postgres. RUNLIGHT_SECRET signs sessions and encrypts
-saved keys, RUNLIGHT_TOKEN also works as a bearer token on the API, and
-TRUST_PROXY=false ignores forwarded addresses when nothing sits in front.
+DATABASE_URL switches to Postgres, MySQL, or MariaDB. RUNLIGHT_SECRET signs
+sessions and encrypts saved keys, RUNLIGHT_TOKEN also works as a bearer token
+on the API, and TRUST_PROXY=false ignores forwarded addresses when nothing sits
+in front.
 RUNLIGHT_URL is the dashboard's public address, such as
 https://stats.example.com, which short links can never take over.
 RUNLIGHT_GEO picks where locations come from when no platform header gives
@@ -52,6 +53,10 @@ async function openStore(dataDir: string): Promise<SqlStore> {
   if (url && /^postgres(ql)?:\/\//.test(url)) {
     const { postgres } = await import("@runlight/sdk/postgres");
     return postgres({ url });
+  }
+  if (url && /^(mysql|mariadb):\/\//.test(url)) {
+    const { mysql } = await import("@runlight/sdk/mysql");
+    return mysql({ url });
   }
   const { sqlite } = await import("@runlight/sdk/sqlite");
   return sqlite({ path: path.join(dataDir, "runlight.db") });
@@ -165,7 +170,9 @@ async function main(): Promise<void> {
   http.listen(port, host, async () => {
     const shown = host === "0.0.0.0" || host === "::" ? "localhost" : host;
     console.log(`Runlight ${VERSION} is listening on http://${shown}:${port}`);
-    console.log(`Data: ${env("DATABASE_URL") ? "Postgres" : path.join(dataDir, "runlight.db")}`);
+    const database = env("DATABASE_URL") ?? "";
+    const where = /^postgres(ql)?:\/\//.test(database) ? "Postgres" : /^mysql:\/\//.test(database) ? "MySQL" : /^mariadb:\/\//.test(database) ? "MariaDB" : path.join(dataDir, "runlight.db");
+    console.log(`Data: ${where}`);
     if ((await server.accounts.count()) === 0) {
       console.log(`\nNo account yet. Open this link to create the first one:\n  http://${shown}:${port}/setup?code=${server.setupCode}\n`);
     }

@@ -9,5 +9,5 @@ export default defineConfig({
   splitting: false,
   target: "node22",
   platform: "node",
-  external: ["@runlight/sdk", "better-sqlite3", "pg"],
+  external: ["@runlight/sdk", "better-sqlite3", "pg", "mysql2"],
 });
