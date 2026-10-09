@@ -2,7 +2,7 @@
 //! them (routes.ts), framework-free: `Routes::handle(Request) -> Response`.
 
 mod api;
-mod glue;
+pub(crate) mod glue;
 mod parts;
 
 use std::collections::HashMap;
