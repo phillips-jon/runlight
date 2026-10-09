@@ -41,7 +41,11 @@ final class Databases
     public static function pgUrl(): ?string
     {
         $url = getenv('RUNLIGHT_TEST_PG');
-        return is_string($url) && $url !== '' ? $url : null;
+        if (!is_string($url) || $url === '') {
+            return null;
+        }
+        // Set to anything but a URL (such as 1), the local server the port's tests use.
+        return str_contains($url, '://') ? $url : 'postgres://joncphillips@127.0.0.1:5432/runlight_test';
     }
 
     /** @return array<string, string> */
