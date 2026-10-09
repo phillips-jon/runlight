@@ -43,8 +43,9 @@ module Runlight
           raise HttpError.new("The key or sign-in was refused", 401, "import_refused") if response.status == 401
 
           if (response.status == 429 || response.status >= 500) && attempt < 4
+            # Retry-After in seconds; none, zero, negative, or not a number waits the default backoff.
             wait = Client.number(response.headers.get("retry-after")) * 1000
-            wait = 800 * attempt if (wait.is_a?(Float) && wait.nan?) || wait.zero?
+            wait = 800 * attempt unless wait.positive?
             pause(whole([wait, 10_000].min))
             attempt += 1
             next

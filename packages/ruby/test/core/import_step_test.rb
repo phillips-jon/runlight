@@ -195,6 +195,26 @@ class CoreImportStepTest < Minitest::Test
     assert_equal [], router.calls.select { |c| c.include?("/websites/u-9/") }, "no history was fetched for it"
   end
 
+  def test_umami_a_link_list_without_a_count_gives_no_total_and_pages_on_while_pages_are_full
+    link = lambda { |i|
+      { "id" => "u#{i}", "name" => "N#{i}", "url" => "https://a.com/#{i}", "slug" => "s#{i}", "createdAt" => "2026-01-01T00:00:00Z", "deletedAt" => nil }
+    }
+    router = Router.new([
+      [%r{/api/links\?page=1&}, ->(_u, _i) { { "data" => (0..4).map(&link) } }],
+      [%r{/api/links\?page=2&}, ->(_u, _i) { { "data" => [link.call(5)], "count" => "six" } }],
+      [%r{/websites/}, ->(_u, _i) { { "data" => [], "count" => 0 } }],
+    ])
+    rl = runlight(router)
+    creds = { "url" => "https://stats.example.com", "apiKey" => "k" }
+    first = Index.import_step(rl, "default", "umami", creds, nil, 0)
+    assert_nil first["total"]
+    refute_nil first["cursor"], "a full page may have more after it"
+    second = Index.import_step(rl, "default", "umami", creds, first["cursor"], first["done"])
+    assert_equal [nil, 6, nil], [second["cursor"], second["done"], second["total"]]
+    empty = Index.import_step(runlight(Router.new([[%r{/api/links\?}, ->(_u, _i) { { "data" => [] } }]])), "default", "umami", creds, nil, 0)
+    assert_equal [nil, 0, nil], [empty["cursor"], empty["done"], empty["total"]]
+  end
+
   def test_a_link_whose_slug_is_taken_or_unusable_is_reported_with_a_code
     rl = Runlight::Core.new({ "store" => Runlight::Stores.sqlite(":memory:") })
     rl.init

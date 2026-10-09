@@ -45,7 +45,8 @@ module Runlight
 
         iv = decode64(iv)
         data = decode64(data)
-        return nil if iv.nil? || iv.empty? || data.nil? || data.bytesize < 16
+        # Web Crypto refuses an AES-GCM IV under 12 bytes, so such a value opens nowhere.
+        return nil if iv.nil? || iv.bytesize < 12 || data.nil? || data.bytesize < 16
 
         cipher = OpenSSL::Cipher.new("aes-256-gcm").decrypt
         cipher.key = key_for(secret)

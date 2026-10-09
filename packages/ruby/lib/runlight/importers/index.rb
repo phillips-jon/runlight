@@ -32,7 +32,10 @@ module Runlight
           !taken.nil? && Write.same_url(taken["url"], Js.string(url))
         end
         result = importer.step(credentials, cursor, known)
-        step = { "cursor" => result["cursor"], "done" => done, "total" => result["total"], "links" => 0, "clicks" => 0, "skipped" => 0, "failed" => [] }
+        # A total that is not a number is as good as none.
+        total = result["total"]
+        total = nil unless total.is_a?(Integer) || (total.is_a?(Float) && total.finite?)
+        step = { "cursor" => result["cursor"], "done" => done, "total" => total, "links" => 0, "clicks" => 0, "skipped" => 0, "failed" => [] }
         result["links"].each do |item|
           if Js.truthy?(item["known"])
             step["done"] += 1
@@ -54,9 +57,7 @@ module Runlight
           end
         end
         # Links the source skipped (deleted ones) still count toward progress.
-        if (result["cursor"].nil? || result["cursor"] == "") && !result["total"].nil?
-          step["done"] = [step["done"], result["total"]].max
-        end
+        step["done"] = [step["done"], total].max if (result["cursor"].nil? || result["cursor"] == "") && !total.nil?
         step
       end
     end

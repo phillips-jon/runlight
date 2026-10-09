@@ -48,8 +48,12 @@ class MailTest < Minitest::Test
 
   def test_keys_sealed_by_type_script_open_here
     fixture["sealed"].each do |c|
-      assert_equal c["value"], Mail::Secret.unseal(c["sealed"], c["secret"])
+      opened = Mail::Secret.unseal(c["sealed"], c["secret"])
+      c["value"].nil? ? assert_nil(opened) : assert_equal(c["value"], opened)
       assert_nil Mail::Secret.unseal(c["sealed"], "#{c["secret"]}!")
+      # A value of nil is a sealed form TypeScript cannot open (an IV under 12 bytes), so there is nothing to seal again.
+      next if c["value"].nil?
+
       assert_equal c["value"], Mail::Secret.unseal(Mail::Secret.seal(c["value"], c["secret"]), c["secret"])
     end
   end
@@ -209,6 +213,34 @@ class MailTest < Minitest::Test
     assert_includes server.conversation["received"], "From: Runlight <reports@example.com>\r\n"
   ensure
     server&.stop
+  end
+
+  def test_smtp_reply_just_before_the_server_closes_is_the_error_not_the_close
+    server = SmtpServer.new("refuse")
+    error = assert_raises(Mail::MailError) do
+      Mail::Smtp.deliver({ "service" => "smtp", "host" => "127.0.0.1", "port" => server.port.to_s, "security" => "none" }, MESSAGE, "reports@example.com")
+    end
+    assert_equal "SMTP greeting: 535 no", error.message
+  ensure
+    server&.stop
+  end
+
+  def test_smtp_character_split_across_two_reads_comes_through_whole
+    ours, theirs = UNIXSocket.pair
+    session = Mail::SmtpSession.new("127.0.0.1", 25, Mail::Smtp.monotonic + 5_000_000_000, "late")
+    session.instance_variable_set(:@socket, ours)
+    bytes = "250 caf\u00e9 ok\r\n".b
+    split = bytes.index("\xC3".b) + 1
+    theirs.write(bytes.byteslice(0, split))
+    writer = Thread.new do
+      sleep 0.1
+      theirs.write(bytes.byteslice(split, bytes.bytesize))
+    end
+    assert_equal({ "code" => 250, "text" => "caf\u00e9 ok" }, session.next_reply(2000))
+    writer.join
+  ensure
+    ours&.close
+    theirs&.close
   end
 
   def test_smtp_server_that_trickles_is_cut_off_at_the_deadline

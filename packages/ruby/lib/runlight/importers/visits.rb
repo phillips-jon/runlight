@@ -89,7 +89,9 @@ module Runlight
           created = Js.truthy?(created) ? created : runlight.now
           # Carry on where an earlier run stopped, and end where Runlight's own visits begin.
           setting = runlight.store.setting(progress_key(site_id, website))
+          # A saved place that does not read as a number is ignored, as if there were none.
           resumed = Js.number(setting.nil? ? 0 : setting)
+          resumed = 0 unless resumed.is_a?(Integer) || (resumed.is_a?(Float) && resumed.finite?)
           # Never older than the site keeps, or the next scheduled check would delete it again.
           cutoff = runlight.retention_cutoff(site_id) || 0
           start = [(created.to_f / DAY).floor * DAY, resumed, (cutoff.to_f / DAY).ceil * DAY].max.to_i

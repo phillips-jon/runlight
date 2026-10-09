@@ -73,7 +73,13 @@ module Runlight
 
               x = p["x"]
               ms = x.is_a?(Integer) || x.is_a?(Float) ? x : Client.parse_date(x)
-              daily << { "day" => Client.iso_string(ms)[0, 10], "clicks" => y }
+              # A point whose date cannot be read is left out, not the link.
+              day = begin
+                Client.iso_string(ms)[0, 10]
+              rescue RangeError
+                next
+              end
+              daily << { "day" => day, "clicks" => y }
             end
           rescue HttpError => e
             raise e if e.status == 401

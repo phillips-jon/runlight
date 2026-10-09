@@ -7,6 +7,7 @@ require "socket"
 #
 # relay: answers as the TS tests' relay does (AUTH PLAIN checks jon/pw, no STARTTLS).
 # trickle: sends "220-still here" every 100 ms and never finishes its greeting.
+# refuse: sends "535 no" and closes at once.
 class SmtpServer
   attr_reader :port
 
@@ -38,8 +39,18 @@ class SmtpServer
   def serve
     loop do
       socket = @server.accept
-      @done << (@mode == "trickle" ? trickle(socket) : relay(socket))
+      @done << case @mode
+               when "trickle" then trickle(socket)
+               when "refuse" then refuse(socket)
+               else relay(socket)
+               end
     end
+  end
+
+  def refuse(socket)
+    socket.write("535 no\r\n")
+    socket.close
+    { "received" => "", "closed" => true }
   end
 
   def trickle(socket)

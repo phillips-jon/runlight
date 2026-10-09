@@ -31,7 +31,7 @@ module Runlight
         links = list.map do |l|
           created = Client.parse_date(l["createdAt"])
           { "link" => {
-            "sourceId" => l["id"], "slug" => l["slashtag"], "domain" => Client.coalesce(Client.field(Client.field(l, "domain"), "fullName"), ""),
+            "sourceId" => Client.str(l["id"]), "slug" => l["slashtag"], "domain" => Client.coalesce(Client.field(Client.field(l, "domain"), "fullName"), ""),
             "name" => Client.truthy?(l["title"]) ? l["title"] : "", "url" => l["destination"],
             "createdAt" => Client.truthy?(created) ? created : @now.call,
           } }

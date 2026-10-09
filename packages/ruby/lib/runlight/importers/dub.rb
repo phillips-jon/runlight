@@ -16,6 +16,13 @@ module Runlight
       PAGE = 10
       private_constant :BASE, :PAGE
 
+      # Whether Dub said the plan does not include what was asked (403, or 402).
+      # Any other failure (a server error that outlasts the retries, say) fails
+      # the step and leaves the history mode as it was.
+      def self.plan_refused?(error)
+        [403, 402].include?(error.status)
+      end
+
       # now: a callable returning milliseconds.
       def initialize(http = nil, now = nil)
         @http = http || Client.new
@@ -77,7 +84,7 @@ module Runlight
               end
               history = "events"
             rescue HttpError => e
-              raise e if e.status == 401
+              raise e unless Dub.plan_refused?(e)
 
               clicks = nil
               history = "daily"
@@ -94,7 +101,7 @@ module Runlight
                 daily << { "day" => p["start"][0, 10], "clicks" => p["clicks"] } if p["clicks"].positive?
               end
             rescue HttpError => e
-              raise e if e.status == 401
+              raise e unless Dub.plan_refused?(e)
 
               history = "none"
             end

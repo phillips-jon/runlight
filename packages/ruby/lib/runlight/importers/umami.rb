@@ -20,7 +20,6 @@ module Runlight
 
       # Signs in to an Umami: an API key, or a username and password (stock
       # self-hosted Umami has no API keys). A token from an earlier step is reused.
-      # A token the sign-in did not give is UNDEFINED, as TS's `login.token` is then.
       # Returns { "base", "token" }.
       def self.umami_sign_in(http, credentials, token = nil)
         base = Client.trim(credentials["url"].to_s).sub(%r{/+\z}, "")
@@ -42,7 +41,11 @@ module Runlight
           "headers" => { "content-type" => "application/json" },
           "body" => Json.encode({ "username" => username, "password" => password }),
         })
-        { "base" => base, "token" => Client.field(login, "token") }
+        # A sign-in that answers without a token was refused, whatever its status.
+        token = Client.field(login, "token")
+        raise ImportError.new("The key or sign-in was refused", "import_refused") unless token.is_a?(String) && token != ""
+
+        { "base" => base, "token" => token }
       end
 
       def step(credentials, cursor, known)
@@ -111,9 +114,12 @@ module Runlight
             "clicks" => clicks,
           }
         end
-        more = state["page"] * PAGE < list["count"] && !list["data"].empty?
+        # Without a count there is no total, and a full page may have more after it.
+        count = Client.field(list, "count")
+        count = nil unless count.is_a?(Integer) || (count.is_a?(Float) && count.finite?)
+        more = count.nil? ? list["data"].length == PAGE : state["page"] * PAGE < count && !list["data"].empty?
         following = key.empty? ? { "page" => state["page"] + 1, "token" => state["token"] } : { "page" => state["page"] + 1 }
-        { "cursor" => more ? Json.encode(following) : nil, "total" => list["count"], "links" => links }
+        { "cursor" => more ? Json.encode(following) : nil, "total" => count, "links" => links }
       end
     end
   end

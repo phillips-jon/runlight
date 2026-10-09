@@ -162,6 +162,13 @@ class CoreVisitsImportTest < CoreTestCase
     assert_equal 1, import_all(t)["pageviews"], "only March 2nd comes in"
   end
 
+  def test_an_unreadable_saved_progress_setting_starts_as_if_there_were_none
+    t = harness("sqlite", umami(fake_events, SESSIONS), at("2026-03-04T00:00:00Z"))
+    t.rl.init
+    t.rl.store.set_setting("import:umami-visits:default:w1", "not a number")
+    assert_equal 4, import_all(t)["pageviews"], "every day is read from the website's start"
+  end
+
   def test_an_imported_visit_across_utc_midnight_is_one_visit_on_the_sites_own_day
     events = [
       { "sessionId" => "n1", "createdAt" => "2026-03-02T23:55:00.000Z", "hostname" => "blog.example.com", "urlPath" => "/", "eventType" => 1, "country" => "CA",
