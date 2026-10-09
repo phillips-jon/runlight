@@ -18,25 +18,49 @@ pub struct RoutesExtras {
 }
 
 /// The sign-in accounts' web side.
-pub(crate) struct Web;
+pub(crate) type Web = crate::accounts::AccountsWeb;
 
+/// Accounts as routes.ts makes them: the app's token proves who may make the first account, and in development
+/// without one, anyone may. Emails link to the origin option when there is one.
 pub(crate) fn web(
-    _rl: &Runlight,
-    _secret: &str,
-    _base: &str,
-    _token: Option<&str>,
-    _open: bool,
-    _origin: Option<&str>,
+    rl: &Runlight,
+    secret: &str,
+    base: &str,
+    token: Option<&str>,
+    open: bool,
+    origin: Option<&str>,
 ) -> Web {
-    Web
+    use crate::accounts::{AccountsWebOptions, FirstAccount, Home, accounts_web};
+    let clock = rl.clone();
+    let home: Option<Home> = origin.filter(|o| !o.is_empty()).and_then(Url::parse).map(|u| {
+        let origin = u.origin();
+        Arc::new(move || {
+            let origin = origin.clone();
+            Box::pin(async move { Some(origin) }) as BoxFuture<'static, Option<String>>
+        }) as Home
+    });
+    accounts_web(AccountsWebOptions {
+        runlight: rl.clone(),
+        secret: secret.to_string(),
+        base: base.to_string(),
+        now: Arc::new(move || clock.now()),
+        first_account: match token {
+            Some(token) => FirstAccount::Token(token.to_string()),
+            None if open => FirstAccount::Open,
+            None => FirstAccount::Locked,
+        },
+        home,
+        forgot: "https://runlight.sh/docs/configuration/#accounts".into(),
+    })
 }
 
-pub(crate) async fn web_access(_web: &Web, _request: &Request) -> Access {
-    Access::Denied
+/// What a signed-in person may do. A session cookie that cannot be read (a URIError in the TypeScript) is refused.
+pub(crate) async fn web_access(web: &Web, request: &Request) -> Access {
+    web.access(request).await.unwrap_or(Access::Denied)
 }
 
-pub(crate) async fn web_handle(_web: &Web, _request: &Request, _path: &str) -> Result<Option<Response>, Error> {
-    Ok(None)
+pub(crate) async fn web_handle(web: &Web, request: &Request, path: &str) -> Result<Option<Response>, Error> {
+    web.handle(request, path).await
 }
 
 pub(crate) async fn oauth_response(
@@ -100,18 +124,28 @@ pub(crate) async fn import_step(_routes: &Routes, _site: &str, _source: &str, _b
     Ok(coded("Not found", "not_found", 404, None))
 }
 
-pub(crate) async fn token_made(_routes: &Routes, _request: &Request, _row: &TokenRow) -> Result<bool, Error> {
-    Ok(true)
+/// Notes who made a new token; false takes it back. A token made by no signed-in account is the app's own.
+pub(crate) async fn token_made(routes: &Routes, request: &Request, row: &TokenRow) -> Result<bool, Error> {
+    match account_of(routes, request).await? {
+        Some(by) => token_made_by(routes, row, &by).await,
+        None => Ok(true),
+    }
 }
 
 /// The account a request comes from, where the app has accounts (options.accountOf, or the accounts web's).
-pub(crate) async fn account_of(_routes: &Routes, _request: &Request) -> Result<Option<String>, Error> {
-    Ok(None)
+pub(crate) async fn account_of(routes: &Routes, request: &Request) -> Result<Option<String>, Error> {
+    match &routes.0.web {
+        Some(web) => web.account_of(request).await,
+        None => Ok(None),
+    }
 }
 
 /// Notes that `by` made a token; false when they can no longer make one (options.tokenMade, or the accounts web's).
-pub(crate) async fn token_made_by(_routes: &Routes, _row: &TokenRow, _by: &str) -> Result<bool, Error> {
-    Ok(true)
+pub(crate) async fn token_made_by(routes: &Routes, row: &TokenRow, by: &str) -> Result<bool, Error> {
+    match &routes.0.web {
+        Some(web) => web.token_made(row, by).await,
+        None => Ok(true),
+    }
 }
 
 pub(crate) async fn start_connect(routes: &Routes, body: &Value, done: &str) -> R {

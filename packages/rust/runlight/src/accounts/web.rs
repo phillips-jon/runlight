@@ -433,7 +433,7 @@ impl AccountsWeb {
             Url::parse(&origin).map(|u| u.host()).ok_or_else(|| Error::Other("TypeError: Invalid URL".into()))?;
         let what = role_text(invite.role.as_str());
         out.set("link", link.as_str());
-        if crate::routes::glue::mail_settings(&self.0.rl).await?.is_none() {
+        if self.0.rl.mail_settings().await?.is_none() {
             out.set("emailed", false);
             return Ok(());
         }
@@ -457,9 +457,11 @@ impl AccountsWeb {
             Err(failed) => {
                 // The mail service's code and its details too, so the dashboard can say what went wrong in its own language.
                 out.set("emailed", false);
-                out.set("mailError", failed.message.as_str());
-                out.set("mailCode", failed.code.as_str());
-                out.set("mailParams", failed.params_value());
+                out.set("mailError", failed.message());
+                if let Some(own) = failed.coded() {
+                    out.set("mailCode", own.code.as_str());
+                    out.set("mailParams", own.params_value());
+                }
             }
         }
         Ok(())
@@ -496,7 +498,7 @@ impl AccountsWeb {
             ),
             ..Message::default()
         };
-        crate::routes::glue::send_mail(&self.0.rl, message).await.map_err(Error::Mail)?;
+        crate::routes::glue::send_mail(&self.0.rl, message).await?;
         Ok(true)
     }
 
@@ -768,9 +770,7 @@ impl AccountsWeb {
         // addresses learns nothing, and the owner still gets in. With two-factor on, both reach the code step,
         // where a wrong password's ticket never passes. Without it, a right password emails a sign-in link.
         if over && !known.as_ref().is_some_and(|k| k.two_factor) {
-            if crate::routes::glue::mail_settings(&self.0.rl).await?.is_none()
-                || self.home().await.is_none_or(|h| h.is_empty())
-            {
+            if self.0.rl.mail_settings().await?.is_none() || self.home().await.is_none_or(|h| h.is_empty()) {
                 return Ok(too_many());
             }
             if let Some(user) = self.0.accounts.sign_in(email, password).await? {
