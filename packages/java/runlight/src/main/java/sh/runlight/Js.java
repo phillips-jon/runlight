@@ -33,7 +33,6 @@ public final class Js {
   /** Any character JavaScript's {@code .} matches, for a Java pattern. */
   public static final String DOT = "[^\\n\\r\\x{2028}\\x{2029}]";
 
-
   /** String.prototype.trim. */
   public static String trim(String text) {
     int start = 0;
@@ -83,7 +82,6 @@ public final class Js {
         || c == 0x3000
         || c == 0xFEFF;
   }
-
 
   public static String lower(String text) {
     return text.toLowerCase(Locale.ROOT);

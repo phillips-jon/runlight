@@ -305,7 +305,7 @@
               switched off are named here: the port follows the TypeScript SDK
               line for line, and these flag the shapes that keeps.
             -->
-            <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:MissingSummary:OFF -Xep:InlineMeSuggester:OFF -Xep:NarrowingCompoundAssignment:OFF -Xep:OperatorPrecedence:OFF -Xep:UnusedVariable:ERROR -Xep:JavaTimeDefaultTimeZone:OFF -Xep:StatementSwitchToExpressionSwitch:OFF -Xep:StringSplitter:OFF -Xep:MixedMutabilityReturnType:OFF -Xep:EqualsGetClass:OFF -Xep:JdkObsolete:OFF -Xep:InvalidParam:OFF -Xep:InvalidLink:OFF -Xep:EmptyBlockTag:OFF -Xep:AlreadyChecked:OFF -Xep:ReferenceEquality:OFF -Xep:StringCaseLocaleUsage:OFF -Xep:LongDoubleConversion:OFF -Xep:UnnecessaryParentheses:OFF -Xep:RefactorSwitch:OFF -Xep:AssignmentExpression:OFF</arg>
+            <arg>-Xplugin:ErrorProne -XepDisableWarningsInGeneratedCode -Xep:MissingSummary:OFF -Xep:InlineMeSuggester:OFF -Xep:NarrowingCompoundAssignment:OFF -Xep:OperatorPrecedence:OFF -Xep:UnusedVariable:ERROR -Xep:JavaTimeDefaultTimeZone:OFF -Xep:StatementSwitchToExpressionSwitch:OFF -Xep:StringSplitter:OFF -Xep:MixedMutabilityReturnType:OFF -Xep:EqualsGetClass:OFF -Xep:JdkObsolete:OFF -Xep:InvalidParam:OFF -Xep:InvalidLink:OFF -Xep:EmptyBlockTag:OFF -Xep:AlreadyChecked:OFF -Xep:ReferenceEquality:OFF -Xep:StringCaseLocaleUsage:OFF -Xep:LongDoubleConversion:OFF -Xep:UnnecessaryParentheses:OFF -Xep:RefactorSwitch:OFF -Xep:AssignmentExpression:OFF -Xep:StringConcatToTextBlock:OFF -Xep:ThreadLocalUsage:OFF</arg>
           </compilerArgs>
           <annotationProcessorPaths>
             <path>
