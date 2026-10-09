@@ -11,11 +11,19 @@ namespace Runlight;
  * record for an address, maps as arrays with string keys, or null when the
  * address is not in the database.
  *
+ * A database opened from a file is read a page at a time as lookups need it,
+ * so a 130 MB city database costs each request a few hundred kilobytes of reads.
+ *
  * Format: https://maxmind.github.io/MaxMind-DB/
  */
 final class Mmdb
 {
     private const METADATA_MARKER = "\xAB\xCD\xEFMaxMind.com";
+    /** The metadata sits in the file's last 128 KiB. */
+    private const METADATA_MAX = 131072;
+    private const PAGE = 4096;
+    /** Pages kept from a file at once; a lookup reads a few dozen. */
+    private const PAGES_KEPT = 256;
 
     /** @var array<string, mixed> */
     public readonly array $metadata;
@@ -25,13 +33,23 @@ final class Mmdb
     private readonly int $dataStart;
     private ?int $ipv4Start = null;
 
-    public function __construct(private readonly string $bytes)
+    private readonly int $size;
+    /** @var array<int, string> pages read from the file, by number */
+    private array $pages = [];
+
+    /**
+     * @param string $bytes the whole database, or '' with `$handle`
+     * @param resource|null $handle an open file to read pages from instead
+     */
+    public function __construct(private readonly string $bytes, private readonly mixed $handle = null)
     {
-        $at = strrpos($bytes, self::METADATA_MARKER);
+        $this->size = $handle === null ? strlen($bytes) : (int) fstat($handle)['size'];
+        $tailStart = max(0, $this->size - self::METADATA_MAX);
+        $at = strrpos($this->read($tailStart, $this->size - $tailStart), self::METADATA_MARKER);
         if ($at === false) {
             throw new \InvalidArgumentException('Not a MaxMind DB file: no metadata');
         }
-        $start = $at + strlen(self::METADATA_MARKER);
+        $start = $tailStart + $at + strlen(self::METADATA_MARKER);
         [$metadata] = $this->decode($start, $start);
         if (!is_array($metadata) || !isset($metadata['node_count'], $metadata['record_size'], $metadata['ip_version'])) {
             throw new \InvalidArgumentException('Not a MaxMind DB file: bad metadata');
@@ -46,13 +64,51 @@ final class Mmdb
         $this->dataStart = $this->nodeCount * $this->nodeBytes + 16;
     }
 
+    /** A database read from its file as lookups need it. */
     public static function open(string $file): self
     {
-        $bytes = @file_get_contents($file);
-        if ($bytes === false) {
+        $handle = is_file($file) ? @fopen($file, 'rb') : false;
+        if ($handle === false) {
             throw new \RuntimeException("Could not read $file");
         }
-        return new self($bytes);
+        return new self('', $handle);
+    }
+
+    /** `$length` bytes from `$at`, fewer at the end of the database. */
+    private function read(int $at, int $length): string
+    {
+        if ($this->handle === null) {
+            return substr($this->bytes, $at, $length);
+        }
+        $out = '';
+        $end = min($at + $length, $this->size);
+        while ($at < $end) {
+            $number = intdiv($at, self::PAGE);
+            if (!isset($this->pages[$number])) {
+                if (count($this->pages) >= self::PAGES_KEPT) {
+                    $this->pages = [];
+                }
+                fseek($this->handle, $number * self::PAGE);
+                $this->pages[$number] = (string) fread($this->handle, self::PAGE);
+            }
+            $offset = $at - $number * self::PAGE;
+            $piece = substr($this->pages[$number], $offset, $end - $at);
+            if ($piece === '') {
+                break;
+            }
+            $out .= $piece;
+            $at += strlen($piece);
+        }
+        return $out;
+    }
+
+    private function byte(int $at): int
+    {
+        $byte = $this->handle === null ? ($this->bytes[$at] ?? '') : $this->read($at, 1);
+        if ($byte === '') {
+            throw new \RuntimeException('Invalid MaxMind DB: read past the end');
+        }
+        return ord($byte);
     }
 
     /** The record for an address, or null. Throws \InvalidArgumentException for text that is not an IP address. */
@@ -95,20 +151,21 @@ final class Mmdb
 
     private function record(int $node, int $right): int
     {
-        $at = $node * $this->nodeBytes;
-        $b = $this->bytes;
+        $b = $this->read($node * $this->nodeBytes, $this->nodeBytes);
+        if (strlen($b) < $this->nodeBytes) {
+            throw new \RuntimeException('Invalid MaxMind DB: read past the end');
+        }
         switch ($this->recordSize) {
             case 24:
-                $at += $right * 3;
+                $at = $right * 3;
                 return (ord($b[$at]) << 16) | (ord($b[$at + 1]) << 8) | ord($b[$at + 2]);
             case 28:
                 if ($right === 0) {
-                    return ((ord($b[$at + 3]) & 0xF0) << 20) | (ord($b[$at]) << 16) | (ord($b[$at + 1]) << 8) | ord($b[$at + 2]);
+                    return ((ord($b[3]) & 0xF0) << 20) | (ord($b[0]) << 16) | (ord($b[1]) << 8) | ord($b[2]);
                 }
-                return ((ord($b[$at + 3]) & 0x0F) << 24) | (ord($b[$at + 4]) << 16) | (ord($b[$at + 5]) << 8) | ord($b[$at + 6]);
+                return ((ord($b[3]) & 0x0F) << 24) | (ord($b[4]) << 16) | (ord($b[5]) << 8) | ord($b[6]);
             default:
-                $at += $right * 4;
-                return unpack('N', $b, $at)[1];
+                return unpack('N', $b, $right * 4)[1];
         }
     }
 
@@ -119,45 +176,44 @@ final class Mmdb
      */
     private function decode(int $at, int $base): array
     {
-        $b = $this->bytes;
-        $control = ord($b[$at++] ?? throw new \RuntimeException('Invalid MaxMind DB: read past the end'));
+        $control = $this->byte($at++);
         $type = $control >> 5;
         if ($type === 1) {
             // A pointer: up to four more bytes of offset, then the value found there.
             $ss = ($control >> 3) & 3;
             $vvv = $control & 7;
             $pointer = match ($ss) {
-                0 => ($vvv << 8) | ord($b[$at]),
-                1 => (($vvv << 16) | (ord($b[$at]) << 8) | ord($b[$at + 1])) + 2048,
-                2 => (($vvv << 24) | (ord($b[$at]) << 16) | (ord($b[$at + 1]) << 8) | ord($b[$at + 2])) + 526336,
-                default => unpack('N', $b, $at)[1],
+                0 => ($vvv << 8) | $this->byte($at),
+                1 => (($vvv << 16) | ($this->byte($at) << 8) | $this->byte($at + 1)) + 2048,
+                2 => (($vvv << 24) | ($this->byte($at) << 16) | ($this->byte($at + 1) << 8) | $this->byte($at + 2)) + 526336,
+                default => self::unsigned($this->read($at, 4)),
             };
             [$value] = $this->decode($base + $pointer, $base);
             return [$value, $at + $ss + 1];
         }
         if ($type === 0) {
-            $type = 7 + ord($b[$at++]);
+            $type = 7 + $this->byte($at++);
         }
         $size = $control & 0x1F;
         if ($size >= 29) {
             $extra = $size - 28;
             $n = 0;
             for ($i = 0; $i < $extra; $i++) {
-                $n = ($n << 8) | ord($b[$at + $i]);
+                $n = ($n << 8) | $this->byte($at + $i);
             }
             $size = [29 => 29, 30 => 285, 31 => 65821][$size] + $n;
             $at += $extra;
         }
         switch ($type) {
             case 2: // UTF-8 string
-                return [substr($b, $at, $size), $at + $size];
+                return [$this->read($at, $size), $at + $size];
             case 3: // double
-                return [unpack('E', $b, $at)[1], $at + 8];
+                return [unpack('E', $this->read($at, 8))[1], $at + 8];
             case 4: // bytes
-                return [substr($b, $at, $size), $at + $size];
+                return [$this->read($at, $size), $at + $size];
             case 5: // uint16
             case 6: // uint32
-                return [self::unsigned(substr($b, $at, $size)), $at + $size];
+                return [self::unsigned($this->read($at, $size)), $at + $size];
             case 7: // map
                 $map = [];
                 for ($i = 0; $i < $size; $i++) {
@@ -167,14 +223,14 @@ final class Mmdb
                 }
                 return [$map, $at];
             case 8: // int32
-                $n = self::unsigned(substr($b, $at, $size));
+                $n = self::unsigned($this->read($at, $size));
                 if ($size === 4 && $n >= 0x80000000) {
                     $n -= 0x100000000;
                 }
                 return [$n, $at + $size];
             case 9: // uint64
             case 10: // uint128
-                return [self::big(substr($b, $at, $size)), $at + $size];
+                return [self::big($this->read($at, $size)), $at + $size];
             case 11: // array
                 $list = [];
                 for ($i = 0; $i < $size; $i++) {
@@ -184,7 +240,7 @@ final class Mmdb
             case 14: // boolean, its value in the size
                 return [$size !== 0, $at];
             case 15: // float
-                return [unpack('G', $b, $at)[1], $at + 4];
+                return [unpack('G', $this->read($at, 4))[1], $at + 4];
             default:
                 throw new \RuntimeException("Invalid MaxMind DB: unknown data type $type");
         }

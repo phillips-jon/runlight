@@ -43,6 +43,10 @@ final class Request
                 $headers[str_replace('_', '-', strtolower(substr((string) $key, 5)))] = (string) $value;
             }
         }
+        // Apache under CGI or FPM passes Authorization only when a rewrite rule copies it, under this name.
+        if (!isset($headers['authorization']) && isset($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $headers['authorization'] = (string) $_SERVER['REDIRECT_HTTP_AUTHORIZATION'];
+        }
         if (isset($_SERVER['CONTENT_TYPE'])) {
             $headers['content-type'] = (string) $_SERVER['CONTENT_TYPE'];
         }

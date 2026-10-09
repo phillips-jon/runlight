@@ -1,0 +1,13 @@
+# Runlight answers every path itself, from index.php.
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Sign-in and the API read the Authorization header, which some setups drop.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+    # When this folder is also the project folder, its code, settings, and data stay private.
+    RewriteRule ^(vendor|runlight-data|config\.php|composer\.(json|lock))(/|$) - [F,L]
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>

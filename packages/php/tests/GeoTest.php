@@ -50,6 +50,25 @@ final class GeoTest extends TestCase
         }
     }
 
+    public function testAFileIsReadAPageAtATimeWithTheSameAnswers(): void
+    {
+        foreach (Fixture::load('geo')['databases'] as $db) {
+            $file = tempnam(sys_get_temp_dir(), 'rl-mmdb');
+            file_put_contents($file, base64_decode($db['base64']));
+            try {
+                $reader = Mmdb::open($file);
+                $this->assertSame($db['ipVersion'], $reader->metadata['ip_version']);
+                foreach ($db['records'] as $case) {
+                    $this->assertSame(json_encode($case['record']), json_encode($reader->get($case['ip'])), "{$db['ipVersion']}/{$db['recordSize']} {$case['ip']}");
+                }
+            } finally {
+                unlink($file);
+            }
+        }
+        $this->expectException(\RuntimeException::class);
+        Mmdb::open(sys_get_temp_dir() . '/no-such-runlight.mmdb');
+    }
+
     public function testDbIpRecordsBecomeACountryCodeAReadableRegionAndAPlainCity(): void
     {
         $records = [

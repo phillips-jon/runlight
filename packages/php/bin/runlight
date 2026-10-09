@@ -1,0 +1,35 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * vendor/bin/runlight: the standalone drop-in's command line. It reads the drop-in's settings, from the
+ * environment or config.php in the project folder.
+ */
+
+declare(strict_types=1);
+
+if (PHP_SAPI !== 'cli') {
+    exit(1);
+}
+
+// Composer's bin proxy names the autoloader; run straight from the package, it is a few folders up.
+$autoload = $GLOBALS['_composer_autoload_path'] ?? null;
+if ($autoload === null) {
+    for ($dir = dirname(__DIR__), $i = 0; $i < 4; $dir = dirname($dir), $i++) {
+        if (is_file("$dir/vendor/autoload.php")) {
+            $autoload = "$dir/vendor/autoload.php";
+            break;
+        }
+        if (is_file("$dir/autoload.php") && basename($dir) === 'vendor') {
+            $autoload = "$dir/autoload.php";
+            break;
+        }
+    }
+}
+if ($autoload === null || !is_file($autoload)) {
+    fwrite(STDERR, "Runlight: run composer install first.\n");
+    exit(1);
+}
+require $autoload;
+
+exit(Runlight\Server\Cli::run(array_slice($argv, 1), dirname(realpath($autoload), 2)));

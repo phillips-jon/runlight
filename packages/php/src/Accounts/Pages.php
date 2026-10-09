@@ -269,13 +269,14 @@ $field
     }
 
     /** For a server with no account yet, which prints a setup link with a one-time code in its log. */
-    public static function setupLockedPage(string $base): string
+    public static function setupLockedPage(string $base, ?string $where = null): string
     {
+        $where ??= "printed in the server's log when it started";
         return self::page(
             $base,
             'Finish setting up',
             "<h1>Finish setting up</h1>
-<p>Runlight has no account yet. Open the setup link printed in the server's log when it started, which carries a one-time code, to create the first account.</p>",
+<p>Runlight has no account yet. Open the setup link $where, which carries a one-time code, to create the first account.</p>",
         );
     }
 

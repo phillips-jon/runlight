@@ -53,6 +53,7 @@ final class Web
     /** @var (callable(): ?string)|null */
     private $home;
     private string $forgot;
+    private ?string $setupWhere;
     private string $cookiePath;
     private string $homePath;
     private bool $asksForToken;
@@ -72,7 +73,8 @@ final class Web
     private Throttle $rechecks;
 
     /**
-     * @param array{runlight: object, secret: string, base: string, now: callable(): int, firstAccount: 'open'|'locked'|array{code: string}|array{token: string}, home?: callable(): ?string, forgot: string} $options
+     * @param array{runlight: object, secret: string, base: string, now: callable(): int, firstAccount: 'open'|'locked'|array{code: string}|array{token: string}, home?: callable(): ?string, forgot: string, setupWhere?: string} $options
+     *     setupWhere says where to find the setup link with the one-time code, when it is not in a log (HTML)
      */
     public function __construct(array $options)
     {
@@ -83,6 +85,7 @@ final class Web
         $this->first = $options['firstAccount'];
         $this->home = $options['home'] ?? null;
         $this->forgot = $options['forgot'];
+        $this->setupWhere = $options['setupWhere'] ?? null;
         $this->accounts = new Accounts($this->store, $options['secret']);
         $this->cookiePath = $this->base !== '' ? $this->base : '/';
         $this->homePath = "$this->base/";
@@ -278,7 +281,7 @@ final class Web
     /** Why there is no setup form. */
     private function setupLocked(): Response
     {
-        return self::html($this->first === 'locked' ? Pages::setupNeedsTokenPage($this->base) : Pages::setupLockedPage($this->base), 403);
+        return self::html($this->first === 'locked' ? Pages::setupNeedsTokenPage($this->base) : Pages::setupLockedPage($this->base, $this->setupWhere), 403);
     }
 
     /**

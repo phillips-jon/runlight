@@ -16,6 +16,10 @@ final class Connect
     public static function sqlite(string $path): PdoDb
     {
         return new PdoDb(static function () use ($path): \PDO {
+            // A file in a folder that is not there yet gets the folder, as a fresh app's data/ often is.
+            if ($path !== '' && $path !== ':memory:' && !str_starts_with($path, 'file:') && !is_dir(dirname($path))) {
+                @mkdir(dirname($path), 0755, true);
+            }
             // better-sqlite3 waits up to five seconds for a lock from the moment it opens, pragmas included.
             $pdo = new \PDO("sqlite:$path", null, null, [\PDO::ATTR_TIMEOUT => 5]);
             $pdo->exec('PRAGMA journal_mode = WAL');
