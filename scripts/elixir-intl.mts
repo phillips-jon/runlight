@@ -1,6 +1,7 @@
 // Writes packages/elixir/priv/intl.json: what the email reports need of Node's Intl (ICU) in each of the
 // dashboard's languages, which Elixir has no copy of. Number separators, the percent and currency affixes,
-// month names as dates are written, and region names. With --check it only says whether the file is current.
+// month names as dates are written, and region names. With --check it only says whether the file is current,
+// when this Node's ICU is the one that wrote it.
 import { readFileSync, writeFileSync } from "node:fs";
 import { languages } from "../packages/sdk/src/messages.ts";
 
@@ -69,6 +70,16 @@ if (process.argv.includes("--check")) {
   try {
     current = readFileSync(out, "utf8");
   } catch {}
+  // Another ICU (CI's Node, say) writes other data, so only the ICU that wrote the file compares it, as
+  // scripts/go-intl.mjs does.
+  let icu: unknown;
+  try {
+    icu = JSON.parse(current).icu;
+  } catch {}
+  if (typeof icu === "string" && icu !== process.versions.icu) {
+    console.log(`elixir-intl: intl.json was written from ICU ${icu}, this Node has ${process.versions.icu}`);
+    process.exit(0);
+  }
   if (current !== text) {
     console.error("elixir-intl: packages/elixir/priv/intl.json is stale. Run node --import tsx scripts/elixir-intl.mts");
     process.exit(1);
