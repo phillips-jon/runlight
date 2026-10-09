@@ -1,0 +1,817 @@
+{
+  "description": "How JavaScript reads URLs and query strings and prints numbers. urls: new URL(input, base) and its parts, or null when it throws. queries: new URLSearchParams(input) as name and value pairs, and toString(). written: new URLSearchParams(pairs).toString(). numbers: String(n) for each n, which JSON.stringify also uses.",
+  "urls": [
+    {
+      "input": "https://example.com",
+      "expect": {
+        "href": "https://example.com/",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://Example.COM/Pricing?x=1#top",
+      "expect": {
+        "href": "https://example.com/Pricing?x=1#top",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/Pricing",
+        "search": "?x=1",
+        "hash": "#top"
+      }
+    },
+    {
+      "input": "https://example.com:443/a",
+      "expect": {
+        "href": "https://example.com/a",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "http://example.com:8080/a/../b/./c",
+      "expect": {
+        "href": "http://example.com:8080/b/c",
+        "protocol": "http:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "8080",
+        "host": "example.com:8080",
+        "origin": "http://example.com:8080",
+        "pathname": "/b/c",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/café",
+      "expect": {
+        "href": "https://example.com/caf%C3%A9",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/caf%C3%A9",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/a b/c\"d<e>`f{g}",
+      "expect": {
+        "href": "https://example.com/a%20b/c%22d%3Ce%3E%60f%7Bg%7D",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a%20b/c%22d%3Ce%3E%60f%7Bg%7D",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/%7Euser/%C3%A9",
+      "expect": {
+        "href": "https://example.com/%7Euser/%C3%A9",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/%7Euser/%C3%A9",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com\\a\\b",
+      "expect": {
+        "href": "https://example.com/a/b",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a/b",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/?q=a b&r='x'&s=ü",
+      "expect": {
+        "href": "https://example.com/?q=a%20b&r=%27x%27&s=%C3%BC",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/",
+        "search": "?q=a%20b&r=%27x%27&s=%C3%BC",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/#frag menté",
+      "expect": {
+        "href": "https://example.com/#frag%20ment%C3%A9",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/",
+        "search": "",
+        "hash": "#frag%20ment%C3%A9"
+      }
+    },
+    {
+      "input": "https://user:pa ss@example.com/",
+      "expect": {
+        "href": "https://user:pa%20ss@example.com/",
+        "protocol": "https:",
+        "username": "user",
+        "password": "pa%20ss",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://0x7f.1/",
+      "expect": {
+        "href": "https://127.0.0.1/",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "127.0.0.1",
+        "port": "",
+        "host": "127.0.0.1",
+        "origin": "https://127.0.0.1",
+        "pathname": "/",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://2130706433/",
+      "expect": {
+        "href": "https://127.0.0.1/",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "127.0.0.1",
+        "port": "",
+        "host": "127.0.0.1",
+        "origin": "https://127.0.0.1",
+        "pathname": "/",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://[::1]:3000/x",
+      "expect": {
+        "href": "https://[::1]:3000/x",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "[::1]",
+        "port": "3000",
+        "host": "[::1]:3000",
+        "origin": "https://[::1]:3000",
+        "pathname": "/x",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://exa%41mple.com/",
+      "expect": {
+        "href": "https://exaample.com/",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "exaample.com",
+        "port": "",
+        "host": "exaample.com",
+        "origin": "https://exaample.com",
+        "pathname": "/",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://bücher.example/",
+      "expect": {
+        "href": "https://xn--bcher-kva.example/",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "xn--bcher-kva.example",
+        "port": "",
+        "host": "xn--bcher-kva.example",
+        "origin": "https://xn--bcher-kva.example",
+        "pathname": "/",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/a/%2e%2E/b",
+      "expect": {
+        "href": "https://example.com/b",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/b",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/a/b/..",
+      "expect": {
+        "href": "https://example.com/a/",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a/",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/a/b/.",
+      "expect": {
+        "href": "https://example.com/a/b/",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a/b/",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com//double//slash",
+      "expect": {
+        "href": "https://example.com//double//slash",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "//double//slash",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/emoji/😀",
+      "expect": {
+        "href": "https://example.com/emoji/%F0%9F%98%80",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/emoji/%F0%9F%98%80",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com/tab\there",
+      "expect": {
+        "href": "https://example.com/tabhere",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/tabhere",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "  https://example.com/trim  ",
+      "expect": {
+        "href": "https://example.com/trim",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/trim",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "HTTPS://EXAMPLE.COM/UPPER",
+      "expect": {
+        "href": "https://example.com/UPPER",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/UPPER",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "mailto:someone@example.com",
+      "expect": {
+        "href": "mailto:someone@example.com",
+        "protocol": "mailto:",
+        "username": "",
+        "password": "",
+        "hostname": "",
+        "port": "",
+        "host": "",
+        "origin": "null",
+        "pathname": "someone@example.com",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "javascript:alert(1)",
+      "expect": {
+        "href": "javascript:alert(1)",
+        "protocol": "javascript:",
+        "username": "",
+        "password": "",
+        "hostname": "",
+        "port": "",
+        "host": "",
+        "origin": "null",
+        "pathname": "alert(1)",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "https://example.com:99999/",
+      "expect": null
+    },
+    {
+      "input": "https://exa mple.com/",
+      "expect": null
+    },
+    {
+      "input": "not a url",
+      "expect": null
+    },
+    {
+      "input": "",
+      "expect": null
+    },
+    {
+      "input": "//example.com/x",
+      "expect": null
+    },
+    {
+      "input": "/relative",
+      "expect": null
+    }
+  ],
+  "relative": [
+    {
+      "input": "/pricing?x=1",
+      "base": "https://example.com/a/b",
+      "expect": {
+        "href": "https://example.com/pricing?x=1",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/pricing",
+        "search": "?x=1",
+        "hash": ""
+      }
+    },
+    {
+      "input": "pricing",
+      "base": "https://example.com/a/b",
+      "expect": {
+        "href": "https://example.com/a/pricing",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a/pricing",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "../up",
+      "base": "https://example.com/a/b/c",
+      "expect": {
+        "href": "https://example.com/a/up",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a/up",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "?only=query",
+      "base": "https://example.com/a/b",
+      "expect": {
+        "href": "https://example.com/a/b?only=query",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a/b",
+        "search": "?only=query",
+        "hash": ""
+      }
+    },
+    {
+      "input": "#hash",
+      "base": "https://example.com/a?q=1",
+      "expect": {
+        "href": "https://example.com/a?q=1#hash",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a",
+        "search": "?q=1",
+        "hash": "#hash"
+      }
+    },
+    {
+      "input": "//other.example/x",
+      "base": "https://example.com/a",
+      "expect": {
+        "href": "https://other.example/x",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "other.example",
+        "port": "",
+        "host": "other.example",
+        "origin": "https://other.example",
+        "pathname": "/x",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "\\back\\slash",
+      "base": "https://example.com/a",
+      "expect": {
+        "href": "https://example.com/back/slash",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/back/slash",
+        "search": "",
+        "hash": ""
+      }
+    },
+    {
+      "input": "",
+      "base": "https://example.com/a?q#h",
+      "expect": {
+        "href": "https://example.com/a?q",
+        "protocol": "https:",
+        "username": "",
+        "password": "",
+        "hostname": "example.com",
+        "port": "",
+        "host": "example.com",
+        "origin": "https://example.com",
+        "pathname": "/a",
+        "search": "?q",
+        "hash": ""
+      }
+    }
+  ],
+  "queries": [
+    {
+      "input": "a=1&b=2",
+      "pairs": [
+        [
+          "a",
+          "1"
+        ],
+        [
+          "b",
+          "2"
+        ]
+      ],
+      "string": "a=1&b=2"
+    },
+    {
+      "input": "?a=1&a=2&b",
+      "pairs": [
+        [
+          "a",
+          "1"
+        ],
+        [
+          "a",
+          "2"
+        ],
+        [
+          "b",
+          ""
+        ]
+      ],
+      "string": "a=1&a=2&b="
+    },
+    {
+      "input": "q=a+b%20c",
+      "pairs": [
+        [
+          "q",
+          "a b c"
+        ]
+      ],
+      "string": "q=a+b+c"
+    },
+    {
+      "input": "x=%C3%A9&y=%E2%82%AC",
+      "pairs": [
+        [
+          "x",
+          "é"
+        ],
+        [
+          "y",
+          "€"
+        ]
+      ],
+      "string": "x=%C3%A9&y=%E2%82%AC"
+    },
+    {
+      "input": "a[]=1&a.b=2",
+      "pairs": [
+        [
+          "a[]",
+          "1"
+        ],
+        [
+          "a.b",
+          "2"
+        ]
+      ],
+      "string": "a%5B%5D=1&a.b=2"
+    },
+    {
+      "input": "=v&k=",
+      "pairs": [
+        [
+          "",
+          "v"
+        ],
+        [
+          "k",
+          ""
+        ]
+      ],
+      "string": "=v&k="
+    },
+    {
+      "input": "&&a=1&&",
+      "pairs": [
+        [
+          "a",
+          "1"
+        ]
+      ],
+      "string": "a=1"
+    },
+    {
+      "input": "bad=%ZZ&ok=1",
+      "pairs": [
+        [
+          "bad",
+          "%ZZ"
+        ],
+        [
+          "ok",
+          "1"
+        ]
+      ],
+      "string": "bad=%25ZZ&ok=1"
+    },
+    {
+      "input": "plus=1%2B1",
+      "pairs": [
+        [
+          "plus",
+          "1+1"
+        ]
+      ],
+      "string": "plus=1%2B1"
+    }
+  ],
+  "written": [
+    {
+      "pairs": [
+        [
+          "a",
+          "b c"
+        ],
+        [
+          "é",
+          "€"
+        ],
+        [
+          "x*y",
+          "-._~!'()"
+        ]
+      ],
+      "string": "a=b+c&%C3%A9=%E2%82%AC&x*y=-._%7E%21%27%28%29"
+    },
+    {
+      "pairs": [
+        [
+          "path",
+          "/a/b?c=d&e"
+        ],
+        [
+          "empty",
+          ""
+        ]
+      ],
+      "string": "path=%2Fa%2Fb%3Fc%3Dd%26e&empty="
+    }
+  ],
+  "numbers": [
+    {
+      "n": 0,
+      "text": "0"
+    },
+    {
+      "n": 0,
+      "text": "0"
+    },
+    {
+      "n": 1,
+      "text": "1"
+    },
+    {
+      "n": -1,
+      "text": "-1"
+    },
+    {
+      "n": 0.5,
+      "text": "0.5"
+    },
+    {
+      "n": 0.3333333333333333,
+      "text": "0.3333333333333333"
+    },
+    {
+      "n": 0.6666666666666666,
+      "text": "0.6666666666666666"
+    },
+    {
+      "n": 0.000001,
+      "text": "0.000001"
+    },
+    {
+      "n": 1e-7,
+      "text": "1e-7"
+    },
+    {
+      "n": 1.5e-9,
+      "text": "1.5e-9"
+    },
+    {
+      "n": 123456789.123,
+      "text": "123456789.123"
+    },
+    {
+      "n": 100000000000000000000,
+      "text": "100000000000000000000"
+    },
+    {
+      "n": 1e+21,
+      "text": "1e+21"
+    },
+    {
+      "n": 1.2e+25,
+      "text": "1.2e+25"
+    },
+    {
+      "n": -4.5e-8,
+      "text": "-4.5e-8"
+    },
+    {
+      "n": 0.30000000000000004,
+      "text": "0.30000000000000004"
+    },
+    {
+      "n": 100,
+      "text": "100"
+    },
+    {
+      "n": 99.99,
+      "text": "99.99"
+    },
+    {
+      "n": 12.5,
+      "text": "12.5"
+    },
+    {
+      "n": 9007199254740991,
+      "text": "9007199254740991"
+    }
+  ]
+}

@@ -13,12 +13,13 @@
   "scripts": {
     "check:dashes": "node scripts/check-dashes.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run check:dashes && npm test --workspaces --if-present && node --test deploy/contact/server.test.mjs",
-    "build": "npm run check:dashes && npm run build --workspaces --if-present",
+    "test": "npm run check:dashes && npm test --workspaces --if-present && node --test deploy/contact/server.test.mjs && node --import tsx scripts/php-assets.mts --check",
+    "build": "npm run check:dashes && npm run build --workspaces --if-present && npm run php-assets",
     "check": "npm run check:dashes && npm run typecheck && npm test",
     "dev:dashboard": "node --import tsx scripts/dev-dashboard.mts",
     "dev:site": "npm run dev --workspace site",
-    "conformance": "node --import tsx scripts/conformance.mts"
+    "conformance": "node --import tsx scripts/conformance.mts",
+    "php-assets": "node --import tsx scripts/php-assets.mts"
   },
   "overrides": {
     "esbuild": "^0.28.2"

@@ -1,0 +1,41 @@
+{
+    "name": "runlight/runlight",
+    "description": "Privacy friendly web analytics that lives inside your PHP app. Mount a route, add a script tag, read your stats at /runlight.",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://runlight.sh",
+    "keywords": ["analytics", "privacy", "web analytics", "short links"],
+    "require": {
+        "php": ">=8.2",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-pdo": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.5"
+    },
+    "suggest": {
+        "ext-pdo_sqlite": "For the SQLite store",
+        "ext-pdo_pgsql": "For the Postgres store",
+        "ext-pdo_mysql": "For the MySQL and MariaDB store",
+        "ext-apcu": "Keeps the tracker's rate limit in shared memory rather than files"
+    },
+    "autoload": {
+        "psr-4": {
+            "Runlight\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Runlight\\Tests\\": "tests/"
+        }
+    },
+    "bin": ["bin/runlight"],
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}
