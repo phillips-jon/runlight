@@ -121,7 +121,8 @@ final class Journeys
             }
         }
         $links = array_values($linkCounts);
-        usort($links, fn ($a, $b) => $a['step'] - $b['step'] ?: $b['visits'] - $a['visits']);
+        // Ties go by page, as the columns and paths do, so the order never follows the visits' random ids.
+        usort($links, fn ($a, $b) => $a['step'] - $b['step'] ?: $b['visits'] - $a['visits'] ?: Js::compare($a['from'], $b['from']) ?: Js::compare($a['to'], $b['to']));
 
         $pathCounts = [];
         foreach ($sequences as $s) {

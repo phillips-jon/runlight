@@ -72,7 +72,7 @@ const BASICS: Scenario[] = [
       { ...hit({ k: "event", u: "https://shop.example.com/thanks", i: "a3", n: "Purchase", p: { amount: 49.5 } }, "203.0.113.20"), advance: 1_000 },
       hit({ k: "pageview", u: "https://shop.example.com/", i: "b1" }, "203.0.113.21"),
       { method: "POST", path: "/api/goals", headers: json, body: { name: "Purchase", kind: "event", match: "Purchase", valueMode: "prop", valueProp: "amount", currency: "USD" }, capture: { goal: "goal.id" } },
-      { method: "POST", path: "/api/goals", headers: json, body: { name: "Thanks page", kind: "page", match: "/thanks*" } },
+      { method: "POST", path: "/api/goals", headers: json, body: { name: "Thanks page", kind: "page", match: "/thanks*" }, advance: 1000 },
       { method: "POST", path: "/api/goals", headers: json, body: { name: "", kind: "event", match: "" } },
       get("/api/goals?period=today"),
       get("/api/goals/{{goal}}?period=today"),

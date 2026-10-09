@@ -374,7 +374,7 @@ export class Accounts {
 
   async list(): Promise<User[]> {
     await this.init();
-    return (await this.store.db.all(`SELECT * FROM rl_users ORDER BY created_at`)).map((r) => this.row(r));
+    return (await this.store.db.all(`SELECT * FROM rl_users ORDER BY created_at, id`)).map((r) => this.row(r));
   }
 
   /** Changes a role. The owner's never changes here, and nobody becomes the owner here: see handOver(). */
@@ -449,7 +449,7 @@ export class Accounts {
   async invites(now: number): Promise<Invite[]> {
     await this.init();
     await this.store.db.run(`DELETE FROM rl_invites WHERE expires_at <= ?`, [now]);
-    return (await this.store.db.all(`SELECT * FROM rl_invites ORDER BY created_at DESC`)).map((r) => this.inviteRow(r));
+    return (await this.store.db.all(`SELECT * FROM rl_invites ORDER BY created_at DESC, id`)).map((r) => this.inviteRow(r));
   }
 
   /**

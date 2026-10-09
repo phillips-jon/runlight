@@ -1127,7 +1127,7 @@ export class SqlStore {
     if (visitors.length === 0) return null;
     const rows = await this.db.all<{ id: string; visitor: string }>(
       `SELECT id, visitor FROM rl_sessions WHERE site = ? AND visitor IN (${visitors.map(() => "?").join(", ")}) AND last_at >= ?
-       ORDER BY last_at DESC LIMIT 1`,
+       ORDER BY last_at DESC, id LIMIT 1`,
       [site, ...visitors, since],
     );
     return rows[0] ?? null;
@@ -1249,7 +1249,7 @@ export class SqlStore {
   // Shares
 
   async shares(site: string): Promise<ShareRow[]> {
-    const rows = await this.db.all(`SELECT id, site, name, created_at FROM rl_shares WHERE site = ? ORDER BY created_at DESC`, [site]);
+    const rows = await this.db.all(`SELECT id, site, name, created_at FROM rl_shares WHERE site = ? ORDER BY created_at DESC, id`, [site]);
     return rows.map((r) => ({ id: String(r.id), site: String(r.site), name: String(r.name ?? ""), createdAt: Number(r.created_at) }));
   }
 
@@ -1274,7 +1274,7 @@ export class SqlStore {
   // Funnels
 
   async funnels(site: string): Promise<FunnelRow[]> {
-    const rows = await this.db.all(`SELECT * FROM rl_funnels WHERE site = ? ORDER BY created_at`, [site]);
+    const rows = await this.db.all(`SELECT * FROM rl_funnels WHERE site = ? ORDER BY created_at, id`, [site]);
     return rows.map((r) => ({ id: String(r.id), site: String(r.site), name: String(r.name), steps: JSON.parse(String(r.steps)) as FunnelStep[], createdAt: Number(r.created_at) }));
   }
 
@@ -1334,7 +1334,7 @@ export class SqlStore {
     const scope = visitScope(query.filters, query.site, query.from, query.to, this.db.dialect);
     // The newest visits the filters pick, JOURNEY_VISITS at most, so a long range stays quick and small in memory.
     const newest = (columns: string, limit: number) => `SELECT ${columns} FROM rl_sessions s WHERE s.site = ? AND s.started_at >= ? AND s.started_at < ? AND ${IS_VISIT}${scope.sql}
-         ORDER BY s.started_at DESC LIMIT ${limit}`;
+         ORDER BY s.started_at DESC, s.id LIMIT ${limit}`;
     const visitParams = [query.site, query.from, query.to, ...scope.params];
     // How many there are, one past the cap telling whether it was reached, and when the oldest of them began,
     // so the rows are read from there on rather than from the start of a long range.
@@ -1377,7 +1377,7 @@ export class SqlStore {
   }
 
   async tokens(): Promise<TokenRow[]> {
-    return (await this.db.all(`SELECT * FROM rl_tokens ORDER BY created_at DESC`)).map((r) => this.tokenRow(r));
+    return (await this.db.all(`SELECT * FROM rl_tokens ORDER BY created_at DESC, id`)).map((r) => this.tokenRow(r));
   }
 
   async tokenByHash(hash: string): Promise<TokenRow | null> {
@@ -1444,8 +1444,8 @@ export class SqlStore {
 
   async reports(site?: string): Promise<ReportRow[]> {
     const rows = site
-      ? await this.db.all(`SELECT * FROM rl_reports WHERE site = ? ORDER BY created_at`, [site])
-      : await this.db.all(`SELECT * FROM rl_reports ORDER BY created_at`);
+      ? await this.db.all(`SELECT * FROM rl_reports WHERE site = ? ORDER BY created_at, id`, [site])
+      : await this.db.all(`SELECT * FROM rl_reports ORDER BY created_at, id`);
     return rows.map((r) => this.reportRow(r));
   }
 
@@ -1480,8 +1480,8 @@ export class SqlStore {
 
   async goals(site?: string): Promise<GoalRow[]> {
     const rows = site
-      ? await this.db.all(`SELECT * FROM rl_goals WHERE site = ? ORDER BY created_at`, [site])
-      : await this.db.all(`SELECT * FROM rl_goals ORDER BY created_at`);
+      ? await this.db.all(`SELECT * FROM rl_goals WHERE site = ? ORDER BY created_at, id`, [site])
+      : await this.db.all(`SELECT * FROM rl_goals ORDER BY created_at, id`);
     return rows.map(goalRow);
   }
 
@@ -2119,7 +2119,7 @@ export class SqlStore {
     );
     const recent = await this.db.all(
       `SELECT e.ts, e.kind, e.path, e.name, s.country, s.city, s.source, s.device FROM rl_events e JOIN rl_sessions s ON s.id = e.session
-       WHERE e.site = ? AND e.ts >= ? AND e.kind IN ('pageview', 'event') ORDER BY e.ts DESC LIMIT 20`,
+       WHERE e.site = ? AND e.ts >= ? AND e.kind IN ('pageview', 'event') ORDER BY e.ts DESC, e.id DESC LIMIT 20`,
       [site, start],
     );
     const pairs = (rows: Record<string, unknown>[]) => rows.map((row) => ({ value: String(row.value), visitors: num(row.visitors) }));

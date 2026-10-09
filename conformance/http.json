@@ -4536,6 +4536,7 @@
             "kind": "page",
             "match": "/thanks*"
           },
+          "advance": 1000,
           "expect": {
             "status": 201,
             "headers": {
@@ -4555,7 +4556,7 @@
                 "value": 0,
                 "valueProp": "",
                 "currency": "USD",
-                "createdAt": 1791298861000
+                "createdAt": 1791298862000
               }
             }
           }
@@ -4647,7 +4648,7 @@
                   "value": 0,
                   "valueProp": "",
                   "currency": "USD",
-                  "createdAt": 1791298861000,
+                  "createdAt": 1791298862000,
                   "conversions": 1,
                   "visitors": 1,
                   "revenue": 0,
@@ -4902,7 +4903,7 @@
                     "match": "Purchase"
                   }
                 ],
-                "createdAt": 1791298861000
+                "createdAt": 1791298862000
               }
             }
           }
@@ -4950,7 +4951,7 @@
                       "visits": 1
                     }
                   ],
-                  "createdAt": 1791298861000
+                  "createdAt": 1791298862000
                 }
               ]
             }
@@ -4986,8 +4987,8 @@
                 "slug": "sale",
                 "name": "Sale",
                 "url": "https://example.org/sale",
-                "createdAt": 1791298861000,
-                "updatedAt": 1791298861000
+                "createdAt": 1791298862000,
+                "updatedAt": 1791298862000
               }
             }
           }
@@ -5044,8 +5045,8 @@
                 "slug": "sale",
                 "name": "Autumn sale",
                 "url": "https://example.org/sale",
-                "createdAt": 1791298861000,
-                "updatedAt": 1791298861000
+                "createdAt": 1791298862000,
+                "updatedAt": 1791298862000
               }
             }
           }
@@ -5074,8 +5075,8 @@
                   "slug": "sale",
                   "name": "Autumn sale",
                   "url": "https://example.org/sale",
-                  "createdAt": 1791298861000,
-                  "updatedAt": 1791298861000,
+                  "createdAt": 1791298862000,
+                  "updatedAt": 1791298862000,
                   "clicks": 0,
                   "visitors": 0
                 }
@@ -5139,7 +5140,7 @@
                   "value": 0,
                   "valueProp": "",
                   "currency": "USD",
-                  "createdAt": 1791298861000,
+                  "createdAt": 1791298862000,
                   "conversions": 1,
                   "visitors": 1,
                   "revenue": 0,
@@ -22909,15 +22910,35 @@
           "method": "GET",
           "path": "/.well-known/openid-configuration",
           "expect": {
-            "status": 404,
+            "status": 200,
             "headers": {
               "content-type": "application/json",
               "cache-control": "no-store",
-              "x-content-type-options": "nosniff"
+              "access-control-allow-origin": "*",
+              "access-control-allow-methods": "GET, POST, OPTIONS",
+              "access-control-allow-headers": "authorization, content-type, mcp-protocol-version"
             },
             "body": {
-              "error": "Not found",
-              "code": "not_found"
+              "issuer": "https://example.com/runlight",
+              "authorization_endpoint": "https://example.com/runlight/oauth/authorize",
+              "token_endpoint": "https://example.com/runlight/oauth/token",
+              "registration_endpoint": "https://example.com/runlight/oauth/register",
+              "response_types_supported": [
+                "code"
+              ],
+              "grant_types_supported": [
+                "authorization_code"
+              ],
+              "code_challenge_methods_supported": [
+                "S256"
+              ],
+              "token_endpoint_auth_methods_supported": [
+                "none"
+              ],
+              "scopes_supported": [
+                "read",
+                "manage"
+              ]
             }
           }
         },
