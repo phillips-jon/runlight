@@ -1,0 +1,4 @@
+# Left out of the archives Composer installs from.
+/tests export-ignore
+/phpunit.xml export-ignore
+/.gitattributes export-ignore

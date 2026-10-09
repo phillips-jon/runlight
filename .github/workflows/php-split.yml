@@ -1,0 +1,50 @@
+# Packagist reads a package from the root of a repository, so packages/php is
+# copied, with its own history, to a read-only repository of its own on every
+# push to main, and a tag such as php-v1.2.0 here becomes v1.2.0 there.
+# Nothing is pushed until the PHP_SPLIT_TOKEN secret holds a token that may
+# write to PHP_SPLIT_REPO (runlight/runlight-php unless the variable says else).
+name: PHP package split
+
+on:
+  push:
+    branches: [main]
+    tags: ["php-v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: php-split
+  cancel-in-progress: false
+
+jobs:
+  split:
+    if: github.repository == 'phillips-jon/runlight'
+    runs-on: ubuntu-latest
+    env:
+      SPLIT_TOKEN: ${{ secrets.PHP_SPLIT_TOKEN }}
+      SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'runlight/runlight-php' }}
+      REF: ${{ github.ref }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+      - name: Push packages/php to its own repository
+        run: |
+          if [ -z "$SPLIT_TOKEN" ]; then
+            echo "PHP_SPLIT_TOKEN is not set, so nothing is pushed."
+            exit 0
+          fi
+          # The same history always splits to the same commits, so each push only adds to the last.
+          split=$(git subtree split --prefix=packages/php HEAD)
+          remote="https://x-access-token:${SPLIT_TOKEN}@github.com/${SPLIT_REPO}.git"
+          case "$REF" in
+            refs/tags/php-v*)
+              tag="v${REF#refs/tags/php-v}"
+              git tag "$tag" "$split"
+              git push "$remote" "refs/tags/$tag"
+              ;;
+            *)
+              git push "$remote" "$split:refs/heads/main"
+              ;;
+          esac
