@@ -625,6 +625,7 @@
   "sites.remoteTitle": "Compté par un autre Runlight",
   "sites.openRemote": "Ouvrir son tableau de bord",
   "sites.useToken": "Utiliser plutôt un jeton d’API",
+  "sites.useSignIn": "Se connecter plutôt à cette installation",
   "sites.remoteManaged": "Ce site est compté par son propre Runlight à {url}. Les modifications faites ici y sont enregistrées.",
   "sites.allowChanges": "Autoriser les modifications",
   "sites.reconnect": "Reconnecter",

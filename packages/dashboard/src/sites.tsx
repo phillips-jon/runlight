@@ -73,11 +73,16 @@ export function AddSiteForm({ onAdded, onCancel }: { onAdded: (site: Site) => vo
             <input class="value" type="url" required placeholder="https://example.com/runlight" value={remoteUrl} onInput={(e) => setRemoteUrl((e.target as HTMLInputElement).value)} />
           </label>
           {withToken ? (
-            <label class="field-row">
-              <span class="field-label">{t("sites.connectToken")}</span>
-              <Secret class="value" required autoComplete="off" placeholder="rl_..." value={token} onInput={(e) => setToken((e.target as HTMLInputElement).value)} />
-              <span class="field-hint">{t("sites.connectTokenHint")}</span>
-            </label>
+            <>
+              <label class="field-row">
+                <span class="field-label">{t("sites.connectToken")}</span>
+                <Secret class="value" required autoComplete="off" placeholder="rl_..." value={token} onInput={(e) => setToken((e.target as HTMLInputElement).value)} />
+                <span class="field-hint">{t("sites.connectTokenHint")}</span>
+              </label>
+              <button type="button" class="text-button" onClick={() => setWithToken(false)}>
+                {t("sites.useSignIn")}
+              </button>
+            </>
           ) : (
             <button type="button" class="text-button" onClick={() => setWithToken(true)}>
               {t("sites.useToken")}

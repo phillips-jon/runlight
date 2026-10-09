@@ -625,6 +625,7 @@
   "sites.remoteTitle": "Counted by another Runlight",
   "sites.openRemote": "Open its dashboard",
   "sites.useToken": "Use an API token instead",
+  "sites.useSignIn": "Sign in to it instead",
   "sites.remoteManaged": "This site is counted by its own Runlight at {url}. Changes you make here are saved there.",
   "sites.allowChanges": "Allow changes",
   "sites.reconnect": "Connect again",
