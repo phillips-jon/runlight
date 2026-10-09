@@ -201,3 +201,20 @@ test("an imported visit across UTC midnight is one visit on the site's own day",
   const stats = (await (await rl.routes({ token: "t" }).GET(new Request("https://x/runlight/api/stats?from=2026-03-02&to=2026-03-02&compare=off", { headers: { authorization: "Bearer t" } }))).json()) as any;
   assert.deepEqual([stats.stats.visits, stats.stats.visitors, stats.stats.pageviews], [1, 1, 2]);
 });
+
+test("Umami visit history: an unreadable saved progress setting starts as if there were none", async () => {
+  fakeUmami();
+  const credentials = { url: "https://umami.example.com", apiKey: "key" };
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["blog.example.com"], timezone: "UTC" }, now: () => Date.parse("2026-03-04T00:00:00Z") });
+  await rl.init();
+  await rl.store.setSetting("import:umami-visits:default:w1", "not a number");
+  let cursor: string | null = null;
+  let pageviews = 0;
+  do {
+    const step = await importUmamiVisits(rl, "default", credentials, "w1", cursor);
+    assert.ok(Number.isFinite(step.done) && Number.isFinite(step.total), "progress is a number");
+    cursor = step.cursor;
+    pageviews += step.pageviews;
+  } while (cursor);
+  assert.equal(pageviews, 4, "every day is read from the website's start");
+});
