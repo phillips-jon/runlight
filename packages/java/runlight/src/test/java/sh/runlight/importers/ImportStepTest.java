@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import sh.runlight.Js;
 import sh.runlight.Json;
@@ -679,5 +680,24 @@ class ImportStepTest {
         url,
         "createdAt",
         0L);
+  }
+
+  /** Names JavaScript objects carry on their prototype are just names, as edges.test.ts checks. */
+  @Test
+  void namesLikeObjectPropertiesAreJustNames() {
+    TestHost rl = new TestHost(new FakeService(), NOW);
+    for (String source : List.of("constructor", "toString", "__proto__", "hasOwnProperty")) {
+      ImportError e =
+          assertThrows(
+              ImportError.class, () -> Index.importStep(rl, "default", source, Map.of(), null, 0));
+      assertEquals("import_source", e.code(), source);
+    }
+    assertEquals(
+        List.of("Constructor", "__proto__", "ToString"),
+        Stream.of("constructor", "__proto__", "toString").map(Write::browser).toList());
+    assertEquals(
+        List.of("constructor", "toString"),
+        Stream.of("constructor", "toString").map(Write::system).toList());
+    assertEquals(List.of("", ""), Stream.of("constructor", "valueOf").map(Write::device).toList());
   }
 }

@@ -39,29 +39,35 @@ public final class Icon {
   private static final Pattern LINK = Pattern.compile("<link\\b[^>]*>", Pattern.CASE_INSENSITIVE);
   private static final Pattern SPACES = Pattern.compile("[" + Js.SPACE + "]+");
 
-  private static String attr(String tag, String name) {
-    Matcher match =
-        Pattern.compile(
-                "\\b"
-                    + name
-                    + "["
-                    + Js.SPACE
-                    + "]*=["
-                    + Js.SPACE
-                    + "]*(\"([^\"]*)\"|'([^']*)'|([^"
-                    + Js.SPACE
-                    + ">]+))",
-                Pattern.CASE_INSENSITIVE)
-            .matcher(tag);
-    if (!match.find()) {
-      return "";
-    }
-    for (int i = 2; i <= 4; i++) {
-      if (match.group(i) != null) {
-        return Js.trim(match.group(i));
+  private static final Pattern ATTRIBUTE =
+      Pattern.compile(
+          "([^"
+              + Js.SPACE
+              + "\"'>/=]+)(?:["
+              + Js.SPACE
+              + "]*=["
+              + Js.SPACE
+              + "]*(?:\"([^\"]*)\"|'([^']*)'|([^"
+              + Js.SPACE
+              + ">]+)))?");
+
+  /**
+   * A tag's attributes, read one after another so a name inside another (data-rel) or inside a
+   * value (title="rel=icon") is never taken for one. The first of a repeated name counts, as in a
+   * browser.
+   */
+  private static Map<String, String> attrs(String tag) {
+    Map<String, String> out = new LinkedHashMap<>();
+    Matcher m = ATTRIBUTE.matcher(tag.substring("<link".length()));
+    while (m.find()) {
+      String name = Js.lower(m.group(1));
+      if (!out.containsKey(name)) {
+        String value =
+            m.group(2) != null ? m.group(2) : m.group(3) != null ? m.group(3) : m.group(4);
+        out.put(name, Js.trim(value == null ? "" : value));
       }
     }
-    return "";
+    return out;
   }
 
   /**
@@ -73,8 +79,9 @@ public final class Icon {
     Matcher tags = LINK.matcher(html);
     while (tags.find()) {
       String tag = tags.group();
-      List<String> rel = List.of(SPACES.split(Js.lower(attr(tag, "rel")), -1));
-      String href = attr(tag, "href");
+      Map<String, String> attributes = attrs(tag);
+      List<String> rel = List.of(SPACES.split(Js.lower(attributes.getOrDefault("rel", "")), -1));
+      String href = attributes.getOrDefault("href", "");
       if (href.isEmpty() || !(rel.contains("icon") || rel.contains("apple-touch-icon"))) {
         continue;
       }
@@ -87,7 +94,7 @@ public final class Icon {
       if (!url.startsWith("https://")) {
         continue;
       }
-      String type = Js.lower(attr(tag, "type"));
+      String type = Js.lower(attributes.getOrDefault("type", ""));
       int score =
           rel.contains("apple-touch-icon")
               ? 3
