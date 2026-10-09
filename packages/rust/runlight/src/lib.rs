@@ -22,6 +22,7 @@ pub mod goals;
 pub mod hash;
 pub mod http;
 pub mod icon;
+pub mod importers;
 pub mod intl;
 pub mod journeys;
 pub mod js;
