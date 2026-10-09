@@ -36,7 +36,7 @@
     "test": "TZ=UTC node --import tsx --test test/*.test.ts"
   },
   "dependencies": {
-    "@runlight/sdk": "*",
+    "@runlight/sdk": "0.0.0",
     "better-sqlite3": "^13.0.3",
     "mmdb-lib": "^3.0.3",
     "mysql2": "^3.24.5",
