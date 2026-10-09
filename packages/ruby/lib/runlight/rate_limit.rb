@@ -15,13 +15,18 @@ module Runlight
   # small file per window in the system's temporary folder, or, where no file
   # can be written, in this process. Several servers behind a load balancer
   # each count on their own, as the TypeScript SDK's processes do.
+  #
+  # A clock given in code (a test's) is not the time other processes keep, so
+  # windows named by it would mix counts from unrelated runs that replay the
+  # same minutes: those counts stay in this process.
   class RateLimit
     # per_minute: Integer; now: a callable giving milliseconds; dir: where the counts go, the system's temporary
-    # folder when nil.
-    def initialize(per_minute, now, dir = nil)
+    # folder when nil; shared: false keeps the counts in this process, never in a file.
+    def initialize(per_minute, now, dir = nil, shared: true)
       @per_minute = per_minute
       @now = now
       @dir = dir
+      @shared = shared
       # Counts kept in this process, used when no temporary folder works.
       @counts = {}
       @window = 0
@@ -36,7 +41,7 @@ module Runlight
       window = @now.call.div(60_000)
       id = OpenSSL::Digest::SHA256.hexdigest(self.class.key + ip)[0, 16]
       @lock.synchronize do
-        count = count_in_file(window, id)
+        count = @shared ? count_in_file(window, id) : nil
         return count <= @per_minute unless count.nil?
 
         if window != @window

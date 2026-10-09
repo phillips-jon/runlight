@@ -1,5 +1,6 @@
 # frozen_string_literal: true
 
+require "tmpdir"
 require "test_helper"
 require_relative "../support/core_test_case"
 require_relative "../support/watched_db"
@@ -187,19 +188,45 @@ class CoreIngestTest < CoreTestCase
 
   def test_tracker_requests_over_the_per_address_limit_are_dropped_until_the_next_minute
     t = Harness.new("sqlite", { "site" => { "hostnames" => ["example.com"] }, "rateLimit" => 3 })
-    # Counts are kept per minute window, shared between processes, so the window must be one no other test used.
-    t.now = utc(2026, 10, 6, 12) + (rand(1..1_000_000) * 60_000)
     hit = lambda do |ip, n|
       t.rl.collect(Harness.hit("https://example.com/runlight/e", { "k" => "pageview", "u" => "https://example.com/#{n}" }, { "ua" => "Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36", "ip" => ip }))
     end
-    ip = "203.0.113.#{rand(1..250)}"
+    ip = "203.0.113.7"
     5.times { |n| hit.call(ip, n) }
-    hit.call("198.51.100.#{rand(1..250)}", 9)
+    hit.call("198.51.100.7", 9)
     views = -> { t.store.db.all("SELECT COUNT(*) AS n FROM rl_events WHERE kind = 'pageview'")[0]["n"].to_i }
     assert_equal 4, views.call, "three from the busy address, one from the other"
     t.advance(60_000)
     hit.call(ip, 7)
     assert_equal 5, views.call, "a new minute starts a new count"
+  end
+
+  # A clock given in code names minutes that other runs replay too (the conformance scenarios play the same ones
+  # on every database, and again on every run), so counts kept in the shared temporary folder carried one run's
+  # hits into the next and dropped hits the limit allows.
+  def test_a_core_on_a_clock_given_in_code_counts_the_rate_limit_on_its_own
+    2.times do |run|
+      t = Harness.new("sqlite", { "site" => { "hostnames" => ["example.com"] }, "rateLimit" => 3 })
+      t.rl.init
+      3.times do |n|
+        t.rl.collect(Harness.hit("https://example.com/runlight/e", { "k" => "pageview", "u" => "https://example.com/#{n}" }, { "ua" => "Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36", "ip" => "203.0.113.8" }))
+      end
+      views = t.store.db.all("SELECT COUNT(*) AS n FROM rl_events WHERE kind = 'pageview'")[0]["n"].to_i
+      assert_equal 3, views, "run #{run + 1} counts its own three"
+    end
+  end
+
+  def test_the_rate_limit_shares_its_counts_between_processes_through_the_folder
+    Dir.mktmpdir do |dir|
+      clock = -> { 1_791_280_800_000 }
+      first = Runlight::RateLimit.new(2, clock, dir)
+      second = Runlight::RateLimit.new(2, clock, dir)
+      assert first.allow("203.0.113.9")
+      assert second.allow("203.0.113.9")
+      refute first.allow("203.0.113.9"), "the third in the minute, counted across both"
+      apart = Runlight::RateLimit.new(2, clock, dir, shared: false)
+      assert apart.allow("203.0.113.9"), "one kept in its process counts on its own"
+    end
   end
 
   def test_a_tracker_hit_that_finds_the_database_busy_is_tried_again_at_the_time_it_arrived

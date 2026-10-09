@@ -27,7 +27,7 @@ module Runlight
   #   for connected installs. Default the RUNLIGHT_SECRET environment variable, then RUNLIGHT_TOKEN.
   # - rateLimit: tracker requests allowed per visitor address per minute. Default 120, which a real visitor
   #   never reaches; false turns the limit off.
-  # - now: a callable giving the clock in milliseconds. For tests.
+  # - now: a callable giving the clock in milliseconds. For tests. The rate limit then counts in this process.
   # - fetcher: what every outgoing request goes through (anything with fetch(url, init)). Default
   #   Http::NetFetcher.
   #
@@ -105,7 +105,8 @@ module Runlight
       # false, 0, or anything that is not a positive number means no limit, never a limit of nothing.
       number = per_minute == false ? Float::NAN : Js.number(per_minute)
       @limit = if number.is_a?(Numeric) && number.positive?
-                 RateLimit.new(number.infinite? ? (2**63) - 1 : number.floor, -> { now })
+                 # A clock given in code is a test's: its minutes are not the ones other processes count in.
+                 RateLimit.new(number.infinite? ? (2**63) - 1 : number.floor, -> { now }, shared: options["now"].nil?)
                end
       @clock = options["now"] || -> { Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) }
       @fetcher = options["fetcher"] || Http::NetFetcher.new
