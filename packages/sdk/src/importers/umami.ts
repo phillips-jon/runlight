@@ -59,7 +59,7 @@ export async function umamiSignIn(credentials: Record<string, string>, token?: s
  * visitor's session holding place and device.
  */
 export const umami: Importer = {
-  async step({ credentials, cursor, known }) {
+  async step({ credentials, cursor, known, now }) {
     // A key comes with every step; only a sign-in token, which expires, rides in the cursor.
     const saved = cursor ? (JSON.parse(cursor) as { page: number; token?: string }) : { page: 1 };
     const key = credentials.apiKey?.trim() ?? "";
@@ -84,8 +84,8 @@ export const umami: Importer = {
         links.push({ link: { sourceId: l.id, slug: l.slug, domain: "", name: l.name, url: l.url, createdAt: 0 }, known: true });
         continue;
       }
-      const created = Date.parse(l.createdAt) || Date.now();
-      const range = `startAt=${created - 86_400_000}&endAt=${Date.now() + 60_000}`;
+      const created = Date.parse(l.createdAt) || now;
+      const range = `startAt=${created - 86_400_000}&endAt=${now + 60_000}`;
       const [events, sessions] = await Promise.all([
         all<UmamiEvent>(`/websites/${l.id}/events?${range}`),
         all<UmamiSession>(`/websites/${l.id}/sessions?${range}`),

@@ -25,7 +25,7 @@ type Point = { x: string | number; y: number };
  * holds only a few links.
  */
 export const shortio: Importer = {
-  async step({ credentials, cursor, known }) {
+  async step({ credentials, cursor, known, now }) {
     const key = credentials.apiKey?.trim();
     if (!key) throw new ImportError("Enter a Short.io secret API key", "import_key", { service: "Short.io" });
     const headers = { authorization: key };
@@ -70,7 +70,7 @@ export const shortio: Importer = {
         if (!(error instanceof HttpError) || error.status === 401) throw error;
       }
       links.push({
-        link: { sourceId: id, slug: l.path, domain: domain.hostname, name: l.title || "", url: l.originalURL, createdAt: Date.parse(l.createdAt) || Date.now() },
+        link: { sourceId: id, slug: l.path, domain: domain.hostname, name: l.title || "", url: l.originalURL, createdAt: Date.parse(l.createdAt) || now },
         daily,
       });
     }

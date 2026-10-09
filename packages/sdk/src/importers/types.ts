@@ -66,6 +66,8 @@ export interface Importer {
      * same slug to the same destination brought in some other way.
      */
     known: (sourceId: string, slug?: string, url?: string) => Promise<boolean>;
+    /** Runlight's clock, in milliseconds: the date of a link the source gives none for, and where Umami's history ends. */
+    now: number;
   }): Promise<{
     cursor: string | null;
     total: number | null;

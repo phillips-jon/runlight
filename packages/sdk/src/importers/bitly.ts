@@ -29,7 +29,7 @@ function split(value: string): { domain: string; slug: string } {
  * over the random bit.ly one.
  */
 export const bitly: Importer = {
-  async step({ credentials, cursor, known }) {
+  async step({ credentials, cursor, known, now }) {
     const token = credentials.token?.trim() || credentials.apiKey?.trim();
     if (!token) throw new ImportError("Enter a Bitly access token", "import_key", { service: "Bitly" });
     const headers = { authorization: `Bearer ${token}` };
@@ -65,7 +65,7 @@ export const bitly: Importer = {
         if (!(error instanceof HttpError) || error.status === 401) throw error;
       }
       links.push({
-        link: { sourceId: b.id, slug: short.slug, domain: short.domain, name: b.title || "", url: b.long_url, createdAt: Date.parse(b.created_at) || Date.now() },
+        link: { sourceId: b.id, slug: short.slug, domain: short.domain, name: b.title || "", url: b.long_url, createdAt: Date.parse(b.created_at) || now },
         daily,
       });
     }

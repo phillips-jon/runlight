@@ -31,7 +31,7 @@ export async function importStep(
     const taken = await runlight.store.linkBySlug(slug);
     return Boolean(taken && sameUrl(taken.url, url));
   };
-  const result = await importer.step({ credentials, cursor, known });
+  const result = await importer.step({ credentials, cursor, known, now: runlight.now() });
   const step: ImportStep = { cursor: result.cursor, done, total: result.total, links: 0, clicks: 0, skipped: 0, failed: [] };
   for (const item of result.links) {
     if (item.known) {

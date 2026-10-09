@@ -344,7 +344,7 @@ for (const s of scenarios) {
   let cursor: string | null = s.cursor ?? null;
   for (let i = 0; i < 10; i++) {
     try {
-      const result = await IMPORTERS[s.source]!.step({ credentials: s.credentials, cursor, known });
+      const result = await IMPORTERS[s.source]!.step({ credentials: s.credentials, cursor, known, now: NOW });
       steps.push({ cursor, result: JSON.parse(JSON.stringify(result)) });
       cursor = result.cursor;
       if (!cursor) break;

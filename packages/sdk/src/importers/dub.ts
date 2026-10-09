@@ -28,7 +28,7 @@ type History = "events" | "daily" | "none" | null;
  * else daily counts from /analytics, else none; the first link decides.
  */
 export const dub: Importer = {
-  async step({ credentials, cursor, known }) {
+  async step({ credentials, cursor, known, now }) {
     const key = credentials.apiKey?.trim();
     if (!key) throw new ImportError("Enter a Dub API key", "import_key", { service: "Dub" });
     const headers = { authorization: `Bearer ${key}` };
@@ -87,7 +87,7 @@ export const dub: Importer = {
         }
       }
       links.push({
-        link: { sourceId: l.id, slug: l.key, domain: l.domain, name: l.title || "", url: l.url, createdAt: Date.parse(l.createdAt) || Date.now() },
+        link: { sourceId: l.id, slug: l.key, domain: l.domain, name: l.title || "", url: l.url, createdAt: Date.parse(l.createdAt) || now },
         clicks,
         daily,
       });
