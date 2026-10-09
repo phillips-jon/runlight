@@ -16,4 +16,6 @@ This is Runlight's first release.
 - An assistant in the dashboard, and an MCP server for AI apps, answer questions about your numbers.
 - `runlight` on PyPI is the Python version, for Django, Flask, FastAPI, or any WSGI or ASGI app on Python 3.11 or later, with a standalone server of its own. It answers exactly as the TypeScript library does and shares its tables.
 - The `runlight` gem is the Ruby version, a Rails engine with an install generator for Rails 7.2, 8.0, and 8.1, or a Rack app or middleware anywhere else, on Ruby 3.2 or later. It also answers exactly as the TypeScript library does and shares its tables.
+- The `runlight.sh/go` module is the Go version, for net/http, chi, Echo, or any router that takes an `http.Handler` on Go 1.25 or later, with a standalone server and a `runlight` command of its own. It answers exactly as the TypeScript library does and shares its tables.
+- `runlight` on Hex is the Elixir version, for Phoenix or any Plug app on Elixir 1.18 or later and Erlang/OTP 27 or later, with its tables in your own Ecto repo. It answers exactly as the TypeScript library does and reads and writes the same tables.
 - Plugins for WordPress, Drupal, and Craft CMS add the script to a site and report the AI agents that read its pages to a Runlight you run elsewhere.

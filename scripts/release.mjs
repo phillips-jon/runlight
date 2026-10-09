@@ -64,6 +64,25 @@ export const VERSIONED = [
   { file: "packages/ruby/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
   // The Rails test apps' lockfiles name the gem they load from the path.
   ...["7_2", "8_0", "8_1"].map((rails) => ({ file: `packages/ruby/test/rails/gemfiles/rails_${rails}.gemfile.lock`, pattern: /^( {4}runlight \()([^)]+)(\))$/m })),
+  // A Go module's version is its tag (see PUBLISH); the constant is what the
+  // module reports about itself, kept in step with the tag. build.json is
+  // written by scripts/go-assets.mts from the SDK's VERSION.
+  { file: "packages/go/version.go", pattern: /^(const Version = ")([^"]+)(")/m },
+  // The MCP server's copy, which keeps that package off the root one.
+  { file: "packages/go/internal/mcp/mcp.go", pattern: /^(const version = ")([^"]+)(")/m },
+  { file: "packages/go/internal/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
+  // The chi and Echo adapters and the command are modules of their own,
+  // released with the core under tags of their own (see PUBLISH), and each
+  // requires the core at the same release. A replace directive points them
+  // at the source for development; an app that requires one ignores it and
+  // gets this version. The test module dbtest is never tagged, and moves
+  // with them only to stay in step. (A requirement is on a require line of
+  // its own or in a require block.)
+  ...["chi", "echo", "cmd/runlight", "dbtest"].map((dir) => ({ file: `packages/go/${dir}/go.mod`, pattern: /^((?:require |\t)runlight\.sh\/go v)(\S+)()$/m })),
+  // The Hex package: mix.exs alone holds its version, and build.json, which
+  // scripts/elixir-assets.mts writes from the SDK's VERSION.
+  { file: "packages/elixir/mix.exs", pattern: /^(\s*@version ")([^"]+)(")/m },
+  { file: "packages/elixir/priv/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
 ];
 
 /** Folders with no version in any file, and why. */
@@ -100,6 +119,21 @@ export const PUBLISH = [
   { dir: "packages/php", commands: (v) => [`# packages/php: the pushed tag v${v} is split to phillips-jon/runlight-php, which Packagist watches, by .github/workflows/php-split.yml (once PHP_SPLIT_DEPLOY_KEY is set)`] },
   { dir: "packages/python", commands: (v) => [`# packages/python: the pushed tag v${v} is built and published to PyPI as runlight by .github/workflows/pypi.yml, with trusted publishing (once PYPI_ENABLED is true)`] },
   { dir: "packages/ruby", commands: (v) => [`(cd packages/ruby && gem build runlight.gemspec && gem push runlight-${v}.gem)`] },
+  // Go modules publish by tag: a module in a subdirectory is versioned by a
+  // tag with that prefix, so the release commit also gets packages/go/vX.Y.Z,
+  // and the Go proxy serves it once anyone asks. The chi and Echo adapters
+  // and the command are modules of their own, each tagged with its directory
+  // at the same version. packages/go/dbtest holds tests only and is never
+  // tagged. runlight.sh answers the go command's lookups (site/build.mjs).
+  { dir: "packages/go", commands: (v) => [
+    ...["", "chi/", "echo/", "cmd/runlight/"].map((sub) =>
+      `git tag -a packages/go/${sub}v${v} -m "Release ${v} (Go${sub ? `, ${sub.slice(0, -1)}` : ""})" v${v}^{} && git push origin packages/go/${sub}v${v}`),
+    `# packages/go: then GOPROXY=https://proxy.golang.org go list -m runlight.sh/go@v${v} runlight.sh/go/chi@v${v} runlight.sh/go/echo@v${v} runlight.sh/go/cmd/runlight@v${v} makes the proxy fetch them (once runlight.sh serves the go-import tags)`,
+  ] },
+  // Hex reads a package from the tarball `mix hex.publish` uploads, so the
+  // package needs no tag of its own. .github/workflows/hex.yml publishes it
+  // from the release tag.
+  { dir: "packages/elixir", commands: (v) => [`# packages/elixir: the pushed tag v${v} is published to Hex as runlight, with its docs, by .github/workflows/hex.yml (once HEX_ENABLED is true); by hand, (cd packages/elixir && mix hex.publish)`] },
   { dir: "plugins/wordpress", commands: (v) => [`# plugins/wordpress: the pushed tag v${v} gets a GitHub release with its CHANGELOG.md section as notes and the plugin's zip attached as runlight-${v}.zip and runlight.zip, by .github/workflows/release.yml (once RELEASE_ENABLED is true)`] },
   { dir: "plugins/drupal", commands: (v) => [`# plugins/drupal: the pushed tag is split to drupal.org's repository as the tag ${v} on the branch ${v.split(".").slice(0, 2).join(".")}.x by .github/workflows/php-plugins-split.yml (once DRUPAL_SPLIT_ENABLED is true); then make the drupal.org release from the ${v} tag`] },
   { dir: "plugins/craft", commands: (v) => [`# plugins/craft: the pushed tag v${v} is split to phillips-jon/runlight-craft, which Packagist and the Craft Plugin Store read, by .github/workflows/php-plugins-split.yml (once CRAFT_SPLIT_ENABLED is true)`] },
@@ -112,7 +146,7 @@ export const UNPUBLISHED = {
 };
 
 /** Files the steps regenerate, reported by --dry-run. */
-const REGENERATED = ["package-lock.json", "packages/php/assets/build.json, packages/python/src/runlight/assets/build.json, and packages/ruby/assets/build.json (written again from the SDK's VERSION, the same as the edits above)"];
+const REGENERATED = ["package-lock.json", "packages/php/assets/build.json, packages/python/src/runlight/assets/build.json, packages/ruby/assets/build.json, packages/go/internal/assets/build.json, and packages/elixir/priv/assets/build.json (written again from the SDK's VERSION, the same as the edits above)"];
 
 const ROOT = process.cwd();
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
@@ -311,6 +345,8 @@ function main() {
     ["Write packages/php/assets", npm, ["run", "php-assets"]],
     ["Write packages/python/src/runlight/assets", npm, ["run", "python-assets"]],
     ["Write packages/ruby/assets", npm, ["run", "ruby-assets"]],
+    ["Write packages/go/internal/assets", npm, ["run", "go-assets"]],
+    ["Write packages/elixir/priv/assets", npm, ["run", "elixir-assets"]],
     ["Check", npm, ["run", "check"]],
     ["Build", npm, ["run", "build"]],
     ["Pack, install and load the npm packages", npm, ["run", "check:packages"]],
