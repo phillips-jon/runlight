@@ -396,7 +396,7 @@ public sealed class AdoDb : IDb
     {
         ObjectDisposedException.ThrowIf(_closed, this);
         var connection = await _source.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
-        if (_statementTimeout > 0)
+        if (_statementTimeout > 0 || Dialect == "mysql")
         {
             try
             {
@@ -408,7 +408,7 @@ public sealed class AdoDb : IDb
                 }
                 else
                 {
-                    await LimitStatementsAsync(connection, _statementTimeout, cancellationToken).ConfigureAwait(false);
+                    await LimitStatementsAsync(connection, _statementTimeout, cancellationToken, session: true).ConfigureAwait(false);
                 }
             }
             catch
@@ -421,23 +421,41 @@ public sealed class AdoDb : IDb
     }
 
     /// <summary>
+    /// The server's own SQL mode with IGNORE_SPACE added, which mysql2 asks for when it connects (as a
+    /// client flag MySqlConnector does not send), so a session reads SQL as the SDK's does.
+    /// </summary>
+    private const string IgnoreSpace =
+        "sql_mode = IF(FIND_IN_SET('IGNORE_SPACE', @@SESSION.sql_mode) > 0, @@SESSION.sql_mode, CONCAT_WS(',', NULLIF(@@SESSION.sql_mode, ''), 'IGNORE_SPACE'))";
+
+    /// <summary>
     /// MySQL's statement timeout as a session setting, which MySQL and MariaDB name differently.
     /// MariaDB counts seconds and applies it to every statement; MySQL counts milliseconds and
-    /// applies it to reads.
+    /// applies it to reads. With <paramref name="session"/>, a connection just taken from the pool
+    /// is set up as mysql2 sets one up, in the same statement: the pool resets a connection's
+    /// session when it goes back, so this is done each time one is taken.
     /// </summary>
-    private async Task LimitStatementsAsync(DbConnection connection, int ms, CancellationToken cancellationToken)
+    private async Task LimitStatementsAsync(DbConnection connection, int ms, CancellationToken cancellationToken, bool session = false)
     {
-        if (_mariadb == null)
+        var settings = new List<string>();
+        if (session)
         {
-            using var version = connection.CreateCommand();
-            version.CommandText = "SELECT VERSION() AS v";
-            string text = Convert.ToString(await version.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture) ?? "";
-            _mariadb = text.Contains("mariadb", StringComparison.OrdinalIgnoreCase);
+            settings.Add(IgnoreSpace);
+        }
+        if (ms > 0 || !session)
+        {
+            if (_mariadb == null)
+            {
+                using var version = connection.CreateCommand();
+                version.CommandText = "SELECT VERSION() AS v";
+                string text = Convert.ToString(await version.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false), CultureInfo.InvariantCulture) ?? "";
+                _mariadb = text.Contains("mariadb", StringComparison.OrdinalIgnoreCase);
+            }
+            settings.Add(_mariadb == true
+                ? "max_statement_time = " + Json.Number(ms / 1000.0)
+                : "max_execution_time = " + ms.ToString(CultureInfo.InvariantCulture));
         }
         using var cmd = connection.CreateCommand();
-        cmd.CommandText = _mariadb == true
-            ? "SET SESSION max_statement_time = " + Json.Number(ms / 1000.0)
-            : "SET SESSION max_execution_time = " + ms.ToString(CultureInfo.InvariantCulture);
+        cmd.CommandText = "SET SESSION " + string.Join(", SESSION ", settings);
         await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 

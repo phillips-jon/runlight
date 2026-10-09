@@ -135,8 +135,12 @@ public static class Databases
 
     private static readonly string[] Tables = ["rl_meta", "rl_sites", "rl_salts", "rl_sessions", "rl_events", "rl_links", "rl_link_domains", "rl_shares", "rl_goals", "rl_settings", "rl_reports", "rl_tokens", "rl_funnels", "rl_rollup_days", "rl_rollups"];
 
-    /// <summary>A fresh, empty store of a kind, dropped by <see cref="CleanupAsync"/>.</summary>
-    public static async Task<SqlStore> FreshAsync(string kind)
+    /// <summary>
+    /// A fresh, empty store of a kind, dropped by <see cref="CleanupAsync"/>. <paramref name="statementTimeout"/>
+    /// is the store's on Postgres and MySQL (the PHP tests' stores have 120000, as stores/postgres.ts and
+    /// stores/mysql.ts default to; 0 here, since only the tests that look at it need it).
+    /// </summary>
+    public static async Task<SqlStore> FreshAsync(string kind, int statementTimeout = 0)
     {
         if (kind == "sqlite")
         {
@@ -147,42 +151,67 @@ public static class Databases
         }
         if (kind == "postgres")
         {
-            string name = "rl_test_" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(5));
-            var admin = NpgsqlDataSource.Create(PgConnectionString(PgUrl()!));
-            await using (var cmd = admin.CreateCommand("CREATE SCHEMA " + name))
-            {
-                await cmd.ExecuteNonQueryAsync();
-            }
-            var source = NpgsqlDataSource.Create(PgConnectionString(PgUrl()!, name));
-            var store = new SqlStore(new AdoDb(source, "postgres", owned: true));
-            Cleanups.Add(async () =>
-            {
-                await store.CloseAsync();
-                await using (var drop = admin.CreateCommand("DROP SCHEMA " + name + " CASCADE"))
-                {
-                    await drop.ExecuteNonQueryAsync();
-                }
-                await admin.DisposeAsync();
-            });
-            return store;
+            return PgStore(await PgSchemaAsync(), statementTimeout);
         }
+        await DropMysqlTablesAsync(kind);
+        return MysqlStore(kind, statementTimeout);
+    }
+
+    /// <summary>A schema of its own in the Postgres test database, dropped by <see cref="CleanupAsync"/>.</summary>
+    public static async Task<string> PgSchemaAsync()
+    {
+        string name = "rl_test_" + Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(5));
+        var admin = NpgsqlDataSource.Create(PgConnectionString(PgUrl()!));
+        await using (var cmd = admin.CreateCommand("CREATE SCHEMA " + name))
         {
-            var source = new MySqlDataSource(MysqlConnectionString(MysqlUrls()[kind]));
-            // One database for the port's tests: Runlight's tables go before each test.
-            await using (var conn = await source.OpenConnectionAsync())
+            await cmd.ExecuteNonQueryAsync();
+        }
+        Cleanups.Add(async () =>
+        {
+            await using (var drop = admin.CreateCommand("DROP SCHEMA " + name + " CASCADE"))
             {
-                foreach (string table in Tables)
-                {
-                    await using var cmd = conn.CreateCommand();
-                    cmd.CommandText = "DROP TABLE IF EXISTS " + table;
-                    await cmd.ExecuteNonQueryAsync();
-                }
+                await drop.ExecuteNonQueryAsync();
             }
-            var store = new SqlStore(new AdoDb(source, "mysql", owned: true));
-            Cleanups.Add(() => store.CloseAsync().AsTask());
-            return store;
+            await admin.DisposeAsync();
+        });
+        return name;
+    }
+
+    /// <summary>A store on a Postgres schema (one from <see cref="PgSchemaAsync"/>), closed by <see cref="CleanupAsync"/>.</summary>
+    public static SqlStore PgStore(string schema, int statementTimeout = 0)
+    {
+        var store = new SqlStore(new AdoDb(NpgsqlDataSource.Create(PgConnectionString(PgUrl()!, schema)), "postgres", owned: true, statementTimeout: statementTimeout));
+        Cleanups.Add(() => store.CloseAsync().AsTask());
+        return store;
+    }
+
+    /// <summary>A store on the MySQL test database as it is, closed by <see cref="CleanupAsync"/>.</summary>
+    public static SqlStore MysqlStore(string kind, int statementTimeout = 0)
+    {
+        var store = new SqlStore(new AdoDb(new MySqlDataSource(MysqlConnectionString(MysqlUrls()[kind])), "mysql", owned: true, statementTimeout: statementTimeout));
+        Cleanups.Add(() => store.CloseAsync().AsTask());
+        return store;
+    }
+
+    /// <summary>
+    /// Runlight's tables dropped from the MySQL test database. MySQL has one database for the port's
+    /// tests, so a test that needs a second empty database (as the PHP tests make one) empties this
+    /// one instead.
+    /// </summary>
+    public static async Task DropMysqlTablesAsync(string kind)
+    {
+        await using var source = new MySqlDataSource(MysqlConnectionString(MysqlUrls()[kind]));
+        await using var conn = await source.OpenConnectionAsync();
+        foreach (string table in Tables)
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = "DROP TABLE IF EXISTS " + table;
+            await cmd.ExecuteNonQueryAsync();
         }
     }
+
+    /// <summary>Something for <see cref="CleanupAsync"/> to do, such as closing a store a test opened itself.</summary>
+    public static void OnCleanup(Func<Task> fn) => Cleanups.Add(fn);
 
     /// <summary>Drops what the tests made, newest first, so each store closes before its database goes.</summary>
     public static async Task CleanupAsync()
