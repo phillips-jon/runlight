@@ -40,21 +40,26 @@ public static class Connect
     public static string InstallUrl(object? value)
     {
         string url = TrailingSlashes.Replace(Js.Trim(Js.String(value is null or Undefined ? "" : value)), "");
-        if (!Install.IsMatch(url))
+        // The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
+        if (!Install.IsMatch(url) || !Url.CanParse(url))
         {
             throw new ConnectError("Enter the install's address, like https://example.com/runlight", "url");
         }
         return url;
     }
 
+    /// <summary>A saved attempt, or null when it cannot be read or has no time it runs out, which counts as expired.</summary>
+    private static JsObject? PendingFrom(string? value, long now) =>
+        Json.TryParse(value ?? "", out object? parsed) && parsed is JsObject pending && Json.TryNumberOf(pending.Get("expires"), out double expires) && expires >= now
+            ? pending
+            : null;
+
     /// <summary>Attempts nobody came back from are removed, so they do not pile up in settings.</summary>
     private static async Task ClearExpiredAsync(SqlStore store, Func<long> now, CancellationToken cancellationToken)
     {
         foreach (var row in await store.SettingsStartingWithAsync("connect:", cancellationToken).ConfigureAwait(false))
         {
-            object? pending = Json.TryParse(row.Str("value") ?? "", out object? parsed) ? parsed : null;
-            object? expires = pending is JsObject o ? o.Prop("expires") : Undefined.Value;
-            if (!Js.Truthy(expires) || Js.Number(expires) < now())
+            if (PendingFrom(row.Str("value"), now()) == null)
             {
                 await store.SetSettingAsync(row.Str("key")!, null, cancellationToken).ConfigureAwait(false);
             }
@@ -190,8 +195,8 @@ public static class Connect
         {
             await store.SetSettingAsync(key, null, cancellationToken).ConfigureAwait(false);
         }
-        var pending = !string.IsNullOrEmpty(stored) ? Json.Parse(stored) as JsObject : null;
-        if (pending == null || Js.Number(pending.Prop("expires")) < now())
+        var pending = !string.IsNullOrEmpty(stored) ? PendingFrom(stored, now()) : null;
+        if (pending == null)
         {
             throw new ConnectError("That connection took too long or was already used. Start again.", "expired");
         }

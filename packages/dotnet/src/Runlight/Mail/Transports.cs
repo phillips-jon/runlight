@@ -179,7 +179,8 @@ public static partial class Transports
         return all;
     }
 
-    private static string Basic(string user, string pass) => "Basic " + Btoa(user + ":" + pass);
+    /// <summary>Basic auth over the UTF-8 bytes, so a key with any character is sent.</summary>
+    private static string Basic(string user, string pass) => "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes(user + ":" + pass));
 
     /// <summary>Checks a config has what its service needs, before anything is saved or sent.</summary>
     public static void CheckConfig(JsObject config)
@@ -204,6 +205,16 @@ public static partial class Transports
         if (Js.String(id) == "webhook" && !url.StartsWith("https://", StringComparison.Ordinal) && !LocalWebhook().IsMatch(url))
         {
             throw new MailError("The webhook URL must use https", "mail_https", []);
+        }
+        if (Js.String(id) == "webhook" && !Url.CanParse(url))
+        {
+            throw new MailError("Enter the webhook's whole URL, like https://example.com/hooks/mail", "mail_url", []);
+        }
+        // A port a socket can connect to, read with Number() as the SMTP client reads it.
+        double port = Js.Number(config.Get("port") ?? Undefined.Value);
+        if (Js.String(id) == "smtp" && !(Math.Floor(port) == port && port >= 1 && port <= 65535))
+        {
+            throw new MailError("The port must be a whole number from 1 to 65535", "mail_port", []);
         }
     }
 
@@ -408,20 +419,5 @@ public static partial class Transports
                 }
         }
         throw new MailError("Unknown mail service \"" + S(config, "service") + "\"", "mail_service", []);
-    }
-
-    /// <summary>btoa(): base64 of Latin-1 text, refusing a character past U+00FF as the browser's does.</summary>
-    private static string Btoa(string text)
-    {
-        byte[] bytes = new byte[text.Length];
-        for (int i = 0; i < text.Length; i++)
-        {
-            if (text[i] > 0xff)
-            {
-                throw new ArgumentException("Invalid character", nameof(text));
-            }
-            bytes[i] = (byte)text[i];
-        }
-        return Convert.ToBase64String(bytes);
     }
 }

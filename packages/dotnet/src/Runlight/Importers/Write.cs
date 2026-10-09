@@ -226,7 +226,7 @@ public static partial class Write
                             ["city"] = Js.Slice(Str(c, "city"), 0, 100),
                             ["browser"] = Browser(Str(c, "browser")),
                             ["browserVersion"] = "",
-                            ["os"] = Systems.TryGetValue(Js.Lower(Str(c, "os")), out string? os) ? os : Js.String(c.Get("os") ?? ""),
+                            ["os"] = System(Str(c, "os")),
                             ["osVersion"] = "",
                             ["device"] = Device(Str(c, "device")),
                             ["screen"] = Js.String(c.Get("screen") ?? ""),

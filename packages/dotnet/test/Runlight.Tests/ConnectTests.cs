@@ -222,9 +222,34 @@ public sealed class ConnectTests : IAsyncLifetime
         Assert.Equal("https://example.com/runlight", Connect.InstallUrl("  https://example.com/runlight//  "));
         Assert.Equal("http://localhost:4100", Connect.InstallUrl("http://localhost:4100/"));
         Assert.Equal("http://127.0.0.1", Connect.InstallUrl("http://127.0.0.1"));
-        foreach (object? bad in new object?[] { null, "", "http://example.com", "http://localhost.example.com", "ftp://x", 5.0 })
+        // The last three pass the pattern, but the URL parser refuses them.
+        foreach (object? bad in new object?[] { null, "", "http://example.com", "http://localhost.example.com", "ftp://x", 5.0, "https://[", "https://[::1", "https://a b" })
         {
             Assert.Equal("url", Assert.Throws<ConnectError>(() => Connect.InstallUrl(bad)).Code);
         }
+    }
+
+    [Theory]
+    [MemberData(nameof(Databases.KindData), MemberType = typeof(Databases))]
+    public async Task An_attempt_saved_without_an_expiry_has_expired(string kind)
+    {
+        var router = new Router();
+        var hub = await HubAsync(kind, router);
+        string state = new('a', 32);
+        string noExpiry = Json.Stringify(new JsObject { ["url"] = App, ["client"] = "c", ["verifier"] = "v", ["redirect"] = "https://hub.example/done", ["token"] = App + "/oauth/token" });
+        foreach (string stored in new[] { noExpiry, "null", "5", "{\"expires\":\"9999999999999\"}" })
+        {
+            await hub.Store.SetSettingAsync("connect:" + state, stored);
+            await Refused(() => hub.FinishAsync(Q(("state", state), ("code", "c"))), "expired");
+        }
+        Assert.Empty(router.Requests);
+        // Starting clears every attempt that cannot be read or has no expiry.
+        var fresh = await HubAsync(kind, Install());
+        foreach (var (letter, value) in new[] { ('b', "null"), ('c', "5"), ('d', "not json"), ('e', "{\"url\":\"x\"}") })
+        {
+            await fresh.Store.SetSettingAsync("connect:" + new string(letter, 32), value);
+        }
+        await fresh.StartAsync(App, "https://hub.example/done");
+        Assert.Single(await fresh.Store.SettingsStartingWithAsync("connect:"));
     }
 }

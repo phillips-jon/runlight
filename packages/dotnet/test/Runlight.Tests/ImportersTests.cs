@@ -145,6 +145,21 @@ public sealed class ImportersTests
         Assert.Throws<ArgumentOutOfRangeException>(() => Importers.Http.IsoString(double.NaN));
     }
 
+    /// <summary>Names JavaScript objects carry on their prototype are just names, as edges.test.ts checks in the SDK.</summary>
+    [Fact]
+    public async Task Names_like_object_properties_are_just_names()
+    {
+        var runlight = new Runlight(new RunlightOptions { Store = await Databases.FreshAsync("sqlite") });
+        foreach (string source in new[] { "constructor", "toString", "__proto__", "hasOwnProperty" })
+        {
+            var e = await Assert.ThrowsAsync<ImportError>(() => Importers.Index.ImportStepAsync(runlight, "default", source, new JsObject(), null, 0));
+            Assert.Equal("import_source", e.Code);
+        }
+        Assert.Equal(["Constructor", "__proto__", "ToString"], new[] { "constructor", "__proto__", "toString" }.Select(Write.Browser));
+        Assert.Equal(["constructor", "toString"], new[] { "constructor", "toString" }.Select(Write.System));
+        Assert.Equal(["", ""], new[] { "constructor", "valueOf" }.Select(Write.Device));
+    }
+
     [Fact]
     public void JavaScript_values_read_as_they_do()
     {

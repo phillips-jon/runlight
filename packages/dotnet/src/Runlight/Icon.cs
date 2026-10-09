@@ -25,17 +25,19 @@ public static class Icon
     /// <summary>A few hundred sites at most; past that the oldest go, so the cache cannot grow without end.</summary>
     private const int CacheSize = 500;
 
+    /// <summary>The characters of JavaScript's \s, for character classes.</summary>
+    private const string SpaceChars = "\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff";
+
     /// <summary>JavaScript's \s, for patterns.</summary>
-    private const string Space = "[\\t\\n\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff]";
+    private const string Space = "[" + SpaceChars + "]";
 
     private static readonly Regex LinkTag = new("<" + Letters("link") + "(?![A-Za-z0-9_])[^>]*>", RegexOptions.CultureInvariant);
     private static readonly Regex Spaces = new(Space + "+", RegexOptions.CultureInvariant);
-    private static readonly Dictionary<string, Regex> Attributes = new(StringComparer.Ordinal)
-    {
-        ["rel"] = Attribute("rel"),
-        ["href"] = Attribute("href"),
-        ["type"] = Attribute("type"),
-    };
+
+    /// <summary>One attribute: its name, then any value, double quoted, single quoted, or bare.</summary>
+    private static readonly Regex AttributePattern = new(
+        "([^" + SpaceChars + "\"'>/=]+)(?:" + Space + "*=" + Space + "*(?:\"([^\"]*)\"|'([^']*)'|([^" + SpaceChars + ">]+)))?",
+        RegexOptions.CultureInvariant);
 
     private static readonly object Lock = new();
     private static readonly Dictionary<string, (long At, SiteIcon? Icon)> Cache = new(StringComparer.Ordinal);
@@ -55,24 +57,24 @@ public static class Icon
         return b.ToString();
     }
 
-    private static Regex Attribute(string name) =>
-        new("(?<![A-Za-z0-9_])" + Letters(name) + Space + "*=" + Space + "*(\"([^\"]*)\"|'([^']*)'|((?:(?!" + Space + ")[^>])+))", RegexOptions.CultureInvariant);
-
-    private static string Attr(string tag, string name)
+    /// <summary>
+    /// A tag's attributes, read one after another so a name inside another (data-rel) or inside
+    /// a value (title="rel=icon") is never taken for one. The first of a repeated name counts, as
+    /// in a browser.
+    /// </summary>
+    private static Dictionary<string, string> Attrs(string tag)
     {
-        var match = Attributes[name].Match(tag);
-        if (!match.Success)
+        var output = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (Match m in AttributePattern.Matches(tag["<link".Length..]))
         {
-            return "";
-        }
-        foreach (int i in new[] { 2, 3, 4 })
-        {
-            if (match.Groups[i].Success)
+            string name = Js.Lower(m.Groups[1].Value);
+            if (!output.ContainsKey(name))
             {
-                return Js.Trim(match.Groups[i].Value);
+                string value = m.Groups[2].Success ? m.Groups[2].Value : m.Groups[3].Success ? m.Groups[3].Value : m.Groups[4].Success ? m.Groups[4].Value : "";
+                output[name] = Js.Trim(value);
             }
         }
-        return "";
+        return output;
     }
 
     /// <summary>Icon URLs a page links to, best first: apple-touch-icon, then SVG and PNG icons, then any icon.</summary>
@@ -81,8 +83,9 @@ public static class Icon
         var found = new List<(string Url, int Score)>();
         foreach (Match tag in LinkTag.Matches(html))
         {
-            string[] rel = Spaces.Split(Js.Lower(Attr(tag.Value, "rel")));
-            string href = Attr(tag.Value, "href");
+            var attributes = Attrs(tag.Value);
+            string[] rel = Spaces.Split(Js.Lower(attributes.GetValueOrDefault("rel", "")));
+            string href = attributes.GetValueOrDefault("href", "");
             if (href.Length == 0 || !(rel.Contains("icon") || rel.Contains("apple-touch-icon")))
             {
                 continue;
@@ -98,7 +101,7 @@ public static class Icon
             {
                 continue;
             }
-            string type = Js.Lower(Attr(tag.Value, "type"));
+            string type = Js.Lower(attributes.GetValueOrDefault("type", ""));
             int score = rel.Contains("apple-touch-icon") ? 3
                 : type.Contains("svg", StringComparison.Ordinal) || url.EndsWith(".svg", StringComparison.Ordinal) ? 2
                 : type.Contains("png", StringComparison.Ordinal) || url.EndsWith(".png", StringComparison.Ordinal) ? 1 : 0;
