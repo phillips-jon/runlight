@@ -2,7 +2,7 @@
 title: Elixir
 description: Runlight runs in Elixir 1.18 or later on Erlang/OTP 27 or later, inside a Phoenix or Plug app, with its tables in your own Ecto repo.
 group: Platforms
-order: 14.7
+order: 14.8
 ---
 
 The Elixir package is Runlight written again in Elixir. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so an Elixir app can read a database a Node or PHP app wrote. It needs Elixir 1.18 or later on Erlang/OTP 27 or later.
@@ -78,7 +78,7 @@ pipeline :browser do
 end
 ```
 
-A [link domain](/docs/links/#link-domains) answers short links on a name of its own. Put its Plug in your endpoint, before the router, so requests on that name never reach your pages.
+A [link domain](/docs/links/#custom-domains) answers short links on a name of its own. Put its Plug in your endpoint, before the router, so requests on that name never reach your pages.
 
 ```elixir file=lib/my_app_web/endpoint.ex
 plug Runlight.Plug.LinkDomains

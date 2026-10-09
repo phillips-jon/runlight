@@ -2,7 +2,7 @@
 title: Go
 description: Runlight runs in Go 1.25 or later, inside any net/http app, chi, or Echo, or as a server of its own.
 group: Platforms
-order: 14.7
+order: 14.6
 ---
 
 The Go module is Runlight written again in Go. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so either one can read a database the other wrote. It needs Go 1.25 or later, and the module itself requires no other module.
