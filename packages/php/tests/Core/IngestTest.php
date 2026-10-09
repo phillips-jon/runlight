@@ -221,19 +221,47 @@ final class IngestTest extends CoreTestCase
     public function testTrackerRequestsOverThePerAddressLimitAreDroppedUntilTheNextMinute(): void
     {
         $t = new Harness('sqlite', ['site' => ['hostnames' => ['example.com']], 'rateLimit' => 3]);
-        // Counts are kept per minute window, shared between processes, so the window must be one no other test used.
-        $t->now = self::utc(2026, 10, 6, 12) + random_int(1, 1_000_000) * 60_000;
         $hit = fn (string $ip, int $n) => $t->rl->collect(Harness::hit('https://example.com/runlight/e', ['k' => 'pageview', 'u' => "https://example.com/$n"], ['ua' => 'Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36', 'ip' => $ip]));
-        $ip = '203.0.113.' . random_int(1, 250);
+        $ip = '203.0.113.7';
         for ($n = 0; $n < 5; $n++) {
             $hit($ip, $n);
         }
-        $hit('198.51.100.' . random_int(1, 250), 9);
+        $hit('198.51.100.7', 9);
         $views = fn (): int => (int) $t->store()->db->all("SELECT COUNT(*) AS n FROM rl_events WHERE kind = 'pageview'")[0]['n'];
         self::assertSame(4, $views(), 'three from the busy address, one from the other');
         $t->advance(60_000);
         $hit($ip, 7);
         self::assertSame(5, $views(), 'a new minute starts a new count');
+    }
+
+    public function testARunlightOnAClockGivenInCodeCountsTheRateLimitOnItsOwn(): void
+    {
+        // Two installs replaying the same minute from the same address must not share counts, as tests and the
+        // conformance replays do; a shared count would drop the second one's hits.
+        foreach ([1, 2] as $round) {
+            $t = new Harness('sqlite', ['site' => ['hostnames' => ['example.com']], 'rateLimit' => 3]);
+            for ($n = 0; $n < 3; $n++) {
+                $t->rl->collect(Harness::hit('https://example.com/runlight/e', ['k' => 'pageview', 'u' => "https://example.com/$n"], ['ua' => 'Mozilla/5.0 (Macintosh) Chrome/129.0.0.0 Safari/537.36', 'ip' => '203.0.113.9']));
+            }
+            $views = (int) $t->store()->db->all("SELECT COUNT(*) AS n FROM rl_events WHERE kind = 'pageview'")[0]['n'];
+            self::assertSame(3, $views, "install $round keeps all three");
+        }
+    }
+
+    public function testTheRateLimitSharesItsCountsBetweenRequestsWhenOnTheRealClock(): void
+    {
+        $dir = sys_get_temp_dir() . '/runlight-rate-test-' . bin2hex(random_bytes(4));
+        $now = static fn (): int => 1_000 * 60_000;
+        $first = new \Runlight\RateLimit(2, $now, $dir);
+        $second = new \Runlight\RateLimit(2, $now, $dir);
+        self::assertTrue($first->allow('192.0.2.1'));
+        self::assertTrue($second->allow('192.0.2.1'));
+        if (!(function_exists('apcu_enabled') && apcu_enabled())) {
+            self::assertFalse($first->allow('192.0.2.1'), 'the third hit in the minute is over the limit, wherever it lands');
+        }
+        array_map('unlink', glob("$dir/runlight-rate/*") ?: []);
+        @rmdir("$dir/runlight-rate");
+        @rmdir($dir);
     }
 
     public function testATrackerHitThatFindsTheDatabaseBusyIsTriedAgainAtTheTimeItArrived(): void

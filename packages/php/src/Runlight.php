@@ -152,7 +152,7 @@ final class Runlight
         $perMinute = $options['rateLimit'] ?? 120;
         // false, 0, or anything that is not a positive number means no limit, never a limit of nothing.
         $number = $perMinute === false ? NAN : Js::number($perMinute);
-        $this->limit = !($number > 0) ? null : new RateLimit((int) min(PHP_INT_MAX, floor($number)), fn (): int => $this->now());
+        $this->limit = !($number > 0) ? null : new RateLimit((int) min(PHP_INT_MAX, floor($number)), fn (): int => $this->now(), null, !isset($options['now']));
         $this->clock = $options['now'] ?? static fn (): int => (int) floor(microtime(true) * 1000);
         $this->fetcher = $options['fetcher'] ?? new CurlFetcher();
         $this->links = new Links($this);

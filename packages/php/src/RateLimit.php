@@ -20,8 +20,12 @@ final class RateLimit
     private array $counts = [];
     private int $window = 0;
 
-    /** @param callable(): int $now milliseconds */
-    public function __construct(private readonly int $perMinute, private $now, private readonly ?string $dir = null)
+    /**
+     * @param callable(): int $now milliseconds
+     * @param bool $shared whether to share counts with other requests through APCu or the temporary folder; a
+     *   Runlight on a clock given in code (tests, replays) counts on its own, since the same minutes come again
+     */
+    public function __construct(private readonly int $perMinute, private $now, private readonly ?string $dir = null, private readonly bool $shared = true)
     {
     }
 
@@ -34,7 +38,7 @@ final class RateLimit
         }
         $window = intdiv(($this->now)(), 60_000);
         $id = substr(hash('sha256', self::key() . $ip), 0, 16);
-        if (function_exists('apcu_enabled') && apcu_enabled()) {
+        if ($this->shared && function_exists('apcu_enabled') && apcu_enabled()) {
             $name = "runlight:rl:$window:$id";
             apcu_add($name, 0, 120);
             $count = apcu_inc($name);
@@ -42,7 +46,7 @@ final class RateLimit
                 return $count <= $this->perMinute;
             }
         }
-        $count = $this->countInFile($window, $id);
+        $count = $this->shared ? $this->countInFile($window, $id) : null;
         if ($count !== null) {
             return $count <= $this->perMinute;
         }
