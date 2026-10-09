@@ -54,7 +54,9 @@ jobs:
           cache: npm
       - run: npm ci --no-audit --no-fund
       - name: Assets current
-        run: node --import tsx scripts/dotnet-assets.mts --check
+        run: |
+          node --import tsx scripts/dotnet-assets.mts --check
+          node scripts/dotnet-intl.mjs --check
       - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           dotnet-version: "10.0.x"
