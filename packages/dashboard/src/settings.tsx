@@ -8,6 +8,7 @@ import { Funnels } from "./funnels.js";
 import { Goals } from "./goals.js";
 import { LANGUAGES, currentLocale, errorText, rich, t, type Key } from "./i18n.js";
 import { Icon } from "./icons.js";
+import { Chevron, useFlyout } from "./picker.js";
 import { ImportLinks } from "./importer.js";
 import { ImportVisits } from "./visitsimport.js";
 import { domainPrompt, installPrompt, scriptPrompt } from "./prompts.js";
@@ -32,6 +33,41 @@ const SECTIONS: Array<[Section, Key]> = [
   ["data", "settings.data"],
   ["assistant", "settings.assistant"],
 ];
+
+/** On a phone the tabs give way to the section's name as a menu of every section. */
+function SectionMenu({ sections, section, site, onPick }: { sections: Array<[Section, Key]>; section: Section; site: string; onPick: (id: Section) => void }) {
+  const { open, setOpen, root } = useFlyout();
+  return (
+    <div class="section-menu" ref={root}>
+      <button type="button" class="section-button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <span>{t(sections.find(([id]) => id === section)![1])}</span>
+        <Chevron />
+      </button>
+      {open ? (
+        <div class="site-flyout section-flyout" role="menu" aria-label={t("settings.title")}>
+          <p class="section-flyout-site">{site}</p>
+          {sections.map(([id, label]) => (
+            <button
+              type="button"
+              role="menuitemradio"
+              aria-checked={id === section}
+              class={id === section ? "site-option on" : "site-option"}
+              onClick={() => {
+                setOpen(false);
+                onPick(id);
+              }}
+            >
+              <span class="site-option-text">
+                <span class="site-option-name">{t(label)}</span>
+              </span>
+              {id === section ? <Icon name="check" /> : null}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function timezones(): string[] {
   try {
@@ -767,6 +803,7 @@ export function SettingsModal({ site, sites, view, start, onClose, onSaved, onLa
         <div class="settings-body">
           <header class="settings-head">
             <h3>{t(sections.find(([id]) => id === section)![1])}</h3>
+            <SectionMenu sections={sections} section={section} site={site.name} onPick={setSection} />
             <button type="button" class="remove" aria-label={t("common.close")} onClick={onClose}>
               <svg viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M4 4l8 8M12 4l-8 8" />
