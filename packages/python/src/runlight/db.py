@@ -479,6 +479,9 @@ class MysqlDb(_NetworkDb):
         super().__init__(connect, conn)
         self._statement_timeout = statement_timeout
         self._mariadb: bool | None = None
+        # An app's own connection too.
+        if conn is not None:
+            backslash_escapes_on(conn)
 
     def _attempt(self, sql: str, params: Sequence[Any], fetch: bool | None) -> Any:
         conn = self.connection()
@@ -543,6 +546,19 @@ class MysqlDb(_NetworkDb):
                     self._raw(conn, f"DO RELEASE_LOCK({_MYSQL_LOCK})")
                 except Exception:
                     pass
+
+
+# The session's sql_mode as it was, less NO_BACKSLASH_ESCAPES, wherever it sits in the list.
+_NO_BACKSLASH_ESCAPES_OFF = (
+    "SET SESSION sql_mode = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', @@SESSION.sql_mode, ','), ',NO_BACKSLASH_ESCAPES,', ','))"
+)
+
+
+def backslash_escapes_on(conn: Any) -> None:
+    """Values are written in with backslash escapes, which a server set to NO_BACKSLASH_ESCAPES reads as text, so a
+    quote could end the value early. Every connection drops that one mode."""
+    with conn.cursor() as cursor:
+        cursor.execute(_NO_BACKSLASH_ESCAPES_OFF)
 
 
 def is_mariadb(conn: Any) -> bool:
@@ -647,6 +663,11 @@ def mysql(url: str, statement_timeout: int = 120_000) -> MysqlDb:
             connect_timeout=10,
             client_flag=pymysql.constants.CLIENT.IGNORE_SPACE,
         )
+        try:
+            backslash_escapes_on(conn)
+        except BaseException:
+            conn.close()
+            raise
         if statement_timeout > 0:
             _set_timeout(conn, statement_timeout, is_mariadb(conn))
         return conn

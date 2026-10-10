@@ -166,17 +166,31 @@ def _default_lookup(name: str) -> list[str]:
     return lookup(name)
 
 
+_names_only = False
+
+
+def public_fetch_names_only(on: bool) -> None:
+    """For tests: public_fetch asks the Fetcher without looking names up, as TypeScript's publicFetchThroughGlobal
+    does, since a test makes them up. Addresses written as an IP, and localhost, are still refused."""
+    global _names_only
+    _names_only = on
+
+
 def public_fetch(target: str, init: dict[str, Any], fetcher: Fetcher | None = None) -> Response:
-    """GETs an https URL on the public internet, following up to `redirects`
-    redirects that stay on it, within `timeoutMs` in all. Raises a
+    """Fetches an https URL on the public internet, following up to `redirects`
+    redirects that stay on it, within `timeoutMs` in all. Only a GET follows
+    redirects; anything else comes back with the redirect as it is. Raises a
     PrivateAddressError for an address off it, and a FetchError with
     `timed_out` when time runs out. A redirect past the last one comes back as
     it is. `maxBytes` and `truncate` go to the Fetcher, for a capped read.
     `lookup` stands in for DNS in tests.
 
-    `init` holds timeoutMs, and optionally headers, redirects, maxBytes, truncate, and lookup."""
+    `init` holds timeoutMs, and optionally method, headers, body, redirects, maxBytes, truncate, and lookup."""
     fetcher = fetcher or UrllibFetcher()
+    names_only = _names_only and not init.get("lookup")
     resolve: Lookup = init.get("lookup") or _default_lookup
+    method = str(init.get("method") or "GET").upper()
+    redirects = (init.get("redirects") or 0) if method == "GET" else 0
     until = time.monotonic() + init["timeoutMs"] / 1000
     url = Url(target)
     hop = 0
@@ -187,10 +201,10 @@ def public_fetch(target: str, init: dict[str, Any], fetcher: Fetcher | None = No
         literal = _v4(host) is not None or _v6(host) is not None
         if literal and not public_address(host):
             raise PrivateAddressError(host)
-        if host == "localhost" or host.endswith(".localhost"):
+        if host.rstrip(".") == "localhost" or host.rstrip(".").endswith(".localhost"):
             raise PrivateAddressError(host)
         pin: list[str] = []
-        if not literal:
+        if not literal and not names_only:
             # The address checked is the address used: every one the name gives must be public, and the
             # connection is pinned to them, so a second lookup cannot hand back another.
             addresses = resolve(host)
@@ -205,7 +219,9 @@ def public_fetch(target: str, init: dict[str, Any], fetcher: Fetcher | None = No
         if left <= 0:
             raise _timed_out()
         options: dict[str, Any] = {"headers": init.get("headers") or {}, "redirect": "manual", "timeoutMs": left}
-        for key in ("maxBytes", "truncate"):
+        if method != "GET":
+            options["method"] = method
+        for key in ("body", "maxBytes", "truncate"):
             if init.get(key) is not None:
                 options[key] = init[key]
         if pin:
@@ -218,7 +234,7 @@ def public_fetch(target: str, init: dict[str, Any], fetcher: Fetcher | None = No
                 raise _timed_out() from error
             raise
         location = answer.headers.get("location")
-        if answer.status < 300 or answer.status >= 400 or not location or hop >= (init.get("redirects") or 0):
+        if answer.status < 300 or answer.status >= 400 or not location or hop >= redirects:
             return answer
         url = Url(location, url.href)
         hop += 1
@@ -226,3 +242,23 @@ def public_fetch(target: str, init: dict[str, Any], fetcher: Fetcher | None = No
 
 def _timed_out() -> FetchError:
     return FetchError("The operation was aborted due to timeout", True)
+
+
+# An install on this machine: http://localhost or http://127.0.0.1, with any port.
+_LOCAL_INSTALL = re.compile(r"http://(localhost|127\.0\.0\.1)(:[0-9]+)?(/|\Z)")
+
+
+def install_address(url: str, local: bool) -> bool:
+    """Whether an address can be another Runlight install's: https, or, with `local`, an install on this machine,
+    which only code can allow."""
+    return bool(re.match(r"https://[^/]+", url)) or (local and bool(_LOCAL_INSTALL.match(url)))
+
+
+def install_fetch(target: str, init: dict[str, Any], fetcher: Fetcher | None = None) -> Response:
+    """Fetches from another Runlight install, which someone signed in named: a public address as public_fetch
+    fetches it, with no redirect followed, so a token sent there goes nowhere else. With `local` in `init`, an
+    install on this machine is fetched as it is, still without following a redirect."""
+    rest = {k: v for k, v in init.items() if k != "local"}
+    if init.get("local") and _LOCAL_INSTALL.match(target):
+        return (fetcher or UrllibFetcher()).fetch(target, {**rest, "redirect": "manual"})
+    return public_fetch(target, {**rest, "redirects": 0}, fetcher)

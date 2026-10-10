@@ -136,6 +136,18 @@ def import_all(t: Harness, credentials: dict[str, str] = CREDENTIALS) -> dict[st
             return totals
 
 
+def test_umami_is_asked_only_at_a_public_https_address_and_follows_no_redirect() -> None:
+    router = umami(fake_events(), SESSIONS)
+    with pytest.raises(ImportError) as raised:
+        umami_websites({"url": "http://umami.example.com", "apiKey": "key"}, router)
+    assert raised.value.code == "import_umami_address"
+    for url in ["https://10.0.0.2", "https://127.0.0.1:3000", "https://169.254.169.254", "https://localhost"]:
+        with pytest.raises(ImportError) as raised:
+            umami_websites({"url": url, "apiKey": "key"}, router)
+        assert raised.value.code == "unreachable", url
+    assert router.requests == [], "nothing is asked of an address off the public internet, nor asked again"
+
+
 @pytest.mark.parametrize("kind", kinds())
 def test_umami_visit_history_pageviews_and_events_become_visits_with_sources_places_and_devices(databases: Any, kind: str) -> None:
     router = umami(fake_events(), SESSIONS)

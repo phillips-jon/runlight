@@ -177,7 +177,7 @@ class _Evil:
 
 
 def test_the_hub_never_passes_on_an_installs_answer_as_a_page_nor_follows_its_redirects() -> None:
-    hub = runlight({"managedSites": True, "secret": "k" * 32, "fetcher": _Evil()})
+    hub = runlight({"managedSites": True, "secret": "k" * 32, "fetcher": _Evil(), "localInstalls": True})
     routes = hub.routes({"token": "owner"})
 
     def call(path: str, method: str = "GET", given: str | None = None) -> Response:
@@ -197,3 +197,28 @@ def test_the_hub_never_passes_on_an_installs_answer_as_a_page_nor_follows_its_re
     assert len(said["error"]) < 340
     assert said["code"] == "link_taken"
     assert said["params"] == {"slug": "a"}
+
+
+def test_a_connected_install_is_on_the_public_internet_unless_code_allows_this_machine() -> None:
+    class Recording:
+        def __init__(self) -> None:
+            self.urls: list[str] = []
+
+        def fetch(self, url: str, init: dict[str, Any] | None = None) -> Response:
+            self.urls.append(url)
+            return Response(b"{}", 200, {"content-type": "application/json"})
+
+    fetcher = Recording()
+    hub = runlight({"managedSites": True, "secret": "k" * 32, "fetcher": fetcher})
+    routes = hub.routes({"token": "owner"})
+
+    def add(url: str) -> dict[str, Any]:
+        given = _js.dumps({"remote": {"url": url, "token": "rl_x"}})
+        headers = {"authorization": "Bearer owner", "content-type": "application/json"}
+        return body(routes.handle(Request("https://hub.example.com/runlight/api/sites", "POST", headers, given)))
+
+    assert add("http://127.0.0.1:9/runlight")["code"] == "connect_url"
+    assert add("http://localhost:9/runlight")["code"] == "connect_url"
+    for url in ["https://127.0.0.1/runlight", "https://169.254.169.254/latest", "https://[::1]/runlight", "https://10.0.0.2", "https://localhost/runlight"]:
+        assert add(url)["code"] == "unreachable", url
+    assert fetcher.urls == [], "nothing is asked of an address off the public internet"
