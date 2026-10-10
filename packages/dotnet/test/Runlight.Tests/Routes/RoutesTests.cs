@@ -238,6 +238,81 @@ public sealed class RoutesTests : RoutesTestCase
     }
 
     [Fact]
+    public async Task The_dashboard_inside_a_cms_opens_one_framed_page_once_whose_session_reads_one_site()
+    {
+        long now = Utc(2026, 10, 9, 12);
+        var rl = await RunlightAsync(sites: [Site("a", "Site A", ["a.com"], "UTC"), Site("b", "Site B", ["b.com"], "UTC")], now: () => now);
+        var routes = rl.Routes(new RoutesOptions { Token = "secret" });
+        Assert.Equal(400, (await routes.HandleAsync(Owner("/runlight/api/tokens", "POST", new JsObject { ["name"] = "CMS", ["scope"] = "embed" }))).Status); // an embed key is for one site
+        var made = Obj(await routes.HandleAsync(Owner("/runlight/api/tokens", "POST", new JsObject { ["name"] = "CMS", ["site"] = "a", ["scope"] = "embed" })));
+        string secret = made.Str("secret")!;
+        string tokenId = made.Obj("token")!.Str("id")!;
+        Assert.Equal("embed", made.Obj("token")!.Str("scope"));
+        Task<Response> Mint(string origin) => routes.HandleAsync(Owner("/runlight/api/embed", "POST", new JsObject { ["origin"] = origin }, secret));
+        Assert.Equal(400, (await Mint("https://b.com")).Status); // only an origin on the site's own domains
+        Assert.Equal(400, (await Mint("https://a.com/admin")).Status); // an origin, not a page
+        Assert.Equal(403, (await routes.HandleAsync(Owner("/runlight/api/stats", "GET", null, secret))).Status); // the key reads nothing itself
+        var minted = await Mint("https://www.a.com");
+        Assert.Equal(201, minted.Status);
+        var body = Obj(minted);
+        string ticket = body.Str("ticket")!;
+        string path = body.Str("path")!;
+        Assert.Equal("a", body.Str("site"));
+        Assert.Equal("/runlight/embed?ticket=" + ticket, path);
+        Assert.DoesNotContain(tokenId, ticket, StringComparison.Ordinal); // a ticket never names its token
+
+        var page = await routes.HandleAsync(Req(path));
+        Assert.Equal(200, page.Status);
+        Assert.EndsWith("frame-ancestors https://www.a.com", page.Headers.Get("content-security-policy") ?? "", StringComparison.Ordinal);
+        Assert.Null(page.Headers.Get("x-frame-options"));
+        Assert.Equal("no-referrer", page.Headers.Get("referrer-policy"));
+        var found = Regex.Match(page.Text(), "data-embed=\"([^\"]+)\"");
+        Assert.True(found.Success);
+        string session = found.Groups[1].Value;
+        Assert.Matches("^\\d+\\.[a-f0-9]{24}\\.[a-f0-9]{64}$", session);
+        var again = await routes.HandleAsync(Req(path));
+        Assert.Equal(410, again.Status); // a ticket works once
+        Assert.EndsWith("frame-ancestors https://www.a.com", again.Headers.Get("content-security-policy") ?? "", StringComparison.Ordinal); // a used ticket still says so inside its frame
+        Assert.Equal(404, (await routes.HandleAsync(Req(path[..^1] + (path[^1] == '0' ? "1" : "0")))).Status); // a ticket this install never signed
+
+        var @as = H(("x-runlight-embed", session));
+        Assert.Equal("a", Obj(await routes.HandleAsync(Req("/runlight/api/stats?site=b", "GET", @as))).Str("site")); // pinned to its token's site whatever is asked
+        Assert.Equal(403, (await routes.HandleAsync(Req("/runlight/api/links?site=a", "GET", H(("x-runlight-embed", session), ("authorization", "Bearer secret"))))).Status); // nothing a share cannot read, even beside the owner's token
+        Assert.Equal("DENY", (await routes.HandleAsync(Req("/runlight/"))).Headers.Get("x-frame-options")); // every other page still refuses to be framed
+
+        now += global::Runlight.Routes.EmbedSessionMs + 1;
+        Assert.Equal(401, (await routes.HandleAsync(Req("/runlight/api/stats", "GET", @as))).Status); // a session lasts an hour
+        now -= global::Runlight.Routes.EmbedSessionMs + 1;
+        Assert.Equal(200, (await routes.HandleAsync(Owner("/runlight/api/tokens/" + tokenId, "DELETE"))).Status);
+        Assert.Equal(401, (await routes.HandleAsync(Req("/runlight/api/stats", "GET", @as))).Status); // deleting the token ends its sessions at once
+    }
+
+    [Fact]
+    public async Task An_embed_ticket_runs_out_after_five_minutes()
+    {
+        long now = Utc(2026, 10, 9, 12);
+        var rl = await RunlightAsync(site: Site(hostnames: ["a.com"]), now: () => now);
+        var routes = rl.Routes(new RoutesOptions { Token = "secret" });
+        string secret = Obj(await routes.HandleAsync(Owner("/runlight/api/tokens", "POST", new JsObject { ["name"] = "CMS", ["site"] = "default", ["scope"] = "embed" }))).Str("secret")!;
+        string path = Obj(await routes.HandleAsync(Owner("/runlight/api/embed", "POST", new JsObject { ["origin"] = "https://a.com" }, secret))).Str("path")!;
+        now += global::Runlight.Routes.EmbedTicketMs + 1;
+        var late = await routes.HandleAsync(Req(path));
+        Assert.Equal(410, late.Status);
+        Assert.Contains("data-embed=\"\"", late.Text(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task A_setting_can_be_taken_once()
+    {
+        var rl = await RunlightAsync(site: Site(hostnames: ["a.com"]));
+        await rl.InitAsync();
+        await rl.Store.SetSettingAsync("x", "1");
+        Assert.Equal("1", await rl.Store.TakeSettingAsync("x"));
+        Assert.Null(await rl.Store.TakeSettingAsync("x"));
+        Assert.Null(await rl.Store.SettingAsync("x"));
+    }
+
+    [Fact]
     public async Task A_cms_plugin_reports_ai_agent_fetches_with_its_own_key_which_reads_nothing()
     {
         var rl = await RunlightAsync(site: Site(hostnames: ["blog.example.com"]));
