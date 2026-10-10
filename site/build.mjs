@@ -137,10 +137,18 @@ function layout({ title, description, body, pagePath, assets, noindex = false, h
 <meta property="og:description" content="${escape(description)}">
 <meta property="og:url" content="${SITE}${pagePath}">
 <meta property="og:type" content="website">
-<meta property="og:image" content="${SITE}/assets/shots/hero-dark.webp">
+<meta property="og:image" content="${SITE}/assets/og.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A Runlight dashboard showing visitors over the last 30 days, with cards for visits, pageviews, bounce rate, and visit duration.">
+<meta property="og:site_name" content="Runlight">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="${SITE}/assets/og.png">
 <meta name="theme-color" content="#09090b">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <script src="${assets.theme}"></script>
 <link rel="stylesheet" href="https://use.typekit.net/guv6qty.css">
 <link rel="stylesheet" href="${assets.css}">
@@ -346,6 +354,8 @@ function build() {
   rmSync(DIST, { recursive: true, force: true });
   mkdirSync(path.join(DIST, "assets"), { recursive: true });
   cpSync(path.join(SRC, "assets"), path.join(DIST, "assets"), { recursive: true });
+  // Files browsers ask for at the root (favicon.ico, apple-touch-icon.png).
+  cpSync(path.join(SRC, "root"), DIST, { recursive: true });
 
   const assets = {};
   for (const [key, file] of [["css", "style.css"], ["js", "site.js"], ["theme", "theme.js"]]) {
