@@ -31,7 +31,8 @@ public sealed class StandaloneOptions
     /// </summary>
     public string? Url { get; init; }
 
-    public ProxyTrust TrustProxy { get; init; } = true;
+    /// <summary>Left unset, Runlight's own default applies, and it can warn when nothing sits in front.</summary>
+    public ProxyTrust? TrustProxy { get; init; }
 
     public Func<string, JsObject?>? Geo { get; init; }
 
@@ -95,7 +96,7 @@ public sealed partial class Standalone : IAsyncDisposable
         _store = options.Store;
         _now = options.Now ?? (() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
         _token = !string.IsNullOrEmpty(options.Token) ? options.Token : null;
-        _trustProxy = options.TrustProxy;
+        _trustProxy = options.TrustProxy ?? true;
         _publicUrl = !string.IsNullOrEmpty(options.Url) ? new Url(options.Url) : null;
         _publicHost = _publicUrl != null ? Routes.HostName(_publicUrl.Host) : null;
 
@@ -104,7 +105,7 @@ public sealed partial class Standalone : IAsyncDisposable
             Store = _store,
             ManagedSites = true,
             Secret = options.Secret,
-            TrustProxy = _trustProxy,
+            TrustProxy = options.TrustProxy,
             Now = _now,
             Geo = options.Geo,
             Fetcher = options.Fetcher,

@@ -59,6 +59,10 @@ public sealed partial class Runlight
     private readonly object _gate = new();
     private readonly Func<string, JsObject?>? _geo;
     private readonly ProxyTrust _trustProxy;
+
+    /// <summary>1 until TrustProxy left at its default has been seen answering a public address directly, and warned about once.</summary>
+    private int _warnDirect;
+
     private readonly RateLimit? _limit;
     private readonly Func<long> _clock;
     private readonly JsObject? _mailInCode;
@@ -112,7 +116,8 @@ public sealed partial class Runlight
             throw new ArgumentException("Runlight: two sites share an id", nameof(options));
         }
         _geo = options.Geo;
-        _trustProxy = options.TrustProxy;
+        _trustProxy = options.TrustProxy ?? true;
+        _warnDirect = options.TrustProxy == null ? 1 : 0;
         // null, 0, or anything that is not a positive number means no limit, never a limit of nothing.
         double perMinute = options.RateLimit ?? double.NaN;
         _limit = !(perMinute > 0) ? null : new RateLimit(perMinute >= long.MaxValue ? long.MaxValue : (long)Math.Floor(perMinute), () => Now());
@@ -1303,7 +1308,14 @@ public sealed partial class Runlight
                 return Js.Trim(forwarded);
             }
         }
-        return ip ?? request.RemoteAddress;
+        string address = ip ?? request.RemoteAddress;
+        // A public address with no forwarding header means nothing sits in front, and then any client
+        // could name its own address in one. Said once, only when TrustProxy was left at its default.
+        if (Volatile.Read(ref _warnDirect) == 1 && Safefetch.PublicAddress(address) && Interlocked.Exchange(ref _warnDirect, 0) == 1)
+        {
+            Console.Error.WriteLine("Runlight: a request came straight from a public address with no proxy in front, but trustProxy is on by default, so a client could send X-Forwarded-For and choose its own address, getting round the rate limits. Set TrustProxy = false when nothing sits in front of this server, or put a proxy in front that sets the header.");
+        }
+        return address;
     }
 
     /// <summary>

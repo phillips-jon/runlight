@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
@@ -135,7 +136,7 @@ public final class Runlight
     public List<Map<String, Object>> sites;
     public boolean managedSites;
     public Geo.Lookup geo;
-    public Object trustProxy = true;
+    public Object trustProxy;
     public Object rateLimit = 120L;
     public boolean localInstalls;
     public String linkPath = "/go";
@@ -253,6 +254,13 @@ public final class Runlight
   private volatile Map<String, Map<String, Object>> overrides = Map.of();
   private final Geo.Lookup geo;
   private final Object trustProxy;
+
+  /**
+   * True until trustProxy left at its default has been seen answering a public address directly,
+   * and warned about once.
+   */
+  private final AtomicBoolean warnDirect;
+
   private final RateLimit limit;
   private final LongSupplier clock;
   private volatile boolean ready;
@@ -318,6 +326,7 @@ public final class Runlight
     this.configured = List.copyOf(rows);
     this.geo = options.geo;
     this.trustProxy = options.trustProxy == null ? (Object) true : options.trustProxy;
+    this.warnDirect = new AtomicBoolean(options.trustProxy == null);
     Object perMinute = options.rateLimit == null ? (Object) 120L : options.rateLimit;
     // false, 0, or anything that is not a positive number means no limit, never a limit of nothing.
     double number = Boolean.FALSE.equals(perMinute) ? Double.NaN : Js.toNumber(perMinute);
@@ -1638,7 +1647,21 @@ public final class Runlight
       }
     }
     Object ip = context == null ? null : context.get("ip");
-    return ip instanceof String given ? given : request.remoteAddress();
+    String address = ip instanceof String given ? given : request.remoteAddress();
+    // A public address with no forwarding header means nothing sits in front, and then any client
+    // could name its own address in one. Said once, only when trustProxy was left at its default.
+    if (warnDirect.get()
+        && address != null
+        && Safefetch.publicAddress(address)
+        && warnDirect.compareAndSet(true, false)) {
+      log(
+          "Runlight: a request came straight from a public address with no proxy in front, but"
+              + " trustProxy is on by default, so a client could send X-Forwarded-For and choose"
+              + " its own address, getting round the rate limits. Set .trustProxy(false) when"
+              + " nothing sits in front of this server, or put a proxy in front that sets the"
+              + " header.");
+    }
+    return address;
   }
 
   /** The visitor's address, read from the request alone. */

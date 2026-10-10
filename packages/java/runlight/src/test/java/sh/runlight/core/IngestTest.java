@@ -10,6 +10,9 @@ import static sh.runlight.core.Harness.DAY;
 import static sh.runlight.core.Harness.MIN;
 import static sh.runlight.core.Harness.utc;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -599,6 +602,36 @@ class IngestTest {
         "203.0.113.4",
         cf.clientIp(from("x-forwarded-for", "203.0.113.1", "cf-connecting-ip", "203.0.113.4")));
     assertEquals("192.0.2.9", cf.clientIp(from("x-forwarded-for", "203.0.113.1")));
+  }
+
+  @Test
+  void withTrustProxyLeftAtItsDefaultAPublicAddressWithNoProxyHeaderIsWarnedAboutOnce() {
+    SqlStore store = Stores.sqlite(":memory:");
+    PrintStream err = System.err;
+    ByteArrayOutputStream said = new ByteArrayOutputStream();
+    System.setErr(new PrintStream(said, true, StandardCharsets.UTF_8));
+    try {
+      Runlight quiet = new Runlight(new Runlight.Options().store(store).trustProxy(true));
+      assertEquals("8.8.8.8", quiet.clientIp(from(), Json.object("ip", "8.8.8.8")));
+      assertEquals(
+          "", said.toString(StandardCharsets.UTF_8), "set on purpose, never second-guessed");
+
+      Runlight rl = new Runlight(new Runlight.Options().store(store));
+      rl.clientIp(from("x-forwarded-for", "8.8.4.4"), Json.object("ip", "10.0.0.2"));
+      rl.clientIp(from(), Json.object("ip", "127.0.0.1"));
+      rl.clientIp(from(), Json.object("ip", "192.168.1.5"));
+      assertEquals(
+          "",
+          said.toString(StandardCharsets.UTF_8),
+          "a proxy's header, or a private or loopback address, says nothing");
+      assertEquals("8.8.8.8", rl.clientIp(from(), Json.object("ip", "8.8.8.8")));
+      rl.clientIp(from(), Json.object("ip", "1.1.1.1"));
+      List<String> lines = said.toString(StandardCharsets.UTF_8).lines().toList();
+      assertEquals(1, lines.size(), "said once");
+      assertTrue(lines.get(0).contains(".trustProxy(false)"));
+    } finally {
+      System.setErr(err);
+    }
   }
 
   @Test
