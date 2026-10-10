@@ -19,14 +19,15 @@ defmodule Runlight.Importers.Http do
         }
 
   @doc """
-  The instance's fetcher, and a pause that waits: `Process.sleep`, or the
-  function under `:runlight_pause` in the process dictionary, which tests set
-  so nothing waits.
+  The instance's fetcher, kept to the public internet by
+  `Runlight.Safefetch`, and a pause that waits: `Process.sleep`, or the
+  function under `:runlight_pause` in the process dictionary, which tests
+  set so nothing waits.
   """
   @spec new(Runlight.t()) :: t()
   def new(rl) do
     %__MODULE__{
-      fetch: fn url, opts -> Runlight.fetch(rl, url, opts) end,
+      fetch: fn url, opts -> Runlight.Safefetch.fetch_entered(rl, url, opts) end,
       pause: Process.get(:runlight_pause) || (&sleep/1)
     }
   end

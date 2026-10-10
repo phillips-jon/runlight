@@ -6,9 +6,11 @@ defmodule Runlight.Safefetch do
   loopback, link-local, or metadata address, and redirects are followed by
   hand under the same rules.
 
-  Erlang's `:httpc` cannot be told which address to connect to, so the name
-  is resolved and every address it has checked just before each request, as
-  the SDK does on runtimes without Node's https module.
+  The default fetcher (`Runlight.Fetch.httpc/2`) resolves the name itself,
+  checks every address, and connects to one it checked, so a name that
+  answers differently a moment later gets nowhere. The name is also checked
+  just before each request, for a fetcher of the app's own that cannot
+  choose the address it connects to.
   """
 
   import Bitwise
@@ -156,11 +158,22 @@ defmodule Runlight.Safefetch do
     end
   end
 
+  @doc false
+  # The address to connect to for a name, when every address it has is public.
+  @spec checked_address(String.t()) :: {:ok, String.t()} | {:error, :private | :nxdomain}
+  def checked_address(name) do
+    case lookup(name) do
+      {:ok, list} -> if Enum.all?(list, &public_address?/1), do: {:ok, hd(list)}, else: {:error, :private}
+      :error -> {:error, :nxdomain}
+    end
+  end
+
   @doc """
-  GETs an https URL on the public internet, following up to `redirects:`
-  redirects that stay on it, within `timeout:` milliseconds in all. Answers
-  `{:error, :private}` for an address off it and `{:error, :timeout}` when
-  time runs out. A redirect past the last one comes back as it is.
+  Fetches an https URL on the public internet (a GET unless `method:` and
+  `body:` say otherwise), following up to `redirects:` redirects that stay
+  on it, within `timeout:` milliseconds in all. Answers `{:error, :private}`
+  for an address off it and `{:error, :timeout}` when time runs out. A
+  redirect past the last one comes back as it is.
   """
   @spec public_fetch(Runlight.t(), String.t(), keyword()) :: {:ok, Response.t()} | {:error, term()}
   def public_fetch(rl, target, opts) do
@@ -169,6 +182,21 @@ defmodule Runlight.Safefetch do
     case Url.parse(target) do
       nil -> {:error, :invalid_url}
       url -> hop(rl, url, opts, deadline, 0)
+    end
+  end
+
+  @doc false
+  # A request to an address someone typed in: an install to connect, or a service to import from. This machine
+  # named outright over http (http://localhost or http://127.0.0.1, which those address checks let through for
+  # development) is fetched as it is; everything else only on the public internet, with up to three redirects for
+  # a GET.
+  @spec fetch_entered(Runlight.t(), String.t(), keyword()) :: {:ok, Response.t()} | {:error, term()}
+  def fetch_entered(rl, target, opts) do
+    if Regex.match?(~r/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|\?|$)/, target) do
+      Runlight.fetch(rl, target, Keyword.put(opts, :redirect, :manual))
+    else
+      get = Keyword.get(opts, :method, "GET") in ["GET", "HEAD"]
+      public_fetch(rl, target, Keyword.put_new(opts, :redirects, if(get, do: 3, else: 0)))
     end
   end
 
@@ -194,8 +222,8 @@ defmodule Runlight.Safefetch do
 
       true ->
         fetch_opts =
-          [headers: Keyword.get(opts, :headers, []), redirect: :manual, timeout: left] ++
-            Keyword.take(opts, [:max_bytes, :truncate])
+          [headers: Keyword.get(opts, :headers, []), redirect: :manual, timeout: left, public: true] ++
+            Keyword.take(opts, [:method, :body, :max_bytes, :truncate])
 
         case Runlight.fetch(rl, Url.href(url), fetch_opts) do
           {:ok, answer} ->

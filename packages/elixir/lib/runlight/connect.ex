@@ -11,6 +11,7 @@ defmodule Runlight.Connect do
   alias Runlight.Http.Response
   alias Runlight.JS
   alias Runlight.JS.Object
+  alias Runlight.Safefetch
   alias Runlight.SearchParams
   alias Runlight.Store
   alias Runlight.Url
@@ -65,7 +66,7 @@ defmodule Runlight.Connect do
     url = install_url(input)
 
     meta_answer =
-      case Runlight.fetch(rl, "#{url}/.well-known/oauth-authorization-server", timeout: 10_000) do
+      case Safefetch.fetch_entered(rl, "#{url}/.well-known/oauth-authorization-server", timeout: 10_000) do
         {:ok, answer} ->
           answer
 
@@ -111,7 +112,7 @@ defmodule Runlight.Connect do
         )
 
     registered =
-      case Runlight.fetch(rl, meta["registration_endpoint"],
+      case Safefetch.fetch_entered(rl, meta["registration_endpoint"],
              method: "POST",
              headers: [{"content-type", "application/json"}],
              body: JS.stringify(JS.obj(client_name: "Runlight at #{host(back)}", redirect_uris: [back])),
@@ -205,7 +206,7 @@ defmodule Runlight.Connect do
       ])
 
     granted =
-      case Runlight.fetch(rl, pending["token"],
+      case Safefetch.fetch_entered(rl, pending["token"],
              method: "POST",
              headers: [{"content-type", "application/x-www-form-urlencoded"}],
              body: form,

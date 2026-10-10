@@ -28,6 +28,17 @@ if Code.ensure_loaded?(Plug.Conn) do
     The connection's own address is passed on for the visitor's daily hash
     when no trusted proxy header names the client (see the instance's
     `:trust_proxy`).
+
+    A Phoenix endpoint's `Plug.Parsers` reads form and JSON bodies before the
+    router forwards here. Those reach the routes as the client sent them, a
+    form as a form and JSON as JSON, rebuilt from what the parsers made of
+    them. To hand on the exact bytes instead, give the parsers this module's
+    reader:
+
+        plug Plug.Parsers,
+          parsers: [:urlencoded, :multipart, :json],
+          json_decoder: Phoenix.json_library(),
+          body_reader: {Runlight.Plug, :body_reader, []}
     """
 
     @behaviour Plug
@@ -58,6 +69,7 @@ if Code.ensure_loaded?(Plug.Conn) do
           case request(conn, if(String.ends_with?(conn.request_path, "/e"), do: @max_collect, else: @max_body)) do
             {:ok, request, conn} -> answer(conn, Runlight.Routes.handle(routes, request))
             {:too_large, conn} -> too_large(conn)
+            {:broken, reason, conn} -> broken(conn, reason)
           end
       end
     end
@@ -120,8 +132,8 @@ if Code.ensure_loaded?(Plug.Conn) do
              ref: make_ref()
            }, conn}
 
-        {:too_large, conn} ->
-          {:too_large, conn}
+        other ->
+          other
       end
     end
 
@@ -133,10 +145,14 @@ if Code.ensure_loaded?(Plug.Conn) do
       if conn.method in ["GET", "HEAD"] do
         {:ok, "", conn}
       else
-        case conn.body_params do
-          # A body a Phoenix endpoint's Plug.Parsers already read comes back as JSON.
-          %{} = params when map_size(params) > 0 and not is_struct(params) ->
-            {:ok, Runlight.JS.stringify(params), conn}
+        case {conn.private[:runlight_body], conn.body_params} do
+          # The bytes body_reader/2 kept while Plug.Parsers read them.
+          {chunks, _} when is_list(chunks) ->
+            within(IO.iodata_to_binary(Enum.reverse(chunks)), limit, conn)
+
+          # A body a Phoenix endpoint's Plug.Parsers already read, rebuilt as the client sent it.
+          {_, %{} = params} when map_size(params) > 0 and not is_struct(params) ->
+            within(parsed_body(conn, params), limit, conn)
 
           _ ->
             read_all(conn, limit, [])
@@ -144,12 +160,57 @@ if Code.ensure_loaded?(Plug.Conn) do
       end
     end
 
+    defp within(body, limit, conn) when byte_size(body) > limit, do: {:too_large, conn}
+    defp within(body, _limit, conn), do: {:ok, body, conn}
+
+    # JSON as JSON (a top-level array or scalar under "_json", where Plug.Parsers puts it), and a form, or anything
+    # else the parsers read, as a form.
+    defp parsed_body(conn, params) do
+      type = conn |> Plug.Conn.get_req_header("content-type") |> List.first("") |> String.downcase()
+
+      cond do
+        not Regex.match?(~r/^application\/([^;]+\+)?json\s*(;|$)/, type) -> Plug.Conn.Query.encode(params)
+        Map.keys(params) == ["_json"] -> Runlight.JS.stringify(params["_json"])
+        true -> Runlight.JS.stringify(params)
+      end
+    end
+
     defp read_all(conn, limit, acc) do
       case Plug.Conn.read_body(conn, length: limit) do
         {:ok, chunk, conn} -> {:ok, IO.iodata_to_binary(Enum.reverse([chunk | acc])), conn}
         {:more, _chunk, conn} -> {:too_large, conn}
-        {:error, _} -> {:ok, IO.iodata_to_binary(Enum.reverse(acc)), conn}
+        {:error, reason} -> {:broken, reason, conn}
       end
+    end
+
+    @doc """
+    A `body_reader` for `Plug.Parsers` that keeps the bytes it reads, so a
+    body the parsers have already read reaches the routes byte for byte.
+    """
+    @spec body_reader(Plug.Conn.t(), keyword()) ::
+            {:ok, binary(), Plug.Conn.t()} | {:more, binary(), Plug.Conn.t()} | {:error, term()}
+    def body_reader(conn, opts) do
+      case Plug.Conn.read_body(conn, opts) do
+        {status, chunk, conn} when status in [:ok, :more] ->
+          {status, chunk, Plug.Conn.put_private(conn, :runlight_body, [chunk | conn.private[:runlight_body] || []])}
+
+        error ->
+          error
+      end
+    end
+
+    # A body that broke off part way is never taken for the whole request: too slow is a 408, anything else a 400.
+    defp broken(conn, reason) do
+      {status, message} =
+        if reason == :timeout,
+          do: {408, "That request took too long to arrive"},
+          else: {400, "That request was cut off"}
+
+      conn
+      |> Plug.Conn.put_resp_header("connection", "close")
+      |> Plug.Conn.put_resp_content_type("application/json")
+      |> Plug.Conn.send_resp(status, ~s({"error":"#{message}"}))
+      |> Plug.Conn.halt()
     end
 
     defp too_large(conn) do
@@ -200,8 +261,9 @@ if Code.ensure_loaded?(Plug.Conn) do
           conn
 
         {:pass, conn} ->
-          {:ok, request, conn} = Runlight.Plug.request(conn, 0)
-          Runlight.Plug.answer(conn, Runlight.link_handler(rl, request))
+          # A short link reads no body, so none is read.
+          {:ok, request, _} = Runlight.Plug.request(%{conn | method: "GET"}, 0)
+          Runlight.Plug.answer(conn, Runlight.link_handler(rl, %{request | method: conn.method}))
       end
     end
   end

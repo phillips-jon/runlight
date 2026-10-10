@@ -122,6 +122,36 @@ defmodule Runlight.SafefetchTest do
     end
   end
 
+  test "the default fetcher connects only to an address it checked" do
+    # Refused before any connection: the name is resolved and checked where the connection is made.
+    assert Runlight.Fetch.httpc("https://localhost:1/", public: true) == {:error, :private}
+    assert Runlight.Fetch.httpc("https://127.0.0.1:1/", public: true) == {:error, :private}
+    assert Runlight.Fetch.httpc("https://name.that.does.not.resolve.invalid/", public: true) == {:error, :nxdomain}
+    assert Safefetch.checked_address("localhost") == {:error, :private}
+    assert Safefetch.checked_address("8.8.8.8") == {:ok, "8.8.8.8"}
+
+    {fetcher, agent} = FakeFetcher.new(fn _, _ -> {:ok, Response.new("ok")} end)
+    {rl, _} = instance(fetcher)
+    {:ok, _} = Safefetch.public_fetch(rl, "https://1.1.1.1/", timeout: 2000)
+    assert hd(FakeFetcher.inits(agent))[:public] == true
+  end
+
+  test "addresses someone typed in are fetched only on the public internet, or this machine named outright" do
+    {fetcher, agent} = FakeFetcher.new(fn _, _ -> {:ok, Response.new("ok")} end)
+    {rl, _} = instance(fetcher)
+
+    for url <- ["https://10.0.0.1/api/sites", "https://169.254.169.254/", "http://1.1.1.1/", "https://localhost/"],
+        do: assert(Safefetch.fetch_entered(rl, url, timeout: 2000) == {:error, :private}, url)
+
+    assert FakeFetcher.requests(agent) == []
+
+    {:ok, _} = Safefetch.fetch_entered(rl, "http://127.0.0.1:4100/runlight/api/sites", timeout: 2000)
+    {:ok, _} = Safefetch.fetch_entered(rl, "https://1.1.1.1/api/token", method: "POST", body: "{}", timeout: 2000)
+    [local, public] = FakeFetcher.inits(agent)
+    assert local[:redirect] == :manual and local[:public] == nil
+    assert {public[:method], public[:body], public[:public]} == {"POST", "{}", true}
+  end
+
   test "running out of time says so" do
     {fetcher, _} = FakeFetcher.new(fn _, _ -> {:error, :timeout} end)
     {rl, _} = instance(fetcher)

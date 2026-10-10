@@ -82,7 +82,11 @@ defmodule Runlight.MixProject do
   defp package do
     [
       licenses: ["MIT"],
-      links: %{"Website" => "https://runlight.sh", "Source" => @source_url},
+      links: %{
+        "Website" => "https://runlight.sh",
+        "Source" => @source_url,
+        "Changelog" => "#{@source_url}/blob/main/CHANGELOG.md"
+      },
       files: ~w(lib priv mix.exs .formatter.exs README.md LICENSE)
     ]
   end

@@ -140,4 +140,124 @@ defmodule Runlight.PlugTest do
 
     assert conn.status in [200, 202, 204]
   end
+
+  test "an observe report with a key nobody gave is refused before its body is read" do
+    conn =
+      conn(:post, "/stats/api/observe", "not json")
+      |> put_req_header("authorization", "Bearer wrong")
+      |> put_req_header("content-type", "application/json")
+      |> call()
+
+    assert conn.status == 401
+  end
+end
+
+defmodule Runlight.PlugParsedTest do
+  # The dashboard's Plug behind Plug.Parsers, as a Phoenix endpoint reads bodies before its router forwards.
+  use ExUnit.Case, async: false
+  import Plug.Test
+  import Plug.Conn
+
+  alias Runlight.Test.Stores
+
+  @opts [instance: Runlight.PlugParsedTest.RL, token: "secret", accounts: true]
+
+  defmodule Router do
+    use Plug.Router
+
+    plug(:match)
+    plug(Plug.Parsers, parsers: [:urlencoded, :multipart, :json], json_decoder: Jason)
+    plug(:dispatch)
+
+    forward("/stats",
+      to: Runlight.Plug,
+      init_opts: [instance: Runlight.PlugParsedTest.RL, token: "secret", accounts: true]
+    )
+  end
+
+  defmodule Kept do
+    use Plug.Router
+
+    plug(:match)
+
+    plug(Plug.Parsers,
+      parsers: [:urlencoded, :json],
+      json_decoder: Jason,
+      body_reader: {Runlight.Plug, :body_reader, []}
+    )
+
+    plug(:dispatch)
+
+    forward("/stats",
+      to: Runlight.Plug,
+      init_opts: [instance: Runlight.PlugParsedTest.RL, token: "secret", accounts: true]
+    )
+  end
+
+  # A connection whose body breaks off part way.
+  defmodule Cut do
+    def read_req_body(reason, _opts), do: {:error, reason}
+    def send_resp(payload, _status, _headers, body), do: {:ok, body, payload}
+  end
+
+  setup do
+    {store, cleanup} = Stores.store(:sqlite)
+    on_exit(cleanup)
+
+    start_supervised!(
+      {Runlight,
+       name: Runlight.PlugParsedTest.RL,
+       store: store,
+       secret: String.duplicate("s", 32),
+       site: [name: "example.com", hostnames: ["example.com"], timezone: "UTC"],
+       trust_proxy: false}
+    )
+
+    :ok
+  end
+
+  defp setup_form(router) do
+    form = "code=secret&email=me%40example.com&password=a+long+passphrase+1&again=a+long+passphrase+1"
+
+    conn(:post, "/stats/setup", form)
+    |> put_req_header("content-type", "application/x-www-form-urlencoded")
+    |> put_req_header("origin", "http://example.com")
+    |> Map.put(:host, "example.com")
+    |> router.call(router.init([]))
+  end
+
+  test "a form the parsers already read is read as the form it was" do
+    conn = setup_form(Router)
+    assert conn.status in [302, 303], conn.resp_body
+    assert get_resp_header(conn, "set-cookie") != []
+  end
+
+  test "the parsers' reader hands on the body as it was sent" do
+    conn = setup_form(Kept)
+    assert conn.status in [302, 303], conn.resp_body
+  end
+
+  test "JSON the parsers already read is read as JSON" do
+    conn =
+      conn(:post, "/stats/api/link-domains", Jason.encode!(%{domain: "go.example.org"}))
+      |> put_req_header("authorization", "Bearer secret")
+      |> put_req_header("content-type", "application/json")
+      |> Map.put(:host, "example.com")
+      |> Router.call(Router.init([]))
+
+    assert conn.status == 201, conn.resp_body
+  end
+
+  test "a body that breaks off is refused, not taken for the whole request" do
+    for {reason, status} <- [timeout: 408, closed: 400] do
+      conn =
+        conn(:post, "/stats/api/link-domains")
+        |> put_req_header("authorization", "Bearer secret")
+        |> put_req_header("content-type", "application/json")
+        |> Map.merge(%{host: "example.com", adapter: {Cut, reason}})
+        |> Runlight.Plug.call(@opts)
+
+      assert conn.status == status
+    end
+  end
 end

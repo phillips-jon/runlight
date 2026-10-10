@@ -672,12 +672,13 @@ defmodule Runlight.Routes do
     host = Url.host(Url.new(remote["url"]))
 
     fetched =
-      Runlight.fetch(routes.rl, Url.href(target),
+      Runlight.Safefetch.fetch_entered(routes.rl, Url.href(target),
         method: if(write, do: request.method, else: "GET"),
         headers: headers,
         body: if(write, do: Request.text(request)),
         # An install that answers with a redirect gets no fetch of somewhere else on its behalf.
         redirect: :manual,
+        redirects: 0,
         # A long report or an export is worked out in full before the install sends a byte, so reads get two minutes.
         timeout: if(write, do: 30_000, else: 120_000)
       )
@@ -2048,7 +2049,10 @@ defmodule Runlight.Routes do
          Crypto.constant_time_equal?(given, routes.observe_key)) or
         can_read(routes, request) == true
 
-    if not any_site and given == "" do
+    # Or a site's own key, for that site's pages. Either is known before the body is read.
+    key_site = if not any_site and given != "", do: observe_key_site(rl, given)
+
+    if not any_site and key_site == nil do
       coded("Unauthorized", "unauthorized", 401)
     else
       with {:ok, body} <- read_json(request) do
@@ -2086,7 +2090,7 @@ defmodule Runlight.Routes do
 
             {:ok, pages} ->
               Runlight.init(rl)
-              observe_pages(rl, routes, given, any_site, batch, pages)
+              observe_pages(rl, key_site, batch, pages)
           end
         end
       else
@@ -2095,25 +2099,25 @@ defmodule Runlight.Routes do
     end
   end
 
-  defp observe_pages(rl, _routes, given, any_site, batch, pages) do
+  # The site whose own observe key this is, or nil.
+  defp observe_key_site(rl, given) do
+    Runlight.init(rl)
+
+    Enum.reduce(Runlight.sites(rl), nil, fn site, found ->
+      key = Store.setting(rl.store, "observe-key:#{site["id"]}")
+      if key && Crypto.constant_time_equal?(given, key), do: site["id"], else: found
+    end)
+  end
+
+  defp observe_pages(rl, key_site, batch, pages) do
     keep =
-      if any_site do
+      if key_site == nil do
         {:ok, pages}
       else
         # A site's own key reports only pages on that site's domains.
-        key_site =
-          Enum.reduce(Runlight.sites(rl), nil, fn site, found ->
-            key = Store.setting(rl.store, "observe-key:#{site["id"]}")
-            if key && Crypto.constant_time_equal?(given, key), do: site["id"], else: found
-          end)
-
-        if key_site == nil do
-          :unauthorized
-        else
-          keep = Enum.filter(pages, &((Runlight.site_for(rl, &1.page.hostname) || %{})["id"] == key_site))
-          # A single report for another site's page is a misconfigured plugin, which should hear about it.
-          if not batch and keep == [], do: :unauthorized, else: {:ok, keep}
-        end
+        keep = Enum.filter(pages, &((Runlight.site_for(rl, &1.page.hostname) || %{})["id"] == key_site))
+        # A single report for another site's page is a misconfigured plugin, which should hear about it.
+        if not batch and keep == [], do: :unauthorized, else: {:ok, keep}
       end
 
     case keep do

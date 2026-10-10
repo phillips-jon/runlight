@@ -60,6 +60,7 @@ defmodule Runlight do
   alias Runlight.JS.Object
   alias Runlight.Payload
   alias Runlight.RateLimit
+  alias Runlight.Safefetch
   alias Runlight.SettingsError
   alias Runlight.Sources
   alias Runlight.State
@@ -555,7 +556,7 @@ defmodule Runlight do
         info = %{last_seen: if(cached, do: cached.last_seen), retention_months: :undefined, connection: "unreachable"}
 
         info =
-          case fetch(rl, "#{remote["url"]}/api/sites",
+          case Safefetch.fetch_entered(rl, "#{remote["url"]}/api/sites",
                  headers: [{"authorization", "Bearer #{remote["token"]}"}],
                  timeout: 8000
                ) do
@@ -589,7 +590,7 @@ defmodule Runlight do
   # Asks a connected install to delete the token this server holds for it. A failure leaves it listed there.
   defp revoke_remote_token(rl, remote) do
     _ =
-      fetch(rl, "#{remote["url"]}/api/token",
+      Safefetch.fetch_entered(rl, "#{remote["url"]}/api/token",
         method: "DELETE",
         headers: [{"authorization", "Bearer #{remote["token"]}"}],
         timeout: 5000
@@ -616,7 +617,7 @@ defmodule Runlight do
     auth = [{"authorization", "Bearer #{token}"}]
 
     answer =
-      case fetch(rl, "#{url}/api/sites", headers: auth, timeout: 10_000) do
+      case Safefetch.fetch_entered(rl, "#{url}/api/sites", headers: auth, timeout: 10_000) do
         {:ok, answer} ->
           answer
 
@@ -648,7 +649,7 @@ defmodule Runlight do
 
     # What the token may do there; an install from before manage tokens has no /api/token and reads only.
     {scope, token_site} =
-      case fetch(rl, "#{url}/api/token", headers: auth, timeout: 10_000) do
+      case Safefetch.fetch_entered(rl, "#{url}/api/token", headers: auth, timeout: 10_000) do
         {:ok, about} ->
           info =
             if Response.ok?(about) do
