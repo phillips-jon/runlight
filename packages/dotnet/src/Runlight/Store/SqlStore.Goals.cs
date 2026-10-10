@@ -130,7 +130,12 @@ public sealed partial class SqlStore
         ["id"] = Sql.S(r.Get("id")),
         ["name"] = Sql.S(r.Get("name")),
         ["site"] = Sql.S(r.Get("site")),
-        ["scope"] = r.Str("scope") == "manage" ? "manage" : "read",
+        ["scope"] = r.Str("scope") switch
+        {
+            "manage" => "manage",
+            "embed" => "embed",
+            _ => "read",
+        },
         ["hash"] = Sql.S(r.Get("hash")),
         ["hint"] = Sql.S(r.Get("hint")),
         ["createdAt"] = Js.Number(r.Get("created_at")),
@@ -170,6 +175,21 @@ public sealed partial class SqlStore
     public async Task<List<JsObject>> SettingsStartingWithAsync(string prefix, CancellationToken cancellationToken = default) =>
         (await Db.AllAsync("SELECT \"key\", value FROM rl_settings WHERE \"key\" LIKE ? ESCAPE '\\'", A(Sql.EscapeLike(prefix) + "%"), cancellationToken).ConfigureAwait(false))
             .Select(r => new JsObject { ["key"] = Sql.S(r.Get("key")), ["value"] = Sql.S(r.Get("value")) }).ToList();
+
+    /// <summary>Reads a setting and deletes it. Of two callers at once, only the one whose delete took the row gets its value.</summary>
+    public async Task<string?> TakeSettingAsync(string key, CancellationToken cancellationToken = default)
+    {
+        string? value = await SettingAsync(key, cancellationToken).ConfigureAwait(false);
+        if (value == null)
+        {
+            return null;
+        }
+        const string Delete = "DELETE FROM rl_settings WHERE \"key\" = ?";
+        long gone = Dialect == "mysql"
+            ? await Db.AffectedAsync(Delete, A(key), cancellationToken).ConfigureAwait(false)
+            : (await Db.AllAsync(Delete + " RETURNING \"key\"", A(key), cancellationToken).ConfigureAwait(false)).Count;
+        return gone == 1 ? value : null;
+    }
 
     public Task SetSettingAsync(string key, string? value, CancellationToken cancellationToken = default) => value == null
         ? Db.RunAsync("DELETE FROM rl_settings WHERE \"key\" = ?", A(key), cancellationToken)

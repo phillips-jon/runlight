@@ -39,7 +39,10 @@ public sealed class Routes
     /// <summary>The header a shared dashboard sends its share id in.</summary>
     public const string ShareHeader = "x-runlight-share";
 
-    /// <summary>What a share can read: one site's reports, nothing that changes anything.</summary>
+    /// <summary>The header an embedded dashboard sends its session in.</summary>
+    public const string EmbedHeader = "x-runlight-embed";
+
+    /// <summary>What a share, or the dashboard inside a CMS, can read: one site's reports, nothing that changes anything.</summary>
     public static readonly IReadOnlyList<string> SharedPaths = ["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props", "/api/export", "/api/funnels", "/api/journeys"];
 
     /// <summary>Where the tracker's click rules go; the script ships with this string in their place.</summary>
@@ -53,6 +56,12 @@ public sealed class Routes
 
     /// <summary>How long a picker ticket works: long enough to find the element, not to be kept.</summary>
     public const long PickTicketMs = 30 * 60_000;
+
+    /// <summary>How long an embed ticket works: long enough for the admin page to load its frame, never to be kept.</summary>
+    public const long EmbedTicketMs = 5 * 60_000;
+
+    /// <summary>How long an embedded dashboard reads before the admin page has to be loaded again for a new ticket.</summary>
+    public const long EmbedSessionMs = 60 * 60_000;
 
     /// <summary>Questions one person may put to the assistant in an hour, and at once.</summary>
     public const int AskPerHour = 30;
@@ -101,6 +110,8 @@ public sealed class Routes
     private static readonly Regex DomainPath = R("^/api/link-domains/([^/]+)\\z");
     private static readonly Regex ImportPath = R("^/api/links/import/([a-z]+)\\z");
     private static readonly Regex LinkPath = R("^/api/links/([a-f0-9]+)\\z");
+    private static readonly Regex EmbedTicketPattern = R("^([0-9]{1,15})\\.([a-f0-9]{32})\\.([a-f0-9]{2,512})\\.([a-f0-9]{64})\\z");
+    private static readonly Regex EmbedSessionPattern = R("^([0-9]{1,15})\\.([a-f0-9]{24})\\.([a-f0-9]{64})\\z");
     private static readonly Regex Ticket = R("^([0-9]+)\\.([a-f0-9]{2,512})\\.([a-f0-9]{2,512})\\.([a-f0-9]{64})\\z");
     private static readonly Regex ReportPath = R("^/api/reports/([a-f0-9]{24})(/send)?\\z");
     private static readonly Regex Token32 = R("^[a-f0-9]{32}\\z");
@@ -601,8 +612,11 @@ public sealed class Routes
         return global::Runlight.Json.Stringify(urls);
     }
 
-    /// <summary>The dashboard's page, which holds no data: the API it calls checks access.</summary>
-    public static string Dashboard(string @base, string share = "", string signOut = "", bool geoCredit = false, bool accounts = false, string signIn = "")
+    /// <summary>
+    /// The dashboard's page, which holds no data: the API it calls checks access. <paramref name="embed"/> is the dashboard
+    /// inside a CMS's admin pages: its session (empty once its ticket was used or ran out) and the admin origin that frames it.
+    /// </summary>
+    public static string Dashboard(string @base, string share = "", string signOut = "", bool geoCredit = false, bool accounts = false, string signIn = "", (string Session, string Origin)? embed = null)
     {
         ArgumentNullException.ThrowIfNull(@base);
         string b = EscapeAttr(@base);
@@ -611,7 +625,8 @@ public sealed class Routes
             + (signOut.Length > 0 ? " data-sign-out=\"" + EscapeAttr(signOut) + "\"" : "")
             + (signIn.Length > 0 ? " data-sign-in=\"" + EscapeAttr(signIn) + "\"" : "")
             + (geoCredit ? " data-geo-credit=\"\"" : "")
-            + (accounts ? " data-accounts=\"\"" : "");
+            + (accounts ? " data-accounts=\"\"" : "")
+            + (embed is { } e ? " data-embed=\"" + EscapeAttr(e.Session) + "\" data-embed-origin=\"" + EscapeAttr(e.Origin) + "\"" : "");
         return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex\">\n<title>Runlight</title>\n"
             + "<link rel=\"icon\" href=\"" + Brand.RunlightIcon + "\">\n"
             + "<link rel=\"stylesheet\" href=\"" + b + "/assets/app." + hash + ".css\">\n</head>\n<body>\n"
@@ -812,7 +827,8 @@ public sealed class Routes
         var token = await ApiTokenAsync(request, cancellationToken).ConfigureAwait(false);
         if (token != null)
         {
-            return token;
+            // A key for the dashboard inside a CMS gets tickets and reads nothing itself.
+            return token.Str("scope") == "embed" ? false : token;
         }
         object access;
         if (_options.Authorize != null || _web != null)
@@ -1269,6 +1285,101 @@ public sealed class Routes
         }
         string origin = Unhex(parts.Groups[3].Value);
         return IsOrigin(origin) ? (origin, Unhex(parts.Groups[2].Value)) : null;
+    }
+
+    /// <summary>The key embed tickets and sessions are signed with, made on first use and kept in the database for every process.</summary>
+    private async Task<string> EmbedKeyAsync(CancellationToken cancellationToken)
+    {
+        await _rl.InitAsync(cancellationToken).ConfigureAwait(false);
+        string? saved = await Store.SettingAsync("embed-key", cancellationToken).ConfigureAwait(false);
+        if (!string.IsNullOrEmpty(saved))
+        {
+            return saved;
+        }
+        string made = Hash.RandomId(32);
+        await Store.SetSettingAsync("embed-key", made, cancellationToken).ConfigureAwait(false);
+        return made;
+    }
+
+    /// <summary>An embed token that still exists, for a site that still does.</summary>
+    private async Task<JsObject?> EmbedTokenAsync(string id, CancellationToken cancellationToken)
+    {
+        var token = (await Store.TokensAsync(cancellationToken).ConfigureAwait(false)).FirstOrDefault(t => t.Str("id") == id);
+        return token != null && token.Str("scope") == "embed" && _rl.Site(token.Str("site")) != null ? token : null;
+    }
+
+    /// <summary>
+    /// A ticket for one load of the embedded dashboard, signed with when it runs out, a nonce, and the admin origin
+    /// that may frame it. The nonce is kept, with the token it was made for, until the ticket is used.
+    /// </summary>
+    private async Task<(string Ticket, long ExpiresAt)> EmbedTicketAsync(string origin, string token, CancellationToken cancellationToken)
+    {
+        long now = _rl.Now();
+        // Tickets nobody used are cleared as new ones are made.
+        foreach (var row in await Store.SettingsStartingWithAsync("embed-ticket:", cancellationToken).ConfigureAwait(false))
+        {
+            if (Js.Number(row.Str("value")!.Split('.')[0]) < now)
+            {
+                await Store.SetSettingAsync(row.Str("key")!, null, cancellationToken).ConfigureAwait(false);
+            }
+        }
+        long expiresAt = now + EmbedTicketMs;
+        string nonce = Hash.RandomId(16);
+        await Store.SetSettingAsync("embed-ticket:" + nonce, Js.Str(expiresAt) + "." + token, cancellationToken).ConfigureAwait(false);
+        string payload = Js.Str(expiresAt) + "." + nonce + "." + Hex(origin);
+        return (payload + "." + Hash.Hmac(await EmbedKeyAsync(cancellationToken).ConfigureAwait(false), "ticket." + payload), expiresAt);
+    }
+
+    /// <summary>
+    /// What a ticket this install signed names: always its origin, and its token only the first time it is used
+    /// before it runs out. Null for anything else.
+    /// </summary>
+    private async Task<(string Origin, JsObject? Token)?> RedeemEmbedAsync(string ticket, CancellationToken cancellationToken)
+    {
+        var parts = EmbedTicketPattern.Match(ticket);
+        if (!parts.Success)
+        {
+            return null;
+        }
+        string signed = "ticket." + parts.Groups[1].Value + "." + parts.Groups[2].Value + "." + parts.Groups[3].Value;
+        if (!ConstantTimeEqual(parts.Groups[4].Value, Hash.Hmac(await EmbedKeyAsync(cancellationToken).ConfigureAwait(false), signed)))
+        {
+            return null;
+        }
+        string origin = Unhex(parts.Groups[3].Value);
+        if (!IsOrigin(origin))
+        {
+            return null;
+        }
+        // A ticket works once: it is gone before anything else is checked.
+        string? kept = await Store.TakeSettingAsync("embed-ticket:" + parts.Groups[2].Value, cancellationToken).ConfigureAwait(false);
+        string[] keptParts = (kept ?? "").Split('.');
+        var token = !string.IsNullOrEmpty(kept) && Js.Number(parts.Groups[1].Value) >= _rl.Now()
+            ? await EmbedTokenAsync(keptParts.Length > 1 ? keptParts[1] : "", cancellationToken).ConfigureAwait(false)
+            : null;
+        return (origin, token);
+    }
+
+    /// <summary>A session for an embedded dashboard, which its page sends with every read, signed with when it runs out and its token.</summary>
+    private async Task<string> EmbedSessionAsync(string token, CancellationToken cancellationToken)
+    {
+        string payload = Js.Str(_rl.Now() + EmbedSessionMs) + "." + token;
+        return payload + "." + Hash.Hmac(await EmbedKeyAsync(cancellationToken).ConfigureAwait(false), "session." + payload);
+    }
+
+    /// <summary>The embed token a session this install signed was made for, while it lasts and the token still exists.</summary>
+    private async Task<JsObject?> EmbedReaderAsync(string session, CancellationToken cancellationToken)
+    {
+        var parts = EmbedSessionPattern.Match(session);
+        if (!parts.Success || Js.Number(parts.Groups[1].Value) < _rl.Now())
+        {
+            return null;
+        }
+        if (!ConstantTimeEqual(parts.Groups[3].Value, Hash.Hmac(await EmbedKeyAsync(cancellationToken).ConfigureAwait(false), "session." + parts.Groups[1].Value + "." + parts.Groups[2].Value)))
+        {
+            return null;
+        }
+        return await EmbedTokenAsync(parts.Groups[2].Value, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1756,10 +1867,19 @@ public sealed class Routes
             {
                 return Coded("Unknown site", "unknown_site", 404);
             }
-            string scope = body.Get("scope") is "manage" ? "manage" : "read";
+            string scope = body.Get("scope") switch
+            {
+                "manage" => "manage",
+                "embed" => "embed",
+                _ => "read",
+            };
             if (scope == "manage" && site.Length == 0)
             {
                 return Coded("A token that changes settings is for one site. Pick the site.", "token_site", 400);
+            }
+            if (scope == "embed" && site.Length == 0)
+            {
+                return Coded("A key for the dashboard in a CMS is for one site. Pick the site.", "embed_site", 400);
             }
             string secret = TokenPrefix + Hash.RandomId(20);
             var row = new JsObject
@@ -1797,7 +1917,7 @@ public sealed class Routes
     private ApiRead ReadApi(Request request, Url url, string? defaultSite = null, CancellationToken cancellationToken = default)
     {
         var headers = new Headers(request.Headers);
-        foreach (string name in new[] { "content-type", "content-length", ShareHeader })
+        foreach (string name in new[] { "content-type", "content-length", ShareHeader, EmbedHeader })
         {
             headers.Delete(name);
         }
@@ -1823,6 +1943,11 @@ public sealed class Routes
     {
         var rl = _rl;
         string method = request.Method;
+        // An embedded dashboard reads what a share link shows and nothing else, whoever else the request comes from.
+        if (request.Headers.Get(EmbedHeader) != null && !(method == "GET" && SharedPath(path)))
+        {
+            return Coded("Not available on a shared dashboard", "share_not_available", 403);
+        }
         // A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
         // That holds without a cookie too, since a browser also sends Basic credentials or comes from an
         // allowed address on its own. A bearer token is never sent by the browser on its own, so it needs no check.
@@ -1915,7 +2040,52 @@ public sealed class Routes
             return new Response("", 303, new Headers { ["location"] = to, ["cache-control"] = "no-store" });
         }
 
+        // A ticket for one load of the dashboard inside a CMS's admin pages. The plugin's server asks with its embed
+        // token on each page view and names the admin's origin, which must be one of the site's domains and alone
+        // may frame the page the ticket opens.
+        if (path == "/api/embed" && method == "POST")
+        {
+            var embedToken = await ApiTokenAsync(request, cancellationToken).ConfigureAwait(false);
+            if (embedToken == null)
+            {
+                return Denied(false);
+            }
+            if (embedToken.Str("scope") != "embed")
+            {
+                return Coded("Use a key for the dashboard in a CMS, made in Settings, Install", "embed_token", 403);
+            }
+            var embedSite = rl.Site(embedToken.Str("site"));
+            if (embedSite == null)
+            {
+                return Coded("Unknown site", "unknown_site", 404);
+            }
+            object parsedBody = ReadJson(request);
+            if (parsedBody is not JsObject body)
+            {
+                return (Response)parsedBody;
+            }
+            string origin = Text(body, "origin");
+            var parsed = IsOrigin(origin) && origin.Length <= 200 ? Url.Parse(origin) : null;
+            if (parsed == null || parsed.Origin != origin)
+            {
+                return Coded("Send the admin page's origin, such as https://example.com", "embed_origin", 400);
+            }
+            string host = HostName(parsed.Host);
+            var domains = (rl.Remote(embedSite.Str("id")!)?.Arr("hostnames") ?? embedSite.Arr("hostnames") ?? []).Select(h => HostName(Js.String(h)));
+            if (!domains.Contains(host))
+            {
+                return Coded(host + " is not one of this site's domains. Add it to the site's domains in Runlight's settings.", "embed_host", 400, new JsObject { ["host"] = host });
+            }
+            var (ticket, expiresAt) = await EmbedTicketAsync(origin, embedToken.Str("id")!, cancellationToken).ConfigureAwait(false);
+            return JsonResponse(new JsObject { ["ticket"] = ticket, ["site"] = embedSite.Str("id"), ["expiresAt"] = expiresAt, ["path"] = _base + "/embed?ticket=" + ticket }, 201);
+        }
+
         var token = Bearer(request).StartsWith(TokenPrefix, StringComparison.Ordinal) ? await ApiTokenAsync(request, cancellationToken).ConfigureAwait(false) : null;
+        // An embed token gets tickets and reads nothing itself.
+        if (token != null && token.Str("scope") == "embed")
+        {
+            return Coded("This key only opens the dashboard inside a CMS", "token_embed_only", 403);
+        }
         if (token != null && token.Str("scope") == "manage" && ManagePath(method, path))
         {
             string? askedSite = url.SearchParams.Get("site");
@@ -2713,6 +2883,17 @@ public sealed class Routes
             }
             only = shared.Str("site");
         }
+        else if (request.Headers.Get(EmbedHeader) is { } session)
+        {
+            var embedToken = await EmbedReaderAsync(session, cancellationToken).ConfigureAwait(false);
+            if (embedToken == null)
+            {
+                return Coded("This dashboard has expired. Reload the page to open it again.", "embed_expired", 401);
+            }
+            // An embedded dashboard sees what a share link of its token's site shows.
+            shared = new JsObject { ["id"] = "", ["site"] = embedToken.Str("site"), ["name"] = "", ["createdAt"] = 0L };
+            only = embedToken.Str("site");
+        }
         else
         {
             object access = await ReaderAsync(request, cancellationToken).ConfigureAwait(false);
@@ -3245,6 +3426,29 @@ public sealed class Routes
         if (unsubscribe.Success && (method == "GET" || method == "POST"))
         {
             return await UnsubscribePageAsync(request, unsubscribe.Groups[1].Value, cancellationToken).ConfigureAwait(false);
+        }
+
+        // The dashboard inside a CMS's admin pages, opened with a ticket its plugin just got. Only the admin origin
+        // the ticket names may frame it. A ticket used already or run out opens it with no session, so it says it
+        // has expired and offers to reload the admin page; anything else is refused and never framed.
+        if (path == "/embed" && method == "GET")
+        {
+            await rl.InitAsync(cancellationToken).ConfigureAwait(false);
+            var found = await RedeemEmbedAsync(url.SearchParams.Get("ticket") ?? "", cancellationToken).ConfigureAwait(false);
+            if (found is not { } embed)
+            {
+                var t = Messages.Translator(AcceptedLanguage(request));
+                return SmallPage(t.Lang, "<h1>" + EscapeHtml(t.T("embed.goneTitle")) + "</h1><p>" + EscapeHtml(t.T("embed.gone")) + "</p>", 404);
+            }
+            string session = embed.Token != null ? await EmbedSessionAsync(embed.Token.Str("id")!, cancellationToken).ConfigureAwait(false) : "";
+            return new Response(Dashboard(@base, "", "", _options.GeoCredit, false, "", (session, embed.Origin)), session.Length > 0 ? 200 : 410, new Headers
+            {
+                ["content-type"] = "text/html; charset=utf-8",
+                ["cache-control"] = "no-store",
+                ["content-security-policy"] = DashboardCsp.Replace("frame-ancestors 'none'", "frame-ancestors " + embed.Origin, StringComparison.Ordinal),
+                ["referrer-policy"] = "no-referrer",
+                ["x-robots-tag"] = "noindex",
+            });
         }
 
         var sharePage = SharePagePath.Match(path);
