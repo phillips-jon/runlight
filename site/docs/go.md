@@ -97,28 +97,10 @@ mux.Handle("/runlight/", routes)
 mux.Handle("GET /go/{slug}", rl.LinksHTTP())
 mux.Handle("/", yourApp)
 
-log.Fatal(http.ListenAndServe(":8080", rl.Observer(mux)))
+log.Fatal(http.ListenAndServe(":8080", rl.LinkDomains(rl.Observer(mux))))
 ```
 
-`rl.Observer` records the fetches of [AI agents](/docs/ai/#agents-that-read-your-pages) as your app serves its pages, and passes every request on. In an app that sends every request through one handler, `routes.Middleware(next)` answers Runlight’s own paths and passes the rest to `next` without reading their bodies. It also answers the OAuth documents that [MCP](/docs/mcp/) clients look for at the root of the site.
-
-A [link domain](/docs/links/#custom-domains) answers short links at the root of a name of its own, and the handlers above leave those requests to your app. To serve them, put middleware in front of the app that asks `rl.LinkDomainResponse` first. It answers only on your link domains and returns nil for every other host.
-
-```go
-func linkDomains(rl *runlight.Runlight, next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		if req.Method == http.MethodGet {
-			if request, err := runlight.FromHTTP(req); err == nil {
-				if answer, err := rl.LinkDomainResponse(req.Context(), request); err == nil && answer != nil {
-					runlight.WriteHTTP(w, answer)
-					return
-				}
-			}
-		}
-		next.ServeHTTP(w, req)
-	})
-}
-```
+`rl.Observer` records the fetches of [AI agents](/docs/ai/#agents-that-read-your-pages) as your app serves its pages, and passes every request on. `rl.LinkDomains` answers short links on your [link domains](/docs/links/#custom-domains), the names of their own that you point at the app, before the mux sees the request. It passes every other host on untouched, so your own pages are unaffected. In an app that sends every request through one handler, `routes.Middleware(next)` answers link domains and Runlight’s own paths, and passes the rest to `next` without reading their bodies. It also answers the OAuth documents that [MCP](/docs/mcp/) clients look for at the root of the site.
 
 Add the script to every page, just before `</head>`.
 
@@ -142,7 +124,7 @@ r.Use(rl.Observer)
 runlightchi.Mount(r, rl, routes)
 ```
 
-`Mount` adds the routes under their base path, the OAuth documents, and the short links. Call it on the top router, since the routes read the full path of each request. Link domains need the middleware from [net/http](#net-http) as well.
+`Mount` adds the routes under their base path, the OAuth documents, and the short links, and it answers link domains ahead of your own routes. Call it on the top router before your own routes, since the routes read the full path of each request and chi takes middleware only until the first route.
 
 ## Echo
 
@@ -158,11 +140,11 @@ e.Use(runlightecho.Observer(rl))
 runlightecho.Register(e, rl, routes)
 ```
 
-`Register` adds the routes, the OAuth documents, and the short links, as `Mount` does for chi. Link domains need the middleware from [net/http](#net-http) here too, wrapped around the Echo app.
+`Register` adds the routes, the OAuth documents, and the short links, as `Mount` does for chi. It answers link domains before Echo routes each request, wherever in the app it is called.
 
 ## Other routers
 
-Any router that takes an `http.Handler` can serve Runlight the same way as `http.ServeMux` does. To answer a request yourself, turn it into Runlight’s with `runlight.FromHTTP`, pass it to `routes.Handle`, and send the answer back with `runlight.WriteHTTP`. `FromHTTP` reads the body with the limits the Node adapter uses, 16 KB for the tracker and 10 MB for anything else, and keeps the address the connection came from. Runlight reads forwarded headers itself unless `IgnoreProxy` is set.
+Any router that takes an `http.Handler` can serve Runlight the same way as `http.ServeMux` does, wrapped in `rl.LinkDomains` for link domains. To answer a request yourself, turn it into Runlight’s with `runlight.FromHTTP`, pass it to `routes.Handle`, and send the answer back with `runlight.WriteHTTP`. `FromHTTP` reads the body with the limits the Node adapter uses, 16 KB for the tracker and 10 MB for anything else, and keeps the address the connection came from. Runlight reads forwarded headers itself unless `IgnoreProxy` is set.
 
 ## The scheduled check
 

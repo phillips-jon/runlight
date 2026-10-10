@@ -8,6 +8,10 @@ package runlight
 //	mux.Handle("/runlight/", routes)
 //	mux.Handle("/runlight", routes)
 //	mux.Handle("GET /go/{slug}", rl.LinksHTTP())
+//	http.ListenAndServe(":8080", rl.LinkDomains(rl.Observer(mux)))
+//
+// routes.Middleware(next) and rl.LinkDomains(next) answer link domains
+// before the app's own routing; a handler mounted at a path never sees them.
 
 import (
 	"context"
@@ -37,6 +41,26 @@ var ErrBodyTooLarge = errors.New("runlight: request body too large")
 // headers, the body (16 KB at most for the collect endpoint, 10 MB for
 // anything else), and the address the connection came from.
 func FromHTTP(req *http.Request) (*Request, error) {
+	out := headOf(req)
+	if req.Method != "GET" && req.Method != "HEAD" && req.Body != nil {
+		limit := int64(maxBody)
+		if strings.HasSuffix(req.URL.Path, "/e") {
+			limit = maxCollectBody
+		}
+		body, err := io.ReadAll(io.LimitReader(req.Body, limit+1))
+		if err != nil {
+			return nil, err
+		}
+		if int64(len(body)) > limit {
+			return nil, ErrBodyTooLarge
+		}
+		out.Body = body
+	}
+	return out, nil
+}
+
+// headOf is an http.Request as Runlight's request without its body, which is left unread.
+func headOf(req *http.Request) *Request {
 	proto := "http"
 	if req.TLS != nil {
 		proto = "https"
@@ -70,21 +94,7 @@ func FromHTTP(req *http.Request) (*Request, error) {
 	}
 	out := web.NewRequest(req.Method, href, headers, nil)
 	out.RemoteAddress = remoteAddress(req.RemoteAddr)
-	if req.Method != "GET" && req.Method != "HEAD" && req.Body != nil {
-		limit := int64(maxBody)
-		if strings.HasSuffix(req.URL.Path, "/e") {
-			limit = maxCollectBody
-		}
-		body, err := io.ReadAll(io.LimitReader(req.Body, limit+1))
-		if err != nil {
-			return nil, err
-		}
-		if int64(len(body)) > limit {
-			return nil, ErrBodyTooLarge
-		}
-		out.Body = body
-	}
-	return out, nil
+	return out
 }
 
 // remoteAddress is the connection's address without its port.
@@ -150,15 +160,37 @@ func (rt *Routes) Owns(path string) bool {
 	return rt.base == "" || path == rt.base || strings.HasPrefix(path, rt.base+"/") || isOauthDocument(path)
 }
 
-// Middleware answers the routes' own paths and passes every other request to
-// next unread, for an app that sends every request through one handler.
+// Middleware answers the link domains added in Settings and the routes' own
+// paths, and passes every other request to next unread, for an app that
+// sends every request through one handler.
 func (rt *Routes) Middleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+	return rt.r.LinkDomains(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if !rt.Owns(req.URL.Path) {
 			next.ServeHTTP(w, req)
 			return
 		}
 		rt.ServeHTTP(w, req)
+	}))
+}
+
+// LinkDomains is middleware that answers requests on the link domains added
+// in Settings (such as go.example.com): /{slug} there is the redirect, and
+// anything else a 404. Every other request goes on to next untouched, its
+// body unread, so the app's own pages are as they were. The routes' own
+// paths go on too, so an owner can always reach the dashboard to remove a
+// domain.
+func (r *Runlight) LinkDomains(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		answer, err := r.LinkDomainResponse(req.Context(), headOf(req))
+		if err != nil {
+			WriteHTTP(w, internalError(r, err))
+			return
+		}
+		if answer != nil {
+			WriteHTTP(w, answer)
+			return
+		}
+		next.ServeHTTP(w, req)
 	})
 }
 

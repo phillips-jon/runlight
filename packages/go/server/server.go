@@ -65,7 +65,7 @@ type Server struct {
 }
 
 // serverPaths are the server's own pages, which answer as the server on every name it is reached at, a link domain too.
-var serverPaths = map[string]bool{"/login": true, "/logout": true, "/setup": true, "/invite": true, "/healthz": true, "/auth.css": true, "/auth.js": true, "/api": true, "/mcp": true, "/s.js": true, "/pick.js": true, "/e": true}
+var serverPaths = map[string]bool{"/login": true, "/logout": true, "/setup": true, "/invite": true, "/healthz": true, "/auth.css": true, "/auth.js": true, "/api": true, "/mcp": true, "/s.js": true, "/pick.js": true, "/e": true, "/embed": true}
 
 // maxOwnHosts is the most names remembered as the server's own. The first
 // ones stay and later ones are not learned, so a server reached at more names
