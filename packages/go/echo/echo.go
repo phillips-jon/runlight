@@ -1,6 +1,7 @@
-// Package runlightecho serves Runlight from an Echo app: the dashboard and
-// API under the routes' base path, the OAuth documents MCP clients look for
-// at the site's root, and short links on the app's own domain.
+// Package runlightecho serves Runlight from an Echo app: the link domains
+// added in Settings, the dashboard and API under the routes' base path, the
+// OAuth documents MCP clients look for at the site's root, and short links
+// on the app's own domain.
 //
 //	rl, err := runlight.New(runlight.Options{Store: store, Site: &runlight.SiteOptions{Hostnames: []string{"example.com"}}})
 //	routes, err := rl.Routes(runlight.RoutesOptions{})
@@ -15,10 +16,12 @@ import (
 	runlight "runlight.sh/go"
 )
 
-// Register adds Runlight to e: the routes at their base path and everything
-// below it, the OAuth discovery documents, and GET {LinkPath}/:slug for
-// short links.
+// Register adds Runlight to e: middleware that answers the link domains added
+// in Settings before Echo routes the request, the routes at their base path
+// and everything below it, the OAuth discovery documents, and GET
+// {LinkPath}/:slug for short links.
 func Register(e *echo.Echo, rl *runlight.Runlight, routes *runlight.Routes) {
+	e.Pre(echo.WrapMiddleware(rl.LinkDomains))
 	handler := echo.WrapHandler(routes)
 	base := routes.Base()
 	e.Any(base+"/*", handler)
