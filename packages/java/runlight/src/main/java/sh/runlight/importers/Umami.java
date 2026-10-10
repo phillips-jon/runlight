@@ -17,7 +17,7 @@ import sh.runlight.Json;
 public final class Umami implements Importer {
   private static final int PAGE = 5;
 
-  private static final Pattern ADDRESS = Pattern.compile("^https?://[^/]+");
+  private static final Pattern ADDRESS = Pattern.compile("^https://[^/]+");
 
   private final Http http;
   private final LongSupplier now;

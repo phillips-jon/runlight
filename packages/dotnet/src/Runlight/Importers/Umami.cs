@@ -24,7 +24,7 @@ public sealed partial class Umami(Http? http = null, Func<long>? now = null) : I
     [GeneratedRegex("/+\\z", RegexOptions.CultureInvariant)]
     private static partial Regex TrailingSlashes();
 
-    [GeneratedRegex("^https?://[^/]+", RegexOptions.CultureInvariant)]
+    [GeneratedRegex("^https://[^/]+", RegexOptions.CultureInvariant)]
     private static partial Regex Address();
 
     /// <summary>

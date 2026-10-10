@@ -46,6 +46,12 @@ public interface IFetcher
 {
     /// <exception cref="FetchException">When no answer comes back (refused, timed out, bad TLS).</exception>
     Task<Response> FetchAsync(string url, FetchInit? init = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Every address a name resolves to, for the fetches that check where they go before they send
+    /// anything (<see cref="Safefetch.PublicFetchAsync"/>). A fake can stand in for DNS here.
+    /// </summary>
+    Task<IReadOnlyList<string>> LookupAsync(string name) => Safefetch.LookupAsync(name);
 }
 
 /// <summary>No answer came back: refused, timed out, or bad TLS.</summary>

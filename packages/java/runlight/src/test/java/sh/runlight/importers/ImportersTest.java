@@ -49,6 +49,11 @@ class ImportersTest {
     }
 
     @Override
+    public List<String> lookup(String name) {
+      return List.of("93.184.215.14");
+    }
+
+    @Override
     public Response fetch(String url, FetchInit init) {
       Map<String, Object> headers = new LinkedHashMap<>();
       for (Map.Entry<String, String> e : init.headers.entries()) {

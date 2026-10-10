@@ -313,6 +313,22 @@ public sealed class RoutesTests : RoutesTestCase
     }
 
     [Fact]
+    public async Task An_observe_key_is_checked_before_the_body_is_read()
+    {
+        var rl = await RunlightAsync(sites: [Site("blog", hostnames: ["blog.example.com"])]);
+        var routes = rl.Routes(new RoutesOptions { Token = "secret", ObserveKey = "agents" });
+        await rl.InitAsync();
+        await rl.Store.SetSettingAsync("observe-key:blog", "rlo_blog");
+        Task<Response> Garbled(string key) => routes.HandleAsync(Req("/runlight/api/observe", "POST", H(("authorization", "Bearer " + key), ("content-type", "application/json")), "{not json"));
+        await rl.Store.SetSettingAsync("observe-key:gone", "rlo_gone");
+        Assert.Equal(401, (await Garbled("wrong")).Status); // a wrong key hears nothing about the body
+        Assert.Equal(401, (await Garbled("rlo_wrong")).Status);
+        Assert.Equal(401, (await Garbled("rlo_gone")).Status); // a key for a site no longer here
+        Assert.Equal(400, (await Garbled("agents")).Status);
+        Assert.Equal(400, (await Garbled("rlo_blog")).Status);
+    }
+
+    [Fact]
     public async Task A_cms_plugin_reports_ai_agent_fetches_with_its_own_key_which_reads_nothing()
     {
         var rl = await RunlightAsync(site: Site(hostnames: ["blog.example.com"]));

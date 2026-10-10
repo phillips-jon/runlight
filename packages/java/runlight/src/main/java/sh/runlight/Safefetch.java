@@ -3,6 +3,7 @@ package sh.runlight;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -31,6 +32,12 @@ public final class Safefetch {
   private static final Pattern V4_TAIL = Pattern.compile("(\\d{1,3}(?:\\.\\d{1,3}){3})\\z");
   private static final Pattern V6_GROUP = Pattern.compile("^[0-9a-f]{1,4}\\z");
   private static final Pattern BRACKETS = Pattern.compile("^\\[|\\]\\z");
+
+  /** An install on this machine: http://localhost or http://127.0.0.1, with any port. */
+  private static final Pattern LOCAL_INSTALL =
+      Pattern.compile("^http://(localhost|127\\.0\\.0\\.1)(:\\d+)?(/|\\z)");
+
+  private static final Pattern HTTPS_ADDRESS = Pattern.compile("^https://[^/]+");
 
   private static int[] v4(String text) {
     String[] parts = text.split("\\.", -1);
@@ -248,24 +255,28 @@ public final class Safefetch {
   }
 
   /**
-   * GETs an https URL on the public internet, following up to {@code redirects} redirects that stay
-   * on it, within {@code timeoutMs} in all. Throws a {@link PrivateAddressError} for an address off
-   * it, and a {@link FetchError} with {@code timedOut()} when time runs out. A redirect past the
-   * last one comes back as it is. {@code maxBytes} and {@code truncate} go to the Fetcher, for a
-   * capped read.
+   * Fetches an https URL on the public internet, following up to {@code redirects} redirects that
+   * stay on it, within {@code timeoutMs} in all. Only a GET follows redirects; anything else comes
+   * back with the redirect as it is. Throws a {@link PrivateAddressError} for an address off it,
+   * and a {@link FetchError} with {@code timedOut()} when time runs out. A redirect past the last
+   * one comes back as it is. {@code maxBytes} and {@code truncate} go to the Fetcher, for a capped
+   * read.
    *
-   * @param init {@code timeoutMs} (required), and optionally {@code headers} (a map of names to
-   *     values), {@code redirects} (0), {@code maxBytes}, {@code truncate}, and {@code lookup} (a
-   *     {@code Function<String, List<String>>} standing in for DNS in tests)
+   * @param init {@code timeoutMs} (required), and optionally {@code method} ("GET"), {@code body}
+   *     (a string or bytes), {@code headers} (a map of names to values), {@code redirects} (0),
+   *     {@code maxBytes}, {@code truncate}, and {@code lookup} (a {@code Function<String,
+   *     List<String>>} standing in for DNS; the fetcher's own by default)
    * @param fetcher what sends each request; null for a {@link JdkFetcher}
    */
   public static Response publicFetch(String target, Map<String, Object> init, Fetcher fetcher) {
-    if (fetcher == null) {
-      fetcher = new JdkFetcher();
-    }
-    Function<String, List<String>> lookup = lookupOf(init.get("lookup"));
+    Fetcher sender = fetcher != null ? fetcher : new JdkFetcher();
+    Function<String, List<String>> lookup = lookupOf(init.get("lookup"), sender);
     long until = System.nanoTime() + Js.asLong(init.get("timeoutMs")) * 1_000_000L;
-    long redirects = init.get("redirects") == null ? 0 : Js.asLong(init.get("redirects"));
+    String method = init.get("method") instanceof String given ? Js.upper(given) : "GET";
+    long redirects =
+        init.get("redirects") == null || !method.equals("GET")
+            ? 0
+            : Js.asLong(init.get("redirects"));
     Url url = new Url(target);
     for (int hop = 0; ; hop++) {
       if (!url.protocol.equals("https:")) {
@@ -301,15 +312,7 @@ public final class Safefetch {
       if (left <= 0) {
         throw timedOut();
       }
-      FetchInit options = new FetchInit().redirect("manual").timeoutMs(left);
-      if (init.get("headers") instanceof Map<?, ?> headers) {
-        for (Map.Entry<?, ?> entry : headers.entrySet()) {
-          options.headers.append(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
-        }
-      }
-      if (init.get("maxBytes") != null) {
-        options.maxBytes(Js.asLong(init.get("maxBytes")));
-      }
+      FetchInit options = request(init).method(method).timeoutMs(left);
       if (init.get("truncate") != null) {
         options.truncate(Js.truthy(init.get("truncate")));
       }
@@ -318,7 +321,7 @@ public final class Safefetch {
       }
       Response answer;
       try {
-        answer = fetcher.fetch(url.href(), options);
+        answer = sender.fetch(url.href(), options);
       } catch (FetchError error) {
         // Whichever way the request gave up, the caller hears that time ran out.
         if (error.timedOut() || System.nanoTime() - until >= 0) {
@@ -339,8 +342,58 @@ public final class Safefetch {
   }
 
   @SuppressWarnings("unchecked") // The init map holds the lookup as a plain Object.
-  private static Function<String, List<String>> lookupOf(Object value) {
-    return value == null ? Safefetch::lookup : (Function<String, List<String>>) value;
+  private static Function<String, List<String>> lookupOf(Object value, Fetcher fetcher) {
+    return value == null ? fetcher::lookup : (Function<String, List<String>>) value;
+  }
+
+  /** The headers, body, and cap a request sends, as an init map holds them, with no redirects. */
+  private static FetchInit request(Map<String, Object> init) {
+    FetchInit options = new FetchInit().redirect("manual");
+    if (init.get("headers") instanceof Map<?, ?> headers) {
+      for (Map.Entry<?, ?> entry : headers.entrySet()) {
+        options.headers.append(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+      }
+    }
+    if (init.get("body") instanceof String body) {
+      options.body(body);
+    } else if (init.get("body") instanceof byte[] body) {
+      options.body(body);
+    }
+    if (init.get("maxBytes") != null) {
+      options.maxBytes(Js.asLong(init.get("maxBytes")));
+    }
+    return options;
+  }
+
+  /**
+   * Whether an address can be another Runlight install's: https, or, with {@code local}, an install
+   * on this machine, which only code can allow.
+   */
+  public static boolean installAddress(String url, boolean local) {
+    return HTTPS_ADDRESS.matcher(url).find() || (local && LOCAL_INSTALL.matcher(url).find());
+  }
+
+  /**
+   * Fetches from another Runlight install, which someone signed in named: a public address as
+   * {@link #publicFetch} fetches it, with no redirect followed, so a token sent there goes nowhere
+   * else. With {@code local}, an install on this machine is fetched as it is, still without
+   * following a redirect.
+   *
+   * @param init as {@link #publicFetch} takes it, less {@code redirects}
+   * @param local whether an install may be at http://localhost or http://127.0.0.1
+   * @param fetcher what sends each request; null for a {@link JdkFetcher}
+   */
+  public static Response installFetch(
+      String target, Map<String, Object> init, boolean local, Fetcher fetcher) {
+    if (local && LOCAL_INSTALL.matcher(target).find()) {
+      Fetcher sender = fetcher != null ? fetcher : new JdkFetcher();
+      String method = init.get("method") instanceof String given ? Js.upper(given) : "GET";
+      return sender.fetch(
+          target, request(init).method(method).timeoutMs(Js.asLong(init.get("timeoutMs"))));
+    }
+    Map<String, Object> once = new HashMap<>(init);
+    once.put("redirects", 0L);
+    return publicFetch(target, once, fetcher);
   }
 
   private static FetchError timedOut() {

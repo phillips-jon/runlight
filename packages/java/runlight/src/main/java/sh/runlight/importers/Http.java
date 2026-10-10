@@ -12,11 +12,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import sh.runlight.Js;
 import sh.runlight.Json;
+import sh.runlight.PrivateAddressError;
+import sh.runlight.Safefetch;
 import sh.runlight.Time;
 import sh.runlight.http.FetchError;
-import sh.runlight.http.FetchInit;
 import sh.runlight.http.Fetcher;
-import sh.runlight.http.Headers;
 import sh.runlight.http.Response;
 import sh.runlight.http.Url;
 
@@ -28,6 +28,9 @@ import sh.runlight.http.Url;
 public final class Http {
   private final Fetcher fetcher;
   private final DoubleConsumer sleep;
+
+  /** The most one answer may weigh; a page of a thousand events is well under a megabyte. */
+  private static final long MAX_BYTES = 32L * 1024 * 1024;
 
   /** An Http that waits for real between retries. */
   public Http(Fetcher fetcher) {
@@ -62,29 +65,34 @@ public final class Http {
   }
 
   /**
-   * Fetches JSON, parsed to maps and lists.
+   * Fetches JSON, parsed to maps and lists. The address can come from whoever runs an import (a
+   * self-hosted Umami), so only public https addresses are asked, with no redirect followed, which
+   * would carry the key somewhere else.
    *
    * @param method null for GET
    * @param body null for none
    */
   public Object getJson(String url, Map<String, String> headers, String method, String body) {
     for (int attempt = 1; ; attempt++) {
-      Headers sent = Headers.of("accept", "application/json");
+      Map<String, String> sent = new LinkedHashMap<>();
+      sent.put("accept", "application/json");
       for (Map.Entry<String, String> h : headers.entrySet()) {
-        sent.set(h.getKey(), h.getValue());
+        sent.put(Js.lower(h.getKey()), h.getValue());
       }
-      FetchInit init = new FetchInit().headers(sent).timeoutMs(20_000);
+      Map<String, Object> init =
+          Json.object("headers", sent, "timeoutMs", 20_000L, "maxBytes", MAX_BYTES);
       if (method != null) {
-        init.method(method);
+        init.put("method", method);
       }
       if (body != null) {
-        init.body(body);
+        init.put("body", body);
       }
       Response response;
       try {
-        response = fetcher.fetch(url, init);
-      } catch (FetchError e) {
-        if (attempt < 3) {
+        response = Safefetch.publicFetch(url, init, fetcher);
+      } catch (FetchError | PrivateAddressError e) {
+        // An address off the public internet is refused the same way every time.
+        if (attempt < 3 && e instanceof FetchError) {
           continue;
         }
         String host = new Url(url).host();

@@ -21,6 +21,9 @@ public sealed partial class Http
     private readonly IFetcher _fetcher;
     private readonly Func<double, CancellationToken, Task> _sleep;
 
+    /// <summary>The most one answer may weigh; a page of a thousand events is well under a megabyte.</summary>
+    private const long MaxBytes = 32L * 1024 * 1024;
+
     /// <param name="fetcher">Where requests go; a shared <see cref="HttpClientFetcher"/> when null.</param>
     /// <param name="sleep">Waits this many milliseconds; Task.Delay when null.</param>
     public Http(IFetcher? fetcher = null, Func<double, CancellationToken, Task>? sleep = null)
@@ -32,7 +35,11 @@ public sealed partial class Http
     /// <summary>Waits <paramref name="ms"/> milliseconds.</summary>
     public Task PauseAsync(double ms, CancellationToken cancellationToken = default) => _sleep(ms, cancellationToken);
 
-    /// <summary>Fetches JSON, parsed as <see cref="Json.Parse"/> reads it.</summary>
+    /// <summary>
+    /// Fetches JSON, parsed as <see cref="Json.Parse"/> reads it. The address can come from whoever
+    /// runs an import (a self-hosted Umami), so only public https addresses are asked, with no
+    /// redirect followed, which would carry the key somewhere else.
+    /// </summary>
     /// <param name="url">The address.</param>
     /// <param name="headers">Headers besides accept.</param>
     /// <param name="method">The method; GET when null.</param>
@@ -48,23 +55,15 @@ public sealed partial class Http
             {
                 h.Set(k, Js.String(v));
             }
-            var init = new FetchInit { Headers = h, TimeoutMs = 20_000 };
-            if (method != null)
-            {
-                init.Method = method;
-            }
-            if (body != null)
-            {
-                init.BodyText = body;
-            }
             Response response;
             try
             {
-                response = await _fetcher.FetchAsync(url, init, cancellationToken).ConfigureAwait(false);
+                response = await Safefetch.PublicFetchAsync(url, new PublicFetchInit { Method = method ?? "GET", Headers = h, BodyText = body, TimeoutMs = 20_000, MaxBytes = MaxBytes }, _fetcher, cancellationToken).ConfigureAwait(false);
             }
-            catch (FetchException)
+            catch (Exception error) when (error is FetchException or PrivateAddressError)
             {
-                if (attempt < 3)
+                // An address off the public internet is refused the same way every time.
+                if (attempt < 3 && error is FetchException)
                 {
                     continue;
                 }

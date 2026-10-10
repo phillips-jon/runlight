@@ -22,7 +22,8 @@ public static class Make
         Func<long>? now = null,
         IFetcher? fetcher = null,
         string? secret = null,
-        SqlStore? store = null) => new(new RunlightOptions
+        SqlStore? store = null,
+        bool localInstalls = false) => new(new RunlightOptions
         {
             Store = store ?? await Databases.FreshAsync("sqlite"),
             Site = site,
@@ -31,6 +32,7 @@ public static class Make
             Now = now,
             Fetcher = fetcher,
             Secret = secret,
+            LocalInstalls = localInstalls,
         });
 
     /// <summary>A site in code.</summary>

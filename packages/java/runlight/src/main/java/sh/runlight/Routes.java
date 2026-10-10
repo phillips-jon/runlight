@@ -23,7 +23,6 @@ import sh.runlight.CodedError.SettingsError;
 import sh.runlight.accounts.AccountError;
 import sh.runlight.accounts.Web;
 import sh.runlight.http.FetchError;
-import sh.runlight.http.FetchInit;
 import sh.runlight.http.Headers;
 import sh.runlight.http.Request;
 import sh.runlight.http.Response;
@@ -577,26 +576,29 @@ public final class Routes {
     // A change made from the hub goes on to the install with its JSON body; reads carry none.
     boolean write =
         request != null && !request.method().equals("GET") && !request.method().equals("HEAD");
-    FetchInit init =
-        new FetchInit()
-            .method(write ? request.method() : "GET")
-            .header("authorization", "Bearer " + remote.get("token"))
-            // An install that answers with a redirect gets no fetch of somewhere else on its
-            // behalf.
-            .redirect("manual")
-            // A long report or an export is worked out in full before the install sends a byte, so
-            // reads get two minutes.
-            .timeoutMs(write ? 30_000 : 120_000);
+    Map<String, String> headers = new LinkedHashMap<>();
+    headers.put("authorization", "Bearer " + remote.get("token"));
     if (write && Js.truthy(request.headers().get("content-type"))) {
-      init.header("content-type", request.headers().get("content-type"));
+      headers.put("content-type", request.headers().get("content-type"));
     }
+    // An install that answers with a redirect gets no fetch of somewhere else on its behalf. A long
+    // report or an export is worked out in full before the install sends a byte, so reads get two
+    // minutes.
+    Map<String, Object> init =
+        Json.object(
+            "method",
+            write ? request.method() : "GET",
+            "headers",
+            headers,
+            "timeoutMs",
+            write ? 30_000L : 120_000L);
     if (write) {
-      init.body(request.bytes());
+      init.put("body", request.bytes());
     }
     String host = new Url(Js.string(remote.get("url"))).host();
     Response answer;
     try {
-      answer = rl.fetcher.fetch(target.href(), init);
+      answer = Safefetch.installFetch(target.href(), init, rl.localInstalls, rl.fetcher);
     } catch (RuntimeException error) {
       if (error instanceof FetchError f && f.timedOut()) {
         return coded(
@@ -649,12 +651,13 @@ public final class Routes {
     if (answer.status() >= 400 && !download) {
       String text;
       try {
-        text = answer.text();
+        // No further than an error could need.
+        text = Body.readTextCapped(answer, 65_536);
       } catch (RuntimeException e) {
         text = "";
       }
       Object body = null;
-      if (text.length() <= 65_536) {
+      if (!text.isEmpty()) {
         Json.Parsed parsed = Json.tryParse(text);
         body = parsed.ok() && Js.isObject(parsed.value()) ? parsed.value() : null;
       }
@@ -2490,7 +2493,8 @@ public final class Routes {
                     rl::now,
                     given == Json.UNDEFINED ? null : given,
                     url.origin() + base + "/api/sites/connect/done",
-                    site instanceof String s ? s : "")));
+                    site instanceof String s ? s : "",
+                    rl.localInstalls)));
       } catch (ConnectError error) {
         return coded(
             error.getMessage(),
@@ -2515,7 +2519,8 @@ public final class Routes {
       String to;
       try {
         String id =
-            Connect.finishConnect(rl.store, rl.fetcher, rl::now, rl::addSite, url.searchParams());
+            Connect.finishConnect(
+                rl.store, rl.fetcher, rl::now, rl::addSite, url.searchParams(), rl.localInstalls);
         // The site's settings open with a word that the connection worked, which a reconnection
         // otherwise lacks.
         to = home + "?site=" + Js.encodeURIComponent(id) + "&settings=general&connected=1";
@@ -3046,6 +3051,24 @@ public final class Routes {
     if (!anySite && given.isEmpty()) {
       return coded("Unauthorized", "unauthorized", 401);
     }
+    // A site's own key is found before the body is read, so a stranger costs one lookup at most.
+    String keySite = null;
+    if (!anySite) {
+      if (!given.startsWith("rlo_")) {
+        return coded("Unauthorized", "unauthorized", 401);
+      }
+      rl.init();
+      for (Map<String, Object> setting : store().settingsStartingWith("observe-key:")) {
+        String id = ((String) setting.get("key")).substring("observe-key:".length());
+        String key = (String) setting.get("value");
+        if (!id.isEmpty() && key != null && constantTimeEqual(given, key) && rl.site(id) != null) {
+          keySite = id;
+        }
+      }
+      if (keySite == null) {
+        return coded("Unauthorized", "unauthorized", 401);
+      }
+    }
     Object read = readJson(request);
     if (read instanceof Response r) {
       return r;
@@ -3082,19 +3105,9 @@ public final class Routes {
     }
     rl.init();
     List<Page> keep = pages;
-    if (!anySite) {
+    if (keySite != null) {
       // A site's own key reports only pages on that site's domains. Pages elsewhere in a batch
       // (another host in the same log, say) are skipped, not a reason to refuse the rest.
-      String keySite = null;
-      for (Map<String, Object> site : sites()) {
-        String key = store().setting("observe-key:" + site.get("id"));
-        if (key != null && !key.isEmpty() && constantTimeEqual(given, key)) {
-          keySite = (String) site.get("id");
-        }
-      }
-      if (keySite == null) {
-        return coded("Unauthorized", "unauthorized", 401);
-      }
       keep = new ArrayList<>();
       for (Page p : pages) {
         Map<String, Object> site = rl.siteFor(p.page().hostname);

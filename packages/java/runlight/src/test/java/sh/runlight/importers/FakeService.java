@@ -3,6 +3,7 @@ package sh.runlight.importers;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import sh.runlight.Json;
 import sh.runlight.http.FetchInit;
@@ -40,6 +41,14 @@ public final class FakeService implements Fetcher {
   /** Answers URLs the pattern finds with this body. */
   public FakeService route(String pattern, Object body) {
     return route(pattern, (u, init) -> body);
+  }
+
+  /** Stands in for DNS: every service is on the public internet unless a test says otherwise. */
+  public Function<String, List<String>> dns = name -> List.of("93.184.215.14");
+
+  @Override
+  public List<String> lookup(String name) {
+    return dns.apply(name);
   }
 
   @Override

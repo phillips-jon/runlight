@@ -367,6 +367,24 @@ class VisitsImportTest {
   }
 
   @Test
+  void anUmamiOnAPrivateAddressIsNeverAsked() {
+    FakeService router = new FakeService().route("/api/websites", Json.object("data", List.of()));
+    router.dns = name -> List.of("127.0.0.1");
+    ImportError e =
+        assertThrows(ImportError.class, () -> Visits.umamiWebsites(CREDENTIALS, router));
+    assertEquals("unreachable", e.code());
+    Map<String, String> literal = Map.of("url", "https://10.1.2.3", "apiKey", "key");
+    assertEquals(
+        "unreachable",
+        assertThrows(ImportError.class, () -> Visits.umamiWebsites(literal, router)).code());
+    Map<String, String> plain = Map.of("url", "http://umami.example.com", "apiKey", "key");
+    assertEquals(
+        "import_umami_address",
+        assertThrows(ImportError.class, () -> Visits.umamiWebsites(plain, router)).code());
+    assertEquals(0, router.requests.size(), "nothing was sent");
+  }
+
+  @Test
   void anUnreadableSavedProgressSettingStartsAsIfThereWereNone() {
     TestHost t = harness("sqlite", umami(fakeEvents(), SESSIONS), at("2026-03-04T00:00:00Z"));
     t.init();

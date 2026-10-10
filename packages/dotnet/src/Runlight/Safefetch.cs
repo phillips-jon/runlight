@@ -18,9 +18,20 @@ public sealed class PublicFetchInit
     /// <summary>The time every hop together may take.</summary>
     public int TimeoutMs { get; set; }
 
+    public string Method { get; set; } = "GET";
+
     public Headers Headers { get; set; } = new();
 
-    /// <summary>How many redirects to follow; a redirect past the last comes back as it is.</summary>
+    public byte[]? Body { get; set; }
+
+    /// <summary>The body as text, written as UTF-8.</summary>
+    public string? BodyText
+    {
+        get => Body == null ? null : Js.Decode(Body);
+        set => Body = value == null ? null : Js.Utf8(value);
+    }
+
+    /// <summary>How many redirects to follow, for a GET; a redirect past the last comes back as it is.</summary>
     public int Redirects { get; set; }
 
     /// <summary>Passed to the fetcher, for a capped read.</summary>
@@ -29,7 +40,7 @@ public sealed class PublicFetchInit
     /// <summary>Passed to the fetcher, with MaxBytes, to hand back the start of a long body.</summary>
     public bool Truncate { get; set; }
 
-    /// <summary>Stands in for DNS in tests: every address a name resolves to.</summary>
+    /// <summary>Stands in for DNS: every address a name resolves to. The fetcher's own when null.</summary>
     public Func<string, Task<IReadOnlyList<string>>>? Lookup { get; set; }
 }
 
@@ -41,7 +52,7 @@ public sealed class PublicFetchInit
 /// and the request is pinned to the checked addresses (the fetcher's Resolve), so a name that
 /// answers differently a moment later gets nowhere.
 /// </summary>
-public static class Safefetch
+public static partial class Safefetch
 {
     private static readonly Regex Brackets = new("^\\[|\\]\\z", RegexOptions.CultureInvariant);
     private static readonly Regex TrailingV4 = new("([0-9]{1,3}(?:\\.[0-9]{1,3}){3})\\z", RegexOptions.CultureInvariant);
@@ -257,8 +268,9 @@ public static class Safefetch
     }
 
     /// <summary>
-    /// GETs an https URL on the public internet, following up to Redirects redirects that stay on
-    /// it, within TimeoutMs in all. Throws a <see cref="PrivateAddressError"/> for an address off
+    /// Fetches an https URL on the public internet, following up to Redirects redirects that stay on
+    /// it, within TimeoutMs in all. Only a GET follows redirects; anything else comes back with the
+    /// redirect as it is. Throws a <see cref="PrivateAddressError"/> for an address off
     /// it, and a <see cref="FetchException"/> with TimedOut when time runs out. A redirect past the
     /// last one comes back as it is. MaxBytes and Truncate go to the fetcher, for a capped read.
     /// </summary>
@@ -266,7 +278,10 @@ public static class Safefetch
     {
         ArgumentNullException.ThrowIfNull(init);
         ArgumentNullException.ThrowIfNull(fetcher);
-        var lookup = init.Lookup ?? LookupAsync;
+        var lookup = init.Lookup ?? fetcher.LookupAsync;
+        string method = init.Method.ToUpperInvariant();
+        // Only a GET follows redirects; anything else comes back with the redirect as it is.
+        int redirects = method == "GET" ? init.Redirects : 0;
         var clock = Stopwatch.StartNew();
         var url = new Url(target);
         for (int hop = 0; ; hop++)
@@ -312,7 +327,9 @@ public static class Safefetch
             }
             var options = new FetchInit
             {
+                Method = method,
                 Headers = new Headers(init.Headers),
+                Body = init.Body,
                 Redirect = "manual",
                 TimeoutMs = (int)left,
                 MaxBytes = init.MaxBytes,
@@ -334,13 +351,62 @@ public static class Safefetch
                 throw;
             }
             string? location = answer.Headers.Get("location");
-            if (answer.Status < 300 || answer.Status >= 400 || string.IsNullOrEmpty(location) || hop >= init.Redirects)
+            if (answer.Status < 300 || answer.Status >= 400 || string.IsNullOrEmpty(location) || hop >= redirects)
             {
                 return answer;
             }
             url = new Url(location, url.Href);
         }
     }
+
+    /// <summary>
+    /// Whether an address can be another Runlight install's: https, or, with
+    /// <paramref name="local"/>, an install on this machine, which only code can allow.
+    /// </summary>
+    /// <param name="url">The address.</param>
+    /// <param name="local">Whether an install may be at http://localhost or http://127.0.0.1.</param>
+    public static bool InstallAddress(string url, bool local) =>
+        HttpsAddress().IsMatch(url ?? "") || (local && LocalInstall().IsMatch(url ?? ""));
+
+    /// <summary>
+    /// Fetches from another Runlight install, which someone signed in named: a public address as
+    /// <see cref="PublicFetchAsync"/> fetches it, with no redirect followed, so a token sent there
+    /// goes nowhere else. With <paramref name="local"/>, an install on this machine is fetched as it
+    /// is, still without following a redirect.
+    /// </summary>
+    /// <param name="target">The address.</param>
+    /// <param name="init">As <see cref="PublicFetchAsync"/> takes it; its Redirects are set to none.</param>
+    /// <param name="local">Whether an install may be at http://localhost or http://127.0.0.1.</param>
+    /// <param name="fetcher">What sends the request.</param>
+    /// <param name="cancellationToken">Stops the request.</param>
+    /// <exception cref="PrivateAddressError">For an address off the public internet.</exception>
+    public static Task<Response> InstallFetchAsync(string target, PublicFetchInit init, bool local, IFetcher fetcher, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(init);
+        ArgumentNullException.ThrowIfNull(fetcher);
+        if (local && LocalInstall().IsMatch(target))
+        {
+            return fetcher.FetchAsync(target, new FetchInit
+            {
+                Method = init.Method.ToUpperInvariant(),
+                Headers = new Headers(init.Headers),
+                Body = init.Body,
+                Redirect = "manual",
+                TimeoutMs = init.TimeoutMs,
+                MaxBytes = init.MaxBytes,
+            }, cancellationToken);
+        }
+        init.Redirects = 0;
+        return PublicFetchAsync(target, init, fetcher, cancellationToken);
+    }
+
+    /// <summary>An install on this machine: http://localhost or http://127.0.0.1, with any port.</summary>
+    [GeneratedRegex("^http://(localhost|127\\.0\\.0\\.1)(:[0-9]+)?(/|\\z)", RegexOptions.CultureInvariant)]
+    private static partial Regex LocalInstall();
+
+    [GeneratedRegex("^https://[^/]+", RegexOptions.CultureInvariant)]
+    private static partial Regex HttpsAddress();
 
     private static FetchException TimedOut() => new("The operation was aborted due to timeout", true);
 }

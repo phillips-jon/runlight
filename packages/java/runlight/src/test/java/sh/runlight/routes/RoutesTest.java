@@ -673,6 +673,29 @@ class RoutesTest {
   }
 
   @Test
+  void anObserveKeyIsCheckedBeforeTheBodyIsRead() {
+    Runlight rl =
+        Make.runlight(new Runlight.Options().sites(List.of(Make.site("blog", "blog.example.com"))));
+    Routes routes = rl.routes(new Routes.Options().token("secret").observeKey("agents"));
+    rl.init();
+    rl.store.setSetting("observe-key:blog", "rlo_blog");
+    java.util.function.Function<String, Response> garbled =
+        key ->
+            routes.handle(
+                req(
+                    "/runlight/api/observe",
+                    "POST",
+                    Map.of("authorization", "Bearer " + key, "content-type", "application/json"),
+                    "{not json"));
+    rl.store.setSetting("observe-key:gone", "rlo_gone");
+    assertEquals(401, garbled.apply("wrong").status(), "a wrong key hears nothing about the body");
+    assertEquals(401, garbled.apply("rlo_wrong").status());
+    assertEquals(401, garbled.apply("rlo_gone").status(), "a key for a site no longer here");
+    assertEquals(400, garbled.apply("agents").status());
+    assertEquals(400, garbled.apply("rlo_blog").status());
+  }
+
+  @Test
   void aGoneShareLinkSaysSoInTheVisitorsLanguageAndAReadTokensWriteIsRefusedWithACode() {
     Runlight rl =
         Make.runlight(new Runlight.Options().sites(List.of(Make.site("blog", "blog.example.com"))));

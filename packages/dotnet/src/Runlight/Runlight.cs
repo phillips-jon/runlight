@@ -122,6 +122,7 @@ public sealed partial class Runlight
         LinkPath = "/" + EdgeSlashes().Replace(options.LinkPath ?? "/go", "");
         _mailInCode = options.Mail;
         Secret = options.Secret ?? Env.Get("RUNLIGHT_SECRET") ?? Env.Get("RUNLIGHT_TOKEN");
+        LocalInstalls = options.LocalInstalls;
     }
 
     public SqlStore Store { get; }
@@ -140,6 +141,9 @@ public sealed partial class Runlight
 
     /// <summary>Every outgoing request goes through it.</summary>
     public IFetcher Fetcher { get; }
+
+    /// <summary>Whether a connected install may be on this machine, at http://localhost or http://127.0.0.1.</summary>
+    public bool LocalInstalls { get; }
 
     /// <summary>
     /// Where the routes serve the dashboard and API, which a link domain leaves alone, without repeats.
@@ -583,12 +587,12 @@ public sealed partial class Runlight
         var info = new JsObject { ["lastSeen"] = cached?.Get("lastSeen"), ["retentionMonths"] = Undefined.Value, ["connection"] = "unreachable" };
         try
         {
-            var answer = await Fetcher.FetchAsync(remote.Str("url") + "/api/sites", new FetchInit
+            var answer = await Safefetch.InstallFetchAsync(remote.Str("url") + "/api/sites", new PublicFetchInit
             {
                 Headers = new Headers { ["authorization"] = "Bearer " + remote.Str("token") },
                 TimeoutMs = 8000,
                 MaxBytes = RemoteMaxBytes,
-            }, cancellationToken).ConfigureAwait(false);
+            }, LocalInstalls, Fetcher, cancellationToken).ConfigureAwait(false);
             if (answer.Status is 401 or 403)
             {
                 info["connection"] = "refused";
@@ -653,12 +657,12 @@ public sealed partial class Runlight
     {
         try
         {
-            await Fetcher.FetchAsync(remote.Str("url") + "/api/token", new FetchInit
+            await Safefetch.InstallFetchAsync(remote.Str("url") + "/api/token", new PublicFetchInit
             {
                 Method = "DELETE",
                 Headers = new Headers { ["authorization"] = "Bearer " + remote.Str("token") },
                 TimeoutMs = 5_000,
-            }, cancellationToken).ConfigureAwait(false);
+            }, LocalInstalls, Fetcher, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception error) when (error is not OperationCanceledException)
         {
@@ -672,7 +676,7 @@ public sealed partial class Runlight
     private async Task<JsObject> AddRemoteSiteAsync(JsObject input, CancellationToken cancellationToken)
     {
         string url = TrailingSlashes().Replace(Js.Trim(Js.String(Given(input, "url") ?? "")), "");
-        if (!InstallAddress().IsMatch(url))
+        if (!Safefetch.InstallAddress(url, LocalInstalls))
         {
             throw new SettingsError("Enter the install's address, like https://example.com/runlight", "connect_url");
         }
@@ -684,12 +688,12 @@ public sealed partial class Runlight
         Response answer;
         try
         {
-            answer = await Fetcher.FetchAsync(url + "/api/sites", new FetchInit
+            answer = await Safefetch.InstallFetchAsync(url + "/api/sites", new PublicFetchInit
             {
                 Headers = new Headers { ["authorization"] = "Bearer " + token },
                 TimeoutMs = 10_000,
                 MaxBytes = RemoteMaxBytes,
-            }, cancellationToken).ConfigureAwait(false);
+            }, LocalInstalls, Fetcher, cancellationToken).ConfigureAwait(false);
         }
         catch (BodyTooLongException)
         {
@@ -715,12 +719,12 @@ public sealed partial class Runlight
         string tokenSite = "";
         try
         {
-            var about = await Fetcher.FetchAsync(url + "/api/token", new FetchInit
+            var about = await Safefetch.InstallFetchAsync(url + "/api/token", new PublicFetchInit
             {
                 Headers = new Headers { ["authorization"] = "Bearer " + token },
                 TimeoutMs = 10_000,
                 MaxBytes = RemoteMaxBytes,
-            }, cancellationToken).ConfigureAwait(false);
+            }, LocalInstalls, Fetcher, cancellationToken).ConfigureAwait(false);
             var info = about.Ok ? await JsonOrNullAsync(about, cancellationToken).ConfigureAwait(false) as JsObject : null;
             if (info != null && info.Get("scope") is "manage")
             {
@@ -1952,9 +1956,6 @@ public sealed partial class Runlight
 
     [GeneratedRegex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}\\z", RegexOptions.CultureInvariant)]
     private static partial Regex Domain();
-
-    [GeneratedRegex("^https://[^/]+|^http://(localhost|127\\.0\\.0\\.1)(:[0-9]+)?(/|\\z)", RegexOptions.CultureInvariant)]
-    private static partial Regex InstallAddress();
 
     [GeneratedRegex("[^a-zA-Z0-9._-]", RegexOptions.CultureInvariant)]
     private static partial Regex NotIdChar();

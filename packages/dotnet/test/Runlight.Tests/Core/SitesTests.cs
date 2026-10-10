@@ -209,7 +209,7 @@ public sealed class SitesTests : CoreTestCase
             }
             return Response.JsonOf(new JsObject { ["scope"] = scope, ["site"] = "default" });
         });
-        var hub = new Runlight(new RunlightOptions { Store = await Databases.FreshAsync("sqlite"), ManagedSites = true, Secret = Key, Fetcher = fetcher });
+        var hub = new Runlight(new RunlightOptions { Store = await Databases.FreshAsync("sqlite"), ManagedSites = true, Secret = Key, Fetcher = fetcher, LocalInstalls = true });
         string first = (await hub.AddSiteAsync(new JsObject { ["remote"] = new JsObject { ["url"] = "http://127.0.0.1:4100/runlight", ["token"] = "rl_read" } })).Str("id")!;
         Assert.Equal("read", hub.Remote(first)!.Str("scope"));
         scope = "manage";
@@ -239,6 +239,28 @@ public sealed class SitesTests : CoreTestCase
         answer = Response.JsonOf(new JsObject { ["sites"] = L() });
         e = await Refused(() => hub.AddSiteAsync(Remote("https://example.com", "x")), "connect_not_runlight");
         Assert.Equal("{\"url\":\"https://example.com\"}", J(e.Params));
+    }
+
+    [Fact]
+    public async Task An_install_on_a_private_address_is_never_asked_and_a_redirect_is_not_followed()
+    {
+        var fetcher = new FakeFetcher((_, _) => Response.Redirect("http://169.254.169.254/latest/meta-data", 302));
+        var hub = new Runlight(new RunlightOptions { Store = await Databases.FreshAsync("sqlite"), ManagedSites = true, Fetcher = fetcher });
+        JsObject Remote(string url) => new() { ["remote"] = new JsObject { ["url"] = url, ["token"] = "x" } };
+        await Refused(() => hub.AddSiteAsync(Remote("https://127.0.0.1")), "unreachable");
+        await Refused(() => hub.AddSiteAsync(Remote("https://[::ffff:10.0.0.1]")), "unreachable");
+        fetcher.Dns = _ => ["192.168.1.10"];
+        await Refused(() => hub.AddSiteAsync(Remote("https://hub.internal")), "unreachable");
+        Assert.Empty(fetcher.Requests); // nothing was sent
+        fetcher.Dns = _ => ["93.184.215.14"];
+        await Refused(() => hub.AddSiteAsync(Remote("https://hub.example")), "connect_not_runlight");
+        Assert.Equal(["https://hub.example/api/sites"], fetcher.Requests.Select(r => r.Url)); // the redirect stopped
+        // An install on this machine, for trying things out, only when code allows it.
+        await Refused(() => hub.AddSiteAsync(Remote("http://127.0.0.1:4100")), "connect_url");
+        var local = new Runlight(new RunlightOptions { Store = await Databases.FreshAsync("sqlite"), ManagedSites = true, Fetcher = fetcher, LocalInstalls = true });
+        await Refused(() => local.AddSiteAsync(Remote("http://127.0.0.1:4100")), "connect_not_runlight");
+        Assert.Equal("http://127.0.0.1:4100/api/sites", fetcher.Requests[1].Url);
+        await Refused(() => local.AddSiteAsync(Remote("http://10.0.0.1")), "connect_url");
     }
 
     [Fact]

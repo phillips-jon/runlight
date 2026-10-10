@@ -104,6 +104,20 @@ public sealed class VisitsImportTests : CoreTestCase
         return (pageviews, events, visits, steps);
     }
 
+    [Fact]
+    public async Task An_umami_on_a_private_address_is_never_asked()
+    {
+        var router = Umami([]);
+        router.Dns = _ => ["127.0.0.1"];
+        var e = await Assert.ThrowsAsync<ImportError>(() => Visits.UmamiWebsitesAsync(Credentials(), router));
+        Assert.Equal("unreachable", e.Code);
+        var literal = new JsObject { ["url"] = "https://10.1.2.3", ["apiKey"] = "key" };
+        Assert.Equal("unreachable", (await Assert.ThrowsAsync<ImportError>(() => Visits.UmamiWebsitesAsync(literal, router))).Code);
+        var plain = new JsObject { ["url"] = "http://umami.example.com", ["apiKey"] = "key" };
+        Assert.Equal("import_umami_address", (await Assert.ThrowsAsync<ImportError>(() => Visits.UmamiWebsitesAsync(plain, router))).Code);
+        Assert.Empty(router.Requests); // nothing was sent
+    }
+
     [Theory]
     [MemberData(nameof(Databases.KindData), MemberType = typeof(Databases))]
     public async Task Umami_visit_history_pageviews_and_events_become_visits_with_sources_places_and_devices(string kind)

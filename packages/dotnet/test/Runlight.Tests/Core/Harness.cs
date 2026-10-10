@@ -158,6 +158,11 @@ public sealed class Harness
 /// </summary>
 public sealed class Router(params (string Pattern, Func<Url, FetchInit, object?> Answer)[] routes) : IFetcher
 {
+    /// <summary>Stands in for DNS: every name is a public address unless a test says otherwise.</summary>
+    public Func<string, IReadOnlyList<string>> Dns { get; set; } = _ => ["93.184.215.14"];
+
+    public Task<IReadOnlyList<string>> LookupAsync(string name) => Task.FromResult(Dns(name));
+
     /// <summary>"METHOD host/path" of each request.</summary>
     public List<string> Calls { get; } = [];
 

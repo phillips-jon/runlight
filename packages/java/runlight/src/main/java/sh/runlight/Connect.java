@@ -7,8 +7,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.function.LongSupplier;
 import java.util.regex.Pattern;
+import sh.runlight.http.BodyTooLong;
 import sh.runlight.http.FetchError;
-import sh.runlight.http.FetchInit;
 import sh.runlight.http.Fetcher;
 import sh.runlight.http.Response;
 import sh.runlight.http.SearchParams;
@@ -32,18 +32,28 @@ public final class Connect {
 
   private static final long PENDING_MS = 15 * 60_000L;
 
-  private static final Pattern INSTALL =
-      Pattern.compile("^https://[^/]+|^http://(localhost|127\\.0\\.0\\.1)(:\\d+)?(/|\\z)");
+  /** The most an install's answer while connecting may weigh; a real one is under a kilobyte. */
+  private static final long MAX_BYTES = 64 * 1024;
+
   private static final Pattern STATE = Pattern.compile("^[a-f0-9]{32}\\z");
 
   /** The install's address as its dashboard is, without a trailing slash. */
   public static String installUrl(Object value) {
+    return installUrl(value, false);
+  }
+
+  /**
+   * The install's address as its dashboard is, without a trailing slash.
+   *
+   * @param local whether an install may be at http://localhost or http://127.0.0.1
+   */
+  public static String installUrl(Object value, boolean local) {
     String url =
         Js.trim(Js.string(value == null || value == Json.UNDEFINED ? "" : value))
             .replaceFirst("/+\\z", "");
     // The pattern says which addresses are allowed; the parser, that it is an address at all
     // ("https://[" is not).
-    if (!INSTALL.matcher(url).find() || !Url.canParse(url)) {
+    if (!Safefetch.installAddress(url, local) || !Url.canParse(url)) {
       throw new ConnectError(
           "Enter the install's address, like https://example.com/runlight", "url");
     }
@@ -89,24 +99,49 @@ public final class Connect {
   /** Starts connecting: returns the address of the install's consent page. */
   public static String startConnect(
       SqlStore store, Fetcher fetcher, LongSupplier now, Object input, String back) {
-    return startConnect(store, fetcher, now, input, back, "");
+    return startConnect(store, fetcher, now, input, back, "", false);
+  }
+
+  /**
+   * Starts connecting: returns the address of the install's consent page, for an install at a
+   * public https address.
+   *
+   * @param site which of its sites to offer first, or ""
+   */
+  public static String startConnect(
+      SqlStore store, Fetcher fetcher, LongSupplier now, Object input, String back, String site) {
+    return startConnect(store, fetcher, now, input, back, site, false);
   }
 
   /**
    * Starts connecting: returns the address of the install's consent page.
    *
    * @param site which of its sites to offer first, or ""
+   * @param local the Runlight's localInstalls: whether an install may be at http://localhost or
+   *     http://127.0.0.1
    */
   public static String startConnect(
-      SqlStore store, Fetcher fetcher, LongSupplier now, Object input, String back, String site) {
-    String url = installUrl(input);
+      SqlStore store,
+      Fetcher fetcher,
+      LongSupplier now,
+      Object input,
+      String back,
+      String site,
+      boolean local) {
+    String url = installUrl(input, local);
     String host = new Url(url).host();
     Response answer;
     try {
       answer =
-          fetcher.fetch(
-              url + "/.well-known/oauth-authorization-server", new FetchInit().timeoutMs(10_000));
-    } catch (FetchError e) {
+          Safefetch.installFetch(
+              url + "/.well-known/oauth-authorization-server",
+              Json.object("timeoutMs", 10_000L, "maxBytes", MAX_BYTES),
+              local,
+              fetcher);
+    } catch (BodyTooLong e) {
+      throw new ConnectError(
+          url + " did not answer like a Runlight install", "not_runlight", Json.object("url", url));
+    } catch (FetchError | PrivateAddressError e) {
       throw new ConnectError("Could not reach " + url, "unreachable", Json.object("host", host));
     }
     Object meta = answer.ok() ? json(answer) : null;
@@ -139,20 +174,27 @@ public final class Connect {
     Response registered;
     try {
       registered =
-          fetcher.fetch(
+          Safefetch.installFetch(
               Js.string(registration),
-              new FetchInit()
-                  .method("POST")
-                  .header("content-type", "application/json")
-                  .body(
-                      Json.stringify(
-                          Json.object(
-                              "client_name",
-                              "Runlight at " + new Url(back).host(),
-                              "redirect_uris",
-                              Json.array(back))))
-                  .timeoutMs(10_000));
-    } catch (FetchError e) {
+              Json.object(
+                  "method",
+                  "POST",
+                  "headers",
+                  Map.of("content-type", "application/json"),
+                  "body",
+                  Json.stringify(
+                      Json.object(
+                          "client_name",
+                          "Runlight at " + new Url(back).host(),
+                          "redirect_uris",
+                          Json.array(back))),
+                  "timeoutMs",
+                  10_000L,
+                  "maxBytes",
+                  MAX_BYTES),
+              local,
+              fetcher);
+    } catch (FetchError | PrivateAddressError | BodyTooLong e) {
       throw new ConnectError("Could not reach " + url, "unreachable", Json.object("host", host));
     }
     Object client = json(registered);
@@ -202,11 +244,9 @@ public final class Connect {
   }
 
   /**
-   * Finishes connecting when the owner comes back from the consent page. Returns the site's id
-   * here.
+   * Finishes connecting, for an install at a public https address.
    *
-   * @param addSite the Runlight's addSite: takes {@code {remote: {url, token, site?}}} and returns
-   *     the site's row
+   * @param addSite the Runlight's addSite
    */
   public static String finishConnect(
       SqlStore store,
@@ -214,6 +254,24 @@ public final class Connect {
       LongSupplier now,
       Function<Map<String, Object>, Map<String, Object>> addSite,
       SearchParams params) {
+    return finishConnect(store, fetcher, now, addSite, params, false);
+  }
+
+  /**
+   * Finishes connecting when the owner comes back from the consent page. Returns the site's id
+   * here.
+   *
+   * @param addSite the Runlight's addSite: takes {@code {remote: {url, token, site?}}} and returns
+   *     the site's row
+   * @param local the Runlight's localInstalls
+   */
+  public static String finishConnect(
+      SqlStore store,
+      Fetcher fetcher,
+      LongSupplier now,
+      Function<Map<String, Object>, Map<String, Object>> addSite,
+      SearchParams params,
+      boolean local) {
     String state = params.get("state") == null ? "" : params.get("state");
     String key = "connect:" + state;
     String stored = STATE.matcher(state).find() ? store.setting(key) : null;
@@ -245,14 +303,22 @@ public final class Connect {
       form.put("redirect_uri", Js.string(Js.get(pending, "redirect")));
       form.put("code_verifier", Js.string(Js.get(pending, "verifier")));
       answer =
-          fetcher.fetch(
+          Safefetch.installFetch(
               Js.string(Js.get(pending, "token")),
-              new FetchInit()
-                  .method("POST")
-                  .header("content-type", "application/x-www-form-urlencoded")
-                  .body(new SearchParams(form).toString())
-                  .timeoutMs(10_000));
-    } catch (FetchError e) {
+              Json.object(
+                  "method",
+                  "POST",
+                  "headers",
+                  Map.of("content-type", "application/x-www-form-urlencoded"),
+                  "body",
+                  new SearchParams(form).toString(),
+                  "timeoutMs",
+                  10_000L,
+                  "maxBytes",
+                  MAX_BYTES),
+              local,
+              fetcher);
+    } catch (FetchError | PrivateAddressError | BodyTooLong e) {
       // As fetch().catch(() => null): no answer.
     }
     Object granted = answer != null && answer.ok() ? json(answer) : null;

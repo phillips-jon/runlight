@@ -27,21 +27,22 @@ public static class Connect
 {
     private const long PendingMs = 15 * 60_000;
 
-    private static readonly Regex Install = new(
-        "^https://[^/]+|^http://(localhost|127\\.0\\.0\\.1)(:[0-9]+)?(/|\\z)",
-        RegexOptions.CultureInvariant);
+    /// <summary>The most an install's answer while connecting may weigh; a real one is under a kilobyte.</summary>
+    private const long MaxBytes = 64 * 1024;
 
     private static readonly Regex State = new("^[a-f0-9]{32}\\z", RegexOptions.CultureInvariant);
 
     private static readonly Regex TrailingSlashes = new("/+\\z", RegexOptions.CultureInvariant);
 
     /// <summary>The install's address as its dashboard is, without a trailing slash.</summary>
+    /// <param name="value">The address as the owner typed it.</param>
+    /// <param name="local">Whether an install may be at http://localhost or http://127.0.0.1.</param>
     /// <exception cref="ConnectError">With code "url" when it is not one.</exception>
-    public static string InstallUrl(object? value)
+    public static string InstallUrl(object? value, bool local = false)
     {
         string url = TrailingSlashes.Replace(Js.Trim(Js.String(value is null or Undefined ? "" : value)), "");
         // The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
-        if (!Install.IsMatch(url) || !Url.CanParse(url))
+        if (!Safefetch.InstallAddress(url, local) || !Url.CanParse(url))
         {
             throw new ConnectError("Enter the install's address, like https://example.com/runlight", "url");
         }
@@ -69,12 +70,17 @@ public static class Connect
     /// <summary>The PKCE challenge for a verifier: SHA-256, base64url without padding (oauth.ts's s256).</summary>
     private static string S256(string verifier) => Base64Url.EncodeToString(SHA256.HashData(Js.Utf8(verifier)));
 
-    /// <summary>The fetch, or null when no answer came back, as <c>fetch(...).catch(() =&gt; null)</c>.</summary>
-    private static async Task<(Response Answer, byte[] Body)?> TryFetchAsync(IFetcher fetcher, string url, FetchInit init, CancellationToken cancellationToken)
+    /// <summary>
+    /// The fetch, or null when no answer came back, as <c>fetch(...).catch(() =&gt; null)</c>. Only the
+    /// public internet is asked, or an install on this machine when allowed (<see cref="Safefetch.InstallFetchAsync"/>),
+    /// and a long answer counts as none.
+    /// </summary>
+    private static async Task<(Response Answer, byte[] Body)?> TryFetchAsync(IFetcher fetcher, string url, PublicFetchInit init, bool local, CancellationToken cancellationToken)
     {
         try
         {
-            var answer = await fetcher.FetchAsync(url, init, cancellationToken).ConfigureAwait(false);
+            init.MaxBytes = MaxBytes;
+            var answer = await Safefetch.InstallFetchAsync(url, init, local, fetcher, cancellationToken).ConfigureAwait(false);
             return (answer, await answer.BytesAsync(cancellationToken).ConfigureAwait(false));
         }
         catch (Exception)
@@ -96,13 +102,14 @@ public static class Connect
     /// <param name="input">The install's address as the owner typed it.</param>
     /// <param name="back">Where the consent page sends the owner back to.</param>
     /// <param name="site">Which of its sites to offer first, or "".</param>
+    /// <param name="local">The Runlight's LocalInstalls: whether an install may be at http://localhost or http://127.0.0.1.</param>
     /// <param name="cancellationToken">Stops the requests.</param>
     /// <exception cref="ConnectError">With a code saying what went wrong.</exception>
-    public static async Task<string> StartConnectAsync(SqlStore store, IFetcher fetcher, Func<long> now, object? input, string back, string site = "", CancellationToken cancellationToken = default)
+    public static async Task<string> StartConnectAsync(SqlStore store, IFetcher fetcher, Func<long> now, object? input, string back, string site = "", bool local = false, CancellationToken cancellationToken = default)
     {
-        string url = InstallUrl(input);
+        string url = InstallUrl(input, local);
         string host = new Url(url).Host;
-        var answer = await TryFetchAsync(fetcher, url + "/.well-known/oauth-authorization-server", new FetchInit { TimeoutMs = 10_000 }, cancellationToken).ConfigureAwait(false)
+        var answer = await TryFetchAsync(fetcher, url + "/.well-known/oauth-authorization-server", new PublicFetchInit { TimeoutMs = 10_000 }, local, cancellationToken).ConfigureAwait(false)
             ?? throw new ConnectError("Could not reach " + url, "unreachable", new JsObject { ["host"] = host });
         object? meta = answer.Answer.Ok ? JsonOf(answer.Body) : null;
         if (!Js.Truthy(Prop(meta, "authorization_endpoint")) || !Js.Truthy(Prop(meta, "token_endpoint")) || !Js.Truthy(Prop(meta, "registration_endpoint")))
@@ -124,13 +131,13 @@ public static class Connect
             throw new ConnectError(url + " runs an older Runlight. Update it, or connect it with an API token from its Settings.", "old", new JsObject { ["url"] = url });
         }
 
-        var registered = await TryFetchAsync(fetcher, Js.String(Js.Get(meta, "registration_endpoint")), new FetchInit
+        var registered = await TryFetchAsync(fetcher, Js.String(Js.Get(meta, "registration_endpoint")), new PublicFetchInit
         {
             Method = "POST",
             Headers = new Headers { ["content-type"] = "application/json" },
             BodyText = Json.Stringify(new JsObject { ["client_name"] = "Runlight at " + new Url(back).Host, ["redirect_uris"] = new List<object?> { back } }),
             TimeoutMs = 10_000,
-        }, cancellationToken).ConfigureAwait(false)
+        }, local, cancellationToken).ConfigureAwait(false)
             ?? throw new ConnectError("Could not reach " + url, "unreachable", new JsObject { ["host"] = host });
         object? client = JsonOf(registered.Body);
         object? clientId = Prop(client, "client_id");
@@ -183,9 +190,10 @@ public static class Connect
     /// <param name="now">The Runlight's clock, in milliseconds.</param>
     /// <param name="addSite">The Runlight's addSite: takes { remote: { url, token, site } } and answers the site added, with its id.</param>
     /// <param name="parameters">The query the consent page sent the owner back with.</param>
+    /// <param name="local">The Runlight's LocalInstalls.</param>
     /// <param name="cancellationToken">Stops the requests.</param>
     /// <exception cref="ConnectError">With a code saying what went wrong.</exception>
-    public static async Task<string> FinishConnectAsync(SqlStore store, IFetcher fetcher, Func<long> now, Func<JsObject, Task<JsObject>> addSite, SearchParams parameters, CancellationToken cancellationToken = default)
+    public static async Task<string> FinishConnectAsync(SqlStore store, IFetcher fetcher, Func<long> now, Func<JsObject, Task<JsObject>> addSite, SearchParams parameters, bool local = false, CancellationToken cancellationToken = default)
     {
         string state = parameters.Get("state") ?? "";
         string key = "connect:" + state;
@@ -209,7 +217,7 @@ public static class Connect
             throw new ConnectError(parameters.Get("error_description") ?? parameters.Get("error")!, "refused");
         }
 
-        var answer = await TryFetchAsync(fetcher, Js.String(pending.Prop("token")), new FetchInit
+        var answer = await TryFetchAsync(fetcher, Js.String(pending.Prop("token")), new PublicFetchInit
         {
             Method = "POST",
             Headers = new Headers { ["content-type"] = "application/x-www-form-urlencoded" },
@@ -222,7 +230,7 @@ public static class Connect
                 { "code_verifier", Js.String(pending.Prop("verifier")) },
             }.ToString(),
             TimeoutMs = 10_000,
-        }, cancellationToken).ConfigureAwait(false);
+        }, local, cancellationToken).ConfigureAwait(false);
         object? granted = answer is { Answer.Ok: true } ? JsonOf(answer.Value.Body) : null;
         object? token = Prop(granted, "access_token");
         if (!Js.Truthy(token))

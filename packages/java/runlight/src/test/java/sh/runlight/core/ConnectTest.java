@@ -81,10 +81,12 @@ class ConnectTest {
                 .managedSites(true)
                 .secret("k".repeat(32))
                 .fetcher(router)
+                .localInstalls(true)
                 .now(() -> now));
     hub.init();
     String back = "http://localhost:4900/runlight/api/sites/connect/done";
-    Url consent = new Url(Connect.startConnect(hub.store, hub.fetcher, hub::now, APP + "/", back));
+    Url consent =
+        new Url(Connect.startConnect(hub.store, hub.fetcher, hub::now, APP + "/", back, "", true));
     assertEquals(
         "http://127.0.0.1:4100/runlight/oauth/authorize", consent.origin() + consent.pathname);
     SearchParams q = consent.searchParams();
@@ -120,7 +122,8 @@ class ConnectTest {
             hub.fetcher,
             hub::now,
             hub::addSite,
-            new SearchParams(Map.of("state", q.get("state"), "code", "the-code")));
+            new SearchParams(Map.of("state", q.get("state"), "code", "the-code")),
+            true);
     assertEquals("blog.example.com", id);
     Fixtures.assertJson(
         Json.object(
@@ -173,7 +176,8 @@ class ConnectTest {
                     hub.fetcher,
                     hub::now,
                     hub::addSite,
-                    new SearchParams(Map.of("state", q.get("state"), "code", "the-code"))));
+                    new SearchParams(Map.of("state", q.get("state"), "code", "the-code")),
+                    true));
     assertEquals("expired", e.code());
   }
 }

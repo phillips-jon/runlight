@@ -33,6 +33,12 @@ public final class UpstreamFetcher implements Fetcher {
     this.upstream = upstream instanceof List<?> list ? (List<Map<String, Object>>) list : List.of();
   }
 
+  /** The servers stood in for are on the public internet, wherever their names point. */
+  @Override
+  public List<String> lookup(String name) {
+    return List.of("93.184.215.14");
+  }
+
   @Override
   public synchronized Response fetch(String url, FetchInit init) {
     String method = Js.upper(init.method);

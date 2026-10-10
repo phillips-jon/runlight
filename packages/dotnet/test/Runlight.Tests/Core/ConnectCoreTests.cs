@@ -38,13 +38,13 @@ public sealed class ConnectCoreTests : CoreTestCase
             }),
             R("/api/token$", () => new JsObject { ["scope"] = "manage", ["site"] = "blog" }));
         long now = 1_791_288_000_000;
-        var hub = new Runlight(new RunlightOptions { Store = await Databases.FreshAsync("sqlite"), ManagedSites = true, Secret = new string('k', 32), Fetcher = router, Now = () => now });
+        var hub = new Runlight(new RunlightOptions { Store = await Databases.FreshAsync("sqlite"), ManagedSites = true, Secret = new string('k', 32), Fetcher = router, Now = () => now, LocalInstalls = true });
         await hub.InitAsync();
         const string back = "http://localhost:4900/runlight/api/sites/connect/done";
-        var consent = new Url(await Connect.StartConnectAsync(hub.Store, hub.Fetcher, hub.Now, App + "/", back));
+        var consent = new Url(await Connect.StartConnectAsync(hub.Store, hub.Fetcher, hub.Now, App + "/", back, local: true));
         string state = consent.SearchParams.Get("state")!;
 
-        string id = await Connect.FinishConnectAsync(hub.Store, hub.Fetcher, hub.Now, input => hub.AddSiteAsync(input), new SearchParams { { "state", state }, { "code", "the-code" } });
+        string id = await Connect.FinishConnectAsync(hub.Store, hub.Fetcher, hub.Now, input => hub.AddSiteAsync(input), new SearchParams { { "state", state }, { "code", "the-code" } }, local: true);
         Assert.Equal("blog.example.com", id);
         Assert.Equal("{\"url\":\"" + App + "\",\"token\":\"rl_manage\",\"site\":\"blog\",\"hostnames\":[\"blog.example.com\"],\"scope\":\"manage\"}", J(hub.Remote(id)));
         Assert.Equal("{\"id\":\"blog.example.com\",\"name\":\"Blog\",\"hostnames\":[],\"timezone\":\"Asia/Tokyo\"}", J(hub.Site(id)));

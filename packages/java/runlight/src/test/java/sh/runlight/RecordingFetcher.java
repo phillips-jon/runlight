@@ -6,6 +6,7 @@ import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 import sh.runlight.http.FetchError;
 import sh.runlight.http.FetchInit;
 import sh.runlight.http.Fetcher;
@@ -74,6 +75,14 @@ public final class RecordingFetcher implements Fetcher {
       throw new FetchError("Could not connect");
     }
     return (Response) next;
+  }
+
+  /** Stands in for DNS: every name is a public address unless a test says otherwise. */
+  public Function<String, List<String>> dns = name -> List.of("93.184.215.14");
+
+  @Override
+  public List<String> lookup(String name) {
+    return dns.apply(name);
   }
 
   /** The URLs requested, in order. */

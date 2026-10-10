@@ -517,7 +517,11 @@ class ManageTest {
         };
     Runlight hub =
         Make.runlight(
-            new Runlight.Options().managedSites(true).secret("k".repeat(32)).fetcher(evil));
+            new Runlight.Options()
+                .managedSites(true)
+                .secret("k".repeat(32))
+                .localInstalls(true)
+                .fetcher(evil));
     Routes routes = hub.routes(new Routes.Options().token("owner"));
     java.util.function.BiFunction<String, String[], Response> call =
         (path, rest) ->

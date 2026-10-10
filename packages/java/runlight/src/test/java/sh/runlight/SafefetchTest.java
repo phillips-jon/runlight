@@ -177,6 +177,64 @@ class SafefetchTest {
                 "https://nowhere.example/", init("lookup", dns(Map.of())), fetcher));
   }
 
+  @Test
+  void anInstallIsFetchedOnlyOnThePublicInternetOrAsHttpOnThisMachineWhenAllowed() {
+    RecordingFetcher fetcher = new RecordingFetcher((url, init) -> new Response("ok", 200));
+    Map<String, Object> post =
+        init("method", "POST", "body", "{}", "headers", Map.of("content-type", "application/json"));
+    assertEquals(
+        "ok", Safefetch.installFetch("https://hub.example/x", post, false, fetcher).text());
+    assertEquals("POST", fetcher.inits.get(0).method);
+    assertEquals("{}", fetcher.inits.get(0).bodyText());
+    assertEquals(List.of("hub.example:443:93.184.215.14"), fetcher.inits.get(0).resolve);
+    // Trying things out on one machine: plain http to localhost and 127.0.0.1, only when allowed.
+    for (String local : List.of("http://localhost:4100/runlight", "http://127.0.0.1/api")) {
+      assertTrue(Safefetch.installAddress(local, true), local);
+      assertFalse(Safefetch.installAddress(local, false), local);
+      assertEquals("ok", Safefetch.installFetch(local, init(), true, fetcher).text(), local);
+      assertThrows(
+          PrivateAddressError.class,
+          () -> Safefetch.installFetch(local, init(), false, fetcher),
+          local);
+    }
+    assertEquals(List.of(), fetcher.inits.get(2).resolve, "a local address is not pinned");
+    for (String refused :
+        List.of(
+            "http://hub.example/",
+            "https://localhost/",
+            "https://127.0.0.1/",
+            "http://169.254.169.254/latest/meta-data",
+            "http://10.0.0.1/",
+            "http://localhost.evil.example/")) {
+      assertThrows(
+          PrivateAddressError.class,
+          () -> Safefetch.installFetch(refused, init(), true, fetcher),
+          refused);
+    }
+    fetcher.dns = name -> List.of("10.0.0.5");
+    assertThrows(
+        PrivateAddressError.class,
+        () -> Safefetch.installFetch("https://inside.example/", init(), false, fetcher),
+        "a name for a private address");
+    assertEquals(3, fetcher.requests.size(), "nothing refused was sent");
+
+    RecordingFetcher redirected =
+        hops(Response.redirect("http://169.254.169.254/latest/meta-data", 302));
+    assertEquals(
+        302,
+        Safefetch.installFetch("https://hub.example/", init("redirects", 5L), false, redirected)
+            .status(),
+        "a redirect comes back as it is, never followed");
+    assertEquals(1, redirected.requests.size());
+    RecordingFetcher posted = hops(Response.redirect("/elsewhere", 307));
+    assertEquals(
+        307,
+        Safefetch.publicFetch(
+                "https://hub.example/", init("method", "POST", "redirects", 3L), posted)
+            .status(),
+        "only a GET follows redirects");
+  }
+
   /** A fetcher answering with these, in turn, then "end". */
   private static RecordingFetcher hops(Response... answers) {
     java.util.Deque<Response> left = new java.util.ArrayDeque<>(List.of(answers));

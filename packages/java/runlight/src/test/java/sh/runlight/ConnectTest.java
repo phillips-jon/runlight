@@ -62,11 +62,11 @@ class ConnectTest {
     }
 
     String start(Object input, String back, String site) {
-      return Connect.startConnect(store, fetcher, () -> now, input, back, site);
+      return Connect.startConnect(store, fetcher, () -> now, input, back, site, true);
     }
 
     String start(Object input, String back) {
-      return Connect.startConnect(store, fetcher, () -> now, input, back);
+      return Connect.startConnect(store, fetcher, () -> now, input, back, "", true);
     }
 
     String finish(SearchParams params) {
@@ -75,7 +75,7 @@ class ConnectTest {
             added.add(options);
             return Json.object("id", "blog.example.com");
           };
-      return Connect.finishConnect(store, fetcher, () -> now, addSite, params);
+      return Connect.finishConnect(store, fetcher, () -> now, addSite, params, true);
     }
   }
 
@@ -268,12 +268,31 @@ class ConnectTest {
   }
 
   @Test
+  void anInstallOnAPrivateAddressIsNeverAsked() {
+    FakeService inside = install();
+    inside.dns = name -> List.of("10.0.0.5");
+    ConnectError e =
+        refused(
+            () -> new Hub(inside).start("https://hub.internal", "https://hub.example/done"),
+            "unreachable");
+    assertEquals(Map.of("host", "hub.internal"), e.params());
+    refused(
+        () -> new Hub(inside).start("https://169.254.169.254", "https://hub.example/done"),
+        "unreachable");
+    assertEquals(0, inside.requests.size(), "nothing was sent");
+  }
+
+  @Test
   void anAddressTheUrlParserRefusesIsTheAddressError() {
     for (String url : List.of("https://[", "https://[::1", "https://a b")) {
       refused(() -> Connect.installUrl(url), "url");
     }
     assertEquals(
         "https://example.com/runlight", Connect.installUrl("https://example.com/runlight/"));
+    // An install on this machine only when code allows it.
+    refused(() -> Connect.installUrl(APP), "url");
+    assertEquals(APP, Connect.installUrl(APP, true));
+    refused(() -> Connect.installUrl("http://10.0.0.1", true), "url");
   }
 
   @Test

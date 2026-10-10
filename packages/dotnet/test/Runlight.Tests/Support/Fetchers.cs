@@ -15,6 +15,11 @@ public sealed record SeenRequest(string Url, string Method, JsObject Headers, st
 /// </summary>
 public sealed class RecordingFetcher(params object[] queue) : IFetcher
 {
+    /// <summary>Stands in for DNS: every name is a public address unless a test says otherwise.</summary>
+    public Func<string, IReadOnlyList<string>> Dns { get; set; } = _ => ["93.184.215.14"];
+
+    public Task<IReadOnlyList<string>> LookupAsync(string name) => Task.FromResult(Dns(name));
+
     private readonly Queue<object> _queue = new(queue);
 
     public List<SeenRequest> Requests { get; } = [];
@@ -44,6 +49,11 @@ public sealed class RecordingFetcher(params object[] queue) : IFetcher
 /// </summary>
 public sealed class FakeFetcher(Func<string, FetchInit, Task<Response>> answer) : IFetcher
 {
+    /// <summary>Stands in for DNS: every name is a public address unless a test says otherwise.</summary>
+    public Func<string, IReadOnlyList<string>> Dns { get; set; } = _ => ["93.184.215.14"];
+
+    public Task<IReadOnlyList<string>> LookupAsync(string name) => Task.FromResult(Dns(name));
+
     public FakeFetcher(Func<string, FetchInit, Response> answer)
         : this((url, init) => Task.FromResult(answer(url, init)))
     {

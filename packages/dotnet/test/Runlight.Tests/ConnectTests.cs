@@ -29,6 +29,11 @@ public sealed class ConnectTests : IAsyncLifetime
     /// <summary>A fetcher that answers from a table of URL patterns, recording what was asked, as the TS tests' serve() does.</summary>
     private sealed class Router(params (string Pattern, Func<object?> Answer)[] routes) : IFetcher
     {
+        /// <summary>Stands in for DNS: every name is a public address unless a test says otherwise.</summary>
+        public Func<string, IReadOnlyList<string>> Dns { get; set; } = _ => ["93.184.215.14"];
+
+        public Task<IReadOnlyList<string>> LookupAsync(string name) => Task.FromResult(Dns(name));
+
         public List<(string Url, FetchInit Init)> Requests { get; } = [];
 
         public Task<Response> FetchAsync(string url, FetchInit? init = null, CancellationToken cancellationToken = default)
@@ -81,13 +86,13 @@ public sealed class ConnectTests : IAsyncLifetime
 
         public List<JsObject> Added { get; } = [];
 
-        public Task<string> StartAsync(object? input, string back, string site = "") => Connect.StartConnectAsync(Store, fetcher, now, input, back, site);
+        public Task<string> StartAsync(object? input, string back, string site = "") => Connect.StartConnectAsync(Store, fetcher, now, input, back, site, local: true);
 
         public Task<string> FinishAsync(SearchParams parameters) => Connect.FinishConnectAsync(Store, fetcher, now, input =>
         {
             Added.Add(input);
             return Task.FromResult(new JsObject { ["id"] = "blog.example.com" });
-        }, parameters);
+        }, parameters, local: true);
     }
 
     private async Task<Hub> HubAsync(string kind, IFetcher fetcher)
@@ -176,6 +181,17 @@ public sealed class ConnectTests : IAsyncLifetime
         Assert.Single(hostile.Requests);
     }
 
+    [Fact]
+    public async Task An_install_on_a_private_address_is_never_asked()
+    {
+        var inside = Install();
+        inside.Dns = _ => ["10.0.0.5"];
+        var e = await Refused(async () => await (await HubAsync("sqlite", inside)).StartAsync("https://hub.internal", "https://hub.example/done"), "unreachable");
+        Assert.Equal("{\"host\":\"hub.internal\"}", Json.Stringify(e.Params));
+        await Refused(async () => await (await HubAsync("sqlite", inside)).StartAsync("https://169.254.169.254", "https://hub.example/done"), "unreachable");
+        Assert.Empty(inside.Requests); // nothing was sent
+    }
+
     [Theory]
     [MemberData(nameof(Databases.KindData), MemberType = typeof(Databases))]
     public async Task An_install_that_cannot_connect_says_why(string kind)
@@ -217,15 +233,16 @@ public sealed class ConnectTests : IAsyncLifetime
     }
 
     [Fact]
-    public void The_install_address_is_https_or_this_machine()
+    public void The_install_address_is_https_or_this_machine_when_allowed()
     {
         Assert.Equal("https://example.com/runlight", Connect.InstallUrl("  https://example.com/runlight//  "));
-        Assert.Equal("http://localhost:4100", Connect.InstallUrl("http://localhost:4100/"));
-        Assert.Equal("http://127.0.0.1", Connect.InstallUrl("http://127.0.0.1"));
+        Assert.Equal("http://localhost:4100", Connect.InstallUrl("http://localhost:4100/", local: true));
+        Assert.Equal("http://127.0.0.1", Connect.InstallUrl("http://127.0.0.1", local: true));
+        Assert.Equal("url", Assert.Throws<ConnectError>(() => Connect.InstallUrl("http://127.0.0.1")).Code); // only when code allows it
         // The last three pass the pattern, but the URL parser refuses them.
         foreach (object? bad in new object?[] { null, "", "http://example.com", "http://localhost.example.com", "ftp://x", 5.0, "https://[", "https://[::1", "https://a b" })
         {
-            Assert.Equal("url", Assert.Throws<ConnectError>(() => Connect.InstallUrl(bad)).Code);
+            Assert.Equal("url", Assert.Throws<ConnectError>(() => Connect.InstallUrl(bad, local: true)).Code);
         }
     }
 

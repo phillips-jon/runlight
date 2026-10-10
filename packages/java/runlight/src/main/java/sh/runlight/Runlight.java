@@ -21,7 +21,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import sh.runlight.CodedError.SettingsError;
 import sh.runlight.http.BodyTooLong;
-import sh.runlight.http.FetchInit;
 import sh.runlight.http.Fetcher;
 import sh.runlight.http.Headers;
 import sh.runlight.http.JdkFetcher;
@@ -89,8 +88,6 @@ public final class Runlight
   private static final Pattern DOMAIN =
       Pattern.compile(
           "^(?=" + Js.DOT + "{1,253}\\z)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}\\z");
-  private static final Pattern INSTALL_URL =
-      Pattern.compile("^https://[^/]+|^http://(localhost|127\\.0\\.0\\.1)(:\\d+)?(/|\\z)");
   private static final Pattern PAGE_EXTENSION =
       Pattern.compile("\\.([a-z0-9]+)\\z", Pattern.CASE_INSENSITIVE);
   private static final Pattern BUSY =
@@ -124,6 +121,10 @@ public final class Runlight
    *       variable, then RUNLIGHT_TOKEN.
    *   <li>rateLimit: tracker requests allowed per visitor address per minute. Default 120; false or
    *       0 turns the limit off.
+   *   <li>localInstalls: lets a connected install be at http://localhost or http://127.0.0.1, for
+   *       trying a hub and an app on one machine. Default false: otherwise anyone who can add a
+   *       site could have this server ask services on its own machine, so other installs must be
+   *       public https addresses.
    *   <li>now: the clock in milliseconds. For tests.
    *   <li>fetcher: the Fetcher every outgoing request goes through. Default {@link JdkFetcher}.
    * </ul>
@@ -136,6 +137,7 @@ public final class Runlight
     public Geo.Lookup geo;
     public Object trustProxy = true;
     public Object rateLimit = 120L;
+    public boolean localInstalls;
     public String linkPath = "/go";
     public Map<String, Object> mail;
     public String secret;
@@ -176,6 +178,11 @@ public final class Runlight
     /** Requests per minute per address, or false for no limit. */
     public Options rateLimit(Object value) {
       rateLimit = value;
+      return this;
+    }
+
+    public Options localInstalls(boolean value) {
+      localInstalls = value;
       return this;
     }
 
@@ -220,6 +227,11 @@ public final class Runlight
    * Encrypts the keys kept in the database; null leaves them readable, and the dashboard says so.
    */
   public final String secret;
+
+  /**
+   * Whether a connected install may be on this machine, at http://localhost or http://127.0.0.1.
+   */
+  public final boolean localInstalls;
 
   /** Every outgoing request goes through it. */
   public final Fetcher fetcher;
@@ -320,6 +332,7 @@ public final class Runlight
         "/" + (options.linkPath == null ? "/go" : options.linkPath).replaceAll("^/+|/+\\z", "");
     this.mailInCode = options.mail;
     String secretFromEnv = Env.get("RUNLIGHT_SECRET");
+    this.localInstalls = options.localInstalls;
     this.secret =
         options.secret != null
             ? options.secret
@@ -775,12 +788,17 @@ public final class Runlight
             "unreachable");
     try {
       Response answer =
-          fetcher.fetch(
+          Safefetch.installFetch(
               remote.get("url") + "/api/sites",
-              new FetchInit()
-                  .header("authorization", "Bearer " + remote.get("token"))
-                  .timeoutMs(8000)
-                  .maxBytes(REMOTE_MAX_BYTES));
+              Json.object(
+                  "headers",
+                  Map.of("authorization", "Bearer " + remote.get("token")),
+                  "timeoutMs",
+                  8000L,
+                  "maxBytes",
+                  REMOTE_MAX_BYTES),
+              localInstalls,
+              fetcher);
       if (answer.status() == 401 || answer.status() == 403) {
         info.put("connection", "refused");
       }
@@ -842,12 +860,17 @@ public final class Runlight
    */
   private void revokeRemoteToken(Map<String, Object> remote) {
     try {
-      fetcher.fetch(
+      Safefetch.installFetch(
           remote.get("url") + "/api/token",
-          new FetchInit()
-              .method("DELETE")
-              .header("authorization", "Bearer " + remote.get("token"))
-              .timeoutMs(5_000));
+          Json.object(
+              "method",
+              "DELETE",
+              "headers",
+              Map.of("authorization", "Bearer " + remote.get("token")),
+              "timeoutMs",
+              5_000L),
+          localInstalls,
+          fetcher);
     } catch (RuntimeException e) {
       // Left listed there.
     }
@@ -860,7 +883,7 @@ public final class Runlight
    */
   private Map<String, Object> addRemoteSite(Map<String, Object> input) {
     String url = Js.trim(Js.string(orEmpty(input.get("url")))).replaceFirst("/+\\z", "");
-    if (!INSTALL_URL.matcher(url).find()) {
+    if (!Safefetch.installAddress(url, localInstalls)) {
       throw new SettingsError(
           "Enter the install's address, like https://example.com/runlight", "connect_url");
     }
@@ -871,12 +894,17 @@ public final class Runlight
     Response answer;
     try {
       answer =
-          fetcher.fetch(
+          Safefetch.installFetch(
               url + "/api/sites",
-              new FetchInit()
-                  .header("authorization", "Bearer " + token)
-                  .timeoutMs(10_000)
-                  .maxBytes(REMOTE_MAX_BYTES));
+              Json.object(
+                  "headers",
+                  Map.of("authorization", "Bearer " + token),
+                  "timeoutMs",
+                  10_000L,
+                  "maxBytes",
+                  REMOTE_MAX_BYTES),
+              localInstalls,
+              fetcher);
     } catch (BodyTooLong e) {
       // An answer too long to read is no Runlight's.
       throw new SettingsError(
@@ -905,12 +933,17 @@ public final class Runlight
     String tokenSite = "";
     try {
       Response about =
-          fetcher.fetch(
+          Safefetch.installFetch(
               url + "/api/token",
-              new FetchInit()
-                  .header("authorization", "Bearer " + token)
-                  .timeoutMs(10_000)
-                  .maxBytes(REMOTE_MAX_BYTES));
+              Json.object(
+                  "headers",
+                  Map.of("authorization", "Bearer " + token),
+                  "timeoutMs",
+                  10_000L,
+                  "maxBytes",
+                  REMOTE_MAX_BYTES),
+              localInstalls,
+              fetcher);
       Object info = about.ok() ? jsonOrNull(about) : null;
       if (info instanceof Map<?, ?> m && "manage".equals(m.get("scope"))) {
         scope = "manage";

@@ -375,12 +375,10 @@ public sealed class Routes
         Response answer;
         try
         {
-            var init = new FetchInit
+            var init = new PublicFetchInit
             {
                 Method = write ? request!.Method : "GET",
                 Headers = headers,
-                // An install that answers with a redirect gets no fetch of somewhere else on its behalf.
-                Redirect = "manual",
                 // A long report or an export is worked out in full before the install sends a byte, so reads get
                 // two minutes.
                 TimeoutMs = write ? 30_000 : 120_000,
@@ -389,7 +387,8 @@ public sealed class Routes
             {
                 init.Body = request!.Bytes();
             }
-            answer = await _rl.Fetcher.FetchAsync(target.Href, init, cancellationToken).ConfigureAwait(false);
+            // An install that answers with a redirect gets no fetch of somewhere else on its behalf.
+            answer = await Safefetch.InstallFetchAsync(target.Href, init, _rl.LocalInstalls, _rl.Fetcher, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception error) when (error is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
@@ -431,14 +430,15 @@ public sealed class Routes
             string text;
             try
             {
-                text = Body.Utf8(await answer.BytesAsync(cancellationToken).ConfigureAwait(false));
+                // No further than an error could need.
+                text = await Body.ReadTextCappedAsync(answer, 65_536, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception error) when (error is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
             {
                 text = "";
             }
             JsObject? body = null;
-            if (text.Length <= 65_536 && Js.ParseJson(text, out object? value) && value is JsObject parsed)
+            if (text.Length > 0 && Js.ParseJson(text, out object? value) && value is JsObject parsed)
             {
                 body = parsed;
             }
@@ -2004,7 +2004,7 @@ public sealed class Routes
             object? given = body.Prop("url");
             try
             {
-                string authorizeUrl = await Connect.StartConnectAsync(rl.Store, rl.Fetcher, rl.Now, given is Undefined ? null : given, url.Origin + _base + "/api/sites/connect/done", site as string ?? "", cancellationToken).ConfigureAwait(false);
+                string authorizeUrl = await Connect.StartConnectAsync(rl.Store, rl.Fetcher, rl.Now, given is Undefined ? null : given, url.Origin + _base + "/api/sites/connect/done", site as string ?? "", rl.LocalInstalls, cancellationToken).ConfigureAwait(false);
                 return JsonResponse(new JsObject { ["authorize"] = authorizeUrl });
             }
             catch (ConnectError error)
@@ -2028,7 +2028,7 @@ public sealed class Routes
             string to;
             try
             {
-                string id = await Connect.FinishConnectAsync(rl.Store, rl.Fetcher, rl.Now, input => rl.AddSiteAsync(input, cancellationToken), url.SearchParams, cancellationToken).ConfigureAwait(false);
+                string id = await Connect.FinishConnectAsync(rl.Store, rl.Fetcher, rl.Now, input => rl.AddSiteAsync(input, cancellationToken), url.SearchParams, rl.LocalInstalls, cancellationToken).ConfigureAwait(false);
                 // The site's settings open with a word that the connection worked, which a reconnection otherwise lacks.
                 to = home + "?site=" + Js.EncodeURIComponent(id) + "&settings=general&connected=1";
             }
@@ -2601,6 +2601,29 @@ public sealed class Routes
         {
             return Coded("Unauthorized", "unauthorized", 401);
         }
+        // A site's own key is found before the body is read, so a stranger costs one lookup at most.
+        string? keySite = null;
+        if (!anySite)
+        {
+            if (!given.StartsWith("rlo_", StringComparison.Ordinal))
+            {
+                return Coded("Unauthorized", "unauthorized", 401);
+            }
+            await rl.InitAsync(cancellationToken).ConfigureAwait(false);
+            foreach (var setting in await Store.SettingsStartingWithAsync("observe-key:", cancellationToken).ConfigureAwait(false))
+            {
+                string id = setting.Str("key")!["observe-key:".Length..];
+                string? key = setting.Str("value");
+                if (id.Length > 0 && key != null && ConstantTimeEqual(given, key) && rl.Site(id) != null)
+                {
+                    keySite = id;
+                }
+            }
+            if (keySite == null)
+            {
+                return Coded("Unauthorized", "unauthorized", 401);
+            }
+        }
         object parsedBody = ReadJson(request);
         if (parsedBody is not JsObject body)
         {
@@ -2630,23 +2653,10 @@ public sealed class Routes
         }
         await rl.InitAsync(cancellationToken).ConfigureAwait(false);
         var keep = pages;
-        if (!anySite)
+        if (keySite != null)
         {
             // A site's own key reports only pages on that site's domains. Pages elsewhere in a batch (another
             // host in the same log, say) are skipped, not a reason to refuse the rest.
-            string? keySite = null;
-            foreach (var site in Sites())
-            {
-                string? key = await Store.SettingAsync("observe-key:" + site.Str("id"), cancellationToken).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(key) && ConstantTimeEqual(given, key))
-                {
-                    keySite = site.Str("id");
-                }
-            }
-            if (keySite == null)
-            {
-                return Coded("Unauthorized", "unauthorized", 401);
-            }
             keep = [.. pages.Where(p => rl.SiteFor(p.Page.Hostname)?.Str("id") == keySite)];
             // A single report for another site's page is a misconfigured plugin, which should hear about it.
             if (!batch && keep.Count == 0)

@@ -191,7 +191,7 @@ public sealed class ManageTests : RoutesTestCase
     [Fact]
     public async Task The_hub_never_passes_on_an_installs_answer_as_a_page_nor_follows_its_redirects()
     {
-        var hub = await RunlightAsync(managedSites: true, secret: new string('k', 32), fetcher: new Evil());
+        var hub = await RunlightAsync(managedSites: true, secret: new string('k', 32), fetcher: new Evil(), localInstalls: true);
         var routes = hub.Routes(new RoutesOptions { Token = "owner" });
         Task<Response> Call(string path, string method = "GET", string? body = null) =>
             routes.HandleAsync(new Request("https://hub.example.com/runlight" + path, method, H(("authorization", "Bearer owner"), ("content-type", "application/json")), body ?? ""));

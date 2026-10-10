@@ -90,6 +90,13 @@ public sealed class RunlightOptions
     /// </summary>
     public double? RateLimit { get; init; } = 120;
 
+    /// <summary>
+    /// Lets a connected install be at http://localhost or http://127.0.0.1, for trying a hub and an app on
+    /// one machine. Default false: otherwise anyone who can add a site could have this server ask services
+    /// on its own machine, so other installs must be public https addresses.
+    /// </summary>
+    public bool LocalInstalls { get; init; }
+
     /// <summary>The clock, in epoch milliseconds. For tests.</summary>
     public Func<long>? Now { get; init; }
 

@@ -18,6 +18,9 @@ public sealed record Fetched(JsObject Seen, string Text);
 /// </summary>
 public sealed class UpstreamFetcher(IReadOnlyList<JsObject> upstream) : IFetcher
 {
+    /// <summary>The servers stood in for are on the public internet, wherever their names point.</summary>
+    public Task<IReadOnlyList<string>> LookupAsync(string name) => Task.FromResult<IReadOnlyList<string>>(["93.184.215.14"]);
+
     private readonly object _lock = new();
     private List<Fetched> _fetched = [];
 

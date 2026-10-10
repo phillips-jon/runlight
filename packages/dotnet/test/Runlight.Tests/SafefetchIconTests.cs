@@ -144,6 +144,39 @@ public sealed class SafefetchIconTests
     }
 
     [Fact]
+    public async Task An_install_is_fetched_only_on_the_public_internet_or_as_http_on_this_machine_when_allowed()
+    {
+        var fetcher = new FakeFetcher((_, _) => new Response("ok"));
+        var post = new PublicFetchInit { TimeoutMs = 2000, Method = "POST", BodyText = "{}", Headers = H("content-type", "application/json") };
+        Assert.Equal("ok", (await Safefetch.InstallFetchAsync("https://hub.example/x", post, false, fetcher)).Text());
+        Assert.Equal("POST", fetcher.Requests[0].Method);
+        Assert.Equal("{}", fetcher.Requests[0].Body);
+        Assert.Equal(["hub.example:443:93.184.215.14"], fetcher.Requests[0].Init.Resolve);
+        // Trying things out on one machine: plain http to localhost and 127.0.0.1, only when allowed.
+        foreach (string local in new[] { "http://localhost:4100/runlight", "http://127.0.0.1/api" })
+        {
+            Assert.True(Safefetch.InstallAddress(local, true));
+            Assert.False(Safefetch.InstallAddress(local, false));
+            Assert.Equal("ok", (await Safefetch.InstallFetchAsync(local, Init(), true, fetcher)).Text());
+            await Assert.ThrowsAsync<PrivateAddressError>(() => Safefetch.InstallFetchAsync(local, Init(), false, fetcher));
+        }
+        Assert.Empty(fetcher.Requests[2].Init.Resolve); // a local address is not pinned
+        foreach (string refused in new[] { "http://hub.example/", "https://localhost/", "https://127.0.0.1/", "http://169.254.169.254/latest/meta-data", "http://10.0.0.1/", "http://localhost.evil.example/" })
+        {
+            await Assert.ThrowsAsync<PrivateAddressError>(() => Safefetch.InstallFetchAsync(refused, Init(), true, fetcher));
+        }
+        fetcher.Dns = _ => ["10.0.0.5"];
+        await Assert.ThrowsAsync<PrivateAddressError>(() => Safefetch.InstallFetchAsync("https://inside.example/", Init(), false, fetcher)); // a name for a private address
+        Assert.Equal(3, fetcher.Requests.Count); // nothing refused was sent
+
+        var redirected = new FakeFetcher((_, _) => Response.Redirect("http://169.254.169.254/latest/meta-data", 302));
+        Assert.Equal(302, (await Safefetch.InstallFetchAsync("https://hub.example/", Init(redirects: 5), false, redirected)).Status); // a redirect comes back as it is, never followed
+        Assert.Single(redirected.Requests);
+        var posted = new FakeFetcher((_, _) => Response.Redirect("/elsewhere", 307));
+        Assert.Equal(307, (await Safefetch.PublicFetchAsync("https://hub.example/", new PublicFetchInit { TimeoutMs = 2000, Method = "POST", Redirects = 3 }, posted)).Status); // only a GET follows redirects
+    }
+
+    [Fact]
     public async Task Running_out_of_time_says_so()
     {
         var dns = Dns(new() { ["a.example"] = ["1.1.1.1"] });

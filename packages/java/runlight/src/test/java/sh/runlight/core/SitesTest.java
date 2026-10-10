@@ -417,6 +417,7 @@ class SitesTest {
                 .store(Stores.sqlite(":memory:"))
                 .managedSites(true)
                 .secret("k".repeat(32))
+                .localInstalls(true)
                 .fetcher(fetcher));
     String first =
         (String)
@@ -479,6 +480,39 @@ class SitesTest {
     answer.set(json(Json.object("sites", List.of())));
     e = refused(() -> hub.addSite(remote("https://example.com", "x")), "connect_not_runlight");
     Fixtures.assertJson(Json.object("url", "https://example.com"), e.params());
+  }
+
+  @Test
+  void anInstallOnAPrivateAddressIsNeverAskedAndARedirectIsNotFollowed() {
+    RecordingFetcher fetcher =
+        new RecordingFetcher(
+            (url, init) -> Response.redirect("http://169.254.169.254/latest/meta-data", 302));
+    Runlight hub =
+        new Runlight(
+            new Runlight.Options()
+                .store(Stores.sqlite(":memory:"))
+                .managedSites(true)
+                .fetcher(fetcher));
+    refused(() -> hub.addSite(remote("https://127.0.0.1", "x")), "unreachable");
+    refused(() -> hub.addSite(remote("https://[::ffff:10.0.0.1]", "x")), "unreachable");
+    fetcher.dns = name -> List.of("192.168.1.10");
+    refused(() -> hub.addSite(remote("https://hub.internal", "x")), "unreachable");
+    assertEquals(0, fetcher.requests.size(), "nothing was sent");
+    fetcher.dns = name -> List.of("93.184.215.14");
+    refused(() -> hub.addSite(remote("https://hub.example", "x")), "connect_not_runlight");
+    assertEquals(List.of("https://hub.example/api/sites"), fetcher.urls(), "the redirect stopped");
+    // An install on this machine, for trying things out, only when code allows it.
+    refused(() -> hub.addSite(remote("http://127.0.0.1:4100", "x")), "connect_url");
+    Runlight local =
+        new Runlight(
+            new Runlight.Options()
+                .store(Stores.sqlite(":memory:"))
+                .managedSites(true)
+                .localInstalls(true)
+                .fetcher(fetcher));
+    refused(() -> local.addSite(remote("http://127.0.0.1:4100", "x")), "connect_not_runlight");
+    assertEquals("http://127.0.0.1:4100/api/sites", fetcher.urls().get(1));
+    refused(() -> local.addSite(remote("http://10.0.0.1", "x")), "connect_url");
   }
 
   private static Map<String, Object> remote(String url, String token) {
