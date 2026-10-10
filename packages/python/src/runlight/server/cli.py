@@ -139,9 +139,12 @@ class Settings:
             raise ValueError("Set RUNLIGHT_URL to the dashboard's address only, such as https://stats.example.com")
         return url
 
-    def trust_proxy(self) -> bool | str:
-        """"false" with nothing in front, or the one header your proxy sets, such as cf-connecting-ip."""
+    def trust_proxy(self) -> bool | str | None:
+        """"false" with nothing in front, or the one header your proxy sets, such as cf-connecting-ip. Unset stays
+        None, so the library's default applies and it can warn when nothing sits in front."""
         value = (env_value("TRUST_PROXY") or "").lower()
+        if not value:
+            return None
         if value == "false":
             return False
         return value if value in ("x-forwarded-for", "x-real-ip", "cf-connecting-ip") else True

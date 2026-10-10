@@ -39,7 +39,8 @@ class RunlightServer:
         now = options.get("now") or (lambda: time.time_ns() // 1_000_000)
         self.setup_code: str = options.get("setupCode") or setup_code()
         self._token: str | None = options.get("token") or None
-        self._trust_proxy = options.get("trustProxy", True)
+        trust = options.get("trustProxy")
+        self._trust_proxy = True if trust is None else trust
         url = options.get("url")
         self._public_url = Url(url) if url else None
         self._public_host = host_name(self._public_url.host) if self._public_url else None
@@ -50,9 +51,11 @@ class RunlightServer:
             "store": self._store,
             "managedSites": True,
             "secret": options["secret"],
-            "trustProxy": self._trust_proxy,
             "now": now,
         }
+        # Left out when it was not given, so Runlight's default applies and can warn when nothing sits in front.
+        if trust is not None:
+            runlight["trustProxy"] = trust
         if options.get("geo") is not None:
             runlight["geo"] = options["geo"]
         if options.get("fetcher") is not None:
