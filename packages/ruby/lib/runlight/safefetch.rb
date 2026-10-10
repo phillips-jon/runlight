@@ -11,6 +11,16 @@ module Runlight
   # each hop, and the request is pinned to the checked addresses (the fetcher's
   # "resolve"), so a name that answers differently a moment later gets nowhere.
   module Safefetch
+    class << self
+      # What public_fetch resolves names with when its caller gives no "lookup": DNS, unless a test suite
+      # stands in for it so the made-up hosts its fake fetchers answer resolve.
+      attr_writer :resolver
+
+      def resolver
+        @resolver || method(:lookup)
+      end
+    end
+
     module_function
 
     def v4(text)
@@ -123,13 +133,14 @@ module Runlight
     # redirects that stay on it, within "timeoutMs" in all. Raises a
     # PrivateAddressError for an address off it, and an Http::FetchError that
     # is timed_out? when time runs out. A redirect past the last one comes back
-    # as it is. "maxBytes" and "truncate" go to the fetcher, for a capped read.
+    # as it is. "method", "body", "maxBytes", and "truncate" go to the fetcher.
     # "lookup" stands in for DNS in tests.
     #
-    # init: a Hash with "timeoutMs", and optionally "headers", "redirects", "maxBytes", "truncate", and "lookup".
+    # init: a Hash with "timeoutMs", and optionally "method", "body", "headers", "redirects", "maxBytes", "truncate",
+    # and "lookup".
     def public_fetch(target, init, fetcher = nil)
       fetcher ||= Http::NetFetcher.new
-      lookup = init["lookup"] || method(:lookup)
+      lookup = init["lookup"] || Safefetch.resolver
       until_ns = monotonic + (init["timeoutMs"] * 1_000_000)
       url = Http::Url.new(target)
       hop = 0
@@ -156,7 +167,7 @@ module Runlight
         raise timed_out if left <= 0
 
         options = { "headers" => init["headers"] || {}, "redirect" => "manual", "timeoutMs" => left }
-        %w[maxBytes truncate].each { |key| options[key] = init[key] unless init[key].nil? }
+        %w[method body maxBytes truncate].each { |key| options[key] = init[key] unless init[key].nil? }
         options["resolve"] = pin unless pin.empty?
         begin
           answer = fetcher.fetch(url.href, options)
@@ -174,6 +185,18 @@ module Runlight
         url = Http::Url.new(location, url.href)
         hop += 1
       end
+    end
+
+    # A fetch of another Runlight install or an Umami, at an address its owner typed: through public_fetch,
+    # with no redirect followed, or as plain http to this machine (localhost or 127.0.0.1), which the address
+    # checks allow on purpose for an install running beside this one. init as public_fetch takes it.
+    def owner_fetch(target, init, fetcher = nil)
+      url = Http::Url.parse(target)
+      if !url.nil? && url.protocol == "http:" && %w[localhost 127.0.0.1].include?(url.hostname)
+        return (fetcher || Http::NetFetcher.new).fetch(url.href, init.merge("redirect" => "manual"))
+      end
+
+      public_fetch(target, init.merge("redirects" => 0), fetcher)
     end
 
     def timed_out

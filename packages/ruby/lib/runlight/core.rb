@@ -27,7 +27,7 @@ module Runlight
   #   for connected installs. Default the RUNLIGHT_SECRET environment variable, then RUNLIGHT_TOKEN.
   # - rateLimit: tracker requests allowed per visitor address per minute. Default 120, which a real visitor
   #   never reaches; false turns the limit off.
-  # - now: a callable giving the clock in milliseconds. For tests. The rate limit then counts in this process.
+  # - now: a callable giving the clock in milliseconds. For tests.
   # - fetcher: what every outgoing request goes through (anything with fetch(url, init)). Default
   #   Http::NetFetcher.
   #
@@ -105,8 +105,7 @@ module Runlight
       # false, 0, or anything that is not a positive number means no limit, never a limit of nothing.
       number = per_minute == false ? Float::NAN : Js.number(per_minute)
       @limit = if number.is_a?(Numeric) && number.positive?
-                 # A clock given in code is a test's: its minutes are not the ones other processes count in.
-                 RateLimit.new(number.infinite? ? (2**63) - 1 : number.floor, -> { now }, shared: options["now"].nil?)
+                 RateLimit.new(number.infinite? ? (2**63) - 1 : number.floor, -> { now })
                end
       @clock = options["now"] || -> { Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) }
       @fetcher = options["fetcher"] || Http::NetFetcher.new
@@ -334,9 +333,9 @@ module Runlight
 
       info = { "lastSeen" => cached&.[]("lastSeen"), "retentionMonths" => UNDEFINED, "connection" => "unreachable" }
       begin
-        answer = @fetcher.fetch("#{remote["url"]}/api/sites", {
+        answer = Safefetch.owner_fetch("#{remote["url"]}/api/sites", {
           "headers" => { "authorization" => "Bearer #{remote["token"]}" }, "timeoutMs" => 8000, "maxBytes" => REMOTE_MAX_BYTES,
-        })
+        }, @fetcher)
         info["connection"] = "refused" if answer.status == 401 || answer.status == 403
         body = json_or_nil(answer)
         listed = body.is_a?(Hash) && body["sites"].is_a?(Array) ? body["sites"] : []
@@ -984,9 +983,9 @@ module Runlight
 
     # Asks a connected install to delete the token this server holds for it. A failure leaves it listed there.
     def revoke_remote_token(remote)
-      @fetcher.fetch("#{remote["url"]}/api/token", {
+      Safefetch.owner_fetch("#{remote["url"]}/api/token", {
         "method" => "DELETE", "headers" => { "authorization" => "Bearer #{remote["token"]}" }, "timeoutMs" => 5_000,
-      })
+      }, @fetcher)
     rescue StandardError
       nil
     end
@@ -1004,9 +1003,9 @@ module Runlight
       raise SettingsError.new("Enter an API token from that install", "install_token") if token == ""
 
       begin
-        answer = @fetcher.fetch("#{url}/api/sites", {
+        answer = Safefetch.owner_fetch("#{url}/api/sites", {
           "headers" => { "authorization" => "Bearer #{token}" }, "timeoutMs" => 10_000, "maxBytes" => REMOTE_MAX_BYTES,
-        })
+        }, @fetcher)
       rescue Http::BodyTooLong
         # An answer too long to read is no Runlight's.
         raise SettingsError.new("#{url} did not answer like a Runlight install", "connect_not_runlight", { "url" => url })
@@ -1025,9 +1024,9 @@ module Runlight
       scope = "read"
       token_site = ""
       begin
-        about = @fetcher.fetch("#{url}/api/token", {
+        about = Safefetch.owner_fetch("#{url}/api/token", {
           "headers" => { "authorization" => "Bearer #{token}" }, "timeoutMs" => 10_000, "maxBytes" => REMOTE_MAX_BYTES,
-        })
+        }, @fetcher)
         info = about.ok? ? json_or_nil(about) : nil
         scope = "manage" if info.is_a?(Hash) && info["scope"] == "manage"
         token_site = Js.string(info.is_a?(Hash) && !info["site"].nil? ? info["site"] : "")

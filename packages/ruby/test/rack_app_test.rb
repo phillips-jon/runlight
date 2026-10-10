@@ -69,4 +69,67 @@ class RackAppTest < Minitest::Test
     assert_equal 404, head.status
     assert_equal "", head.body
   end
+
+  # A request body that never ends, as a chunked upload with no Content-Length can be, counting what is read.
+  class Endless
+    attr_reader :read_bytes
+
+    def initialize
+      @read_bytes = 0
+    end
+
+    def read(length = nil, buffer = nil)
+      raise "read without a length would never end" if length.nil?
+
+      @read_bytes += length
+      chunk = "x" * length
+      buffer ? buffer.replace(chunk) : chunk
+    end
+
+    def rewind; end
+  end
+
+  def post(path, input, headers = {})
+    env = Rack::MockRequest.env_for(path, { method: "POST", "HTTP_HOST" => "example.com", "CONTENT_TYPE" => "text/plain" }.merge(headers))
+    env["rack.input"] = input
+    Runlight::RackApp.new(runlight: @rl, base_path: "/runlight", token: TOKEN).call(env)
+  end
+
+  def test_a_body_past_its_limit_is_answered_413_after_reading_one_byte_past_it
+    collect = Endless.new
+    status, headers, body = post("/runlight/e", collect)
+    assert_equal 413, status
+    assert_equal "close", headers["connection"]
+    assert_equal({ "error" => "That request is too large" }, Runlight::Json.decode(body.join))
+    assert_operator collect.read_bytes, :<=, (16 * 1024) + 1, "the collect endpoint reads at most 16 KB and a byte"
+
+    api = Endless.new
+    status, = post("/runlight/api/links/import", api, "HTTP_AUTHORIZATION" => "Bearer #{TOKEN}")
+    assert_equal 413, status
+    assert_operator api.read_bytes, :<=, (10 * 1024 * 1024) + 1, "everything else reads at most 10 MB and a byte"
+  end
+
+  def test_a_content_length_past_the_limit_is_refused_unread_and_one_under_it_is_not_trusted
+    declared = Endless.new
+    status, = post("/runlight/e", declared, "CONTENT_LENGTH" => (2 * 1024 * 1024 * 1024).to_s)
+    assert_equal 413, status
+    assert_equal 0, declared.read_bytes
+
+    lying = Endless.new
+    status, = post("/runlight/e", lying, "CONTENT_LENGTH" => "10")
+    assert_equal 413, status
+    assert_operator lying.read_bytes, :<=, (16 * 1024) + 1
+
+    event = Runlight::Json.encode({ "k" => "pageview", "u" => "https://example.com/", "r" => "" })
+    status, = post("/runlight/e", StringIO.new(event), "CONTENT_LENGTH" => event.bytesize.to_s, "HTTP_USER_AGENT" => SAFARI,
+                                                         "REMOTE_ADDR" => "203.0.113.9")
+    assert_equal 202, status, "a body within the limit is read whole"
+  end
+
+  def test_the_routes_as_a_rack_app_cap_the_body_too
+    env = Rack::MockRequest.env_for("/runlight/e", method: "POST", "HTTP_HOST" => "example.com")
+    env["rack.input"] = Endless.new
+    status, = @rl.routes({ base_path: "/runlight" }).call(env)
+    assert_equal 413, status
+  end
 end

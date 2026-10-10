@@ -12,9 +12,11 @@ module Runlight
       ISO_DATE = /\A([+-]\d{6}|\d{4})(?:-(\d{2})(?:-(\d{2}))?)?(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+-]\d{2}:\d{2})?)?\z/i
       private_constant :ISO_DATE
 
-      # sleep: a callable that waits this many milliseconds.
-      def initialize(fetcher = nil, sleep = nil)
+      # sleep: a callable that waits this many milliseconds. owner: true for a service at an address the owner
+      # typed (a self-hosted Umami), fetched only on the public internet, as Safefetch.owner_fetch allows.
+      def initialize(fetcher = nil, sleep = nil, owner: false)
         @fetcher = fetcher || Http::NetFetcher.new
+        @owner = owner
         @sleep = sleep || ->(ms) { Kernel.sleep(ms / 1000.0) if ms.positive? }
       end
 
@@ -30,7 +32,10 @@ module Runlight
           options["method"] = init["method"] unless init["method"].nil?
           options["body"] = init["body"] unless init["body"].nil?
           begin
-            response = @fetcher.fetch(url, options)
+            response = @owner ? Safefetch.owner_fetch(url, options, @fetcher) : @fetcher.fetch(url, options)
+          rescue PrivateAddressError
+            host = Http::Url.new(url).host
+            raise ImportError.new("Could not reach #{host}", "unreachable", { "host" => host })
           rescue Http::FetchError
             if attempt < 3
               attempt += 1

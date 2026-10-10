@@ -20,7 +20,8 @@ module Runlight
   # retention change's deletions) runs in the Core's idle.
   class RackApp
     INTERNAL = Json.encode({ "error" => "Internal error", "code" => "internal" })
-    private_constant :INTERNAL
+    TOO_LARGE = Json.encode({ "error" => "That request is too large" })
+    private_constant :INTERNAL, :TOO_LARGE
 
     attr_reader :runlight
 
@@ -45,7 +46,12 @@ module Runlight
     def call(env)
       # A request the app behind will answer keeps its body for the app; Runlight reads only its headers.
       path = "#{env["SCRIPT_NAME"]}#{env["PATH_INFO"]}"
-      request = Http::Request.from_rack(env, read_body: @app.nil? || mine?(path))
+      begin
+        request = Http::Request.from_rack(env, read_body: @app.nil? || mine?(path))
+      rescue Http::Request::TooLarge
+        # The rest is never read, so the connection is not fit for another request.
+        return [413, { "content-type" => "application/json; charset=utf-8", "connection" => "close" }, [TOO_LARGE]]
+      end
       response = answer(request)
       if response.nil?
         core.observe(request) if @observe && request.method == "GET"

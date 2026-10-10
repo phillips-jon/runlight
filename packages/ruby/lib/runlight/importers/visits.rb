@@ -36,7 +36,7 @@ module Runlight
       # The websites an Umami account can see, to pick which one becomes this site's history: a list of
       # { "id", "name", "domain" }.
       def umami_websites(credentials, fetcher = nil)
-        http = Client.new(fetcher)
+        http = Client.new(fetcher, owner: true)
         login = Umami.umami_sign_in(http, credentials)
         headers = { "authorization" => "Bearer #{Client.str(login["token"])}" }
         out = []
@@ -74,7 +74,7 @@ module Runlight
         raise ImportError.new("Unknown site", "unknown_site") if site.nil?
         raise ImportError.new("Pick the Umami website to import", "import_website") unless website.match?(/\A[A-Za-z0-9-]{1,64}\z/)
 
-        http = Client.new(runlight.fetcher)
+        http = Client.new(runlight.fetcher, owner: true)
 
         saved = !cursor.nil? && cursor != "" ? Json.decode(cursor) : nil
         login = Umami.umami_sign_in(http, credentials, saved.nil? ? nil : saved["token"])

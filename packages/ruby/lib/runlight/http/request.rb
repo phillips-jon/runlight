@@ -6,6 +6,15 @@ module Runlight
     # the same as the TypeScript SDK's: an absolute URL, a method, headers, and a
     # body read as text or JSON.
     class Request
+      # The collect endpoint's limit; its payloads are under 8 KB.
+      MAX_COLLECT_BODY = 16 * 1024
+
+      # Everything else, such as a link import of 5,000 rows.
+      MAX_BODY = 10 * 1024 * 1024
+
+      # A body past its limit, for an answer of 413 rather than reading on.
+      class TooLarge < StandardError; end
+
       attr_reader :url, :method, :headers, :remote_address
 
       # remote_address: the address the request came from, before any proxy header is read.
@@ -19,7 +28,8 @@ module Runlight
 
       # A request from a Rack env: the scheme and host Rack reports, the path and query as sent, headers from
       # the HTTP_ keys, and the body read once. The client's address is REMOTE_ADDR; proxy headers are read
-      # later, only when trusted. With read_body false the body is left for whoever reads it next.
+      # later, only when trusted. With read_body false the body is left for whoever reads it next. A body past
+      # the path's limit raises TooLarge once one byte past it has been read.
       def self.from_rack(env, read_body: true)
         scheme = env["rack.url_scheme"] || "http"
         host = env["HTTP_HOST"]
@@ -45,12 +55,35 @@ module Runlight
         body = +""
         input = env["rack.input"]
         if read_body && !%w[GET HEAD].include?(method) && input
-          input.rewind if input.respond_to?(:rewind)
-          body = input.read.to_s
+          body = read_capped(env, limit_for(path))
+          raise TooLarge, "Body over the limit" if body.nil?
+
           input.rewind if input.respond_to?(:rewind)
         end
         url = "#{scheme}://#{host}#{path}#{query.empty? ? "" : "?#{query}"}"
         new(url, method: method, headers: headers, body: body, remote_address: env["REMOTE_ADDR"].to_s)
+      end
+
+      # The most a body may hold at this path: little for the collect endpoint, more for everything else.
+      def self.limit_for(path)
+        path.end_with?("/e") ? MAX_COLLECT_BODY : MAX_BODY
+      end
+
+      # A Rack env's body, or nil when it is longer than limit. A Content-Length past the limit is refused
+      # unread, and one under it is not trusted: at most limit and one more byte are ever read.
+      def self.read_capped(env, limit)
+        length = env["CONTENT_LENGTH"].to_s
+        return nil if length.match?(/\A\d+\z/) && length.to_i > limit
+
+        input = env["rack.input"]
+        return "".b if input.nil?
+
+        input.rewind if input.respond_to?(:rewind)
+        body = "".b
+        while body.bytesize <= limit && (chunk = input.read([64 * 1024, limit + 1 - body.bytesize].min))
+          body << chunk
+        end
+        body.bytesize > limit ? nil : body
       end
 
       def text

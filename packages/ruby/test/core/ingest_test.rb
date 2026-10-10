@@ -216,17 +216,31 @@ class CoreIngestTest < CoreTestCase
     end
   end
 
-  def test_the_rate_limit_shares_its_counts_between_processes_through_the_folder
-    Dir.mktmpdir do |dir|
-      clock = -> { 1_791_280_800_000 }
-      first = Runlight::RateLimit.new(2, clock, dir)
-      second = Runlight::RateLimit.new(2, clock, dir)
-      assert first.allow("203.0.113.9")
-      assert second.allow("203.0.113.9")
-      refute first.allow("203.0.113.9"), "the third in the minute, counted across both"
-      apart = Runlight::RateLimit.new(2, clock, dir, shared: false)
-      assert apart.allow("203.0.113.9"), "one kept in its process counts on its own"
-    end
+  def test_the_rate_limit_counts_in_memory_and_drops_every_count_each_minute
+    now = 1_791_280_800_000
+    clock = -> { now }
+    tmp = Dir.glob(File.join(Dir.tmpdir, "runlight-rate*"))
+    limit = Runlight::RateLimit.new(2, clock)
+    assert limit.allow("203.0.113.9")
+    assert limit.allow("203.0.113.9")
+    refute limit.allow("203.0.113.9"), "the third in the minute"
+    assert limit.allow("198.51.100.9"), "another address counts on its own"
+    assert Runlight::RateLimit.new(2, clock).allow("203.0.113.9"), "another process (or Core) counts on its own"
+    assert limit.allow(""), "no address is not limited"
+    now += 60_000
+    assert limit.allow("203.0.113.9"), "a new minute starts a new count"
+    held = limit.instance_variable_get(:@counts)
+    assert_equal 1, held.size, "the earlier minute's counts are gone"
+    refute(held.keys.any? { |id| id.include?("203.0.113.9") }, "the map holds no address")
+    assert_equal tmp, Dir.glob(File.join(Dir.tmpdir, "runlight-rate*")), "nothing is written to disk"
+  end
+
+  def test_the_rate_limit_counts_every_request_from_threads_at_once
+    limit = Runlight::RateLimit.new(100, -> { 1_791_280_800_000 })
+    allowed = Queue.new
+    8.times.map { Thread.new { 25.times { allowed << limit.allow("203.0.113.10") } } }.each(&:join)
+    results = Array.new(allowed.size) { allowed.pop }
+    assert_equal 100, results.count(true), "exactly the limit, however the threads interleave"
   end
 
   def test_a_tracker_hit_that_finds_the_database_busy_is_tried_again_at_the_time_it_arrived
