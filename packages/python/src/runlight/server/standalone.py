@@ -15,7 +15,7 @@ from .. import _js
 from ..http import Request, Response, Url
 
 # The server's own pages, which answer as the server on every name it is reached at, a link domain too.
-SERVER_PATHS = {"/login", "/logout", "/setup", "/invite", "/healthz", "/auth.css", "/auth.js", "/api", "/mcp", "/s.js", "/pick.js", "/e"}
+SERVER_PATHS = {"/login", "/logout", "/setup", "/invite", "/healthz", "/auth.css", "/auth.js", "/api", "/mcp", "/s.js", "/pick.js", "/e", "/embed"}
 
 # The most names remembered as the server's own. The first ones stay and later ones are not learned, so a server
 # reached at more names than this needs RUNLIGHT_URL to keep the rest from becoming link domains.

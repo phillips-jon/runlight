@@ -226,6 +226,64 @@ def test_a_share_reads_one_sites_reports_and_nothing_else_until_it_is_deleted() 
     assert routes.handle(req(share["path"])).status == 404
 
 
+def test_the_dashboard_inside_a_cms_opens_one_framed_page_once_whose_session_reads_one_site() -> None:
+    rl = runlight(
+        {
+            "sites": [
+                {"id": "a", "name": "Site A", "hostnames": ["a.com"], "timezone": "UTC"},
+                {"id": "b", "name": "Site B", "hostnames": ["b.com"], "timezone": "UTC"},
+            ]
+        }
+    )
+    routes = rl.routes({"token": "secret"})
+    assert routes.handle(owner("/runlight/api/tokens", "POST", {"name": "CMS", "scope": "embed"})).status == 400, "an embed key is for one site"
+    made = body(routes.handle(owner("/runlight/api/tokens", "POST", {"name": "CMS", "site": "a", "scope": "embed"})))
+    assert made["token"]["scope"] == "embed"
+
+    def mint(origin: str):
+        return routes.handle(owner("/runlight/api/embed", "POST", {"origin": origin}, made["secret"]))
+
+    assert mint("https://b.com").status == 400, "only an origin on the site's own domains"
+    assert mint("https://www.a.com/admin").status == 400, "an origin, not a page"
+    reader = body(routes.handle(owner("/runlight/api/tokens", "POST", {"name": "Script", "site": "a"})))["secret"]
+    assert routes.handle(owner("/runlight/api/embed", "POST", {"origin": "https://a.com"}, reader)).status == 403, "only an embed key gets tickets"
+    assert routes.handle(owner("/runlight/api/embed", "POST", {"origin": "https://a.com"})).status == 401, "and the owner's token is not one"
+    assert routes.handle(owner("/runlight/api/stats?site=a", "GET", None, made["secret"])).status == 403, "an embed key reads nothing itself"
+    minted = mint("https://www.a.com")
+    assert minted.status == 201
+    answer = body(minted)
+    ticket, path = answer["ticket"], answer["path"]
+    assert answer["site"] == "a"
+    assert path == f"/runlight/embed?ticket={ticket}"
+    assert made["token"]["id"] not in ticket, "a ticket never names its token"
+
+    page = routes.handle(req(path))
+    assert page.status == 200
+    assert (page.headers.get("content-security-policy") or "").endswith("frame-ancestors https://www.a.com")
+    assert page.headers.get("x-frame-options") is None
+    assert page.headers.get("referrer-policy") == "no-referrer"
+    found = re.search(r'data-embed="([^"]+)"', page.text())
+    assert found
+    session = found.group(1)
+    assert re.fullmatch(r"\d+\.[a-f0-9]{24}\.[a-f0-9]{64}", session)
+    again = routes.handle(req(path))
+    assert again.status == 410, "a ticket works once"
+    assert (again.headers.get("content-security-policy") or "").endswith("frame-ancestors https://www.a.com"), "a used ticket still says so inside its frame"
+    assert routes.handle(req(path[:-1] + ("0" if path[-1] != "0" else "1"))).status == 404, "a ticket this install never signed"
+
+    as_ = {"x-runlight-embed": session}
+    assert body(routes.handle(req("/runlight/api/stats?site=b", "GET", as_)))["site"] == "a", "pinned to its token's site whatever is asked"
+    assert routes.handle(req("/runlight/api/links?site=a", "GET", {**as_, "authorization": "Bearer secret"})).status == 403, "nothing a share cannot read, even beside the owner's token"
+    assert routes.handle(req("/runlight/")).headers.get("x-frame-options") == "DENY", "every other page still refuses to be framed"
+
+    rl.now = lambda: _js.number(session.split(".")[0]) + 1
+    assert body(routes.handle(req("/runlight/api/stats", "GET", as_)))["code"] == "embed_expired", "a session lasts an hour"
+    del rl.now
+
+    assert routes.handle(owner(f"/runlight/api/tokens/{made['token']['id']}", "DELETE")).status == 200
+    assert routes.handle(req("/runlight/api/stats", "GET", as_)).status == 401, "deleting the token ends its sessions at once"
+
+
 def test_a_cms_plugin_reports_ai_agent_fetches_with_its_own_key_which_reads_nothing() -> None:
     rl = runlight({"site": {"hostnames": ["blog.example.com"]}})
     routes = rl.routes({"token": "secret", "observeKey": "agents"})

@@ -142,6 +142,15 @@ def test_shares_tokens_reports_and_settings(databases: Any, kind: str) -> None:
     s.set_setting("remote:a", None)
     assert s.setting("remote:a") is None
 
+    s.set_setting("x", "1")
+    assert s.take_setting("x") == "1", "a setting can be taken"
+    assert s.take_setting("x") is None, "once"
+    assert s.setting("x") is None
+
+    s.insert_token({**token, "id": "t3", "site": "default", "scope": "embed", "hash": "e" * 64})
+    found = s.token_by_hash("e" * 64)
+    assert found is not None and found["scope"] == "embed", "an embed key keeps its scope"
+
 
 @pytest.mark.parametrize("kind", KINDS)
 def test_salts_sessions_and_the_live_view(databases: Any, kind: str) -> None:

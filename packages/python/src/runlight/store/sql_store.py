@@ -8,7 +8,7 @@ keys, in the same order:
 - ReportRow: {id, site, email, frequency: "weekly" | "monthly", lang, token, origin, lastPeriod, lastSentAt, createdAt}
 - ShareRow: {id, site, name, createdAt}
 - FunnelRow: {id, site, name, steps: [{kind: "page" | "event", match}], createdAt}
-- TokenRow: {id, name, site, scope: "read" | "manage", hash, hint, createdAt, lastUsedAt}
+- TokenRow: {id, name, site, scope: "read" | "manage" | "embed", hash, hint, createdAt, lastUsedAt}
 - LinkRow: {id, site, domain, slug, name, url, createdAt, updatedAt}
 - SessionRow: {id, site, visitor, startedAt, hostname, referrerHost, referrerPath, source, channel, utmSource,
   utmMedium, utmCampaign, utmTerm, utmContent, country, region, city, browser, browserVersion, os, osVersion,
@@ -850,7 +850,7 @@ class SqlStore:
             "id": _string(r["id"]),
             "name": _string(r["name"]),
             "site": _string(_or(r.get("site"), "")),
-            "scope": "manage" if r.get("scope") == "manage" else "read",
+            "scope": r["scope"] if r.get("scope") in ("manage", "embed") else "read",
             "hash": _string(r["hash"]),
             "hint": _string(_or(r.get("hint"), "")),
             "createdAt": _js.number(r["created_at"]),
@@ -887,6 +887,16 @@ class SqlStore:
         """Every setting whose key starts with a prefix, such as each connected install's."""
         rows = self.db.all("SELECT \"key\", value FROM rl_settings WHERE \"key\" LIKE ? ESCAPE '\\'", [f"{escape_like(prefix)}%"])
         return [{"key": _string(r["key"]), "value": _string(r["value"])} for r in rows]
+
+    def take_setting(self, key: str) -> str | None:
+        """Reads a setting and deletes it. Of two callers at once, only the one whose delete took the row gets its
+        value."""
+        value = self.setting(key)
+        if value is None:
+            return None
+        sql = 'DELETE FROM rl_settings WHERE "key" = ?'
+        gone = self.db.affected(sql, [key]) if self.db.dialect() == "mysql" else len(self.db.all(f'{sql} RETURNING "key"', [key]))
+        return value if gone == 1 else None
 
     def set_setting(self, key: str, value: str | None) -> None:
         if value is None:

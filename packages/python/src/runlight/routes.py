@@ -392,8 +392,11 @@ def _locale_urls(base: str) -> str:
     return _js.dumps({code: f"{base}/assets/locale.{code}.{assets.LOCALES_HASH}.json" for code in assets.LOCALES})
 
 
-def dashboard(base: str, share: str = "", sign_out: str = "", geo_credit: bool = False, accounts: bool = False, sign_in: str = "") -> str:
-    """The dashboard's page, which holds no data: the API it calls checks access."""
+def dashboard(
+    base: str, share: str = "", sign_out: str = "", geo_credit: bool = False, accounts: bool = False, sign_in: str = "", embed: Mapping[str, str] | None = None
+) -> str:
+    """The dashboard's page, which holds no data: the API it calls checks access. `embed` is the dashboard inside a
+    CMS's admin pages: its session (empty once its ticket was used or ran out) and the admin origin that frames it."""
     b = _escape_attr(base)
     hash_ = assets.DASHBOARD_HASH
     attributes = (
@@ -402,6 +405,7 @@ def dashboard(base: str, share: str = "", sign_out: str = "", geo_credit: bool =
         + (f' data-sign-in="{_escape_attr(sign_in)}"' if sign_in else "")
         + (' data-geo-credit=""' if geo_credit else "")
         + (' data-accounts=""' if accounts else "")
+        + (f' data-embed="{_escape_attr(embed["session"])}" data-embed-origin="{_escape_attr(embed["origin"])}"' if embed is not None else "")
     )
     return (
         '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1">\n<meta name="robots" content="noindex">\n<title>Runlight</title>\n'
@@ -417,7 +421,9 @@ TOKEN_PREFIX = "rl_"
 
 # The header a shared dashboard sends its share id in.
 SHARE_HEADER = "x-runlight-share"
-# What a share can read: one site's reports, nothing that changes anything.
+# The header an embedded dashboard sends its session in.
+EMBED_HEADER = "x-runlight-embed"
+# What a share, or the dashboard inside a CMS, can read: one site's reports, nothing that changes anything.
 SHARED_PATHS = {"/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props", "/api/export", "/api/funnels", "/api/journeys"}
 
 
@@ -459,6 +465,10 @@ ASK_AT_ONCE = 2
 # Questions each viewer may ask a day, until an owner sets another number.
 VIEWER_DAILY = 50
 _SHARE_ID = re.compile(r"[a-f0-9]{32}\Z")
+# How long an embed ticket works: long enough for the admin page to load its frame, never to be kept.
+EMBED_TICKET_MS = 5 * 60_000
+# How long an embedded dashboard reads before the admin page has to be loaded again for a new ticket.
+EMBED_SESSION_MS = 60 * 60_000
 
 DASHBOARD_CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
@@ -627,7 +637,8 @@ class Routes:
         """Who may read stats: the owner (True), an API token or a read-only sign-in, or nobody."""
         token = self._api_token(request)
         if token:
-            return token
+            # A key for the dashboard inside a CMS gets tickets and reads nothing itself.
+            return False if token["scope"] == "embed" else token
         if self.options.get("authorize") is not None or self.web is not None:
             access = self._can_read(request)
             # A read-only sign-in reads like an API token for every site.
@@ -956,6 +967,70 @@ class Routes:
         origin = unhex(parts.group(3))
         return {"origin": origin, "site": unhex(parts.group(2))} if _ORIGIN.match(origin) else None
 
+    def _embed_key(self) -> str:
+        """The key embed tickets and sessions are signed with, made on first use and kept in the database for every
+        process."""
+        self.rl.init()
+        saved = self.rl.store.setting("embed-key")
+        if saved:
+            return saved
+        made = random_id(32)
+        self.rl.store.set_setting("embed-key", made)
+        return made
+
+    def _embed_token(self, id_: str) -> dict[str, Any] | None:
+        """An embed token that still exists, for a site that still does."""
+        token = next((t for t in self.rl.store.tokens() if t["id"] == id_), None)
+        return token if token and token["scope"] == "embed" and self.rl.site(token["site"]) else None
+
+    def _embed_ticket(self, origin: str, token: str) -> dict[str, Any]:
+        """A ticket for one load of the embedded dashboard, signed with when it runs out, a nonce, and the admin
+        origin that may frame it. The nonce is kept, with the token it was made for, until the ticket is used."""
+        store = self.rl.store
+        now = self.rl.now()
+        # Tickets nobody used are cleared as new ones are made.
+        for row in store.settings_starting_with("embed-ticket:"):
+            if _js.number(row["value"].split(".")[0]) < now:
+                store.set_setting(row["key"], None)
+        expires_at = now + EMBED_TICKET_MS
+        nonce = random_id(16)
+        store.set_setting(f"embed-ticket:{nonce}", f"{expires_at}.{token}")
+        payload = f"{expires_at}.{nonce}.{_js.encode(origin).hex()}"
+        return {"ticket": f"{payload}.{hmac(self._embed_key(), f'ticket.{payload}')}", "expiresAt": expires_at}
+
+    def _redeem_embed(self, ticket: str) -> dict[str, Any] | None:
+        """What a ticket this install signed names: always its origin, and its token only the first time it is used
+        before it runs out. None for anything else."""
+        parts = re.fullmatch(r"([0-9]{1,15})\.([a-f0-9]{32})\.([a-f0-9]{2,512})\.([a-f0-9]{64})", ticket)
+        if not parts:
+            return None
+        if not _constant_time_equal(parts.group(4), hmac(self._embed_key(), f"ticket.{parts.group(1)}.{parts.group(2)}.{parts.group(3)}")):
+            return None
+        text = parts.group(3)
+        origin = _js.utf8(bytes.fromhex(text[: len(text) - len(text) % 2]))
+        if not _ORIGIN.match(origin):
+            return None
+        # A ticket works once: it is gone before anything else is checked.
+        kept = self.rl.store.take_setting(f"embed-ticket:{parts.group(2)}")
+        pieces = kept.split(".") if kept else []
+        token = self._embed_token(pieces[1] if len(pieces) > 1 else "") if kept and _js.number(parts.group(1)) >= self.rl.now() else None
+        return {"origin": origin, "token": token}
+
+    def _embed_session(self, token: str) -> str:
+        """A session for an embedded dashboard, which its page sends with every read, signed with when it runs out
+        and its token."""
+        payload = f"{self.rl.now() + EMBED_SESSION_MS}.{token}"
+        return f"{payload}.{hmac(self._embed_key(), f'session.{payload}')}"
+
+    def _embed_reader(self, session: str) -> dict[str, Any] | None:
+        """The embed token a session this install signed was made for, while it lasts and the token still exists."""
+        parts = re.fullmatch(r"([0-9]{1,15})\.([a-f0-9]{24})\.([a-f0-9]{64})", session)
+        if not parts or _js.number(parts.group(1)) < self.rl.now():
+            return None
+        if not _constant_time_equal(parts.group(3), hmac(self._embed_key(), f"session.{parts.group(1)}.{parts.group(2)}")):
+            return None
+        return self._embed_token(parts.group(2))
+
     def _tracker_script(self, site_id: str | None) -> dict[str, Any]:
         """The tracker with click rules inside, rebuilt when goals change. With ?site= it carries only that site's
         rules, so one site's visitors never see another site's domains or goals. The standalone server's snippet
@@ -1283,9 +1358,12 @@ class Routes:
             site = _text(body, "site")
             if site and not any(s["id"] == site for s in rl.sites):
                 return coded("Unknown site", "unknown_site", 404)
-            scope = "manage" if _get(body, "scope") == "manage" else "read"
+            asked_scope = _get(body, "scope")
+            scope = asked_scope if asked_scope in ("manage", "embed") else "read"
             if scope == "manage" and not site:
                 return coded("A token that changes settings is for one site. Pick the site.", "token_site", 400)
+            if scope == "embed" and not site:
+                return coded("A key for the dashboard in a CMS is for one site. Pick the site.", "embed_site", 400)
             secret = f"{TOKEN_PREFIX}{random_id(20)}"
             row = {"id": random_id(), "name": name, "site": site, "scope": scope, "hash": sha256(secret), "hint": secret[-4:], "createdAt": rl.now(), "lastUsedAt": None}
             rl.store.insert_token(row)
@@ -1303,7 +1381,7 @@ class Routes:
     def _read_api(self, request: Request, url: Url, default_site: str | None = None) -> Callable[[str, list[tuple[str, str]]], Response]:
         """Reads one API path with the asker's own headers, as the MCP server and the assistant's tools do."""
         headers = Headers(request.headers)
-        for name in ("content-type", "content-length", SHARE_HEADER):
+        for name in ("content-type", "content-length", SHARE_HEADER, EMBED_HEADER):
             headers.delete(name)
 
         def read(api_path: str, params: Any) -> Response:
@@ -1324,6 +1402,9 @@ class Routes:
     def _api(self, request: Request, path: str, url: Url) -> Response:
         rl = self.rl
         method = request.method
+        # An embedded dashboard reads what a share link shows and nothing else, whoever else the request comes from.
+        if request.headers.get(EMBED_HEADER) is not None and not (method == "GET" and _shared_path(path)):
+            return coded("Not available on a shared dashboard", "share_not_available", 403)
         # A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
         # That holds without a cookie too, since a browser also sends Basic credentials or comes from an
         # allowed address on its own. A bearer token is never sent by the browser on its own, so it needs no check.
@@ -1386,7 +1467,36 @@ class Routes:
                 to = f"{home}?connect_error={error.code if isinstance(error, ConnectError) else 'failed'}"
             return Response(b"", 303, {"location": to, "cache-control": "no-store"})
 
+        # A ticket for one load of the dashboard inside a CMS's admin pages. The plugin's server asks with its embed
+        # token on each page view and names the admin's origin, which must be one of the site's domains and alone
+        # may frame the page the ticket opens.
+        if path == "/api/embed" and method == "POST":
+            token = self._api_token(request)
+            if not token:
+                return self._denied(False)
+            if token["scope"] != "embed":
+                return coded("Use a key for the dashboard in a CMS, made in Settings, Install", "embed_token", 403)
+            site = rl.site(token["site"])
+            if not site:
+                return coded("Unknown site", "unknown_site", 404)
+            body = self._read_json(request)
+            if isinstance(body, Response):
+                return body
+            origin = _text(body, "origin")
+            parsed = Url(origin) if _ORIGIN.match(origin) and _js.length(origin) <= 200 and Url.can_parse(origin) else None
+            if parsed is None or parsed.origin != origin:
+                return coded("Send the admin page's origin, such as https://example.com", "embed_origin", 400)
+            host = host_name(parsed.host)
+            remote = rl.remote(site["id"])
+            if host not in [host_name(h) for h in (remote["hostnames"] if remote else site["hostnames"])]:
+                return coded(f"{host} is not one of this site's domains. Add it to the site's domains in Runlight's settings.", "embed_host", 400, {"host": host})
+            made = self._embed_ticket(origin, token["id"])
+            return json({"ticket": made["ticket"], "site": site["id"], "expiresAt": made["expiresAt"], "path": f"{self.base}/embed?ticket={made['ticket']}"}, 201)
+
         token = self._api_token(request) if bearer(request).startswith(TOKEN_PREFIX) else None
+        # An embed token gets tickets and reads nothing itself.
+        if token and token["scope"] == "embed":
+            return coded("This key only opens the dashboard inside a CMS", "token_embed_only", 403)
         if token and token["scope"] == "manage" and manage_path(method, path):
             asked = url.search_params.get("site")
             site_match = re.fullmatch(r"/api/sites/([^/]+)", path)
@@ -1916,6 +2026,13 @@ class Routes:
             if not _shared_path(path):
                 return coded("Not available on a shared dashboard", "share_not_available", 403)
             only = shared["site"]
+        elif request.headers.get(EMBED_HEADER) is not None:
+            embedded = self._embed_reader(request.headers.get(EMBED_HEADER) or "")
+            if not embedded:
+                return coded("This dashboard has expired. Reload the page to open it again.", "embed_expired", 401)
+            # An embedded dashboard sees what a share link of its token's site shows.
+            shared = {"id": "", "site": embedded["site"], "name": "", "createdAt": 0}
+            only = embedded["site"]
         else:
             access = self._reader(request)
             if access is False or access == "unconfigured":
@@ -2305,6 +2422,28 @@ class Routes:
         unsubscribe = re.fullmatch(r"/unsubscribe/([^/]+)/?", path)
         if unsubscribe and method in ("GET", "POST"):
             return self._unsubscribe_page(request, unsubscribe.group(1))
+
+        # The dashboard inside a CMS's admin pages, opened with a ticket its plugin just got. Only the admin origin
+        # the ticket names may frame it. A ticket used already or run out opens it with no session, so it says it
+        # has expired and offers to reload the admin page; anything else is refused and never framed.
+        if path == "/embed" and method == "GET":
+            rl.init()
+            found = self._redeem_embed(url.search_params.get("ticket") or "")
+            if not found:
+                t, lang = _translator(_accepted_language(request))
+                return _small_page(lang, f"<h1>{escape_html(t('embed.goneTitle'))}</h1><p>{escape_html(t('embed.gone'))}</p>", 404)
+            session = self._embed_session(found["token"]["id"]) if found["token"] else ""
+            return Response(
+                dashboard(base, "", "", _js.truthy(self.options.get("geoCredit")), False, "", {"session": session, "origin": found["origin"]}),
+                200 if session else 410,
+                {
+                    "content-type": "text/html; charset=utf-8",
+                    "cache-control": "no-store",
+                    "content-security-policy": DASHBOARD_CSP.replace("frame-ancestors 'none'", f"frame-ancestors {found['origin']}"),
+                    "referrer-policy": "no-referrer",
+                    "x-robots-tag": "noindex",
+                },
+            )
 
         share_page = re.fullmatch(r"/share/([^/]+)/?", path)
         if share_page and method == "GET":
