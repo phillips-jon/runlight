@@ -11,7 +11,7 @@
     "support": {
         "docs": "https://runlight.sh/docs/craft/",
         "issues": "https://github.com/runlightsh/runlight/issues",
-        "source": "https://github.com/runlightsh/runlight/tree/main/plugins/craft"
+        "source": "https://github.com/runlightsh/runlight-craft"
     },
     "require": {
         "php": ">=8.2",
@@ -26,7 +26,9 @@
         "handle": "runlight",
         "name": "Runlight",
         "developer": "Jon C. Phillips",
+        "developerUrl": "https://runlight.sh",
         "documentationUrl": "https://runlight.sh/docs/craft/",
+        "changelogUrl": "https://raw.githubusercontent.com/runlightsh/runlight-craft/main/CHANGELOG.md",
         "class": "Runlight\\Craft\\Plugin"
     }
 }

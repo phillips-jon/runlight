@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Runlight\Craft\models;
 
+use Craft;
 use craft\base\Model;
 use craft\helpers\App;
 
@@ -39,6 +40,12 @@ final class Settings extends Model
         return rtrim($value, '/');
     }
 
+    /** The site id with any environment variable read. */
+    public function getSite(): string
+    {
+        return trim((string) App::parseEnv($this->site));
+    }
+
     public function getObserveKey(): string
     {
         return trim((string) App::parseEnv($this->observeKey));
@@ -49,12 +56,55 @@ final class Settings extends Model
         return trim((string) App::parseEnv($this->dashboardKey));
     }
 
+    /**
+     * Clears each key that was left as it was when the address now leads somewhere else, so a key
+     * meant for one Runlight is never sent to another, such as one at a mistyped address.
+     *
+     * @param array<string,mixed> $before The settings as they were saved before.
+     */
+    public function forgetKeysIfMoved(array $before): void
+    {
+        $previous = new self();
+        $previous->address = is_string($before['address'] ?? null) ? $before['address'] : '';
+        if ($previous->getAddress() === '' || $previous->getAddress() === $this->getAddress()) {
+            return;
+        }
+        if ($this->observeKey === ($before['observeKey'] ?? null)) {
+            $this->observeKey = '';
+        }
+        if ($this->dashboardKey === ($before['dashboardKey'] ?? null)) {
+            $this->dashboardKey = '';
+        }
+    }
+
     protected function defineRules(): array
     {
         return [
             [['address', 'site', 'observeKey', 'dashboardKey'], 'string'],
-            [['site'], 'match', 'pattern' => '/^[a-z0-9._-]*$/i'],
+            [['address'], 'validateAddress'],
+            [['site'], 'validateSite'],
             [['skipAdmins', 'outbound', 'downloads'], 'boolean'],
         ];
+    }
+
+    /** The address, once any environment variable is read, must be a web address: it is put in links and fetched. */
+    public function validateAddress(string $attribute): void
+    {
+        $address = $this->getAddress();
+        if ($address === '') {
+            return;
+        }
+        $parts = parse_url($address);
+        $scheme = is_array($parts) ? strtolower((string) ($parts['scheme'] ?? '')) : '';
+        if (!in_array($scheme, ['http', 'https'], true) || empty($parts['host'])) {
+            $this->addError($attribute, Craft::t('runlight', 'Enter a web address starting with https://, such as https://stats.example.com.'));
+        }
+    }
+
+    public function validateSite(string $attribute): void
+    {
+        if (!preg_match('/^[a-z0-9._-]*$/i', $this->getSite())) {
+            $this->addError($attribute, Craft::t('runlight', 'A site id has only letters, numbers, dots, dashes, and underscores.'));
+        }
     }
 }

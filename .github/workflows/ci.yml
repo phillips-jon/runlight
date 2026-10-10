@@ -129,3 +129,22 @@ jobs:
       - run: composer validate --strict
       - run: composer install --no-interaction --no-progress
       - run: vendor/bin/phpunit
+
+  # The Craft plugin has no database to run against here, so each of its
+  # classes is loaded against a real Craft install, on the oldest PHP and the
+  # newest Craft it allows, which catches what php -l cannot.
+  craft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: "8.2"
+          extensions: curl, intl, mbstring, openssl, pdo_mysql, zip
+          coverage: none
+          tools: composer:v2
+      - run: composer validate --strict --no-plugins
+        working-directory: plugins/craft
+      - run: composer update --no-interaction --no-progress --prefer-dist --no-plugins
+        working-directory: plugins/craft
+      - run: php scripts/craft-load.php

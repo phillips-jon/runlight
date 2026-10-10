@@ -8,6 +8,7 @@ use Craft;
 use craft\base\Model;
 use craft\base\Plugin as BasePlugin;
 use craft\events\RegisterUrlRulesEvent;
+use craft\services\ProjectConfig;
 use craft\web\UrlManager;
 use craft\web\View;
 use Runlight\Craft\models\Settings;
@@ -34,16 +35,19 @@ final class Plugin extends BasePlugin
             $event->rules['runlight'] = 'runlight/dashboard/index';
         });
 
-        $request = Craft::$app->getRequest();
-        if ($request->getIsConsoleRequest() || !$request->getIsSiteRequest()) {
-            return;
-        }
-        // The script goes in at the end of the body, which is still before Craft writes the head.
-        Event::on(View::class, View::EVENT_END_BODY, function (): void {
-            $this->registerScript();
-        });
-        Event::on(Response::class, Response::EVENT_AFTER_SEND, function (): void {
-            $this->observe();
+        // The request is only looked at once Craft has finished starting up, as Craft asks of plugins.
+        Craft::$app->onInit(function (): void {
+            $request = Craft::$app->getRequest();
+            if ($request->getIsConsoleRequest() || !$request->getIsSiteRequest()) {
+                return;
+            }
+            // The script goes in at the end of the body, which is still before Craft writes the head.
+            Event::on(View::class, View::EVENT_END_BODY, function (): void {
+                $this->registerScript();
+            });
+            Event::on(Response::class, Response::EVENT_AFTER_SEND, function (): void {
+                $this->observe();
+            });
         });
     }
 
@@ -63,11 +67,22 @@ final class Plugin extends BasePlugin
 
     protected function settingsHtml(): ?string
     {
-        $settings = $this->getSettings();
+        // The address is checked by the page once it has loaded (DashboardController::actionCheck), so a
+        // slow or missing Runlight never holds up the settings page.
         return Craft::$app->getView()->renderTemplate('runlight/_settings.twig', [
-            'settings' => $settings,
-            'status' => $settings->getAddress() !== '' ? self::check($settings->getAddress()) : null,
+            'settings' => $this->getSettings(),
         ]);
+    }
+
+    /**
+     * A key saved for one Runlight is never sent to another: when the address changes and a key was
+     * left as it was, the key is cleared, as the WordPress and Drupal plugins do.
+     */
+    public function beforeSaveSettings(): bool
+    {
+        $before = Craft::$app->getProjectConfig()->get(ProjectConfig::PATH_PLUGINS . '.' . $this->handle . '.settings');
+        $this->getSettings()->forgetKeysIfMoved(is_array($before) ? $before : []);
+        return parent::beforeSaveSettings();
     }
 
     /** Whether the address answers as a Runlight, and what to say about it. */
@@ -77,11 +92,11 @@ final class Plugin extends BasePlugin
             $response = Craft::createGuzzleClient(['timeout' => 5, 'http_errors' => false])->get($address . '/api');
             $body = json_decode((string) $response->getBody(), true);
             if ($response->getStatusCode() === 200 && is_array($body) && ($body['name'] ?? '') === 'runlight') {
-                return ['ok' => true, 'message' => sprintf('Connected to Runlight %s.', (string) ($body['version'] ?? ''))];
+                return ['ok' => true, 'message' => Craft::t('runlight', 'Connected to Runlight {version}.', ['version' => (string) ($body['version'] ?? '')])];
             }
-            return ['ok' => false, 'message' => 'Something answered, but not Runlight. Check that this is the address Runlight answers at, such as https://example.com/runlight for an app with Runlight mounted, or https://stats.example.com for the standalone server.'];
+            return ['ok' => false, 'message' => Craft::t('runlight', 'Something answered, but not Runlight. Check that this is the address Runlight answers at, such as https://example.com/runlight for an app with Runlight mounted, or https://stats.example.com for the standalone server.')];
         } catch (\Throwable $e) {
-            return ['ok' => false, 'message' => 'Could not reach it: ' . $e->getMessage()];
+            return ['ok' => false, 'message' => Craft::t('runlight', 'Could not reach it: {error}', ['error' => $e->getMessage()])];
         }
     }
 
@@ -94,11 +109,12 @@ final class Plugin extends BasePlugin
         }
         $user = Craft::$app->getUser();
         if ($settings->skipAdmins && !$user->getIsGuest() && $user->checkPermission('accessCp')) {
+            self::keepOutOfCaches();
             return;
         }
         $options = ['defer' => true, 'position' => View::POS_HEAD];
-        if ($settings->site !== '') {
-            $options['data-site'] = $settings->site;
+        if ($settings->getSite() !== '') {
+            $options['data-site'] = $settings->getSite();
         }
         if (!$settings->outbound) {
             $options['data-outbound'] = 'false';
@@ -110,6 +126,19 @@ final class Plugin extends BasePlugin
             $options['data-404'] = true;
         }
         Craft::$app->getView()->registerJsFile($address . '/s.js', $options);
+    }
+
+    /**
+     * A page left without the script for a Control Panel user must never be cached and served to
+     * everyone else, or their visits would go uncounted. Blitz is told not to cache it, and any other
+     * cache in front of Craft is told by the headers.
+     */
+    private static function keepOutOfCaches(): void
+    {
+        if (class_exists('putyourlightson\\blitz\\Blitz') && isset(\putyourlightson\blitz\Blitz::$plugin)) {
+            \putyourlightson\blitz\Blitz::$plugin->generateCache->options->cachingEnabled = false;
+        }
+        Craft::$app->getResponse()->setNoCacheHeaders();
     }
 
     /**
@@ -125,6 +154,16 @@ final class Plugin extends BasePlugin
         $key = $settings->getObserveKey();
         if ($settings->getAddress() === '' || $key === '' || !$request->getIsGet() || !Agents::isAgent($agent)) {
             return;
+        }
+        // The page has been sent, but under PHP-FPM or LiteSpeed the agent still waits until PHP
+        // finishes. Closing the connection first means the report never keeps it waiting.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        } elseif (function_exists('litespeed_finish_request')) {
+            litespeed_finish_request();
         }
         try {
             Craft::createGuzzleClient(['timeout' => 3])->post($settings->getAddress() . '/api/observe', [

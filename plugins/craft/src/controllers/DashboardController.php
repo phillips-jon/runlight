@@ -22,7 +22,7 @@ final class DashboardController extends Controller
         $address = $settings->getAddress();
         $key = $settings->getDashboardKey();
         $ticket = $address !== '' && $key !== '' ? self::ticket($address, $key) : null;
-        $site = is_array($ticket) && $ticket['site'] !== '' ? $ticket['site'] : $settings->site;
+        $site = is_array($ticket) && $ticket['site'] !== '' ? $ticket['site'] : $settings->getSite();
         return $this->renderTemplate('runlight/_dashboard.twig', [
             'address' => $address,
             'hasKey' => $key !== '',
@@ -32,6 +32,19 @@ final class DashboardController extends Controller
             'full' => $address !== '' ? $address . '/' . ($site !== '' ? '?site=' . rawurlencode($site) : '') : '',
             'settingsUrl' => 'settings/plugins/runlight',
         ]);
+    }
+
+    /**
+     * Whether the saved address answers as a Runlight, asked for by the settings page once it has
+     * loaded. Only the saved address is checked, never one the request names.
+     */
+    public function actionCheck(): Response
+    {
+        $this->requirePostRequest();
+        $this->requireAcceptsJson();
+        $this->requireAdmin(false);
+        $address = Plugin::getInstance()->getSettings()->getAddress();
+        return $this->asJson($address !== '' ? Plugin::check($address) : null);
     }
 
     /** The scheme, host, and port of an address, as a browser writes its origin. */
@@ -62,16 +75,16 @@ final class DashboardController extends Controller
                 'json' => ['origin' => self::originOf(Craft::$app->getRequest()->getHostInfo())],
             ]);
         } catch (\Throwable $e) {
-            return 'Could not reach your Runlight: ' . $e->getMessage();
+            return Craft::t('runlight', 'Could not reach your Runlight: {error}', ['error' => $e->getMessage()]);
         }
         $body = json_decode((string) $response->getBody(), true);
         $code = $response->getStatusCode();
         if ($code !== 201 || !is_array($body) || !is_string($body['ticket'] ?? null)) {
             if ($code === 401) {
-                return 'Your Runlight does not know this dashboard key. Make a new one in Runlight’s Settings, Install, and enter it in the settings.';
+                return Craft::t('runlight', 'Your Runlight does not know this dashboard key. Make a new one in Runlight’s Settings, Install, and enter it in the settings.');
             }
-            $reason = is_array($body) && is_string($body['error'] ?? null) ? $body['error'] : "It answered $code.";
-            return 'Your Runlight would not open the dashboard here: ' . $reason;
+            $reason = is_array($body) && is_string($body['error'] ?? null) ? $body['error'] : Craft::t('runlight', 'It answered {code}.', ['code' => $code]);
+            return Craft::t('runlight', 'Your Runlight would not open the dashboard here: {reason}', ['reason' => $reason]);
         }
         return [
             'url' => $address . '/embed?ticket=' . rawurlencode($body['ticket']) . '&theme=light',

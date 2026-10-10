@@ -1,38 +1,59 @@
 {% import '_includes/forms.twig' as forms %}
 
-<p>Runlight counts visitors without cookies and keeps the numbers in your own database. This plugin adds its script to every front-end page and reports AI agents that read your pages. The numbers live in your Runlight, wherever you run it.</p>
+<p>{{ 'Runlight counts visitors without cookies and keeps the numbers in your own database. This plugin adds its script to every front-end page and reports AI agents that read your pages. The numbers live in your Runlight, wherever you run it.'|t('runlight') }}</p>
 
-{% if status %}
+{% if settings.getAddress() %}
   <div class="readable" style="margin: 16px 0;">
-    <p class="{{ status.ok ? 'success' : 'error' }}">
-      {{ status.message }}
-      {% if status.ok %}<a href="{{ settings.getAddress() }}/" target="_blank" rel="noopener">Open the dashboard</a>{% endif %}
-    </p>
+    <p id="runlight-status" class="light">{{ 'Checking that your Runlight answers…'|t('runlight') }}</p>
   </div>
+  {% js %}
+    (function () {
+      var status = document.getElementById("runlight-status");
+      Craft.sendActionRequest("POST", "runlight/dashboard/check").then(function (response) {
+        var result = response.data;
+        if (!result) { status.remove(); return; }
+        status.className = result.ok ? "success" : "error";
+        status.textContent = result.message + " ";
+        if (result.ok) {
+          var link = document.createElement("a");
+          link.href = {{ (settings.getAddress() ~ '/')|json_encode|raw }};
+          link.target = "_blank";
+          link.rel = "noopener";
+          link.textContent = {{ 'Open the dashboard'|t('runlight')|json_encode|raw }};
+          status.appendChild(link);
+        }
+      }).catch(function () {
+        status.className = "error";
+        status.textContent = {{ 'Could not check your Runlight from here.'|t('runlight')|json_encode|raw }};
+      });
+    })();
+  {% endjs %}
 {% endif %}
 
 {{ forms.autosuggestField({
-  label: 'Runlight address',
-  instructions: 'The address Runlight answers at, where its dashboard opens, such as `https://example.com/runlight` for an app with Runlight mounted, or `https://stats.example.com` for the standalone server. That Runlight must count this site, or its visits are ignored.',
+  label: 'Runlight address'|t('runlight'),
+  instructions: 'The address Runlight answers at, where its dashboard opens, such as `https://example.com/runlight` for an app with Runlight mounted, or `https://stats.example.com` for the standalone server. That Runlight must count this site, or its visits are ignored.'|t('runlight'),
   id: 'address',
   name: 'address',
   value: settings.address,
   suggestEnvVars: true,
-  placeholder: 'https://example.com/runlight or https://stats.example.com',
+  errors: settings.getErrors('address'),
+  placeholder: 'https://example.com/runlight or https://stats.example.com'|t('runlight'),
 }) }}
 
-{{ forms.textField({
-  label: 'Site id',
-  instructions: 'Optional. Only needed when that Runlight counts several sites and cannot tell this one by its hostname.',
+{{ forms.autosuggestField({
+  label: 'Site id'|t('runlight'),
+  instructions: 'Optional. Only needed when that Runlight counts several sites and cannot tell this one by its hostname.'|t('runlight'),
   id: 'site',
   name: 'site',
   value: settings.site,
+  suggestEnvVars: true,
   errors: settings.getErrors('site'),
 }) }}
 
 {{ forms.autosuggestField({
-  label: 'Observe key',
-  instructions: 'Optional. With this site’s key from Runlight’s Settings, Install, Key for CMS plugins, the plugin reports AI agents such as ChatGPT and Claude reading your pages. They run no JavaScript, so the script cannot see them. Use an environment variable, such as `$RUNLIGHT_OBSERVE_KEY`, to keep it out of project config.',
+  label: 'Observe key'|t('runlight'),
+  instructions: 'Optional. With this site’s key from Runlight’s Settings, Install, Key for CMS plugins, the plugin reports AI agents such as ChatGPT and Claude reading your pages. They run no JavaScript, so the script cannot see them. Use an environment variable, such as `$RUNLIGHT_OBSERVE_KEY`, to keep it out of project config.'|t('runlight'),
   id: 'observeKey',
   name: 'observeKey',
   value: settings.observeKey,
@@ -40,8 +61,8 @@
 }) }}
 
 {{ forms.autosuggestField({
-  label: 'Dashboard key',
-  instructions: 'Optional. With this site’s key from Runlight’s Settings, Install, Key for the dashboard in your CMS, the Runlight item in the Control Panel shows this site’s numbers right there. The key opens the same read-only view a share link shows, framed only by this Control Panel, and cannot read anything itself. Use an environment variable, such as `$RUNLIGHT_DASHBOARD_KEY`, to keep it out of project config.',
+  label: 'Dashboard key'|t('runlight'),
+  instructions: 'Optional. With this site’s key from Runlight’s Settings, Install, Key for the dashboard in your CMS, the Runlight item in the Control Panel shows this site’s numbers right there. The key opens the same read-only view a share link shows, framed only by this Control Panel, and cannot read anything itself. Use an environment variable, such as `$RUNLIGHT_DASHBOARD_KEY`, to keep it out of project config.'|t('runlight'),
   id: 'dashboardKey',
   name: 'dashboardKey',
   value: settings.dashboardKey,
@@ -49,21 +70,21 @@
 }) }}
 
 {{ forms.lightswitchField({
-  label: 'Leave out Control Panel users’ visits',
+  label: 'Leave out Control Panel users’ visits'|t('runlight'),
   id: 'skipAdmins',
   name: 'skipAdmins',
   on: settings.skipAdmins,
 }) }}
 
 {{ forms.lightswitchField({
-  label: 'Count clicks on links to other sites',
+  label: 'Count clicks on links to other sites'|t('runlight'),
   id: 'outbound',
   name: 'outbound',
   on: settings.outbound,
 }) }}
 
 {{ forms.lightswitchField({
-  label: 'Count file downloads',
+  label: 'Count file downloads'|t('runlight'),
   id: 'downloads',
   name: 'downloads',
   on: settings.downloads,

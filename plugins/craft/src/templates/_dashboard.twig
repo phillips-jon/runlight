@@ -1,21 +1,21 @@
 {% extends '_layouts/cp' %}
-{% set title = 'Runlight' %}
+{% set title = 'Runlight'|t('runlight') %}
 
 {% block actionButton %}
   {% if full %}
-    <a class="btn" href="{{ full }}" target="_blank" rel="noopener">Open in Runlight</a>
+    <a class="btn" href="{{ full }}" target="_blank" rel="noopener">{{ 'Open in Runlight'|t('runlight') }}</a>
   {% endif %}
 {% endblock %}
 
 {% block content %}
   {% if not address %}
-    <p>Enter your Runlight’s address and a dashboard key on the <a href="{{ cpUrl(settingsUrl) }}">settings page</a> to see this site’s numbers here.</p>
+    <p>{{ 'Enter your Runlight’s address and a dashboard key on the <a href="{url}">settings page</a> to see this site’s numbers here.'|t('runlight', { url: cpUrl(settingsUrl) })|raw }}</p>
   {% elseif not hasKey %}
-    <p>To see this site’s numbers here, make a dashboard key in your Runlight under Settings, Install, Key for the dashboard in your CMS, and enter it on the <a href="{{ cpUrl(settingsUrl) }}">settings page</a>.</p>
+    <p>{{ 'To see this site’s numbers here, make a dashboard key in your Runlight under Settings, Install, Key for the dashboard in your CMS, and enter it on the <a href="{url}">settings page</a>.'|t('runlight', { url: cpUrl(settingsUrl) })|raw }}</p>
   {% elseif error %}
-    <p class="error">{{ error }} <a href="{{ cpUrl(settingsUrl) }}">Check the settings</a></p>
+    <p class="error">{{ error }} <a href="{{ cpUrl(settingsUrl) }}">{{ 'Check the settings'|t('runlight') }}</a></p>
   {% else %}
-    <iframe id="runlight-embed" src="{{ frame }}" data-runlight-origin="{{ origin }}" title="Runlight dashboard" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads" style="display:block;width:100%;height:calc(100vh - 220px);min-height:600px;border:0;border-radius:8px;background:transparent"></iframe>
+    <iframe id="runlight-embed" src="{{ frame }}" data-runlight-origin="{{ origin }}" title="{{ 'Runlight dashboard'|t('runlight') }}" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads" style="display:block;width:100%;height:calc(100vh - 220px);min-height:600px;border:0;border-radius:8px;background:transparent"></iframe>
     {% js %}
       (function () {
         var frame = document.getElementById("runlight-embed");

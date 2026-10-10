@@ -80,3 +80,88 @@ test("a CMS plugin keeps its saved keys only while its Runlight address stays th
   `;
   assert.deepEqual(JSON.parse(execFileSync("php", ["-r", submit], { encoding: "utf8" })), [["rlo_saved", "rl_saved"], ["", ""], ["rlo_new", "rl_new"]]);
 });
+
+test("every CMS plugin's PHP parses", (t) => {
+  const root = new URL("../../../plugins/", import.meta.url).pathname;
+  const files = execFileSync("find", [root, "-name", "*.php", "-not", "-path", "*/vendor/*"], { encoding: "utf8" }).trim().split("\n");
+  for (const file of files) {
+    try {
+      execFileSync("php", ["-l", file], { encoding: "utf8", stdio: "pipe" });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return t.skip("PHP is not installed");
+      throw new Error(`${file} does not parse: ${(error as { stdout?: string }).stdout ?? error}`);
+    }
+  }
+});
+
+test("the Craft plugin's settings read environment variables, check the address, and drop keys when it moves", (t) => {
+  // The settings model runs under PHP with stand-ins for Craft's Model, App::parseEnv, and Craft::t.
+  const settings = new URL("../../../plugins/craft/src/models/Settings.php", import.meta.url).pathname;
+  const script = `
+    namespace craft\\base {
+      class Model {
+        private array $errors = [];
+        public function addError($attribute, $message) { $this->errors[$attribute][] = $message; }
+        public function getErrors($attribute) { return $this->errors[$attribute] ?? []; }
+      }
+    }
+    namespace craft\\helpers {
+      class App {
+        public static function parseEnv($value) { return is_string($value) && str_starts_with($value, "$") ? (getenv(substr($value, 1)) ?: $value) : $value; }
+      }
+    }
+    namespace {
+      class Craft { public static function t($category, $message, $params = []) { return $message; } }
+      require ${JSON.stringify(settings)};
+      use Runlight\\Craft\\models\\Settings;
+      putenv("RUNLIGHT_SITE=blog.example.com");
+      $out = [];
+
+      $keys = [];
+      $before = ["address" => "https://stats.example.com/runlight", "observeKey" => "rlo_saved", "dashboardKey" => '$RUNLIGHT_DASHBOARD_KEY'];
+      foreach ([["https://stats.example.com/runlight/", "rlo_saved", '$RUNLIGHT_DASHBOARD_KEY'], ["https://evil.example/runlight", "rlo_saved", '$RUNLIGHT_DASHBOARD_KEY'], ["https://other.example/runlight", "rlo_new", '$OTHER_KEY']] as [$address, $key, $dashboard]) {
+        $s = new Settings();
+        $s->address = $address; $s->observeKey = $key; $s->dashboardKey = $dashboard;
+        $s->forgetKeysIfMoved($before);
+        $keys[] = [$s->observeKey, $s->dashboardKey];
+      }
+      $out["keys"] = $keys;
+
+      $s = new Settings();
+      $s->site = '$RUNLIGHT_SITE';
+      $out["site"] = $s->getSite();
+
+      $valid = [];
+      foreach (["https://stats.example.com", "http://localhost:3000/runlight", "javascript:alert(1)", "stats.example.com", ""] as $address) {
+        $s = new Settings();
+        $s->address = $address;
+        $s->validateAddress("address");
+        $valid[] = $s->getErrors("address") === [];
+      }
+      $out["address"] = $valid;
+
+      $sites = [];
+      foreach (["blog.example.com", '$RUNLIGHT_SITE', "no spaces"] as $site) {
+        $s = new Settings();
+        $s->site = $site;
+        $s->validateSite("site");
+        $sites[] = $s->getErrors("site") === [];
+      }
+      $out["site ok"] = $sites;
+      echo json_encode($out);
+    }
+  `;
+  let answer: string;
+  try {
+    answer = execFileSync("php", ["-r", script], { encoding: "utf8" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return t.skip("PHP is not installed");
+    throw error;
+  }
+  assert.deepEqual(JSON.parse(answer), {
+    keys: [["rlo_saved", "$RUNLIGHT_DASHBOARD_KEY"], ["", ""], ["rlo_new", "$OTHER_KEY"]],
+    site: "blog.example.com",
+    address: [true, true, false, false, true],
+    "site ok": [true, true, false],
+  });
+});
