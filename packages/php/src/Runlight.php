@@ -115,6 +115,10 @@ final class Runlight
     /** @var (callable(string): ?array)|null */
     private $geo;
     private bool|string $trustProxy;
+    /** True until trustProxy left at its default has been seen answering a public address directly, and warned about once. */
+    private bool $warnDirect;
+    /** Whether that warning is shared with other requests, so it comes at most once a day rather than once a request. */
+    private bool $warnShared;
     private ?RateLimit $limit;
     /** @var callable(): int */
     private $clock;
@@ -154,6 +158,8 @@ final class Runlight
         }
         $this->geo = $options['geo'] ?? null;
         $this->trustProxy = $options['trustProxy'] ?? true;
+        $this->warnDirect = ($options['trustProxy'] ?? null) === null;
+        $this->warnShared = !isset($options['now']);
         $perMinute = $options['rateLimit'] ?? 120;
         // false, 0, or anything that is not a positive number means no limit, never a limit of nothing.
         $number = $perMinute === false ? NAN : Js::number($perMinute);
@@ -1119,8 +1125,40 @@ final class Runlight
             if ($forwarded !== null && Js::trim($forwarded) !== '') {
                 return Js::trim($forwarded);
             }
+            // A public address with no forwarding header means nothing sits in front, and then any client
+            // could name its own address in one. Said once, only when trustProxy was left at its default.
+            $ip = (string) ($context['ip'] ?? $request->remoteAddress);
+            if ($this->warnDirect && $ip !== '' && Safefetch::publicAddress($ip)) {
+                $this->warnDirect = false;
+                if ($this->firstWarningToday()) {
+                    error_log("Runlight: a request came straight from a public address with no proxy in front, but trustProxy is on by default, so a client could send X-Forwarded-For and choose its own address, getting round the rate limits. Set 'trustProxy' => false when nothing sits in front of this server, or put a proxy in front that sets the header.");
+                }
+            }
         }
         return (string) ($context['ip'] ?? $request->remoteAddress);
+    }
+
+    /**
+     * Under PHP-FPM each request is a new Runlight, so once per instance would be once per request and fill
+     * the log. The warning is kept to once a day across requests instead: an APCu key when APCu is loaded,
+     * as the rate limit uses, or else a marker file in the temporary folder, which needs nothing set up. A
+     * Runlight on a clock given in code (tests) warns once per instance, as the TypeScript SDK does.
+     */
+    private function firstWarningToday(): bool
+    {
+        if (!$this->warnShared) {
+            return true;
+        }
+        if (function_exists('apcu_enabled') && apcu_enabled()) {
+            return apcu_add('runlight:warned-direct', 1, 86_400);
+        }
+        $marker = sys_get_temp_dir() . '/runlight-warned-direct';
+        $at = @filemtime($marker);
+        if ($at !== false && $at > time() - 86_400) {
+            return false;
+        }
+        @touch($marker);
+        return true;
     }
 
     /**

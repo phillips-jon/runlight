@@ -55,7 +55,7 @@ final class Standalone
      *     secret: string,
      *     token?: string|null,
      *     url?: string|null,
-     *     trustProxy?: bool|string,
+     *     trustProxy?: bool|string|null,
      *     geo?: callable(string): ?array,
      *     geoCredit?: bool,
      *     now?: callable(): int,
@@ -88,9 +88,15 @@ final class Standalone
             'store' => $this->store,
             'managedSites' => true,
             'secret' => $options['secret'],
-            'trustProxy' => $this->trustProxy,
-            'now' => $now,
         ];
+        // Both left out when not given: on its own clock Runlight shares the rate limit and its proxy warning
+        // across requests, and with trustProxy at its default it can warn when nothing sits in front.
+        if (isset($options['now'])) {
+            $runlight['now'] = $options['now'];
+        }
+        if (isset($options['trustProxy'])) {
+            $runlight['trustProxy'] = $options['trustProxy'];
+        }
         if (isset($options['geo'])) {
             $runlight['geo'] = $options['geo'];
         }

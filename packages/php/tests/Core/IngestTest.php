@@ -340,6 +340,36 @@ final class IngestTest extends CoreTestCase
         self::assertSame('192.0.2.9', $cf->clientIp($request(['x-forwarded-for' => '203.0.113.1'])));
     }
 
+    public function testATrustProxyLeftAtItsDefaultIsWarnedAboutOnceForAPublicAddressWithNoHeader(): void
+    {
+        $log = (string) tempnam(sys_get_temp_dir(), 'runlight-log');
+        $logged = ini_set('error_log', $log);
+        try {
+            $bare = new Request('https://example.com/e', 'POST');
+            $forwarded = new Request('https://example.com/e', 'POST', ['x-forwarded-for' => '8.8.4.4']);
+            $store = Stores::sqlite(':memory:');
+            // A clock given in code keeps the warning to this Runlight, with no marker shared with other requests.
+            $now = static fn (): int => 1_700_000_000_000;
+            $quiet = new Runlight(['store' => $store, 'trustProxy' => true, 'now' => $now]);
+            self::assertSame('8.8.8.8', $quiet->clientIp($bare, ['ip' => '8.8.8.8']));
+            self::assertSame('', file_get_contents($log), 'trustProxy set on purpose is never second-guessed');
+
+            $rl = new Runlight(['store' => $store, 'now' => $now]);
+            $rl->clientIp($forwarded, ['ip' => '10.0.0.2']);
+            $rl->clientIp($bare, ['ip' => '127.0.0.1']);
+            $rl->clientIp($bare, ['ip' => '192.168.1.5']);
+            self::assertSame('', file_get_contents($log), "a proxy's header, or a private or loopback address, says nothing");
+            self::assertSame('8.8.8.8', $rl->clientIp($bare, ['ip' => '8.8.8.8']));
+            $rl->clientIp($bare, ['ip' => '1.1.1.1']);
+            $said = (string) file_get_contents($log);
+            self::assertSame(1, substr_count($said, 'Runlight: a request came straight from a public address'), 'said once');
+            self::assertStringContainsString("'trustProxy' => false", $said);
+        } finally {
+            ini_set('error_log', (string) $logged);
+            @unlink($log);
+        }
+    }
+
     public function testOptionsAreCheckedAsTsChecksThem(): void
     {
         $store = Stores::sqlite(':memory:');
