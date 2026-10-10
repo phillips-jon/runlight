@@ -55,6 +55,12 @@ final class SettingsForm extends ConfigFormBase {
       '#attributes' => ['placeholder' => (string) $config->get('observe_key') !== '' ? $this->t('Saved. Leave blank to keep it for this address.') : ''],
       '#description' => $this->t('Optional. With this site’s key from Runlight’s Settings, Install, Key for CMS plugins, the module reports AI agents such as ChatGPT and Claude reading your pages. They run no JavaScript, so the script cannot see them. The key can report fetches for this site and nothing else.'),
     ];
+    $form['dashboard_key'] = [
+      '#type' => 'password',
+      '#title' => $this->t('Dashboard key'),
+      '#attributes' => ['placeholder' => (string) $config->get('dashboard_key') !== '' ? $this->t('Saved. Leave blank to keep it for this address.') : ''],
+      '#description' => $this->t('Optional. With this site’s key from Runlight’s Settings, Install, Key for the dashboard in your CMS, Reports, Runlight shows this site’s numbers right here. The key opens the same read-only view a share link shows, framed only by this admin, and cannot read anything itself.'),
+    ];
     $form['skip_admins'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Leave out the visits of people who can administer Runlight'),
@@ -91,14 +97,18 @@ final class SettingsForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $config = $this->config('runlight.settings');
     $key = trim((string) $form_state->getValue('observe_key'));
+    $dashboard = trim((string) $form_state->getValue('dashboard_key'));
     $address = self::tidy((string) $form_state->getValue('address'));
     // Left blank, a saved key stays, so it never has to be shown again, but only for the same
     // address: pointed somewhere else, the module must never send that Runlight's key there.
-    $kept = $address === (string) $config->get('address') ? (string) $config->get('observe_key') : '';
+    $same = $address === (string) $config->get('address');
+    $kept = $same ? (string) $config->get('observe_key') : '';
+    $keptDashboard = $same ? (string) $config->get('dashboard_key') : '';
     $config
       ->set('address', $address)
       ->set('site', (string) preg_replace('/[^a-z0-9._-]/i', '', (string) $form_state->getValue('site')))
       ->set('observe_key', $key === '' ? $kept : $key)
+      ->set('dashboard_key', $dashboard === '' ? $keptDashboard : $dashboard)
       ->set('skip_admins', (bool) $form_state->getValue('skip_admins'))
       ->set('outbound', (bool) $form_state->getValue('outbound'))
       ->set('downloads', (bool) $form_state->getValue('downloads'))

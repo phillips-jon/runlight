@@ -1,4 +1,4 @@
 administer runlight:
   title: 'Administer Runlight'
-  description: 'Change where the site sends its visits, and open the dashboard.'
+  description: 'Change where the site sends its visits, and see its dashboard.'
   restrict access: true

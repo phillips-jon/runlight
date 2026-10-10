@@ -5,6 +5,6 @@ Counts your site's visitors with [Runlight](https://runlight.sh/): privacy frien
 - Adds Runlight's script to every front-end page, and marks 404 pages.
 - Leaves out Control Panel users' own visits, if you want.
 - Reports AI agents such as ChatGPT and Claude that fetch your pages, after the response has been sent.
-- Adds a Runlight item to the Control Panel that opens your dashboard.
+- Adds a Runlight item to the Control Panel that shows your dashboard there with a dashboard key, and links to your Runlight.
 
 Settings accept environment variables, so the observe key can stay out of project config. Full steps: [runlight.sh/docs/craft](https://runlight.sh/docs/craft/).

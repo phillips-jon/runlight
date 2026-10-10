@@ -5,6 +5,6 @@ runlight.settings:
   route_name: runlight.settings
 runlight.dashboard:
   title: Runlight
-  description: 'Open the Runlight dashboard.'
+  description: 'This site’s numbers from Runlight.'
   parent: system.admin_reports
   route_name: runlight.dashboard

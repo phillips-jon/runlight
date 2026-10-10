@@ -16,24 +16,25 @@ test("each CMS plugin knows every AI agent the server records, and no others", (
   }
 });
 
-test("a CMS plugin keeps a saved observe key only while its Runlight address stays the same", (t) => {
+test("a CMS plugin keeps its saved keys only while its Runlight address stays the same", (t) => {
   // WordPress's sanitize runs under PHP with stand-ins for the few WordPress functions it calls.
   const settings = new URL("../../../plugins/wordpress/includes/Settings.php", import.meta.url).pathname;
   const script = `
     namespace Runlight\\WordPress;
     define("ABSPATH", "/");
-    $GLOBALS["saved"] = ["address" => "https://stats.example.com/runlight", "observe_key" => "rlo_saved"];
+    $GLOBALS["saved"] = ["address" => "https://stats.example.com/runlight", "observe_key" => "rlo_saved", "dashboard_key" => "rl_saved"];
     function get_option($name, $default) { return $GLOBALS["saved"]; }
     function sanitize_text_field($v) { return trim($v); }
     function wp_unslash($v) { return $v; }
     function untrailingslashit($v) { return rtrim($v, "/"); }
     function esc_url_raw($v, $protocols) { return $v; }
     require ${JSON.stringify(settings)};
-    echo json_encode([
-      Settings::sanitize(["address" => "https://stats.example.com/runlight", "observe_key" => ""])["observe_key"],
-      Settings::sanitize(["address" => "https://evil.example/runlight", "observe_key" => ""])["observe_key"],
-      Settings::sanitize(["address" => "https://other.example/runlight", "observe_key" => "rlo_new"])["observe_key"],
-    ]);
+    $keys = [];
+    foreach ([["https://stats.example.com/runlight", "", ""], ["https://evil.example/runlight", "", ""], ["https://other.example/runlight", "rlo_new", "rl_new"]] as [$address, $key, $dashboard]) {
+      $saved = Settings::sanitize(["address" => $address, "observe_key" => $key, "dashboard_key" => $dashboard]);
+      $keys[] = [$saved["observe_key"], $saved["dashboard_key"]];
+    }
+    echo json_encode($keys);
   `;
   let answer: string;
   try {
@@ -42,7 +43,7 @@ test("a CMS plugin keeps a saved observe key only while its Runlight address sta
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return t.skip("PHP is not installed");
     throw error;
   }
-  assert.deepEqual(JSON.parse(answer), ["rlo_saved", "", "rlo_new"]);
+  assert.deepEqual(JSON.parse(answer), [["rlo_saved", "rl_saved"], ["", ""], ["rlo_new", "rl_new"]]);
 
   // Drupal's form runs too, with stand-ins for the form base class, its state, and the saved config.
   const drupal = new URL("../../../plugins/drupal/src/Form/SettingsForm.php", import.meta.url).pathname;
@@ -50,7 +51,7 @@ test("a CMS plugin keeps a saved observe key only while its Runlight address sta
     namespace Drupal\\Core\\Form {
       interface FormStateInterface { public function getValue($key); }
       class Config {
-        public array $values = ["address" => "https://stats.example.com/runlight", "observe_key" => "rlo_saved"];
+        public array $values = ["address" => "https://stats.example.com/runlight", "observe_key" => "rlo_saved", "dashboard_key" => "rl_saved"];
         public function get($key) { return $this->values[$key] ?? null; }
         public function set($key, $value) { $this->values[$key] = $value; return $this; }
         public function save() { return $this; }
@@ -68,14 +69,14 @@ test("a CMS plugin keeps a saved observe key only while its Runlight address sta
         public function getValue($key) { return $this->values[$key] ?? ""; }
       }
       $keys = [];
-      foreach ([["https://stats.example.com/runlight/", ""], ["https://evil.example/runlight", ""], ["https://other.example/runlight", "rlo_new"]] as [$address, $key]) {
+      foreach ([["https://stats.example.com/runlight/", "", ""], ["https://evil.example/runlight", "", ""], ["https://other.example/runlight", "rlo_new", "rl_new"]] as [$address, $key, $dashboard]) {
         Drupal\\Core\\Form\\ConfigFormBase::$saved = new Drupal\\Core\\Form\\Config();
         $form = [];
-        (new Drupal\\runlight\\Form\\SettingsForm())->submitForm($form, new State(["address" => $address, "observe_key" => $key]));
-        $keys[] = Drupal\\Core\\Form\\ConfigFormBase::$saved->values["observe_key"];
+        (new Drupal\\runlight\\Form\\SettingsForm())->submitForm($form, new State(["address" => $address, "observe_key" => $key, "dashboard_key" => $dashboard]));
+        $keys[] = [Drupal\\Core\\Form\\ConfigFormBase::$saved->values["observe_key"], Drupal\\Core\\Form\\ConfigFormBase::$saved->values["dashboard_key"]];
       }
       echo json_encode($keys);
     }
   `;
-  assert.deepEqual(JSON.parse(execFileSync("php", ["-r", submit], { encoding: "utf8" })), ["rlo_saved", "", "rlo_new"]);
+  assert.deepEqual(JSON.parse(execFileSync("php", ["-r", submit], { encoding: "utf8" })), [["rlo_saved", "rl_saved"], ["", ""], ["rlo_new", "rl_new"]]);
 });
