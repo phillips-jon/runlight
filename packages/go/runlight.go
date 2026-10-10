@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"runlight.sh/go/internal/js"
@@ -68,6 +69,10 @@ type Options struct {
 	// ProxyHeader names the one forwarding header to read, such as
 	// "cf-connecting-ip" behind Cloudflare and another proxy.
 	ProxyHeader string
+	// TrustProxy reads the default forwarding headers on purpose. It changes
+	// nothing but the warning given when, left unset, a request arrives
+	// straight from a public address with none of them.
+	TrustProxy bool
 	// LinkPath is where short links on the app's own domain live, as
 	// {LinkPath}/{slug}. "" is "/go".
 	LinkPath string
@@ -235,6 +240,9 @@ type Runlight struct {
 	turnsMu   sync.Mutex
 	turns     map[string]*turn
 	optimized int64
+	// warnDirect is true until the default trust, never chosen, has been seen
+	// answering a public address directly, and warned about once.
+	warnDirect atomic.Bool
 
 	mu          sync.Mutex
 	configured  []SiteRow
@@ -332,6 +340,7 @@ func New(options Options) (*Runlight, error) {
 		r.trust = strings.ToLower(options.ProxyHeader)
 	default:
 		r.trust = "*"
+		r.warnDirect.Store(!options.TrustProxy)
 	}
 	perMinute := 120
 	if options.RateLimit != nil {
@@ -1430,6 +1439,11 @@ func (r *Runlight) ClientIP(request *Request) string {
 		}
 		if ok && strings.TrimSpace(forwarded) != "" {
 			return strings.TrimSpace(forwarded)
+		}
+		// A public address with no forwarding header means nothing sits in front, and then any client
+		// could name its own address in one. Said once, only when the trust was left at its default.
+		if r.warnDirect.Load() && web.PublicAddress(request.RemoteAddress) && r.warnDirect.CompareAndSwap(true, false) {
+			r.logf("Runlight: a request came straight from a public address with no proxy in front, but trustProxy is on by default, so a client could send X-Forwarded-For and choose its own address, getting round the rate limits. Set IgnoreProxy: true when nothing sits in front of this server, or put a proxy in front that sets the header.")
 		}
 	}
 	return request.RemoteAddress

@@ -285,6 +285,10 @@ func run(args []string) error {
 		options.IgnoreProxy = true
 	case "x-forwarded-for", "x-real-ip", "cf-connecting-ip":
 		options.ProxyHeader = proxy
+	case "":
+		// Unset stays unset, so the library's default applies and it can warn when nothing sits in front.
+	default:
+		options.TrustProxy = true
 	}
 	srv, err := server.New(options)
 	if err != nil {

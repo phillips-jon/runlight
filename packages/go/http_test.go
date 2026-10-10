@@ -2,6 +2,7 @@ package runlight_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -105,5 +106,47 @@ func TestObserveChecksTheKeyBeforeTheBody(t *testing.T) {
 		if res.StatusCode != 401 {
 			t.Errorf("%s: %d, want 401", key, res.StatusCode)
 		}
+	}
+}
+
+func TestDefaultTrustWarnsOnceAboutDirectPublicAddresses(t *testing.T) {
+	var said []string
+	logf := func(format string, args ...any) { said = append(said, fmt.Sprintf(format, args...)) }
+	request := func(ip string, pairs ...string) *runlight.Request {
+		header := &runlight.Headers{}
+		for i := 0; i+1 < len(pairs); i += 2 {
+			header.Append(pairs[i], pairs[i+1])
+		}
+		return &runlight.Request{URL: "https://example.com/e", Method: "GET", Header: header, RemoteAddress: ip}
+	}
+	site := &runlight.SiteOptions{Hostnames: []string{"example.com"}}
+
+	quiet, err := runlight.New(runlight.Options{Store: runlight.NewStore(oneLink{}), Site: site, TrustProxy: true, Logf: logf})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := quiet.ClientIP(request("8.8.8.8")); got != "8.8.8.8" {
+		t.Errorf("client IP %q", got)
+	}
+	if len(said) != 0 {
+		t.Errorf("TrustProxy set on purpose is never second-guessed: %q", said)
+	}
+
+	rl, err := runlight.New(runlight.Options{Store: runlight.NewStore(oneLink{}), Site: site, Logf: logf})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rl.ClientIP(request("10.0.0.2", "x-forwarded-for", "8.8.4.4"))
+	rl.ClientIP(request("127.0.0.1"))
+	rl.ClientIP(request("192.168.1.5"))
+	if len(said) != 0 {
+		t.Errorf("a proxy's header, or a private or loopback address, says nothing: %q", said)
+	}
+	if got := rl.ClientIP(request("8.8.8.8")); got != "8.8.8.8" {
+		t.Errorf("client IP %q", got)
+	}
+	rl.ClientIP(request("1.1.1.1"))
+	if len(said) != 1 || !strings.Contains(said[0], "IgnoreProxy: true") {
+		t.Errorf("said once, naming IgnoreProxy: %q", said)
 	}
 }

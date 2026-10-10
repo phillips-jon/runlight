@@ -37,7 +37,10 @@ type Options struct {
 	IgnoreProxy bool
 	// ProxyHeader names the one forwarding header to read, such as cf-connecting-ip.
 	ProxyHeader string
-	Geo         runlight.GeoLookup
+	// TrustProxy trusts forwarded headers on purpose. Left false, they are
+	// still trusted, with a warning when nothing seems to sit in front.
+	TrustProxy bool
+	Geo        runlight.GeoLookup
 	// GeoCredit credits DB-IP in the dashboard, when its free data supplies locations.
 	GeoCredit bool
 	Now       func() int64
@@ -101,7 +104,7 @@ func New(options Options) (*Server, error) {
 	}
 	rl, err := runlight.New(runlight.Options{
 		Store: options.Store, ManagedSites: true, Secret: &options.Secret, IgnoreProxy: options.IgnoreProxy, ProxyHeader: options.ProxyHeader,
-		Geo: options.Geo, Now: options.Now, Fetcher: options.Fetcher, Logf: options.Logf,
+		TrustProxy: options.TrustProxy, Geo: options.Geo, Now: options.Now, Fetcher: options.Fetcher, Logf: options.Logf,
 	})
 	if err != nil {
 		return nil, err
