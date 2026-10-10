@@ -175,7 +175,8 @@ async fn the_checked_addresses_are_pinned() {
 
     let literal = Fake::new(|_| Ok(Response::new("ok", 200, Headers::new())));
     public_fetch(literal.as_ref(), "https://93.184.215.14:8443/", &init(2000, &dns(&[]))).await.unwrap();
-    assert!(literal.init(0).resolve.is_empty(), "an address needs no pin");
+    let ip: IpAddr = "93.184.215.14".parse().unwrap();
+    assert_eq!(literal.init(0).resolve, vec![("93.184.215.14".to_string(), 8443, vec![ip])], "pinned to itself");
 }
 
 #[tokio::test]
@@ -217,6 +218,12 @@ async fn redirects_are_followed_by_hand_under_the_same_rules() {
     let fetcher = hops(vec![redirect("https://b.example/", 302)]);
     let answer = public_fetch(fetcher.as_ref(), "https://a.example/", &init(2000, &lookup)).await.unwrap();
     assert_eq!(answer.status, 302, "a redirect past the last comes back as it is");
+
+    let fetcher = hops(vec![redirect("https://b.example/", 307)]);
+    let post = PublicFetchInit { method: "POST".into(), body: Some(b"{}".to_vec()), ..three.clone() };
+    let answer = public_fetch(fetcher.as_ref(), "https://a.example/", &post).await.unwrap();
+    assert_eq!((answer.status, fetcher.urls().len()), (307, 1), "only a GET follows a redirect");
+    assert_eq!((fetcher.init(0).method.as_str(), fetcher.init(0).body.as_deref()), ("POST", Some(&b"{}"[..])));
 
     for (location, what) in [
         ("https://10.0.0.1/", "10.0.0.1"),

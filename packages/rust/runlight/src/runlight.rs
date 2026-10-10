@@ -12,6 +12,7 @@ use crate::js::{self, Object, Value};
 use crate::limit::RateLimit;
 use crate::payload::{MAX_BODY, Payload, parse_payload};
 use crate::re::{js_re, test};
+use crate::safefetch::Lookup;
 use crate::sources::{Page, attribute, decode_uri_component, parse_page, strip_www};
 use crate::store::{EVENT_TAIL_MS, EventRow, SessionRow, SiteOverrides, SiteRow, SqlStore};
 use crate::time::{add_days, is_timezone, local_date, start_of};
@@ -89,6 +90,13 @@ pub struct RunlightOptions {
     pub now: Option<Clock>,
     /// Everything that calls another server goes through this.
     pub fetcher: Option<SharedFetcher>,
+    /// Lets a connected install be at http://localhost or http://127.0.0.1, for trying a hub and an app
+    /// on one machine. Default false: otherwise anyone who can add a site could have this server ask
+    /// services on its own machine, so other installs must be public https addresses.
+    pub local_installs: bool,
+    /// Stands in for DNS where an install's or a service's address is checked before it is fetched, for
+    /// tests.
+    pub lookup: Option<Lookup>,
 }
 
 impl RunlightOptions {
@@ -107,6 +115,8 @@ impl RunlightOptions {
             rate_limit: None,
             now: None,
             fetcher: None,
+            local_installs: false,
+            lookup: None,
         }
     }
 }
@@ -224,6 +234,8 @@ pub(crate) struct Inner {
     pub(crate) mail_in_code: Option<Object>,
     pub(crate) secret: Option<String>,
     pub(crate) fetcher: SharedFetcher,
+    local_installs: bool,
+    lookup: Option<Lookup>,
     state: Mutex<State>,
     ready: tokio::sync::Mutex<bool>,
     checking: tokio::sync::Mutex<()>,
@@ -279,6 +291,8 @@ impl Runlight {
             mail_in_code: options.mail,
             secret,
             fetcher: options.fetcher.unwrap_or_else(default_fetcher),
+            local_installs: options.local_installs,
+            lookup: options.lookup,
             state: Mutex::new(State { configured, ..State::default() }),
             ready: tokio::sync::Mutex::new(false),
             checking: tokio::sync::Mutex::new(()),
@@ -306,6 +320,22 @@ impl Runlight {
     /// The fetcher everything that calls out goes through.
     pub fn fetcher(&self) -> &SharedFetcher {
         &self.0.fetcher
+    }
+
+    /// Whether a connected install may be on this machine, at http://localhost or http://127.0.0.1.
+    pub fn local_installs(&self) -> bool {
+        self.0.local_installs
+    }
+
+    /// What stands in for DNS, when the options gave one.
+    pub(crate) fn lookup(&self) -> Option<&Lookup> {
+        self.0.lookup.as_ref()
+    }
+
+    /// A request to another install, through the fetcher, only to a public address (or this machine,
+    /// with `local_installs`), and with no redirect followed.
+    pub(crate) async fn fetch_install(&self, url: &str, init: FetchInit) -> Result<Response, crate::http::FetchError> {
+        crate::safefetch::install_fetch(&*self.0.fetcher, url, init, self.0.local_installs, self.lookup()).await
     }
 
     /// Whether sites are managed in the dashboard.
@@ -485,7 +515,7 @@ impl Runlight {
             .header("authorization", format!("Bearer {}", remote.token))
             .timeout(8000)
             .max_bytes(REMOTE_MAX_BYTES);
-        if let Ok(answer) = self.0.fetcher.fetch(&format!("{}/api/sites", remote.url), init).await {
+        if let Ok(answer) = self.fetch_install(&format!("{}/api/sites", remote.url), init).await {
             if answer.status == 401 || answer.status == 403 {
                 info.connection = "refused";
             }
@@ -516,7 +546,7 @@ impl Runlight {
     async fn revoke_remote_token(&self, remote: &Remote) {
         let init =
             FetchInit::method("DELETE").header("authorization", format!("Bearer {}", remote.token)).timeout(5000);
-        let _ = self.0.fetcher.fetch(&format!("{}/api/token", remote.url), init).await;
+        let _ = self.fetch_install(&format!("{}/api/token", remote.url), init).await;
     }
 
     async fn seal(&self, value: &str) -> String {
@@ -526,7 +556,7 @@ impl Runlight {
     /// Connects a site counted by another Runlight (an app's own install) so this server shows it too.
     async fn add_remote_site(&self, input: &Value, name: Option<&Value>) -> Result<SiteRow, Error> {
         let url = js::trim(&js::str_or_empty(input.get("url"))).trim_end_matches('/').to_string();
-        if !test(js_re!(r"^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"), &url) {
+        if !crate::safefetch::install_address(&url, self.0.local_installs) {
             return Err(Error::settings(
                 "Enter the install's address, like https://example.com/runlight",
                 "connect_url",
@@ -537,10 +567,9 @@ impl Runlight {
         if token.is_empty() {
             return Err(Error::settings("Enter an API token from that install", "install_token", &[]));
         }
-        let fetcher = &self.0.fetcher;
         let auth = format!("Bearer {token}");
-        let answer = match fetcher
-            .fetch(
+        let answer = match self
+            .fetch_install(
                 &format!("{url}/api/sites"),
                 FetchInit::default().header("authorization", &auth).timeout(10_000).max_bytes(REMOTE_MAX_BYTES),
             )
@@ -569,8 +598,8 @@ impl Runlight {
         // What the token may do there; an install from before manage tokens has no /api/token and reads only.
         let mut scope = "read".to_string();
         let mut token_site = String::new();
-        if let Ok(about) = fetcher
-            .fetch(
+        if let Ok(about) = self
+            .fetch_install(
                 &format!("{url}/api/token"),
                 FetchInit::default().header("authorization", &auth).timeout(10_000).max_bytes(REMOTE_MAX_BYTES),
             )

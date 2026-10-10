@@ -1116,6 +1116,23 @@ impl Routes {
         if !any_site && given.is_empty() {
             return Ok(coded("Unauthorized", "unauthorized", 401, None));
         }
+        // A site's own key is found before the body is read, so a stranger costs one lookup at most.
+        let mut key_site: Option<String> = None;
+        if !any_site {
+            if !given.starts_with("rlo_") {
+                return Ok(coded("Unauthorized", "unauthorized", 401, None));
+            }
+            rl.init().await?;
+            for (key, value) in rl.store().settings_starting_with("observe-key:").await? {
+                let id = &key["observe-key:".len()..];
+                if !id.is_empty() && constant_time_equal(&given, &value) && rl.site(Some(id)).is_some() {
+                    key_site = Some(id.to_string());
+                }
+            }
+            if key_site.is_none() {
+                return Ok(coded("Unauthorized", "unauthorized", 401, None));
+            }
+        }
         let body = match read_json(request) {
             Ok(b) => Value::Object(b),
             Err(r) => return Ok(r),
@@ -1150,18 +1167,8 @@ impl Routes {
         }
         rl.init().await?;
         let mut keep: Vec<&(Url, String, Option<f64>)> = pages.iter().collect();
-        if !any_site {
+        if let Some(key_site) = key_site {
             // A site's own key reports only pages on that site's domains.
-            let mut key_site: Option<String> = None;
-            for site in rl.sites() {
-                if let Some(key) = rl.store().setting(&format!("observe-key:{}", site.id)).await?
-                    && !key.is_empty()
-                    && constant_time_equal(&given, &key)
-                {
-                    key_site = Some(site.id);
-                }
-            }
-            let Some(key_site) = key_site else { return Ok(coded("Unauthorized", "unauthorized", 401, None)) };
             keep.retain(|p| rl.site_for(&p.0.hostname(), None).is_some_and(|s| s.id == key_site));
             // A single report for another site's page is a misconfigured plugin, which should hear about it.
             if !batch && keep.is_empty() {

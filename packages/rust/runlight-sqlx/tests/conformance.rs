@@ -348,6 +348,8 @@ async fn play(scenario: &Value, store: runlight::store::SqlStore) -> Result<Vec<
     let clock = now.clone();
     rl_options.now = Some(Arc::new(move || clock.load(Ordering::SeqCst)));
     rl_options.fetcher = Some(upstream.clone());
+    // The servers a scenario stands in for are on the public internet.
+    rl_options.lookup = Some(Arc::new(|_: &str| Box::pin(async { vec!["93.184.215.14".to_string()] })));
     let rl = Runlight::new(rl_options).map_err(|e| format!("new Runlight: {e}"))?;
     let token = match scenario.get("token") {
         Some(Value::String(t)) => TokenOption::Given(t.clone()),

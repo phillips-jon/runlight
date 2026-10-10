@@ -371,3 +371,31 @@ async fn the_same_rows_in_postgres_and_mysql_answer_the_same() {
         fresh.done().await;
     }
 }
+
+#[tokio::test]
+async fn a_value_stays_inside_its_quotes_whatever_the_sql_mode() {
+    let hostile = "x\\' OR 1=1 UNION SELECT 'pwned";
+    for (kind, url) in common::kinds() {
+        if kind != "mysql" && kind != "mariadb" {
+            continue;
+        }
+        // An app's own pool whose server mode reads a backslash as plain text.
+        let plain = sqlx::mysql::MySqlPoolOptions::new()
+            .max_connections(2)
+            .after_connect(|conn, _| {
+                Box::pin(async move {
+                    sqlx::raw_sql("SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES'").execute(conn).await.map(|_| ())
+                })
+            })
+            .connect(&url)
+            .await
+            .unwrap();
+        let store = runlight_sqlx::mysql(plain.clone());
+        let rows = store.db().all("SELECT ? AS v", vec![Param::Text(hostile.into())]).await.unwrap();
+        assert_eq!(rows.len(), 1, "{kind}");
+        assert_eq!(rows[0].text("v"), hostile, "{kind}: the mode is dropped, so the value comes back as it went in");
+        let rows = store.db().all("SELECT @@SESSION.sql_mode AS m", vec![]).await.unwrap();
+        assert!(!rows[0].text("m").contains("NO_BACKSLASH_ESCAPES"), "{kind}");
+        plain.close().await;
+    }
+}

@@ -292,7 +292,9 @@ pub fn postgres_literal(p: &Param) -> String {
     }
 }
 
-/// A value as a MySQL literal, as mysql2's escape() writes the values Runlight binds.
+/// A value as a MySQL literal, as mysql2's escape() writes the values Runlight binds, except that a
+/// quote is doubled rather than escaped with a backslash, so a value stays inside its quotes even on a
+/// connection whose sql_mode has NO_BACKSLASH_ESCAPES.
 pub fn mysql_literal(p: &Param) -> String {
     match p {
         Param::Null => "NULL".into(),
@@ -310,7 +312,7 @@ pub fn mysql_literal(p: &Param) -> String {
                     '\n' => out.push_str("\\n"),
                     '\r' => out.push_str("\\r"),
                     '"' => out.push_str("\\\""),
-                    '\'' => out.push_str("\\'"),
+                    '\'' => out.push_str("''"),
                     '\\' => out.push_str("\\\\"),
                     _ => out.push(c),
                 }
@@ -331,7 +333,7 @@ mod tests {
         let params = vec![Param::Int(3), Param::Text("o'k\\".into())];
         assert_eq!(
             fill_placeholders(sql, &params, true, mysql_literal).unwrap(),
-            r#"SELECT `key`, 'a?b\\c' FROM t WHERE x = 3 AND y LIKE 'o\'k\\' ESCAPE '\\'"#
+            r#"SELECT `key`, 'a?b\\c' FROM t WHERE x = 3 AND y LIKE 'o''k\\' ESCAPE '\\'"#
         );
         assert_eq!(
             fill_placeholders(sql, &params, false, postgres_literal).unwrap(),

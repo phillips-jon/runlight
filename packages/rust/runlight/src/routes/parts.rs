@@ -821,7 +821,7 @@ impl Routes {
             init.body = Some(r.body.clone());
         }
         let host = Url::parse(&remote.url).map(|u| u.host()).unwrap_or_default();
-        let answer = match self.rl().fetcher().fetch(&target.href(), init).await {
+        let answer = match self.rl().fetch_install(&target.href(), init).await {
             Ok(a) => a,
             Err(crate::http::FetchError::TimedOut) => {
                 return Ok(coded(

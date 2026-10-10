@@ -212,7 +212,7 @@ async fn importer_scenarios_match_typescript() {
             None
         }));
         let (sleep, waits) = no_wait();
-        let http = Http::with_sleep(fake.clone(), sleep);
+        let http = Http::with_sleep(fake.clone(), sleep).with_lookup(public_dns());
         let credentials: Credentials = scenario
             .at("credentials")
             .as_object()
@@ -337,8 +337,13 @@ async fn run_all(
     (links, clicks, skipped, failed, done)
 }
 
+/// Every name the services are at resolves to a public address.
+fn public_dns() -> Option<runlight::safefetch::Lookup> {
+    Some(Arc::new(|_: &str| Box::pin(async { vec!["93.184.215.14".to_string()] })))
+}
+
 fn importing(fake: Arc<Fake>) -> Http {
-    Http::with_sleep(fake, no_wait().0)
+    Http::with_sleep(fake, no_wait().0).with_lookup(public_dns())
 }
 
 const NOW: i64 = 1_791_471_845_678;
@@ -558,6 +563,30 @@ async fn umami_signs_in_with_a_username_and_password_and_re_runs_skip_what_is_th
         let e = import_step_with(&rl, &http, "default", source, &creds(&[]), None, 0.0).await.unwrap_err();
         assert_eq!(e.coded().unwrap().code, "import_source", "{source}");
     }
+}
+
+#[tokio::test]
+async fn umami_an_address_on_the_installs_own_network_or_without_https_is_never_asked() {
+    let fake =
+        Fake::new(Box::new(|_, _| Some(Ok((200, obj! { "token" => "t", "data" => arr![], "count" => 0 }, vec![])))));
+    let (rl, _, _) = make(NOW, "UTC", Some(fake.clone())).await;
+    let http = importing(fake.clone());
+    for url in [
+        "https://127.0.0.1:3000",
+        "https://10.0.0.5",
+        "https://169.254.169.254",
+        "https://[::1]",
+        "https://localhost:3000",
+    ] {
+        let e = import_step_with(&rl, &http, "default", "umami", &creds(&[("url", url), ("apiKey", "k")]), None, 0.0)
+            .await
+            .unwrap_err();
+        assert_eq!(e.coded().map(|c| c.code.as_str()), Some("unreachable"), "{url}");
+    }
+    let plain = creds(&[("url", "http://stats.example.com"), ("apiKey", "k")]);
+    let e = import_step_with(&rl, &http, "default", "umami", &plain, None, 0.0).await.unwrap_err();
+    assert!(e.message().contains("Umami address"));
+    assert!(fake.calls().is_empty());
 }
 
 #[test]
@@ -1311,7 +1340,7 @@ async fn http_a_negative_retry_after_waits_the_default_backoff() {
         }
     }));
     let (sleep, waits) = no_wait();
-    let http = Http::with_sleep(fake, sleep);
+    let http = Http::with_sleep(fake, sleep).with_lookup(public_dns());
     assert_eq!(js::stringify(&http.get("https://api.example.com/x", &[]).await.unwrap()), "[]");
     assert_eq!(*waits.lock().unwrap(), vec![800.0]);
 }

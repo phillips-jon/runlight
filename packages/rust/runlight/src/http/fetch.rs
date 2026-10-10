@@ -129,21 +129,26 @@ impl Default for ReqwestFetcher {
 impl ReqwestFetcher {
     /// A Fetcher with clients of its own.
     pub fn new() -> ReqwestFetcher {
-        ReqwestFetcher { follow: client(false, &[]), manual: client(true, &[]) }
+        ReqwestFetcher { follow: client(false, &[]).unwrap_or_default(), manual: client(true, &[]).unwrap_or_default() }
     }
 }
 
+/// A client, pinned to the addresses given. A pinned client never goes through a proxy, as a proxy
+/// would look the name up itself, and fails rather than fall back to one that is not pinned.
 #[cfg(feature = "transport")]
-fn client(manual: bool, resolve: &[(String, u16, Vec<IpAddr>)]) -> reqwest::Client {
+fn client(manual: bool, resolve: &[(String, u16, Vec<IpAddr>)]) -> Result<reqwest::Client, FetchError> {
     let mut b = reqwest::Client::builder()
         .redirect(if manual { reqwest::redirect::Policy::none() } else { reqwest::redirect::Policy::limited(20) })
         .connect_timeout(std::time::Duration::from_secs(15));
+    if !resolve.is_empty() {
+        b = b.no_proxy();
+    }
     for (host, port, addresses) in resolve {
         let addrs: Vec<std::net::SocketAddr> =
             addresses.iter().map(|ip| std::net::SocketAddr::new(*ip, *port)).collect();
         b = b.resolve_to_addrs(host, &addrs);
     }
-    b.build().unwrap_or_default()
+    b.build().map_err(|e| FetchError::Failed(e.to_string()))
 }
 
 #[cfg(feature = "transport")]
@@ -152,7 +157,7 @@ impl Fetcher for ReqwestFetcher {
         Box::pin(async move {
             let pinned;
             let http = if !init.resolve.is_empty() {
-                pinned = client(init.manual_redirect, &init.resolve);
+                pinned = client(init.manual_redirect, &init.resolve)?;
                 &pinned
             } else if init.manual_redirect {
                 &self.manual

@@ -30,8 +30,14 @@ impl MysqlDb {
     }
 }
 
+/// The session's sql_mode as it was, less NO_BACKSLASH_ESCAPES, wherever it sits in the list.
+const NO_BACKSLASH_ESCAPES_OFF: &str = "SET SESSION sql_mode = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', @@SESSION.sql_mode, ','), ',NO_BACKSLASH_ESCAPES,', ','))";
+
+/// A statement with its values written in. Values are escaped with backslashes, which a server set to
+/// NO_BACKSLASH_ESCAPES reads as text, so a quote could end the value early: the statement goes after
+/// one that drops that mode from the connection, an app's own pool's too, in the same round trip.
 fn text(sql: &str, params: &[Param]) -> Result<AssertSqlSafe<String>, DbError> {
-    Ok(AssertSqlSafe(fill_placeholders(sql, params, true, mysql_literal)?))
+    Ok(AssertSqlSafe(format!("{NO_BACKSLASH_ESCAPES_OFF}; {}", fill_placeholders(sql, params, true, mysql_literal)?)))
 }
 
 async fn exec(conn: &mut PoolConnection<MySql>, sql: &str) -> Result<Vec<Row>, DbError> {

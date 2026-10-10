@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 
 use crate::BoxFuture;
 use crate::http::{FetchError, FetchInit, Fetcher, Headers, Response, Url};
+use crate::re::{js_re, test};
 
 /// Refused before anything was fetched, because the address is not on the
 /// public internet. The text names what was refused.
@@ -283,11 +284,15 @@ pub async fn resolves_privately(name: &str, with: Option<&Lookup>) -> bool {
 /// What a public fetch is sent with.
 #[derive(Clone)]
 pub struct PublicFetchInit {
+    /// The method, `GET` by default.
+    pub method: String,
+    /// The body, if any.
+    pub body: Option<Vec<u8>>,
     /// The whole fetch's limit, every hop included, in milliseconds.
     pub timeout_ms: u64,
     /// The headers sent on every hop.
     pub headers: Headers,
-    /// How many redirects to follow.
+    /// How many redirects to follow. Only a GET follows any.
     pub redirects: u32,
     /// A cap on the body, passed to the Fetcher.
     pub max_bytes: Option<usize>,
@@ -301,6 +306,8 @@ impl PublicFetchInit {
     /// A fetch with this time limit, no redirects, and no other options.
     pub fn new(timeout_ms: u64) -> PublicFetchInit {
         PublicFetchInit {
+            method: "GET".into(),
+            body: None,
             timeout_ms,
             headers: Headers::new(),
             redirects: 0,
@@ -311,10 +318,11 @@ impl PublicFetchInit {
     }
 }
 
-/// GETs an https URL on the public internet, following up to `redirects`
+/// Requests an https URL on the public internet, following up to `redirects`
 /// redirects that stay on it, within `timeout_ms` in all. Fails with
 /// `Private` for an address off it, and `Fetch(FetchError::TimedOut)` when
-/// time runs out. A redirect past the last one comes back as it is.
+/// time runs out. A redirect past the last one comes back as it is, as
+/// does any redirect for a request other than a GET.
 pub async fn public_fetch(
     fetcher: &dyn Fetcher,
     target: &str,
@@ -324,6 +332,8 @@ pub async fn public_fetch(
     let left = || until.saturating_duration_since(Instant::now());
     let mut url = Url::parse(target).ok_or_else(|| PublicFetchError::InvalidUrl(target.to_string()))?;
     let mut hop: u32 = 0;
+    let method = init.method.to_ascii_uppercase();
+    let redirects = if method == "GET" { init.redirects } else { 0 };
     loop {
         if url.protocol() != "https:" {
             return Err(PrivateAddressError(url.href()).into());
@@ -337,13 +347,19 @@ pub async fn public_fetch(
             return Err(PrivateAddressError(host).into());
         }
         let mut options = FetchInit {
+            method: method.clone(),
             headers: init.headers.clone(),
+            body: init.body.clone(),
             manual_redirect: true,
             max_bytes: init.max_bytes,
             truncate: init.truncate,
             ..FetchInit::default()
         };
-        if !literal {
+        let port = url.port().parse::<u16>().unwrap_or(443);
+        if literal {
+            // Pinned to itself, so the request goes straight there and never through a proxy.
+            options.resolve = host.parse::<IpAddr>().map(|ip| vec![(host.clone(), port, vec![ip])]).unwrap_or_default();
+        } else {
             // The address checked is the address used: every one the name gives must be public, and the
             // connection is pinned to them, so a second lookup cannot hand back another.
             let addresses = match tokio::time::timeout(left(), resolve(&host, init.lookup.as_ref())).await {
@@ -356,7 +372,6 @@ pub async fn public_fetch(
             if addresses.iter().any(|a| !public_address(a)) {
                 return Err(PrivateAddressError(host).into());
             }
-            let port = url.port().parse::<u16>().unwrap_or(443);
             let ips: Vec<IpAddr> = addresses.iter().filter_map(|a| unbracket(a).parse().ok()).collect();
             options.resolve = vec![(host.clone(), port, ips)];
         }
@@ -377,10 +392,53 @@ pub async fn public_fetch(
             Ok(Ok(answer)) => answer,
         };
         let location = answer.headers.get("location").unwrap_or_default();
-        if answer.status < 300 || answer.status >= 400 || location.is_empty() || hop >= init.redirects {
+        if answer.status < 300 || answer.status >= 400 || location.is_empty() || hop >= redirects {
             return Ok(answer);
         }
         url = Url::parse_with_base(&location, &href).ok_or(PublicFetchError::InvalidUrl(location))?;
         hop += 1;
     }
+}
+
+/// An install on this machine: http://localhost or http://127.0.0.1, with any port.
+fn local_install(url: &str) -> bool {
+    test(js_re!(r"^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"), url)
+}
+
+/// Whether an address can be another Runlight install's: https, or, with
+/// `local`, an install on this machine, which only code can allow.
+pub fn install_address(url: &str, local: bool) -> bool {
+    test(js_re!(r"^https://[^/]+"), url) || (local && local_install(url))
+}
+
+/// Fetches from another Runlight install, which someone signed in named: a
+/// public address as [`public_fetch`] fetches it, with no redirect followed,
+/// so a token sent there goes nowhere else. With `local`, an install on this
+/// machine is fetched as it is, still without following a redirect. A
+/// refused address fails as a request that could not connect.
+pub(crate) async fn install_fetch(
+    fetcher: &dyn Fetcher,
+    url: &str,
+    mut init: FetchInit,
+    local: bool,
+    lookup: Option<&Lookup>,
+) -> Result<Response, FetchError> {
+    if local && local_install(url) {
+        init.manual_redirect = true;
+        return fetcher.fetch(url, init).await;
+    }
+    let options = PublicFetchInit {
+        method: init.method,
+        body: init.body,
+        timeout_ms: init.timeout_ms,
+        headers: init.headers,
+        redirects: 0,
+        max_bytes: init.max_bytes,
+        truncate: init.truncate,
+        lookup: lookup.cloned(),
+    };
+    public_fetch(fetcher, url, &options).await.map_err(|e| match e {
+        PublicFetchError::Fetch(e) => e,
+        e => FetchError::Failed(e.to_string()),
+    })
 }

@@ -196,7 +196,7 @@ pub(crate) async fn finish_connect(routes: &Routes, url: &Url) -> Result<Result<
 pub(crate) async fn umami_import(routes: &Routes, path: &str, url: &Url, body: &Value) -> R {
     let rl = routes.rl();
     let credentials = credentials_from(body.get("credentials"));
-    let http = Http::new(rl.fetcher().clone());
+    let http = Http::new(rl.fetcher().clone()).with_lookup(rl.lookup().cloned());
     if path == "/api/import/umami/websites" {
         let websites = umami_websites(&http, &credentials).await;
         return match websites {
