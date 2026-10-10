@@ -2,6 +2,7 @@
 //! and the scheduled upkeep (runlight.ts).
 
 use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::error::Error;
@@ -12,7 +13,7 @@ use crate::js::{self, Object, Value};
 use crate::limit::RateLimit;
 use crate::payload::{MAX_BODY, Payload, parse_payload};
 use crate::re::{js_re, test};
-use crate::safefetch::Lookup;
+use crate::safefetch::{Lookup, public_address};
 use crate::sources::{Page, attribute, decode_uri_component, parse_page, strip_www};
 use crate::store::{EVENT_TAIL_MS, EventRow, SessionRow, SiteOverrides, SiteRow, SqlStore};
 use crate::time::{add_days, is_timezone, local_date, start_of};
@@ -75,8 +76,9 @@ pub struct RunlightOptions {
     pub managed_sites: bool,
     /// Looks up a location for an IP when the platform sends no location headers.
     pub geo: Option<SharedGeo>,
-    /// Where the client's address is read from.
-    pub trust_proxy: TrustProxy,
+    /// Where the client's address is read from. `None` is the default, [`TrustProxy::On`], and warns
+    /// once if requests then arrive straight from public addresses with no proxy header.
+    pub trust_proxy: Option<TrustProxy>,
     /// Where short links on the app's own domain live. Default "/go".
     pub link_path: Option<String>,
     /// The mail service for email reports, in code, as the SDK's MailSettings object.
@@ -108,7 +110,7 @@ impl RunlightOptions {
             sites: None,
             managed_sites: false,
             geo: None,
-            trust_proxy: TrustProxy::On,
+            trust_proxy: None,
             link_path: None,
             mail: None,
             secret: None,
@@ -228,6 +230,9 @@ pub(crate) struct Inner {
     pub(crate) managed_sites: bool,
     geo: Option<SharedGeo>,
     trust_proxy: TrustProxy,
+    /// True until trust_proxy left at its default has been seen answering a public address directly, and warned about once.
+    warn_direct: AtomicBool,
+    direct_warnings: AtomicU32,
     limit: Option<RateLimit>,
     clock: Clock,
     pub(crate) link_path: String,
@@ -284,7 +289,9 @@ impl Runlight {
             store: options.store,
             managed_sites: options.managed_sites,
             geo: options.geo,
-            trust_proxy: options.trust_proxy,
+            warn_direct: AtomicBool::new(options.trust_proxy.is_none()),
+            direct_warnings: AtomicU32::new(0),
+            trust_proxy: options.trust_proxy.unwrap_or_default(),
             limit,
             clock,
             link_path,
@@ -1062,7 +1069,24 @@ impl Runlight {
         {
             return js::trim(&f).to_string();
         }
+        // A public address with no forwarding header means nothing sits in front, and then any client
+        // could name its own address in one. Said once, only when trust_proxy was left at its default.
+        if self.0.warn_direct.load(Ordering::Relaxed)
+            && public_address(&request.remote_address)
+            && self.0.warn_direct.swap(false, Ordering::Relaxed)
+        {
+            self.0.direct_warnings.fetch_add(1, Ordering::Relaxed);
+            eprintln!(
+                "Runlight: a request came straight from a public address with no proxy in front, but trustProxy is on by default, so a client could send X-Forwarded-For and choose its own address, getting round the rate limits. Set trust_proxy: Some(TrustProxy::Off) when nothing sits in front of this server, or put a proxy in front that sets the header."
+            );
+        }
         request.remote_address.clone()
+    }
+
+    /// How many times the warning about a default trust_proxy with nothing in front was given, for tests.
+    #[doc(hidden)]
+    pub fn direct_warnings(&self) -> u32 {
+        self.0.direct_warnings.load(Ordering::Relaxed)
     }
 
     /// Today's salt in a site's timezone and, if it still exists, yesterday's.
