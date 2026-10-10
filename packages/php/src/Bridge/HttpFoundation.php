@@ -36,6 +36,37 @@ final class HttpFoundation
     }
 
     /**
+     * The answer for a short link, for a middleware or a kernel.request listener that runs before the app's
+     * routes, or null when the app should answer. As in FrontController, a link domain added in Settings comes
+     * first: it gets the link's redirect, or a 404 for a path with no link, except under the dashboard's paths,
+     * which reach the app so its owner can always open it. Then a GET for `{linkPath}/{slug}` on any other host
+     * gets the redirect when the link exists. Everything else is null, including a slug with no link, so the
+     * app's own 404 page answers it. The request's body is never read.
+     */
+    public static function shortLink(Runlight $rl, SymfonyRequest $request): ?SymfonyResponse
+    {
+        $ours = new Request(
+            $request->getSchemeAndHttpHost() . $request->getRequestUri(),
+            $request->getRealMethod(),
+            $request->headers->all(),
+            '',
+            (string) $request->server->get('REMOTE_ADDR', ''),
+        );
+        $context = ['ip' => $ours->remoteAddress];
+        $answer = $rl->linkDomainResponse($ours, $context);
+        $path = (string) parse_url($ours->url, PHP_URL_PATH);
+        if ($answer === null && $ours->method === 'GET' && preg_match('#^' . preg_quote($rl->linkPath, '#') . '/[^/]+$#D', $path)) {
+            try {
+                $followed = ($rl->linkHandler())($ours, $context);
+                $answer = $followed->status === 404 ? null : $followed;
+            } catch (\UnexpectedValueException) {
+                // A slug that is not valid percent-encoding is no link, so it is the app's too.
+            }
+        }
+        return $answer === null ? null : self::response($answer);
+    }
+
+    /**
      * The request as Runlight reads it. The URL is the one the browser asked for, with its query string as sent
      * (Symfony's getUri() sorts it), and the address is the connection's, since Runlight reads proxy headers
      * itself, only when trustProxy allows.

@@ -9,7 +9,7 @@ The steps below are for JavaScript and TypeScript apps, which use the npm packag
 - Go (net/http, chi, or Echo): go get runlight.sh/go, then https://runlight.sh/docs/go/index.md
 - Java (the JDK's server, a servlet container, or Spring Boot): sh.runlight:runlight from Maven Central, then https://runlight.sh/docs/java/index.md
 - .NET (ASP.NET Core): dotnet add package Runlight.AspNetCore, then https://runlight.sh/docs/dotnet/index.md
-- Elixir (Phoenix or Plug): {:runlight, ">= 0.0.0"} in mix.exs, then https://runlight.sh/docs/elixir/index.md
+- Elixir (Phoenix or Plug): {:runlight, "~> 0.0"} in mix.exs, then https://runlight.sh/docs/elixir/index.md
 - Rust (axum, hyper, or tower): the runlight and runlight-sqlx crates, then https://runlight.sh/docs/rust/index.md
 
 A WordPress, Drupal, or Craft CMS site takes a plugin that connects it to a Runlight running elsewhere, as https://runlight.sh/docs/wordpress/index.md, https://runlight.sh/docs/drupal/index.md, and https://runlight.sh/docs/craft/index.md describe.

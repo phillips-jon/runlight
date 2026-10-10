@@ -9,7 +9,7 @@ The Runlight module connects a Drupal 10.3 or 11 site to a Runlight you run else
 
 ## What it does
 
-- It adds Runlight’s script to every page outside the admin theme and marks 404 pages.
+- It adds Runlight’s script to every page outside the admin theme. On a page Drupal answers with a 404, the script also records an event named 404 with the missing page’s path, so the properties of 404 in the Events box list the broken addresses people reached and how often.
 - It leaves out the visits of people who can administer Runlight unless you turn that off.
 - It reports AI agents such as ChatGPT and Claude when they fetch your pages, including pages that Drupal’s page cache answers. The report goes out after the response has been sent, so the page is never slowed down.
 - It adds a Runlight item under Reports that shows this site’s dashboard in the admin.
@@ -17,8 +17,8 @@ The Runlight module connects a Drupal 10.3 or 11 site to a Runlight you run else
 ## Set it up
 
 1. Install the module (`composer require drupal/runlight`, or place it in `modules/custom/runlight`) and enable it with `drush pm:install runlight`.
-2. In your Runlight, make sure the site’s hostname is counted (see [Configuration](/docs/configuration/#sites)).
-3. Go to Configuration, System, Runlight, and enter the address Runlight is mounted at, such as `https://stats.example.com/runlight`. The page checks that the address answers.
+2. In your Runlight, make sure the site is counted. On the standalone server, add it from the site menu, and in an app, add its hostname to `hostnames` (see [Configuration](/docs/configuration/#sites)).
+3. Go to Configuration, System, Runlight, and enter the address Runlight answers at, such as `https://example.com/runlight` for an app with Runlight mounted, or `https://stats.example.com` for the standalone server. The page checks that the address answers.
 4. To count AI agents, copy this site’s key from **Settings**, **Install**, **Key for CMS plugins** in Runlight and enter it here. The key can only report agent fetches for this one site.
 
 The module’s settings are Drupal configuration, so `drush config:export` exports them. To keep the keys out of exported config, set them in `settings.php` instead.

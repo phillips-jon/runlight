@@ -106,7 +106,7 @@ if ($linked !== null) {
 }
 ```
 
-The Laravel and Symfony routes below answer only `/runlight` and `/go` too, so a link domain there needs the same check in a middleware or an event listener that runs first.
+Laravel and Symfony do this with Runlight’s `ShortLinks` class, as their sections show.
 
 ## Laravel
 
@@ -175,6 +175,17 @@ use Illuminate\Support\Facades\Route;
 )
 ```
 
+For [link domains](/docs/links/#custom-domains), put Runlight’s `ShortLinks` middleware in front of every route in the same file. It answers a request on a link domain before Laravel routes it, along with `/go/<slug>` when the link exists, and passes every other request on untouched.
+
+```php file=bootstrap/app.php
+use Illuminate\Foundation\Configuration\Middleware;
+use Runlight\Bridge\ShortLinks;
+
+->withMiddleware(function (Middleware $middleware) {
+    $middleware->prepend(ShortLinks::class);
+})
+```
+
 Read the token through the config, so it still works after `php artisan config:cache`, and set `RUNLIGHT_TOKEN` in `.env`.
 
 ```php file=config/services.php
@@ -194,7 +205,7 @@ Schedule::call(fn () => app(Runlight::class)->check())->hourly();
 
 ## Symfony
 
-One controller serves everything under `/runlight` and the short links at `/go`.
+One controller serves everything under `/runlight` and the short links at `/go`. Its `shortLinks` method listens for every request before Symfony routes it, so a [link domain](/docs/links/#custom-domains) reaches Runlight too, and every other request carries on untouched.
 
 ```php file=src/Controller/RunlightController.php
 <?php
@@ -202,15 +213,21 @@ One controller serves everything under `/runlight` and the short links at `/go`.
 namespace App\Controller;
 
 use Runlight\Bridge\HttpFoundation;
+use Runlight\Bridge\ShortLinks;
 use Runlight\Runlight;
 use Runlight\Store\Stores;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Event\RequestEvent;
+use Symfony\Component\HttpKernel\KernelEvents;
 use Symfony\Component\Routing\Attribute\Route;
 
 final class RunlightController
 {
+    private ?Runlight $rl = null;
+
     public function __construct(
         #[Autowire('%kernel.project_dir%/var/runlight.db')] private readonly string $database,
         #[Autowire('%env(RUNLIGHT_TOKEN)%')] private readonly string $token,
@@ -221,19 +238,30 @@ final class RunlightController
     #[Route('/go/{slug}', name: 'runlight_link', methods: ['GET'])]
     public function __invoke(Request $request): Response
     {
-        $rl = new Runlight([
+        $rl = $this->runlight();
+
+        return HttpFoundation::handle($rl, $rl->routes(['token' => $this->token]), $request);
+    }
+
+    #[AsEventListener(event: KernelEvents::REQUEST, priority: 64)]
+    public function shortLinks(RequestEvent $event): void
+    {
+        (new ShortLinks($this->runlight()))->onKernelRequest($event);
+    }
+
+    private function runlight(): Runlight
+    {
+        return $this->rl ??= new Runlight([
             'store' => Stores::sqlite($this->database),
             'site' => ['name' => 'example.com', 'hostnames' => ['example.com'], 'timezone' => 'Europe/London'],
         ]);
-
-        return HttpFoundation::handle($rl, $rl->routes(['token' => $this->token]), $request);
     }
 }
 ```
 
 Set `RUNLIGHT_TOKEN` in `.env.local`. Symfony stops with an error when it is missing, so the dashboard is never left open by accident. For the [scheduled check](/docs/cron/), call `$rl->check()` from a console command that cron runs, or set `CRON_SECRET` and call the check over HTTP.
 
-`Runlight\Bridge\HttpFoundation` turns a Symfony or Laravel request into Runlight’s and its answer back again. It needs `symfony/http-foundation`, which both frameworks already have.
+`Runlight\Bridge\HttpFoundation` turns a Symfony or Laravel request into Runlight’s and its answer back again, and `Runlight\Bridge\ShortLinks` answers short links ahead of the app’s routes. They need `symfony/http-foundation`, which both frameworks already have.
 
 ## Other PHP apps
 

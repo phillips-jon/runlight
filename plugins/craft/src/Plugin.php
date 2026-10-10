@@ -79,7 +79,7 @@ final class Plugin extends BasePlugin
             if ($response->getStatusCode() === 200 && is_array($body) && ($body['name'] ?? '') === 'runlight') {
                 return ['ok' => true, 'message' => sprintf('Connected to Runlight %s.', (string) ($body['version'] ?? ''))];
             }
-            return ['ok' => false, 'message' => 'Something answered, but not Runlight. Check the address ends where Runlight is mounted, such as /runlight.'];
+            return ['ok' => false, 'message' => 'Something answered, but not Runlight. Check that this is the address Runlight answers at, such as https://example.com/runlight for an app with Runlight mounted, or https://stats.example.com for the standalone server.'];
         } catch (\Throwable $e) {
             return ['ok' => false, 'message' => 'Could not reach it: ' . $e->getMessage()];
         }

@@ -31,7 +31,8 @@ final class Settings {
 
 	/**
 	 * Where Runlight is mounted, as typed in the settings, tidied: the full
-	 * address of its routes, such as https://stats.example.com/runlight.
+	 * address of its routes, such as https://example.com/runlight in an app
+	 * or https://stats.example.com for the standalone server.
 	 */
 	public static function sanitize_address( string $value ): string {
 		$value = trim( $value );

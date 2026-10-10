@@ -2,7 +2,8 @@
  * @runlight/sdk/node: serve Runlight from Node's http module and the
  * frameworks built on it (Express, Connect, and Koa through ctx.req and ctx.res).
  *
- *   import { toNodeHandler, observer } from "@runlight/sdk/node";
+ *   import { toNodeHandler, observer, shortLinks } from "@runlight/sdk/node";
+ *   app.use(shortLinks(rl));                        // link domains and /go/{slug}
  *   app.use(observer(rl));                          // AI agent fetches
  *   app.use(toNodeHandler(rl.routes().handler));    // the routes, under /runlight
  */
@@ -143,10 +144,17 @@ export async function writeResponse(res: ServerResponse, response: Response): Pr
 
 /**
  * A handler for http.createServer, Express, or Connect. Requests outside the
- * routes' basePath go to next() when there is one.
+ * routes' basePath go to next() when there is one, and when the handler is
+ * routes().handler, the bodies of those requests are left for the app.
  */
 export function toNodeHandler(handler: FetchHandler): NodeHandler {
+  const base = (handler as { basePath?: unknown }).basePath;
   return async (req, res, next) => {
+    // A request for the app, outside the routes, goes on with its body unread, so the app's own parsers still see it.
+    const path = ((req as NodeRequest).originalUrl ?? req.url ?? "/").split("?")[0] ?? "/";
+    if (next && typeof base === "string" && base !== "" && path !== base && !path.startsWith(`${base}/`) && !["GET", "HEAD", "OPTIONS"].includes(req.method ?? "GET")) {
+      return next();
+    }
     try {
       const response = await handler(await toRequest(req, res), { ip: req.socket?.remoteAddress ?? "" });
       if (response.status === 404 && next && response.headers.get("content-type")?.includes("json")) {
@@ -166,6 +174,51 @@ export function toNodeHandler(handler: FetchHandler): NodeHandler {
       res.statusCode = 500;
       res.end();
     }
+  };
+}
+
+/**
+ * Express or Connect middleware for short links, to go before the app's own
+ * routes. A request on a link domain added in Settings gets the link's
+ * redirect, or a 404 for a path with no link, except under the dashboard's
+ * paths, which reach the app so its owner can always open it. A GET for
+ * `{linkPath}/{slug}` on any other host gets the redirect when the link
+ * exists. Everything else, including a slug with no link, goes to next()
+ * untouched, its body unread.
+ *
+ * Without next, as in a plain http server, it resolves to true when it
+ * answered and false when the app should.
+ */
+export function shortLinks(runlight: Runlight): (req: IncomingMessage, res: ServerResponse, next?: NodeNext) => Promise<boolean> {
+  const own = new RegExp(`^${runlight.linkPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/[^/]+$`);
+  const follow = runlight.linkHandler();
+  return async (req, res, next) => {
+    try {
+      // Only the address and headers are read, so the app still gets the body.
+      const request = new Request(toUrl(req as NodeRequest), { method: (req.method ?? "GET").toUpperCase(), headers: headersOf(req) });
+      const context = { ip: req.socket?.remoteAddress ?? "" };
+      let answer = await runlight.linkDomainResponse(request, context);
+      if (!answer && request.method === "GET" && own.test(new URL(request.url).pathname)) {
+        // A slug that is not valid percent-encoding is no link, so it is the app's too.
+        const followed = await follow(request, context).catch((error: unknown) => {
+          if (error instanceof URIError) return null;
+          throw error;
+        });
+        if (followed && followed.status !== 404) answer = followed;
+      }
+      if (answer) {
+        await writeResponse(res, answer);
+        return true;
+      }
+    } catch (error) {
+      if (next) {
+        next(error);
+        return true;
+      }
+      throw error;
+    }
+    next?.();
+    return false;
   };
 }
 

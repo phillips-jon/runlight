@@ -11,7 +11,7 @@ The dashboard is built on this API, so anything it shows you can fetch yourself.
 curl https://example.com/runlight/api/stats?period=30d -H "Authorization: Bearer $RUNLIGHT_TOKEN"
 ```
 
-For scripts, make a read-only token in **Settings**, **API and AI**, and keep `RUNLIGHT_TOKEN` to yourself. A read-only token can read every report below, short links and each one’s clicks included. You can limit it to one site, and it stops working the moment you delete it. Endpoints that change something, along with the token, share, and mail endpoints, need `RUNLIGHT_TOKEN` itself (or your `authorize` check). The same tokens connect AI assistants, as [Ask your AI](/docs/mcp/) explains.
+For scripts, make a read-only token in **Settings**, **API and AI**, and keep `RUNLIGHT_TOKEN` to yourself. A read-only token can read every report below, short links and each one’s clicks included, and it never changes anything. You can limit it to one site, and it stops working the moment you delete it. Endpoints that change something take `RUNLIGHT_TOKEN`, a signed-in owner, admin, or member, your `authorize` check, or a `manage` token for its one site. A member can change everything apart from the mail service, the assistant’s settings, and deleting a site. The same tokens connect AI assistants, as [Ask your AI](/docs/mcp/) explains.
 
 A `manage` token belongs to a [standalone server](/docs/server/#connect-sites-that-count-themselves) that shows this site. It reads like a read-only token and can also change one site’s goals, funnels, short links, link domains, email reports, and share links, along with its name, timezone, and retention, and get tickets for the element picker. It can never touch other sites, people, tokens, imports, or the mail service, and it cannot change where the site lives. It sees which mail service sends reports and from which address, and the service’s keys and account details stay hidden from it. It adds link domains and email reports only when the install knows its own address, through `origin` in `routes()` or `RUNLIGHT_URL` on the standalone server. The standalone server gets one through OAuth when you connect the site, so you rarely make one by hand.
 
@@ -41,7 +41,7 @@ Every report takes the same query parameters.
 | `GET /api/series` | The same numbers for each hour, day, week, or month of the range. |
 | `GET /api/breakdown?dimension=` | Rows for one dimension, with `limit` (up to 1000) and `page`. |
 | `GET /api/rhythm` | Visits by weekday and hour. |
-| `GET /api/realtime` | People on the site in the last 5 minutes, pages, sources, countries, pageviews per minute, and recent activity. |
+| `GET /api/realtime` | People, pages, sources, and countries from the last 5 minutes, with pageviews per minute and recent activity over the last 30. |
 | `GET /api/goals` | Every goal with its conversions, converted visitors, rate, and revenue. |
 | `GET /api/goals/:id` | One goal with a series and its conversions by channel, source, and page. |
 | `GET /api/funnels` | Every funnel with how many visits reached each step, in order, within one visit. |
@@ -89,8 +89,8 @@ A share link and the dashboard inside a CMS read the reports in the table above 
 | `GET /api/token` | Says what the token sent with it may do, as `{ "scope", "site" }`. A hub asks this before it offers to change anything. |
 | `DELETE /api/token` | Deletes the token sent with it. A hub does this when it disconnects a site or is given a new token. |
 | `DELETE /api/tokens/:id` | Deletes a token, which stops it working at once. |
-| `GET`, `PUT`, `DELETE /api/assistant` | Read, set, or remove the dashboard assistant’s `{ "provider", "model", "baseUrl", "key" }`. The key is never returned. Owners only, though anyone at the dashboard can ask whether it is set up. |
-| `POST /api/assistant/models` | The models a provider offers, from `{ "provider", "baseUrl", "key" }`, for the settings form. Leave `key` out to use the saved one, which works only for the same provider and address. Owners only. |
+| `GET`, `PUT`, `DELETE /api/assistant` | Read, set, or remove the dashboard assistant’s `{ "provider", "model", "baseUrl", "key" }`. The key is never returned. The owner and admins only, though anyone at the dashboard can ask whether it is set up. |
+| `POST /api/assistant/models` | The models a provider offers, from `{ "provider", "baseUrl", "key" }`, for the settings form. Leave `key` out to use the saved one, which works only for the same provider and address. The owner and admins only. |
 | `POST /api/assistant/chat` | Ask the assistant, sending `{ "site", "messages", "view", "language" }`, where messages are `{ "role", "content" }` pairs ending with a question. It answers `{ "reply", "tools" }`. People at the dashboard only, never API tokens or share links. Each person can ask thirty questions an hour and two at once, and each viewer the owner’s daily number, with 429 past either. |
 | `PUT /api/assistant/limits` | Set how many questions each viewer can ask a day, from `{ "viewerDaily" }`, a whole number from 0 to 1,000. It starts at 50, and `GET /api/assistant` shows it to the owner and admins. The owner and admins only. |
 | `POST /mcp` | The MCP server for AI assistants, described in [Ask your AI](/docs/mcp/). |

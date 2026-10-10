@@ -40,8 +40,8 @@ final class SettingsForm extends ConfigFormBase {
       '#type' => 'url',
       '#title' => $this->t('Runlight address'),
       '#default_value' => $address,
-      '#placeholder' => 'https://stats.example.com/runlight',
-      '#description' => $this->t('Where Runlight is mounted: the address its dashboard opens at. Add this site’s hostname to that Runlight’s sites, or its visits are ignored.'),
+      '#placeholder' => 'https://example.com/runlight or https://stats.example.com',
+      '#description' => $this->t('The address Runlight answers at, where its dashboard opens. That Runlight must count this site, or its visits are ignored.'),
     ];
     $form['site'] = [
       '#type' => 'textfield',
@@ -87,7 +87,7 @@ final class SettingsForm extends ConfigFormBase {
       if ($response->getStatusCode() === 200 && is_array($body) && ($body['name'] ?? '') === 'runlight') {
         return (string) $this->t('Connected to Runlight @version. <a href=":url" target="_blank" rel="noopener">Open the dashboard</a>.', ['@version' => (string) ($body['version'] ?? ''), ':url' => $address . '/']);
       }
-      return (string) $this->t('Something answered, but not Runlight. Check the address ends where Runlight is mounted, such as /runlight.');
+      return (string) $this->t('Something answered, but not Runlight. Check that this is the address Runlight answers at, such as https://example.com/runlight for an app with Runlight mounted, or https://stats.example.com for the standalone server.');
     }
     catch (\Throwable $e) {
       return (string) $this->t('Could not reach it: @message', ['@message' => $e->getMessage()]);

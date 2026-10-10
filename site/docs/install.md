@@ -35,15 +35,16 @@ Runlight needs the Node runtime (it uses SQLite, Postgres, or MySQL), which is t
 
 ```ts file=server.ts
 import express from "express";
-import { toNodeHandler, observer } from "@runlight/sdk/node";
+import { toNodeHandler, observer, shortLinks } from "@runlight/sdk/node";
 import { rl } from "./runlight.js";
 
 const app = express();
+app.use(shortLinks(rl)); // short links at /go and on custom domains
 app.use(observer(rl)); // AI agents reading your pages; optional
 app.use(toNodeHandler(rl.routes().handler));
 ```
 
-It can go before or after any body parser, because the adapter also reads a body that Express has already parsed.
+It can go before or after any body parser, because the adapter also reads a body that Express has already parsed, and it leaves the bodies of your app’s own requests unread. `shortLinks` goes before your own routes, so a [link domain](/docs/links/#custom-domains) reaches Runlight first.
 
 ## NestJS
 
@@ -59,6 +60,8 @@ const app = await NestFactory.create(AppModule);
 app.use(toNodeHandler(rl.routes().handler));
 await app.listen(3000);
 ```
+
+Add `app.use(shortLinks(rl))` before it for [short links](/docs/links/#custom-domains).
 
 ## Fastify
 
@@ -80,6 +83,8 @@ app.register(async (scope) => {
 });
 ```
 
+Short links go in an `onRequest` hook, as [Short links](/docs/links/#fastify) shows.
+
 ## Koa
 
 ```ts
@@ -96,6 +101,8 @@ app.use(async (ctx, next) => {
   await runlight(ctx.req, ctx.res);
 });
 ```
+
+For short links, add the middleware under [Short links](/docs/links/#koa) before this one.
 
 ## Hono
 
@@ -242,7 +249,7 @@ Runlight is written again for each of these languages, with the same dashboard a
 | [Go](/docs/go/) | `go get runlight.sh/go` | net/http, chi, Echo, and any router that takes an `http.Handler` |
 | [Java](/docs/java/) | `sh.runlight:runlight` from Maven Central | The JDK’s own server, servlet containers, and Spring Boot |
 | [.NET](/docs/dotnet/) | `dotnet add package Runlight.AspNetCore` | ASP.NET Core and any other .NET app |
-| [Elixir](/docs/elixir/) | `{:runlight, ">= 0.0.0"}` in `mix.exs` | Phoenix and any Plug app |
+| [Elixir](/docs/elixir/) | `{:runlight, "~> 0.0"}` in `mix.exs` | Phoenix and any Plug app |
 | [Rust](/docs/rust/) | `cargo add runlight runlight-sqlx` | axum, hyper, and any server that takes a tower service |
 
 Every language except Elixir and Rust also has a standalone server of its own, and the [standalone server](/docs/server/) page covers the Node one.

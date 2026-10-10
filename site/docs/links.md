@@ -17,7 +17,7 @@ import { rl } from "@/lib/runlight";
 export const GET = rl.linkHandler();
 ```
 
-Change the path with `runlight({ linkPath: "/l" })`. In the other languages, `/go` is served along with the rest of Runlight’s routes, as each language’s page shows.
+Change the path with `runlight({ linkPath: "/l" })`. In Express, Connect, NestJS, Fastify, and Koa, the `shortLinks` middleware shown under [Custom domains](#custom-domains) serves `/go` too. In the other languages, `/go` is served along with the rest of Runlight’s routes, as each language’s page shows.
 
 ## Making links
 
@@ -35,7 +35,13 @@ Links can also live on a domain of their own, like `t.example.com/sale`. Set one
 
 A link domain answers every path on it, so it can never be your app’s own domain or one of your sites. It must also be a public name, so names kept for private networks, such as `.internal` or `.local`, are refused. Pass `origin` to `routes()` with your app’s address, and the first rule holds whatever Host header a request names. A connected hub can add link domains only once `origin` is set, since it cannot know which names your app answers on. Paths under the dashboard, such as `/runlight`, always reach your app, so you can open the dashboard on any of its names to remove a domain.
 
-Requests on that domain have to reach Runlight, which in Next.js happens in middleware (named `proxy.ts` from Next.js 16).
+Removing a domain keeps its links along with their clicks and stats. They move to `/go/<slug>` until you add the domain back, and then they return to it.
+
+Requests on that domain have to reach Runlight before your app’s own routes see them. `rl.linkDomainResponse(request)` answers a request on one of your link domains and returns `null` for everything else, so the rest of your app is untouched. Call it first in whatever runs before your routes. The other languages have the same check, often built into the middleware that serves Runlight, and each language’s page shows where it goes.
+
+### Next.js
+
+Next.js runs it in middleware, which is named `proxy.ts` from Next.js 16 and `middleware.ts` before it.
 
 ```ts file=proxy.ts
 import { rl } from "@/lib/runlight";
@@ -45,9 +51,83 @@ export async function proxy(request: Request) {
 }
 ```
 
-`linkDomainResponse` answers only for your link domains and returns `null` for everything else, so the rest of your app is untouched. The other languages have the same check, often built into the middleware that serves Runlight, and each language’s page shows where it goes.
+SvelteKit does the same in the `handle` hook of `src/hooks.server.ts`, with `(await rl.linkDomainResponse(event.request)) ?? resolve(event)`, and Astro in `src/middleware.ts`, with `(await rl.linkDomainResponse(context.request)) ?? next()`.
 
-Removing a domain keeps its links along with their clicks and stats. They move to `/go/<slug>` until you add the domain back, and then they return to it.
+### Express, Connect, and NestJS
+
+`shortLinks` from `@runlight/sdk/node` answers link domains and `/go/<slug>`, and passes every other request on with its body unread. Put it before your routes.
+
+```ts file=server.ts
+import { shortLinks, toNodeHandler } from "@runlight/sdk/node";
+
+app.use(shortLinks(rl));
+app.use(toNodeHandler(rl.routes().handler));
+```
+
+A slug with no link on your own domain goes on to your app, so your own 404 page answers it. In a plain `http` server, call it without `next`, and it resolves to `true` when it has answered.
+
+```ts
+const links = shortLinks(rl);
+
+createServer(async (req, res) => {
+  if (await links(req, res)) return;
+  // ...your app
+});
+```
+
+### Fastify
+
+Run it in an `onRequest` hook, and hand the reply over once it has answered.
+
+```ts
+const links = shortLinks(rl);
+
+app.addHook("onRequest", async (req, reply) => {
+  if (await links(req.raw, reply.raw)) reply.hijack();
+});
+```
+
+### Koa
+
+```ts
+const links = shortLinks(rl);
+
+app.use(async (ctx, next) => {
+  if (await links(ctx.req, ctx.res)) ctx.respond = false;
+  else await next();
+});
+```
+
+### Hono
+
+```ts
+app.use(async (c, next) => (await rl.linkDomainResponse(c.req.raw)) ?? next());
+```
+
+### Nuxt and h3
+
+A server middleware runs before every route. It builds the request from the address and headers alone, because h3’s `toWebRequest` would start reading the body of a request meant for your app.
+
+```ts file=server/middleware/links.ts
+export default defineEventHandler(async (event) => {
+  const link = await rl.linkDomainResponse(new Request(getRequestURL(event), { method: event.method, headers: event.headers }));
+  if (link) return link;
+});
+```
+
+### Bun, Deno, and Cloudflare Workers
+
+Check before anything else in `fetch`.
+
+```ts
+async fetch(request) {
+  const link = await rl.linkDomainResponse(request);
+  if (link) return link;
+  // ...the routes and your app
+}
+```
+
+A Worker needs the link domain routed to it as well as `/runlight/*`.
 
 ## Importing links
 

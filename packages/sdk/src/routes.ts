@@ -2091,5 +2091,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     }
   };
 
+  // Lets the Node adapter pass an app's own requests on without reading their bodies.
+  Object.defineProperty(handler, "basePath", { value: base });
   return { handler, GET: handler, POST: handler, PUT: handler, PATCH: handler, DELETE: handler, OPTIONS: handler };
 }

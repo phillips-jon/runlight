@@ -3,7 +3,8 @@ import { createServer, request } from "node:http";
 import type { AddressInfo } from "node:net";
 import { test } from "node:test";
 import { BodyTooLong, readJsonCapped } from "../src/body.js";
-import { toNodeHandler } from "../src/node.js";
+import { shortLinks, toNodeHandler } from "../src/node.js";
+import { CHROME_MAC, setup } from "./helpers.js";
 
 test("the Node adapter passes large bodies through, and answers 413 past its limits", async () => {
   const seen: number[] = [];
@@ -152,4 +153,78 @@ test("readJsonCapped reads a body up to its limit and refuses one past it", asyn
   const endless = new Response(new ReadableStream({ pull: (controller) => void (pulls++, controller.enqueue(new Uint8Array(64 * 1024))) }));
   await assert.rejects(readJsonCapped(endless, 1024 * 1024), BodyTooLong);
   assert.ok(pulls < 40, "an endless body stops being read at the limit");
+});
+
+/** A request with its own Host header, which fetch does not allow. */
+function callAt(port: number, host: string, path: string, method = "GET", body?: string) {
+  return new Promise<{ status: number; location?: string; text: string }>((resolve, reject) => {
+    const req = request({ port, host: "127.0.0.1", path, method, headers: { host, "user-agent": CHROME_MAC } }, (res) => {
+      let text = "";
+      res.on("data", (chunk) => (text += chunk));
+      res.on("end", () => resolve({ status: res.statusCode ?? 0, location: res.headers.location, text }));
+    });
+    req.on("error", reject);
+    req.end(body);
+  });
+}
+
+test("shortLinks answers link domains and the app's link path before the app, and passes the rest on with its body", async () => {
+  const t = setup("sqlite");
+  const json = (body: unknown) => ({ method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", authorization: "Bearer secret" } });
+  assert.equal((await t.routes.POST(new Request("https://example.com/runlight/api/link-domains", json({ domain: "t.example.com" })))).status, 201);
+  await t.routes.POST(new Request("https://example.com/runlight/api/links", json({ url: "https://example.org/a", slug: "a", domain: "t.example.com" })));
+  const links = shortLinks(t.rl);
+  const runlightRoutes = toNodeHandler(t.routes.handler);
+  const reached: string[] = [];
+  // As Express runs them: shortLinks, then the routes, then the app.
+  const server = createServer((req, res) => {
+    void links(req, res, (error) => {
+      if (error) throw error;
+      void runlightRoutes(req, res, async () => {
+        let body = "";
+        for await (const chunk of req) body += chunk;
+        reached.push(`${req.headers.host} ${req.method} ${req.url} ${body}`);
+        res.end("app");
+      });
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = (server.address() as AddressInfo).port;
+  const call = (host: string, path: string, method = "GET", body?: string) => callAt(port, host, path, method, body);
+  try {
+    const redirected = await call("t.example.com", "/a");
+    assert.equal(redirected.status, 302, "a link-domain request is redirected");
+    assert.equal(redirected.location, "https://example.org/a");
+    assert.equal((await call("t.example.com", "/missing")).status, 404, "a link domain answers every path itself");
+    assert.equal((await call("t.example.com", "/runlight/api/sites")).status, 401, "the dashboard's paths still reach Runlight on a link domain");
+    assert.equal((await call("example.com", "/go/a")).location, "https://example.org/a", "the app's link path answers on its own host");
+    assert.deepEqual(reached, []);
+    assert.equal((await call("example.com", "/a")).text, "app", "the app's own host reaches the app");
+    assert.equal((await call("example.com", "/go/missing")).text, "app", "a slug with no link is the app's to answer");
+    assert.equal((await call("example.com", "/go/%E0%A4%A")).text, "app", "so is one that is not valid percent-encoding");
+    assert.equal((await call("example.com", "/form", "POST", "name=x")).text, "app");
+    assert.deepEqual(reached, ["example.com GET /a ", "example.com GET /go/missing ", "example.com GET /go/%E0%A4%A ", "example.com POST /form name=x"]);
+  } finally {
+    server.close();
+  }
+});
+
+test("shortLinks without next says whether it answered", async () => {
+  const t = setup("sqlite");
+  const json = (body: unknown) => ({ method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", authorization: "Bearer secret" } });
+  await t.routes.POST(new Request("https://example.com/runlight/api/link-domains", json({ domain: "t.example.com" })));
+  const links = shortLinks(t.rl);
+  const server = createServer(async (req, res) => {
+    if (await links(req, res)) return;
+    res.end("app");
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const port = (server.address() as AddressInfo).port;
+  try {
+    const check = await callAt(port, "t.example.com", "/.well-known/runlight-link-domain");
+    assert.deepEqual(JSON.parse(check.text), { runlight: true, domain: "t.example.com" });
+    assert.equal((await callAt(port, "example.com", "/")).text, "app");
+  } finally {
+    server.close();
+  }
 });
