@@ -122,6 +122,63 @@ defmodule Runlight.SafefetchTest do
     end
   end
 
+  test "the default fetcher connects only to an address it checked" do
+    # Refused before any connection: the name is resolved and checked where the connection is made.
+    assert Runlight.Fetch.httpc("https://localhost:1/", public: true) == {:error, :private}
+    assert Runlight.Fetch.httpc("https://127.0.0.1:1/", public: true) == {:error, :private}
+    assert Runlight.Fetch.httpc("https://name.that.does.not.resolve.invalid/", public: true) == {:error, :nxdomain}
+    assert Safefetch.checked_address("localhost") == {:error, :private}
+    assert Safefetch.checked_address("8.8.8.8") == {:ok, "8.8.8.8"}
+
+    {fetcher, agent} = FakeFetcher.new(fn _, _ -> {:ok, Response.new("ok")} end)
+    {rl, _} = instance(fetcher)
+    {:ok, _} = Safefetch.public_fetch(rl, "https://1.1.1.1/", timeout: 2000)
+    assert hd(FakeFetcher.inits(agent))[:public] == true
+  end
+
+  test "an install is fetched only on the public internet with no redirect, or on this machine when code allows it" do
+    {fetcher, agent} =
+      FakeFetcher.new(fn _, _ -> {:ok, Response.new(nil, 302, [{"location", "https://1.1.1.1/x"}])} end)
+
+    {rl, _} = instance(fetcher)
+    local = "http://127.0.0.1:4100/runlight/api/sites"
+
+    for url <- [
+          "https://10.0.0.1/api/sites",
+          "https://169.254.169.254/",
+          "http://1.1.1.1/",
+          "https://localhost/",
+          local
+        ],
+        do: assert(Safefetch.install_fetch(rl, url, timeout: 2000) == {:error, :private}, url)
+
+    assert FakeFetcher.requests(agent) == []
+    refute Safefetch.install_address?(local, false)
+    assert Safefetch.install_address?(local, true)
+    assert Safefetch.install_address?("https://stats.example.com", false)
+
+    {:ok, %{status: 302}} = Safefetch.install_fetch(rl, "https://1.1.1.1/api/sites", timeout: 2000)
+
+    {:ok, %{status: 302}} =
+      Safefetch.install_fetch(rl, "https://1.1.1.1/api/token", method: "POST", body: "{}", timeout: 2000)
+
+    {:ok, %{status: 302}} = Safefetch.install_fetch(%{rl | local_installs: true}, local, timeout: 2000)
+    [get, post, here] = FakeFetcher.inits(agent)
+    assert get[:public] == true
+    assert {post[:method], post[:body], post[:public]} == {"POST", "{}", true}
+    assert here[:redirect] == :manual and here[:public] == nil
+    assert length(FakeFetcher.requests(agent)) == 3
+  end
+
+  test "only a GET follows a redirect" do
+    {fetcher, agent} =
+      FakeFetcher.new(fn _, _ -> {:ok, Response.new(nil, 302, [{"location", "https://1.1.1.1/x"}])} end)
+
+    {rl, _} = instance(fetcher)
+    {:ok, %{status: 302}} = Safefetch.public_fetch(rl, "https://1.1.1.1/", method: "POST", redirects: 3, timeout: 2000)
+    assert length(FakeFetcher.requests(agent)) == 1
+  end
+
   test "running out of time says so" do
     {fetcher, _} = FakeFetcher.new(fn _, _ -> {:error, :timeout} end)
     {rl, _} = instance(fetcher)

@@ -37,6 +37,8 @@ scope "/" do
 end
 ```
 
+Bodies your endpoint's `Plug.Parsers` has already read reach Runlight as the form or JSON they were. To pass on the exact bytes, add `body_reader: {Runlight.Plug, :body_reader, []}` to the parsers' options.
+
 Add the script to every page, just before `</head>`.
 
 ```html

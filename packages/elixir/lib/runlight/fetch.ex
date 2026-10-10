@@ -16,25 +16,39 @@ defmodule Runlight.Fetch do
     * `:timeout` - the whole request's limit in milliseconds, default 30000.
     * `:max_bytes` - stop reading past this and answer `{:error, :too_long}`,
       or with `truncate: true` hand back the first `max_bytes`.
+    * `:public` - true to connect only to addresses on the public internet
+      (`Runlight.Safefetch` sets it). A fetcher that cannot choose the
+      address it connects to may ignore it, as Safefetch checks the name
+      just before.
 
   `httpc/2` is the default, on Erlang's own `:httpc` with certificates
   verified against the system's.
   """
 
   alias Runlight.Http.Response
+  alias Runlight.Safefetch
 
   @type fetcher :: (String.t(), keyword() -> {:ok, Response.t()} | {:error, term()})
 
   @doc "Fetches through `:httpc`."
   @spec httpc(String.t(), keyword()) :: {:ok, Response.t()} | {:error, term()}
   def httpc(url, opts \\ []) do
+    case pin(url, Keyword.get(opts, :public, false)) do
+      {:ok, target, host, socket_opts} -> httpc(url, target, host, socket_opts, opts)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp httpc(url, target, host, socket_opts, opts) do
     ensure_started()
     method = opts |> Keyword.get(:method, "GET") |> String.downcase() |> String.to_existing_atom()
-    headers = for {k, v} <- Keyword.get(opts, :headers, []), do: {String.to_charlist(k), String.to_charlist(v)}
+    given = Keyword.get(opts, :headers, [])
+    given = if host && not List.keymember?(given, "host", 0), do: [{"host", host} | given], else: given
+    headers = for {k, v} <- given, do: {String.to_charlist(k), String.to_charlist(v)}
     timeout = Keyword.get(opts, :timeout, 30_000)
     max_bytes = Keyword.get(opts, :max_bytes)
     follow = Keyword.get(opts, :redirect, :follow) == :follow
-    uri = String.to_charlist(url)
+    uri = String.to_charlist(target)
 
     request =
       if method in [:get, :head, :delete, :options] and Keyword.get(opts, :body) in [nil, ""] do
@@ -50,9 +64,42 @@ defmodule Runlight.Fetch do
 
     http_opts = [timeout: timeout, connect_timeout: min(timeout, 10_000), autoredirect: follow, ssl: ssl_options(url)]
 
-    case :httpc.request(method, request, http_opts, sync: false, stream: :self, body_format: :binary) do
+    request_opts = [sync: false, stream: :self, body_format: :binary] ++ socket_opts
+
+    case :httpc.request(method, request, http_opts, request_opts) do
       {:ok, id} -> receive_answer(id, timeout, max_bytes, Keyword.get(opts, :truncate, false))
       {:error, reason} -> {:error, reason}
+    end
+  end
+
+  # Where to connect. For a public fetch of a name, the name is resolved here and every address checked, and the
+  # connection goes to one of them, so a name that answers differently a moment later gets nowhere. The URL keeps
+  # its name for the Host header, SNI, and the certificate check. Socket options make httpc open a connection of
+  # its own rather than reuse one another name left open to the same address.
+  defp pin(url, false), do: {:ok, url, nil, []}
+
+  defp pin(url, true) do
+    uri = URI.parse(url)
+    host = uri.host || ""
+    literal = match?({:ok, _}, :inet.parse_strict_address(String.to_charlist(host)))
+
+    cond do
+      literal and Safefetch.public_address?(host) ->
+        {:ok, url, nil, []}
+
+      literal ->
+        {:error, :private}
+
+      true ->
+        case Safefetch.checked_address(host) do
+          {:ok, address} ->
+            family = if String.contains?(address, ":"), do: :inet6, else: :inet
+            authority = if uri.port == URI.default_port(uri.scheme || ""), do: host, else: "#{host}:#{uri.port}"
+            {:ok, URI.to_string(%{uri | host: address}), authority, [socket_opts: [ipfamily: family]]}
+
+          error ->
+            error
+        end
     end
   end
 

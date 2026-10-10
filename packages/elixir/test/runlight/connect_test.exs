@@ -61,7 +61,8 @@ defmodule Runlight.ConnectTest do
     end)
   end
 
-  defp hub(fetcher) do
+  # The install here is on this machine, which only code can allow.
+  defp hub(fetcher, local \\ true) do
     {store, cleanup} = Stores.store(:sqlite)
     on_exit(cleanup)
     clock = :counters.new(1, [])
@@ -73,6 +74,7 @@ defmodule Runlight.ConnectTest do
         managed_sites: true,
         secret: String.duplicate("k", 32),
         fetcher: fetcher,
+        local_installs: local,
         now: fn -> :counters.get(clock, 1) end
       )
 
@@ -228,5 +230,33 @@ defmodule Runlight.ConnectTest do
     {hub, _} = hub(down)
     error = refused(fn -> Connect.start_connect(hub, @app, "https://hub.example/done") end, "unreachable")
     assert error.params == %{"host" => "127.0.0.1:4100"}
+  end
+
+  test "a hub never asks its own machine or network for an install unless code allows it" do
+    {fetcher, agent} = install()
+    {hub, _} = hub(fetcher, false)
+
+    for url <- ["http://127.0.0.1:4100/runlight", "http://localhost:4100/runlight"] do
+      error =
+        assert_raise Runlight.SettingsError, fn -> Runlight.add_site(hub, o(remote: o(url: url, token: "rl_x"))) end
+
+      assert error.code == "connect_url", url
+      refused(fn -> Connect.start_connect(hub, url, "https://hub.example/done") end, "url")
+    end
+
+    for url <- [
+          "https://127.0.0.1:4100/runlight",
+          "https://localhost:4100/runlight",
+          "https://169.254.169.254/runlight",
+          "https://[::ffff:10.0.0.1]/runlight"
+        ] do
+      error =
+        assert_raise Runlight.SettingsError, fn -> Runlight.add_site(hub, o(remote: o(url: url, token: "rl_x"))) end
+
+      assert error.code == "unreachable", url
+      refused(fn -> Connect.start_connect(hub, url, "https://hub.example/done") end, "unreachable")
+    end
+
+    assert FakeFetcher.requests(agent) == []
   end
 end

@@ -359,6 +359,34 @@ defmodule Runlight.ImportStepTest do
       assert_raise ImportError, fn -> Importers.import_step(rl, "default", "umami", %{"url" => "nope"}, nil, 0) end
 
     assert error.message =~ "Umami address"
+
+    # An address on the install's own network, or without https, is never asked.
+    {fetcher, agent} = FakeFetcher.new(fn _, _ -> {:ok, Response.new(~s({"data":[],"count":0}))} end)
+    rl = runlight(fetcher)
+
+    for url <- [
+          "https://127.0.0.1:3000",
+          "https://10.0.0.5",
+          "https://169.254.169.254",
+          "https://[::1]",
+          "https://localhost:3000"
+        ] do
+      error =
+        assert_raise ImportError, fn ->
+          Importers.import_step(rl, "default", "umami", %{"url" => url, "apiKey" => "k"}, nil, 0)
+        end
+
+      assert error.code == "unreachable", url
+    end
+
+    error =
+      assert_raise ImportError, fn ->
+        Importers.import_step(rl, "default", "umami", %{"url" => "http://stats.example.com", "apiKey" => "k"}, nil, 0)
+      end
+
+    assert error.message =~ "Umami address"
+    assert FakeFetcher.requests(agent) == []
+
     error = assert_raise ImportError, fn -> Importers.import_step(rl, "default", "nowhere", %{}, nil, 0) end
     assert error.message =~ "cannot import"
     assert error.params == %{"source" => "nowhere"}

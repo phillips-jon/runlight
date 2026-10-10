@@ -18,15 +18,21 @@ defmodule Runlight.Importers.Http do
           pause: (number() -> any())
         }
 
+  # The most one answer may weigh; a page of a thousand events is well under a megabyte.
+  @max_bytes 32 * 1024 * 1024
+
   @doc """
   The instance's fetcher, and a pause that waits: `Process.sleep`, or the
   function under `:runlight_pause` in the process dictionary, which tests set
-  so nothing waits.
+  so nothing waits. The address can come from whoever runs an import (a
+  self-hosted Umami), so only public https addresses are asked
+  (`Runlight.Safefetch`), with no redirect followed, which would carry the
+  key somewhere else.
   """
   @spec new(Runlight.t()) :: t()
   def new(rl) do
     %__MODULE__{
-      fetch: fn url, opts -> Runlight.fetch(rl, url, opts) end,
+      fetch: fn url, opts -> Runlight.Safefetch.public_fetch(rl, url, opts) end,
       pause: Process.get(:runlight_pause) || (&sleep/1)
     }
   end
@@ -48,11 +54,12 @@ defmodule Runlight.Importers.Http do
   defp attempt(http, url, init, attempt) do
     opts =
       [headers: [{"accept", "application/json"} | Keyword.get(init, :headers, [])], timeout: 20_000] ++
-        Keyword.take(init, [:method, :body])
+        Keyword.take(init, [:method, :body]) ++ [max_bytes: @max_bytes]
 
     case http.fetch.(url, opts) do
-      {:error, _} ->
-        if attempt < 3 do
+      {:error, reason} ->
+        # An address off the public internet, or an answer past the cap, is the same on every try.
+        if attempt < 3 and reason not in [:private, :too_long] do
           attempt(http, url, init, attempt + 1)
         else
           host = Url.host(Url.new(url))

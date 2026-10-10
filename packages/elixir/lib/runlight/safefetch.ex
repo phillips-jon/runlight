@@ -6,9 +6,11 @@ defmodule Runlight.Safefetch do
   loopback, link-local, or metadata address, and redirects are followed by
   hand under the same rules.
 
-  Erlang's `:httpc` cannot be told which address to connect to, so the name
-  is resolved and every address it has checked just before each request, as
-  the SDK does on runtimes without Node's https module.
+  The default fetcher (`Runlight.Fetch.httpc/2`) resolves the name itself,
+  checks every address, and connects to one it checked, so a name that
+  answers differently a moment later gets nowhere. The name is also checked
+  just before each request, for a fetcher of the app's own that cannot
+  choose the address it connects to.
   """
 
   import Bitwise
@@ -156,9 +158,21 @@ defmodule Runlight.Safefetch do
     end
   end
 
+  @doc false
+  # The address to connect to for a name, when every address it has is public.
+  @spec checked_address(String.t()) :: {:ok, String.t()} | {:error, :private | :nxdomain}
+  def checked_address(name) do
+    case lookup(name) do
+      {:ok, list} -> if Enum.all?(list, &public_address?/1), do: {:ok, hd(list)}, else: {:error, :private}
+      :error -> {:error, :nxdomain}
+    end
+  end
+
   @doc """
-  GETs an https URL on the public internet, following up to `redirects:`
-  redirects that stay on it, within `timeout:` milliseconds in all. Answers
+  Fetches an https URL on the public internet (a GET unless `method:` and
+  `body:` say otherwise), following up to `redirects:` redirects that stay
+  on it, within `timeout:` milliseconds in all. Only a GET follows
+  redirects; anything else comes back with the redirect as it is. Answers
   `{:error, :private}` for an address off it and `{:error, :timeout}` when
   time runs out. A redirect past the last one comes back as it is.
   """
@@ -171,6 +185,30 @@ defmodule Runlight.Safefetch do
       url -> hop(rl, url, opts, deadline, 0)
     end
   end
+
+  # An install on this machine: http://localhost or http://127.0.0.1, with any port.
+  @local_install ~r/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/
+
+  @doc false
+  # Whether an address can be another Runlight install's: https, or, with `local`, an install on this machine,
+  # which only code can allow (the instance's `:local_installs`).
+  @spec install_address?(String.t(), boolean()) :: boolean()
+  def install_address?(url, local),
+    do: Regex.match?(~r/^https:\/\/[^\/]+/, url) or (local and Regex.match?(@local_install, url))
+
+  @doc false
+  # Fetches from another Runlight install, which someone signed in named: a public address as public_fetch/3
+  # fetches it, with no redirect followed, so a token sent there goes nowhere else. With the instance's
+  # `:local_installs`, an install on this machine is fetched as it is, still without following a redirect.
+  @spec install_fetch(Runlight.t(), String.t(), keyword()) :: {:ok, Response.t()} | {:error, term()}
+  def install_fetch(rl, target, opts) do
+    if rl.local_installs and Regex.match?(@local_install, target),
+      do: Runlight.fetch(rl, target, Keyword.put(opts, :redirect, :manual)),
+      else: public_fetch(rl, target, Keyword.put(opts, :redirects, 0))
+  end
+
+  defp redirects(opts),
+    do: if(String.upcase(Keyword.get(opts, :method, "GET")) == "GET", do: Keyword.get(opts, :redirects, 0), else: 0)
 
   defp hop(rl, url, opts, deadline, n) do
     host = url.hostname |> String.replace(~r/^\[|\]$/, "") |> String.downcase()
@@ -194,8 +232,8 @@ defmodule Runlight.Safefetch do
 
       true ->
         fetch_opts =
-          [headers: Keyword.get(opts, :headers, []), redirect: :manual, timeout: left] ++
-            Keyword.take(opts, [:max_bytes, :truncate])
+          [headers: Keyword.get(opts, :headers, []), redirect: :manual, timeout: left, public: true] ++
+            Keyword.take(opts, [:method, :body, :max_bytes, :truncate])
 
         case Runlight.fetch(rl, Url.href(url), fetch_opts) do
           {:ok, answer} ->
@@ -203,7 +241,7 @@ defmodule Runlight.Safefetch do
 
             next = location && Url.parse(location, url)
 
-            if answer.status < 300 or answer.status >= 400 or location == nil or n >= Keyword.get(opts, :redirects, 0) or
+            if answer.status < 300 or answer.status >= 400 or location == nil or n >= redirects(opts) or
                  next == nil,
                do: {:ok, answer},
                else: hop(rl, next, opts, deadline, n + 1)

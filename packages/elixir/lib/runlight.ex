@@ -47,6 +47,11 @@ defmodule Runlight do
       `false` for none.
     * `:fetcher` - every outgoing request goes through it (see
       `Runlight.Fetch`); default `&Runlight.Fetch.httpc/2`.
+    * `:local_installs` - lets a connected install be at http://localhost or
+      http://127.0.0.1, for trying a hub and an app on one machine. Default
+      false: otherwise anyone who can add a site could have this server ask
+      services on its own machine, so other installs must be public https
+      addresses.
     * `:now` - a function answering epoch milliseconds, for tests.
     * `:name` - the instance's name, default `Runlight`.
   """
@@ -60,6 +65,7 @@ defmodule Runlight do
   alias Runlight.JS.Object
   alias Runlight.Payload
   alias Runlight.RateLimit
+  alias Runlight.Safefetch
   alias Runlight.SettingsError
   alias Runlight.Sources
   alias Runlight.State
@@ -82,6 +88,7 @@ defmodule Runlight do
     :mail,
     :secret,
     :fetcher,
+    :local_installs,
     :table
   ]
 
@@ -176,6 +183,7 @@ defmodule Runlight do
       mail: Keyword.get(opts, :mail),
       secret: Keyword.get(opts, :secret) || env("RUNLIGHT_SECRET") || env("RUNLIGHT_TOKEN"),
       fetcher: Keyword.get(opts, :fetcher) || (&Runlight.Fetch.httpc/2),
+      local_installs: Keyword.get(opts, :local_installs, false) == true,
       table: table
     }
   end
@@ -555,7 +563,7 @@ defmodule Runlight do
         info = %{last_seen: if(cached, do: cached.last_seen), retention_months: :undefined, connection: "unreachable"}
 
         info =
-          case fetch(rl, "#{remote["url"]}/api/sites",
+          case Safefetch.install_fetch(rl, "#{remote["url"]}/api/sites",
                  headers: [{"authorization", "Bearer #{remote["token"]}"}],
                  timeout: 8000
                ) do
@@ -589,7 +597,7 @@ defmodule Runlight do
   # Asks a connected install to delete the token this server holds for it. A failure leaves it listed there.
   defp revoke_remote_token(rl, remote) do
     _ =
-      fetch(rl, "#{remote["url"]}/api/token",
+      Safefetch.install_fetch(rl, "#{remote["url"]}/api/token",
         method: "DELETE",
         headers: [{"authorization", "Bearer #{remote["token"]}"}],
         timeout: 5000
@@ -604,7 +612,7 @@ defmodule Runlight do
   defp add_remote_site(rl, input) do
     url = input |> JS.prop("url") |> JS.nullish("") |> JS.string() |> JS.trim() |> String.replace(~r/\/+\z/, "")
 
-    unless Regex.match?(~r/^https:\/\/[^\/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/, url),
+    unless Safefetch.install_address?(url, rl.local_installs),
       do:
         raise(SettingsError,
           message: "Enter the install's address, like https://example.com/runlight",
@@ -616,7 +624,7 @@ defmodule Runlight do
     auth = [{"authorization", "Bearer #{token}"}]
 
     answer =
-      case fetch(rl, "#{url}/api/sites", headers: auth, timeout: 10_000) do
+      case Safefetch.install_fetch(rl, "#{url}/api/sites", headers: auth, timeout: 10_000) do
         {:ok, answer} ->
           answer
 
@@ -648,7 +656,7 @@ defmodule Runlight do
 
     # What the token may do there; an install from before manage tokens has no /api/token and reads only.
     {scope, token_site} =
-      case fetch(rl, "#{url}/api/token", headers: auth, timeout: 10_000) do
+      case Safefetch.install_fetch(rl, "#{url}/api/token", headers: auth, timeout: 10_000) do
         {:ok, about} ->
           info =
             if Response.ok?(about) do

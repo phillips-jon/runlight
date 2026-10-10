@@ -11,19 +11,22 @@ defmodule Runlight.Connect do
   alias Runlight.Http.Response
   alias Runlight.JS
   alias Runlight.JS.Object
+  alias Runlight.Safefetch
   alias Runlight.SearchParams
   alias Runlight.Store
   alias Runlight.Url
 
   @pending_ms 15 * 60_000
+  # The most an install's answer while connecting may weigh; a real one is under a kilobyte.
+  @max_bytes 64 * 1024
 
   @doc "The install's address as its dashboard is, without a trailing slash."
-  @spec install_url(term()) :: String.t()
-  def install_url(value) do
+  @spec install_url(term(), boolean()) :: String.t()
+  def install_url(value, local \\ false) do
     url = value |> JS.nullish("") |> JS.string() |> JS.trim() |> String.replace(~r/\/+\z/, "")
 
     # The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
-    unless Regex.match?(~r/^https:\/\/[^\/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/, url) and
+    unless Safefetch.install_address?(url, local) and
              Url.parse(url) != nil,
            do:
              raise(ConnectError, message: "Enter the install's address, like https://example.com/runlight", code: "url")
@@ -35,12 +38,18 @@ defmodule Runlight.Connect do
 
   defp s256(verifier), do: Base.url_encode64(:crypto.hash(:sha256, verifier), padding: false)
 
+  # An answer read no further than one byte past the cap, so one past it is known to be too long and taken as none.
+  defp json(response) when byte_size(response.body) > @max_bytes, do: nil
+
   defp json(response) do
     case Response.json(response) do
       {:ok, %Object{} = o} -> o
       _ -> nil
     end
   end
+
+  defp ask(rl, url, opts),
+    do: Safefetch.install_fetch(rl, url, opts ++ [max_bytes: @max_bytes + 1, truncate: true])
 
   # Attempts nobody came back from are removed, so they do not pile up in settings.
   defp clear_expired(rl) do
@@ -62,10 +71,10 @@ defmodule Runlight.Connect do
   @doc "Starts connecting: answers the address of the install's consent page."
   @spec start_connect(Runlight.t(), term(), String.t(), String.t()) :: String.t()
   def start_connect(rl, input, back, site \\ "") do
-    url = install_url(input)
+    url = install_url(input, rl.local_installs)
 
     meta_answer =
-      case Runlight.fetch(rl, "#{url}/.well-known/oauth-authorization-server", timeout: 10_000) do
+      case ask(rl, "#{url}/.well-known/oauth-authorization-server", timeout: 10_000) do
         {:ok, answer} ->
           answer
 
@@ -111,7 +120,7 @@ defmodule Runlight.Connect do
         )
 
     registered =
-      case Runlight.fetch(rl, meta["registration_endpoint"],
+      case ask(rl, meta["registration_endpoint"],
              method: "POST",
              headers: [{"content-type", "application/json"}],
              body: JS.stringify(JS.obj(client_name: "Runlight at #{host(back)}", redirect_uris: [back])),
@@ -205,7 +214,7 @@ defmodule Runlight.Connect do
       ])
 
     granted =
-      case Runlight.fetch(rl, pending["token"],
+      case ask(rl, pending["token"],
              method: "POST",
              headers: [{"content-type", "application/x-www-form-urlencoded"}],
              body: form,
