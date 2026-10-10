@@ -144,8 +144,15 @@ export async function resolvesPrivately(name: string): Promise<boolean> {
   }
 }
 
+/** What one request sends. */
+interface Ask {
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+}
+
 /** One request with no redirects, connecting only to public addresses. */
-function once(node: NonNullable<ReturnType<typeof builtins>>, url: URL, headers: Record<string, string>, signal: AbortSignal): Promise<Response> {
+function once(node: NonNullable<ReturnType<typeof builtins>>, url: URL, ask: Ask, signal: AbortSignal): Promise<Response> {
   // The lookup Node calls when it connects, so the address checked is the address used.
   const lookup = (hostname: string, options: { all?: boolean }, callback: (error: Error | null, address?: string | LookupAddress[], family?: number) => void) => {
     node.dns.lookup(hostname, { all: true }, (error, addresses) => {
@@ -157,7 +164,8 @@ function once(node: NonNullable<ReturnType<typeof builtins>>, url: URL, headers:
     });
   };
   return new Promise((resolve, reject) => {
-    const request = node.https.request(url, { method: "GET", headers, signal, lookup: lookup as never }, (answer) => {
+    const headers = ask.body === undefined ? ask.headers : { ...ask.headers, "content-length": String(new TextEncoder().encode(ask.body).byteLength) };
+    const request = node.https.request(url, { method: ask.method, headers, signal, lookup: lookup as never }, (answer) => {
       const back = new Headers();
       for (const [name, value] of Object.entries(answer.headers)) {
         for (const one of Array.isArray(value) ? value : value === undefined ? [] : [value]) back.append(name, one);
@@ -168,21 +176,38 @@ function once(node: NonNullable<ReturnType<typeof builtins>>, url: URL, headers:
       resolve(new Response(empty ? null : (node.stream.Readable.toWeb(answer) as ReadableStream), { status, headers: back }));
     });
     request.on("error", reject);
-    request.end();
+    request.end(ask.body);
   });
 }
 
 /**
- * GETs an https URL on the public internet, following up to `redirects`
- * redirects that stay on it, within `timeoutMs` in all. Throws a
+ * For tests: publicFetch asks the runtime's fetch, as a test has replaced it,
+ * instead of connecting itself. Addresses written as an IP, and localhost,
+ * are still refused; names are not looked up, since a test makes them up.
+ */
+let throughGlobalFetch = false;
+export function publicFetchThroughGlobal(on: boolean): void {
+  throughGlobalFetch = on;
+}
+
+/**
+ * Fetches an https URL on the public internet, following up to `redirects`
+ * redirects that stay on it, within `timeoutMs` in all. Only a GET follows
+ * redirects; anything else comes back with the redirect as it is. Throws a
  * PrivateAddressError for an address off it, and the timeout's own error
  * when time runs out. A redirect past the last one comes back as it is.
  * `fetch` stands in for the runtime's, in tests, and checks names before
- * each hop the way a runtime without Node's https module does.
+ * each hop the way a runtime without Node's https module does. `signal`
+ * stops it early, such as when a browser waiting on it leaves.
  */
-export async function publicFetch(target: string, init: { timeoutMs: number; headers?: Record<string, string>; redirects?: number; fetch?: typeof fetch }): Promise<Response> {
-  const signal = AbortSignal.timeout(init.timeoutMs);
-  const node = init.fetch ? null : builtins();
+export async function publicFetch(
+  target: string,
+  init: { timeoutMs: number; method?: string; headers?: Record<string, string>; body?: string; redirects?: number; signal?: AbortSignal; fetch?: typeof fetch },
+): Promise<Response> {
+  const signal = init.signal ? AbortSignal.any([AbortSignal.timeout(init.timeoutMs), init.signal]) : AbortSignal.timeout(init.timeoutMs);
+  const ask: Ask = { method: (init.method ?? "GET").toUpperCase(), headers: init.headers ?? {}, ...(init.body === undefined ? {} : { body: init.body }) };
+  const node = init.fetch || throughGlobalFetch ? null : builtins();
+  const redirects = ask.method === "GET" ? (init.redirects ?? 0) : 0;
   let url = new URL(target);
   for (let hop = 0; ; hop++) {
     if (url.protocol !== "https:") throw new PrivateAddressError(url.href);
@@ -190,18 +215,44 @@ export async function publicFetch(target: string, init: { timeoutMs: number; hea
     if ((v4(host) || v6(host)) && !publicAddress(host)) throw new PrivateAddressError(host);
     if (host === "localhost" || host.endsWith(".localhost")) throw new PrivateAddressError(host);
     // Without a connection of its own to check, the name is resolved first where the runtime can.
-    if (!node && (await resolvesPrivately(host))) throw new PrivateAddressError(host);
+    if (!node && !throughGlobalFetch && (await resolvesPrivately(host))) throw new PrivateAddressError(host);
     let answer: Response;
     try {
-      answer = node ? await once(node, url, init.headers ?? {}, signal) : await (init.fetch ?? fetch)(url, { headers: init.headers ?? {}, redirect: "manual", signal });
+      answer = node ? await once(node, url, ask, signal) : await (init.fetch ?? fetch)(url, { ...ask, redirect: "manual", signal });
     } catch (error) {
       // Whichever way the runtime says it gave up, the caller hears that time ran out.
       if (signal.aborted) throw signal.reason;
       throw error;
     }
     const location = answer.headers.get("location");
-    if (answer.status < 300 || answer.status >= 400 || !location || hop >= (init.redirects ?? 0)) return answer;
+    if (answer.status < 300 || answer.status >= 400 || !location || hop >= redirects) return answer;
     await answer.body?.cancel().catch(() => {});
     url = new URL(location, url);
   }
+}
+
+/** An install on this machine: http://localhost or http://127.0.0.1, with any port. */
+const LOCAL_INSTALL = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/;
+
+/**
+ * Whether an address can be another Runlight install's: https, or, with
+ * `local`, an install on this machine, which only code can allow.
+ */
+export function installAddress(url: string, local: boolean): boolean {
+  return /^https:\/\/[^/]+/.test(url) || (local && LOCAL_INSTALL.test(url));
+}
+
+/**
+ * Fetches from another Runlight install, which someone signed in named: a
+ * public address as publicFetch fetches it, with no redirect followed, so a
+ * token sent there goes nowhere else. With `local`, an install on this
+ * machine is fetched as it is, still without following a redirect.
+ */
+export function installFetch(target: string, init: { timeoutMs: number; local: boolean; method?: string; headers?: Record<string, string>; body?: string; signal?: AbortSignal }): Promise<Response> {
+  const { local, ...rest } = init;
+  if (local && LOCAL_INSTALL.test(target)) {
+    const signal = init.signal ? AbortSignal.any([AbortSignal.timeout(init.timeoutMs), init.signal]) : AbortSignal.timeout(init.timeoutMs);
+    return fetch(target, { method: init.method ?? "GET", headers: init.headers ?? {}, ...(init.body === undefined ? {} : { body: init.body }), redirect: "manual", signal });
+  }
+  return publicFetch(target, { ...rest, redirects: 0 });
 }

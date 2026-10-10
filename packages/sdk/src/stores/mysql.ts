@@ -19,6 +19,9 @@ export interface MysqlOptions {
 /** How long a statement waits for a free connection before it gives up. */
 const ACQUIRE_TIMEOUT = 10_000;
 
+/** The session's sql_mode as it was, less NO_BACKSLASH_ESCAPES, wherever it sits in the list. */
+const NO_BACKSLASH_ESCAPES_OFF = "SET SESSION sql_mode = TRIM(BOTH ',' FROM REPLACE(CONCAT(',', @@SESSION.sql_mode, ','), ',NO_BACKSLASH_ESCAPES,', ','))";
+
 /**
  * SQL written for SQLite and Postgres, as MySQL and MariaDB read it: `?` becomes the value, escaped;
  * a "quoted" identifier is quoted with backticks; and a backslash inside 'text' is doubled, since
@@ -152,6 +155,9 @@ export function mysql(options: MysqlOptions): SqlStore {
       // A connection dropped by the server (a restart, a failover) while idle is replaced on next use; unheard, it would end the process.
       core.on("error", lost);
       try {
+        // Values are escaped with backslashes, which a server set to NO_BACKSLASH_ESCAPES reads as text, so a
+        // quote could end the value early. Every connection drops that one mode, an app's own pool's too.
+        await conn.query(NO_BACKSLASH_ESCAPES_OFF);
         if (owned && timeout > 0) await limitStatements(conn, timeout);
       } catch (error) {
         conn.destroy();

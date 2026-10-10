@@ -62,6 +62,26 @@ test("a MySQL connection the server drops is replaced, and the process carries o
   }
 });
 
+test("a server set to NO_BACKSLASH_ESCAPES cannot turn a value into SQL", { skip }, async () => {
+  const { url: database, ready } = freshMysqlDatabase();
+  await ready;
+  // An app's own pool whose every connection starts with the mode on, as a server configured that way would.
+  const pool = mysql2.createPool({ uri: database, connectionLimit: 2 });
+  pool.on("connection", (conn) => void conn.query("SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode, ',NO_BACKSLASH_ESCAPES')"));
+  const store = mysql({ pool });
+  try {
+    await store.migrate();
+    const value = "a\\' , 'x') -- \\\\ end";
+    await store.setSetting("odd", value);
+    assert.equal(await store.setting("odd"), value);
+    assert.equal(await store.setting("x"), null, "nothing else was written");
+    const [row] = await store.db.all<{ mode: string }>("SELECT @@SESSION.sql_mode AS mode");
+    assert.doesNotMatch(String(row!.mode), /NO_BACKSLASH_ESCAPES/);
+  } finally {
+    await pool.end();
+  }
+});
+
 for (const kind of STORES) {
   test(`${kind}: the longest values the tracker accepts are kept whole`, async () => {
     const t = setup(kind, { site: { hostnames: ["example.com"], timezone: "UTC" } });

@@ -4,6 +4,10 @@ import { getJson } from "../src/importers/http.js";
 import { importStep } from "../src/importers/index.js";
 import { runlight } from "../src/index.js";
 import { sqlite } from "../src/stores/sqlite.js";
+import { publicFetchThroughGlobal } from "../src/safefetch.js";
+
+// Fetches go to the stand-in fetch below; an address written as an IP is still refused.
+publicFetchThroughGlobal(true);
 
 const realFetch = globalThis.fetch;
 afterEach(() => {
@@ -143,6 +147,16 @@ test("Umami: signs in with a username and password, and re-runs skip what is the
   assert.equal(again.skipped, 1);
   await assert.rejects(importStep(rl, "default", "umami", { url: "nope" }, null, 0), /Umami address/);
   await assert.rejects(importStep(rl, "default", "nowhere", {}, null, 0), /cannot import/);
+});
+
+test("Umami: an address on the install's own network, or without https, is never asked", async () => {
+  const calls = serve([[/./, () => ({ body: { token: "t", data: [], count: 0 } })]]);
+  const rl = runlight({ store: sqlite({ path: ":memory:" }) });
+  for (const url of ["https://127.0.0.1:3000", "https://10.0.0.5", "https://169.254.169.254", "https://[::1]", "https://localhost:3000"]) {
+    await assert.rejects(importStep(rl, "default", "umami", { url, apiKey: "k" }, null, 0), (error: Error & { code?: string }) => error.code === "unreachable", url);
+  }
+  await assert.rejects(importStep(rl, "default", "umami", { url: "http://stats.example.com", apiKey: "k" }, null, 0), /Umami address/);
+  assert.deepEqual(calls, []);
 });
 
 test("Umami: a link already here with the same slug and destination is skipped before its history is fetched", async () => {

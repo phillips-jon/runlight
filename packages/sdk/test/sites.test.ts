@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { runlight } from "../src/index.js";
 import { STORES, cleanup, freshStore } from "./helpers.js";
+import { publicFetchThroughGlobal } from "../src/safefetch.js";
+
+// Fetches go to the stand-in fetch below; an address written as an IP is still refused.
+publicFetchThroughGlobal(true);
 
 after(cleanup);
 

@@ -7,6 +7,8 @@
 import { randomId } from "./hash.js";
 import { s256 } from "./oauth.js";
 import type { Runlight } from "./runlight.js";
+import { readJsonCapped } from "./body.js";
+import { installAddress, installFetch } from "./safefetch.js";
 
 interface Pending {
   url: string;
@@ -18,12 +20,14 @@ interface Pending {
 }
 
 const PENDING_MS = 15 * 60_000;
+/** The most an install's answer while connecting may weigh; a real one is under a kilobyte. */
+const MAX_BYTES = 64 * 1024;
 
 /** The install's address as its dashboard is, without a trailing slash. */
-export function installUrl(value: unknown): string {
+export function installUrl(value: unknown, local = false): string {
   const url = String(value ?? "").trim().replace(/\/+$/, "");
   // The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
-  if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url) || !parses(url)) throw new ConnectError("Enter the install's address, like https://example.com/runlight", "url");
+  if (!installAddress(url, local) || !parses(url)) throw new ConnectError("Enter the install's address, like https://example.com/runlight", "url");
   return url;
 }
 
@@ -58,11 +62,12 @@ async function clearExpired(runlight: Runlight): Promise<void> {
 
 /** Starts connecting: returns the address of the install's consent page. */
 export async function startConnect(runlight: Runlight, input: unknown, back: string, site = ""): Promise<string> {
-  const url = installUrl(input);
+  const local = runlight.localInstalls;
+  const url = installUrl(input, local);
   type Meta = { authorization_endpoint?: string; token_endpoint?: string; registration_endpoint?: string; scopes_supported?: string[] };
-  const answer = await fetch(`${url}/.well-known/oauth-authorization-server`, { signal: AbortSignal.timeout(10_000) }).catch(() => null);
+  const answer = await installFetch(`${url}/.well-known/oauth-authorization-server`, { timeoutMs: 10_000, local }).catch(() => null);
   if (!answer) throw new ConnectError(`Could not reach ${url}`, "unreachable", { host: new URL(url).host });
-  const meta = answer.ok ? ((await answer.json().catch(() => null)) as Meta | null) : null;
+  const meta = answer.ok ? ((await readJsonCapped(answer, MAX_BYTES).catch(() => null)) as Meta | null) : null;
   if (!meta?.authorization_endpoint || !meta.token_endpoint || !meta.registration_endpoint) throw new ConnectError(`${url} did not answer like a Runlight install`, "not_runlight", { url });
   // Its endpoints must be its own, so an address cannot steer this server into requests elsewhere.
   const own = (endpoint: string) => {
@@ -75,14 +80,15 @@ export async function startConnect(runlight: Runlight, input: unknown, back: str
   if (![meta.authorization_endpoint, meta.token_endpoint, meta.registration_endpoint].every(own)) throw new ConnectError(`${url} named endpoints on another address`, "endpoints", { url });
   if (!Array.isArray(meta.scopes_supported) || !meta.scopes_supported.includes("manage")) throw new ConnectError(`${url} runs an older Runlight. Update it, or connect it with an API token from its Settings.`, "old", { url });
 
-  const registered = await fetch(meta.registration_endpoint, {
+  const registered = await installFetch(meta.registration_endpoint, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ client_name: `Runlight at ${new URL(back).host}`, redirect_uris: [back] }),
-    signal: AbortSignal.timeout(10_000),
+    timeoutMs: 10_000,
+    local,
   }).catch(() => null);
   if (!registered) throw new ConnectError(`Could not reach ${url}`, "unreachable", { host: new URL(url).host });
-  const client = (await registered.json().catch(() => null)) as { client_id?: string; error_description?: string } | null;
+  const client = (await readJsonCapped(registered, MAX_BYTES).catch(() => null)) as { client_id?: string; error_description?: string } | null;
   if (!registered.ok || !client?.client_id) {
     // Say why, in the install's own words when it gives them.
     const reason = client?.error_description ? `${String(client.error_description).slice(0, 200)}.` : registered.status === 400 ? "This server's address must use https." : `It answered ${registered.status}.`;
@@ -140,13 +146,14 @@ export async function finishConnect(runlight: Runlight, params: URLSearchParams)
   if (params.get("error") === "access_denied") throw new ConnectError("The connection was not allowed.", "denied");
   if (params.get("error")) throw new ConnectError(String(params.get("error_description") ?? params.get("error")), "refused");
 
-  const answer = await fetch(pending.token, {
+  const answer = await installFetch(pending.token, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "authorization_code", code: params.get("code") ?? "", client_id: pending.client, redirect_uri: pending.redirect, code_verifier: pending.verifier }).toString(),
-    signal: AbortSignal.timeout(10_000),
+    timeoutMs: 10_000,
+    local: runlight.localInstalls,
   }).catch(() => null);
-  const granted = answer?.ok ? ((await answer.json().catch(() => null)) as { access_token?: string; site?: string } | null) : null;
+  const granted = answer?.ok ? ((await readJsonCapped(answer, MAX_BYTES).catch(() => null)) as { access_token?: string; site?: string } | null) : null;
   if (!granted?.access_token) throw new ConnectError(`${new URL(pending.url).host} did not give this server a token. Start again.`, "token");
   const site = await runlight.addSite({ remote: { url: pending.url, token: granted.access_token, site: granted.site } });
   return site.id;
