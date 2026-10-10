@@ -982,5 +982,18 @@
   "error.admin_only": "Solo el propietario o un administrador puede cambiar esto.",
   "error.owner_protected": "Nadie más que el propietario puede cambiar o quitar al propietario.",
   "error.owner_hand_over": "Solo el propietario puede pasar la propiedad.",
-  "error.owner_needs_admin": "Hazlo administrador primero."
+  "error.owner_needs_admin": "Hazlo administrador primero.",
+  "embed.goneTitle": "Este enlace al panel no funciona",
+  "embed.gone": "Vuelve a abrir el panel desde la administración de tu sitio.",
+  "embed.expiredTitle": "Esta vista ha caducado",
+  "embed.expired": "El panel dentro de tu administración se mantiene abierto una hora cada vez. Recarga la página para abrirlo de nuevo.",
+  "embed.reload": "Recargar la página",
+  "embedKey.title": "Clave para el panel en tu CMS",
+  "embedKey.intro": "Con esta clave en sus ajustes, los plugins de WordPress, Drupal y Craft muestran el panel de este sitio dentro de tu administración. Abre la vista de solo lectura que muestra un enlace compartido y no puede leer nada por sí misma. Elimínala en Ajustes, API e IA para detenerla al instante.",
+  "embedKey.make": "Crear una clave",
+  "embedKey.another": "Crear otra clave",
+  "embedKey.name": "Panel en un CMS",
+  "tokens.embeds": "Abre el panel en un CMS",
+  "error.embed_expired": "Este panel ha caducado. Recarga la página para abrirlo de nuevo.",
+  "error.embed_site": "Una clave para el panel en un CMS es para un solo sitio. Elige el sitio."
 }

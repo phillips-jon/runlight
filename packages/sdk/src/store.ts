@@ -172,9 +172,10 @@ export interface TokenRow {
   /**
    * "read" reads stats. "manage", for a Runlight hub, also changes its one site's goals, funnels, short links,
    * link domains, email reports, and share links, along with its name, timezone, and retention, and gets
-   * tickets for the element picker.
+   * tickets for the element picker. "embed", for a CMS plugin, only gets tickets that open its one site's
+   * reports inside the CMS's admin pages, and reads nothing itself.
    */
-  scope: "read" | "manage";
+  scope: "read" | "manage" | "embed";
   hash: string;
   /** The token's last four characters, so people can tell theirs apart. */
   hint: string;
@@ -1368,7 +1369,7 @@ export class SqlStore {
       id: String(r.id),
       name: String(r.name),
       site: String(r.site ?? ""),
-      scope: r.scope === "manage" ? "manage" : "read",
+      scope: r.scope === "manage" ? "manage" : r.scope === "embed" ? "embed" : "read",
       hash: String(r.hash),
       hint: String(r.hint ?? ""),
       createdAt: Number(r.created_at),
@@ -1418,6 +1419,15 @@ export class SqlStore {
   async settingsStartingWith(prefix: string): Promise<Array<{ key: string; value: string }>> {
     const rows = await this.db.all(`SELECT "key", value FROM rl_settings WHERE "key" LIKE ? ESCAPE '\\'`, [`${escapeLike(prefix)}%`]);
     return rows.map((r) => ({ key: String(r.key), value: String(r.value) }));
+  }
+
+  /** Reads a setting and deletes it. Of two callers at once, only the one whose delete took the row gets its value. */
+  async takeSetting(key: string): Promise<string | null> {
+    const value = await this.setting(key);
+    if (value === null) return null;
+    const sql = `DELETE FROM rl_settings WHERE "key" = ?`;
+    const gone = this.db.affected ? await this.db.affected(sql, [key]) : (await this.db.all(`${sql} RETURNING "key"`, [key])).length;
+    return gone === 1 ? value : null;
   }
 
   async setSetting(key: string, value: string | null): Promise<void> {

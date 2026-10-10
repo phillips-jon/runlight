@@ -1,6 +1,6 @@
 import { render } from "preact";
 import { useCallback, useEffect, useMemo, useState } from "preact/hooks";
-import { ApiError, accounts, api, base, download, install, share, viewParams, type Person, signIn, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
+import { ApiError, accounts, api, base, download, embedLive, embedOrigin, install, onEmbedExpired, share, shared, viewParams, type Person, signIn, signOut, type Filter, type Point, type Range, type Site, type Stats, type View } from "./api.js";
 import { Chart, asSeries } from "./chart.js";
 import { change, exact } from "./format.js";
 import { FilterDrawer, MAX_FILTERS, fieldName, opName } from "./filters.js";
@@ -58,6 +58,8 @@ function readCharted(): MetricKey[] {
 }
 
 function writeUrl(view: View, charted: MetricKey[]) {
+  // Inside a CMS the frame keeps the address it was opened at, so reloading it says its ticket was used.
+  if (embedOrigin) return;
   const q = new URLSearchParams();
   if (view.site) q.set("site", view.site);
   if (view.from && view.to) {
@@ -220,8 +222,11 @@ function App() {
   // Without accounts (an app's own install) whoever signs in owns it; with them, only once the account says so.
   // The owner and admins set up the assistant; members and viewers use it.
   const isOwner = accounts ? me?.role === "owner" || me?.role === "admin" : true;
-  /** A shared dashboard and a viewer see the numbers and change nothing. */
-  const readOnly = Boolean(share) || me?.role === "viewer";
+  /** A shared dashboard, the dashboard inside a CMS, and a viewer see the numbers and change nothing. */
+  const readOnly = shared || me?.role === "viewer";
+  // Inside a CMS, a session that runs out shows a way to reload the admin page in place of the numbers.
+  const [expired, setExpired] = useState(false);
+  useEffect(() => onEmbedExpired(() => setExpired(true)), []);
 
   const fail = (e: Error) =>
     setFailure(e instanceof ApiError && e.status === 401 ? "signed-out" : share && e instanceof ApiError && e.status === 404 ? t("share.gone") : e.message);
@@ -302,7 +307,7 @@ function App() {
 
   // A site with no visits yet shows the install steps, and checks every few seconds for its first visit.
   // A connected site is counted by its own install, so it never waits here for setup.
-  const waiting = Boolean(site && site.lastSeen == null && !share && !site.remote);
+  const waiting = Boolean(site && site.lastSeen == null && !shared && !site.remote);
   /** Counted by another install: its numbers show here and nothing about it can be changed. */
   // A connected site whose install only lets this server read it.
   const elsewhere = Boolean(site?.remote && !site.manage);
@@ -322,6 +327,7 @@ function App() {
   const panels = useMemo(layout, []);
   const today = todayIn(site?.timezone ?? "UTC");
 
+  if (expired) return <Expired />;
   if (failure === "signed-out") {
     return (
       <main class="signed-out">
@@ -390,7 +396,7 @@ function App() {
                 {t("view.reset")}
               </button>
             )}
-            {site && !share ? (
+            {site && !shared ? (
               <button type="button" class="filter-button assistant-button" aria-label={t("assistant.open")} title={t("assistant.open")} onClick={() => setAsking(true)}>
                 <Icon name="robot" />
               </button>
@@ -588,12 +594,12 @@ function App() {
         )}
         {/* The last row, Links wide and Conversions narrow, so the zigzag of the rows above carries on. A viewer
             reads the links without changing them, and a share never shows them. */}
-        {site && !share && !elsewhere ? <LinksPanel view={view} site={site.id} readOnly={readOnly} /> : null}
+        {site && !shared && !elsewhere ? <LinksPanel view={view} site={site.id} readOnly={readOnly} /> : null}
         {site ? <ConversionsPanel view={view} readOnly={readOnly || elsewhere} onAdd={() => setSettingsOpen("goals")} /> : null}
       </div>
 
       <footer class="foot">
-        <a href="https://runlight.sh" class="powered">
+        <a href="https://runlight.sh" class="powered" {...(embedOrigin ? { target: "_blank", rel: "noopener" } : {})}>
           <svg class="powered-mark" viewBox="0 0 32 32" aria-hidden="true">
             <rect x="2.5" y="2.5" width="27" height="27" rx="7" />
             <path d="M11 23V9h6.2a4.3 4.3 0 0 1 0 8.6H11m6 0 5 5.4" />
@@ -708,6 +714,23 @@ function layout(): Array<{ title: Key; tabs: Tab[]; wide?: boolean }> {
   ];
 }
 
+/**
+ * The dashboard inside a CMS once its session has run out, or when its ticket was used already: the admin page
+ * gets a new ticket when it loads again, so the button asks it to.
+ */
+function Expired() {
+  return (
+    <main class="signed-out">
+      <h1>{t("embed.expiredTitle")}</h1>
+      <p>{t("embed.expired")}</p>
+      <button type="button" class="solid" onClick={() => parent.postMessage({ type: "runlight:reload" }, embedOrigin)}>
+        <Icon name="refresh" />
+        {t("embed.reload")}
+      </button>
+    </main>
+  );
+}
+
 const CYCLE: ThemeChoice[] = ["light", "dark", "system"];
 const themeName = (choice: ThemeChoice): string => t(choice === "light" ? "theme.light" : choice === "dark" ? "theme.dark" : "theme.system");
 
@@ -762,4 +785,4 @@ applyTheme();
 const root = document.getElementById("app")!;
 setLocale(initialLocale())
   .catch(() => setLocale("en"))
-  .finally(() => render(<App />, root));
+  .finally(() => render(embedOrigin && !embedLive ? <Expired /> : <App />, root));

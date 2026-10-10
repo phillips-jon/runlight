@@ -1,18 +1,29 @@
 /**
  * Light, dark, or the system's choice, remembered per browser and shared by
- * every control that changes it. Light until someone picks otherwise.
+ * every control that changes it. Light until someone picks otherwise, or
+ * inside a CMS, the admin's own.
  */
 export type ThemeChoice = "system" | "light" | "dark";
 
 const KEY = "runlight_theme";
 const listeners = new Set<() => void>();
 
+/**
+ * Light, except inside a CMS, where the frame's ?theme= says whether the admin around it is light or dark, and
+ * the device's setting stands in when it does not say.
+ */
+function fallback(): ThemeChoice {
+  if (document.getElementById("app")?.dataset.embedOrigin === undefined) return "light";
+  const asked = new URLSearchParams(location.search).get("theme");
+  return asked === "light" || asked === "dark" ? asked : "system";
+}
+
 export function themeChoice(): ThemeChoice {
   try {
     const stored = localStorage.getItem(KEY);
     if (stored === "light" || stored === "dark" || stored === "system") return stored;
   } catch {}
-  return "light";
+  return fallback();
 }
 
 export function isDark(): boolean {

@@ -982,5 +982,18 @@
   "error.admin_only": "Seul le propriétaire ou un administrateur peut modifier ceci.",
   "error.owner_protected": "Personne d’autre que le propriétaire ne peut modifier ou retirer le propriétaire.",
   "error.owner_hand_over": "Seul le propriétaire peut transmettre la propriété.",
-  "error.owner_needs_admin": "Rendez-le d’abord administrateur."
+  "error.owner_needs_admin": "Rendez-le d’abord administrateur.",
+  "embed.goneTitle": "Ce lien vers le tableau de bord ne fonctionne pas",
+  "embed.gone": "Rouvrez le tableau de bord depuis l'administration de votre site.",
+  "embed.expiredTitle": "Cette vue a expiré",
+  "embed.expired": "Le tableau de bord dans votre administration reste ouvert une heure à la fois. Rechargez la page pour l'ouvrir à nouveau.",
+  "embed.reload": "Recharger la page",
+  "embedKey.title": "Clé pour le tableau de bord dans votre CMS",
+  "embedKey.intro": "Avec cette clé dans leurs réglages, les extensions WordPress, Drupal et Craft affichent le tableau de bord de ce site dans votre administration. Elle ouvre la vue en lecture seule qu'affiche un lien de partage et ne peut rien lire elle-même. Supprimez-la dans Réglages, API et IA pour l'arrêter aussitôt.",
+  "embedKey.make": "Créer une clé",
+  "embedKey.another": "Créer une autre clé",
+  "embedKey.name": "Tableau de bord dans un CMS",
+  "tokens.embeds": "Ouvre le tableau de bord dans un CMS",
+  "error.embed_expired": "Ce tableau de bord a expiré. Rechargez la page pour l'ouvrir à nouveau.",
+  "error.embed_site": "Une clé pour le tableau de bord dans un CMS vaut pour un seul site. Choisissez le site."
 }

@@ -243,6 +243,62 @@ test("a share reads one site's reports and nothing else, until it is deleted", a
   assert.equal((await GET(req(share.path))).status, 404);
 });
 
+test("the dashboard inside a CMS: a ticket opens one framed page once, whose session reads one site", async () => {
+  const rl = runlight({
+    store: sqlite({ path: ":memory:" }),
+    sites: [
+      { id: "a", name: "Site A", hostnames: ["a.com"], timezone: "UTC" },
+      { id: "b", name: "Site B", hostnames: ["b.com"], timezone: "UTC" },
+    ],
+  });
+  const { GET, POST, DELETE } = rl.routes({ token: "secret" });
+  const owner = { authorization: "Bearer secret", "content-type": "application/json" };
+  const made = (await (await POST(req("/runlight/api/tokens", { method: "POST", headers: owner, body: JSON.stringify({ name: "CMS", site: "a", scope: "embed" }) }))).json()) as {
+    secret: string;
+    token: { id: string };
+  };
+  const mint = async (origin: string) =>
+    POST(req("/runlight/api/embed", { method: "POST", headers: { authorization: `Bearer ${made.secret}`, "content-type": "application/json" }, body: JSON.stringify({ origin }) }));
+  assert.equal((await mint("https://b.com")).status, 400, "only an origin on the site's own domains");
+  const minted = await mint("https://www.a.com");
+  assert.equal(minted.status, 201);
+  const { ticket, path, site } = (await minted.json()) as { ticket: string; path: string; site: string };
+  assert.equal(site, "a");
+  assert.equal(path, `/runlight/embed?ticket=${ticket}`);
+  assert.ok(!ticket.includes(made.token.id), "a ticket never names its token");
+
+  // Two loads at once: the ticket opens a session for one of them only.
+  const pages = await Promise.all([GET(req(path)), GET(req(path)), GET(req(path))]);
+  assert.deepEqual(pages.map((p) => p.status).sort(), [200, 410, 410]);
+  const page = pages.find((p) => p.status === 200)!;
+  assert.match(page.headers.get("content-security-policy") ?? "", /frame-ancestors https:\/\/www\.a\.com$/);
+  assert.equal(page.headers.get("x-frame-options"), null);
+  assert.equal(page.headers.get("referrer-policy"), "no-referrer");
+  const session = /data-embed="([^"]+)"/.exec(await page.text())?.[1] ?? "";
+  assert.match(session, /^\d+\.[a-f0-9]{24}\.[a-f0-9]{64}$/);
+  assert.equal(pages.find((p) => p.status === 410)!.headers.get("content-security-policy")?.endsWith("frame-ancestors https://www.a.com"), true, "a used ticket still says so inside its frame");
+
+  const as = { "x-runlight-embed": session };
+  const stats = (await (await GET(req("/runlight/api/stats?site=b", { headers: as }))).json()) as { site: string };
+  assert.equal(stats.site, "a", "pinned to its token's site whatever is asked");
+  assert.equal((await GET(req("/runlight/api/links?site=a", { headers: { ...as, authorization: "Bearer secret" } }))).status, 403, "nothing a share cannot read, even beside the owner's token");
+  // Every other page still refuses to be framed.
+  assert.equal((await GET(req("/runlight/"))).headers.get("x-frame-options"), "DENY");
+
+  assert.equal((await DELETE(req(`/runlight/api/tokens/${made.token.id}`, { method: "DELETE", headers: owner }))).status, 200);
+  assert.equal((await GET(req("/runlight/api/stats", { headers: as }))).status, 401, "deleting the token ends its sessions at once");
+});
+
+test("a setting can be taken once", async () => {
+  const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["a.com"] } });
+  await rl.init();
+  await rl.store.setSetting("x", "1");
+  const taken = await Promise.all([rl.store.takeSetting("x"), rl.store.takeSetting("x")]);
+  assert.deepEqual(taken.sort(), ["1", null].sort());
+  assert.equal(await rl.store.takeSetting("x"), null);
+  assert.equal(await rl.store.setting("x"), null);
+});
+
 test("a CMS plugin reports AI agent fetches with its own key, which reads nothing", async () => {
   const rl = runlight({ store: sqlite({ path: ":memory:" }), site: { hostnames: ["blog.example.com"] } });
   const { GET, POST } = rl.routes({ token: "secret", observeKey: "agents" });

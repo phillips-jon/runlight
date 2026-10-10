@@ -982,5 +982,18 @@
   "error.admin_only": "Nur der Eigentümer oder ein Admin kann das ändern.",
   "error.owner_protected": "Niemand außer dem Eigentümer kann den Eigentümer ändern oder entfernen.",
   "error.owner_hand_over": "Nur der Eigentümer kann das Eigentum übergeben.",
-  "error.owner_needs_admin": "Mach die Person zuerst zum Admin."
+  "error.owner_needs_admin": "Mach die Person zuerst zum Admin.",
+  "embed.goneTitle": "Dieser Dashboard-Link funktioniert nicht",
+  "embed.gone": "Öffne das Dashboard erneut aus dem Adminbereich deiner Website.",
+  "embed.expiredTitle": "Diese Ansicht ist abgelaufen",
+  "embed.expired": "Das Dashboard in deinem Adminbereich bleibt jeweils eine Stunde lang offen. Lade die Seite neu, um es wieder zu öffnen.",
+  "embed.reload": "Seite neu laden",
+  "embedKey.title": "Schlüssel für das Dashboard in deinem CMS",
+  "embedKey.intro": "Mit diesem Schlüssel in ihren Einstellungen zeigen die Plugins für WordPress, Drupal und Craft das Dashboard dieser Website in deinem Adminbereich. Er öffnet die schreibgeschützte Ansicht, die auch ein geteilter Link zeigt, und kann selbst nichts lesen. Lösche ihn unter Einstellungen, API und KI, um ihn sofort zu stoppen.",
+  "embedKey.make": "Schlüssel erstellen",
+  "embedKey.another": "Weiteren Schlüssel erstellen",
+  "embedKey.name": "Dashboard in einem CMS",
+  "tokens.embeds": "Öffnet das Dashboard in einem CMS",
+  "error.embed_expired": "Dieses Dashboard ist abgelaufen. Lade die Seite neu, um es wieder zu öffnen.",
+  "error.embed_site": "Ein Schlüssel für das Dashboard in einem CMS gilt für eine Website. Wähle die Website aus."
 }

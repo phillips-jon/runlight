@@ -45,7 +45,7 @@ function equal(a: string, b: string): boolean {
 }
 
 /** The server's own pages, which answer as the server on every name it is reached at, a link domain too. */
-const SERVER_PATHS = new Set(["/login", "/logout", "/setup", "/invite", "/healthz", "/auth.css", "/auth.js", "/api", "/mcp", "/s.js", "/pick.js", "/e"]);
+const SERVER_PATHS = new Set(["/login", "/logout", "/setup", "/invite", "/healthz", "/auth.css", "/auth.js", "/api", "/mcp", "/s.js", "/pick.js", "/e", "/embed"]);
 
 /**
  * The most names remembered as the server's own. The first ones stay and later ones are not learned, so
