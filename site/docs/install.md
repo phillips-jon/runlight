@@ -249,7 +249,7 @@ Runlight is written again for each of these languages, with the same dashboard a
 | [Go](/docs/go/) | `go get runlight.sh/go` | net/http, chi, Echo, and any router that takes an `http.Handler` |
 | [Java](/docs/java/) | `sh.runlight:runlight` from Maven Central | The JDK’s own server, servlet containers, and Spring Boot |
 | [.NET](/docs/dotnet/) | `dotnet add package Runlight.AspNetCore` | ASP.NET Core and any other .NET app |
-| [Elixir](/docs/elixir/) | `{:runlight, ">= 0.0.0"}` in `mix.exs` | Phoenix and any Plug app |
+| [Elixir](/docs/elixir/) | `{:runlight, "~> 0.0"}` in `mix.exs` | Phoenix and any Plug app |
 | [Rust](/docs/rust/) | `cargo add runlight runlight-sqlx` | axum, hyper, and any server that takes a tower service |
 
 Every language except Elixir and Rust also has a standalone server of its own, and the [standalone server](/docs/server/) page covers the Node one.

@@ -9,18 +9,18 @@ The Java library is Runlight written again in Java. It serves the same dashboard
 
 ## Install
 
-Add the core to your build. Replace `VERSION` with the latest release on Maven Central.
+Add the core to your build.
 
 ```xml file=pom.xml
 <dependency>
   <groupId>sh.runlight</groupId>
   <artifactId>runlight</artifactId>
-  <version>VERSION</version>
+  <version>0.0.0</version>
 </dependency>
 ```
 
 ```kotlin file=build.gradle.kts
-implementation("sh.runlight:runlight:VERSION")
+implementation("sh.runlight:runlight:0.0.0")
 ```
 
 Runlight reaches your database through JDBC, so your app brings the driver. That is `org.xerial:sqlite-jdbc` for SQLite, `org.postgresql:postgresql` for Postgres, and `com.mysql:mysql-connector-j` or `org.mariadb.jdbc:mariadb-java-client` for MySQL and MariaDB. Two more artifacts fit Runlight into a framework. `sh.runlight:runlight-servlet` serves it in Tomcat 10.1, Jetty 12, or any other Jakarta Servlet 6 container, and `sh.runlight:runlight-spring-boot-starter` sets it up in Spring Boot 3.5 or 4.

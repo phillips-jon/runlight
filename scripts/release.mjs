@@ -84,12 +84,20 @@ export const VERSIONED = [
   // scripts/elixir-assets.mts writes from the SDK's VERSION.
   { file: "packages/elixir/mix.exs", pattern: /^(\s*@version ")([^"]+)(")/m },
   { file: "packages/elixir/priv/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
+  // The install lines name a minor ("~> 0.1" admits every 0.x from 0.1.0,
+  // "~> 1.0" every 1.x), so a copied line installs this release or a later
+  // compatible one. The landing page writes > as &gt;.
+  ...["packages/elixir/README.md", "site/docs/elixir.md", "site/docs/install.md", "site/src/prompt.txt", "site/src/landing.html", "README.md"].map((file) => ({ file, pattern: /(\{:runlight, "~(?:>|&gt;) )([^"]+)(")/g, form: "minor" })),
   // The Java build: <revision> in the parent POM alone holds its version,
   // and the flatten plugin writes it into every POM that is published.
   // build.json, which scripts/java-assets.mts writes from the SDK's VERSION,
   // is what the library reports as its own.
   { file: "packages/java/pom.xml", pattern: /^(\s*<revision>)([^<]+)(<\/revision>)/m },
   { file: "packages/java/runlight/src/main/resources/sh/runlight/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
+  // The install lines name this release: Gradle's coordinates, and Maven's
+  // <version> after a Runlight artifact.
+  ...["site/src/landing.html", "site/docs/java.md", "packages/java/README.md"].map((file) => ({ file, pattern: /("sh\.runlight:runlight(?:-servlet|-spring-boot-starter)?:)([^"]+)(")/g })),
+  ...["site/docs/java.md", "packages/java/README.md"].map((file) => ({ file, pattern: /(<artifactId>runlight(?:-servlet|-spring-boot-starter)?<\/artifactId>\s*<version>)([^<]+)(<\/version>)/g })),
   // The .NET packages: Directory.Build.props alone holds their version, and
   // build.json, which scripts/dotnet-assets.mts writes from the SDK's VERSION.
   { file: "packages/dotnet/Directory.Build.props", pattern: /^(\s*<Version>)([^<]+)(<\/Version>)/m },
@@ -290,18 +298,15 @@ export function planEdits(rows, readFile, current, next) {
 
 /**
  * Lines that name a version which is not the release's, though it may look
- * like it: the MCP server's fallback for a build.json with no version, and
- * the Elixir install line's requirement, which admits any release.
+ * like it: the MCP server's fallback for a build.json with no version.
  */
-const NOT_THE_RELEASE = [
-  { file: "packages/php/src/Mcp.php", line: /\?\? '0\.0\.0'\);$/ },
-  ...["packages/elixir/README.md", "site/docs/elixir.md", "site/docs/install.md", "site/src/prompt.txt", "site/src/landing.html", "README.md"].map((file) => ({ file, line: /\{:runlight, "(>|&gt;)= 0\.0\.0"\}/ })),
-];
+const NOT_THE_RELEASE = [{ file: "packages/php/src/Mcp.php", line: /\?\? '0\.0\.0'\);$/ }];
 
 /**
  * Tracked files, outside the table and the regenerated ones, that still
  * mention the old version, or name its minor the way a Cargo install line
- * does (`runlight = { version = "X.Y" }`).
+ * (`runlight = { version = "X.Y" }`) or a Hex one (`{:runlight, "~> X.Y"}`)
+ * does.
  */
 function strays(current) {
   const skip = new Set([...VERSIONED.map((row) => row.file), ...MARKDOWN_CHANGELOGS, ROOT_CHANGELOG, "package-lock.json", "scripts/release.mjs", "scripts/release.test.mjs"]);
@@ -315,7 +320,7 @@ function strays(current) {
   } catch {}
   try {
     const minor = minorOf(current).replace(".", "\\.");
-    found.push(...git("grep", "-n", "-I", "-E", `runlight(-sqlx)? = (\\{ version = )?"${minor}"`, "--", ".").split("\n"));
+    found.push(...git("grep", "-n", "-I", "-E", `runlight(-sqlx)? = (\\{ version = )?"${minor}"|\\{:runlight, "~(>|&gt;) ${minor}"`, "--", ".").split("\n"));
   } catch {}
   found = [...new Set(found)];
   const known = (line) => {

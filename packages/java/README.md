@@ -8,6 +8,16 @@ This is the Java version of [Runlight](https://runlight.sh). It runs on Java 21 
 
 Add `sh.runlight:runlight` from Maven Central to your build, with the JDBC driver for your database. In a Spring Boot app, add `sh.runlight:runlight-spring-boot-starter` in its place and set `runlight.site.hostnames` in `application.properties`. It keeps its tables in the app’s own `DataSource`.
 
+```xml
+<dependency>
+  <groupId>sh.runlight</groupId>
+  <artifactId>runlight</artifactId>
+  <version>0.0.0</version>
+</dependency>
+```
+
+In Gradle, that is `implementation("sh.runlight:runlight:0.0.0")`.
+
 Create one instance for your app.
 
 ```java

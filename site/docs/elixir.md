@@ -14,7 +14,7 @@ Add the package to `mix.exs`, with the Ecto adapter for your database if your ap
 ```elixir file=mix.exs
 def deps do
   [
-    {:runlight, ">= 0.0.0"},
+    {:runlight, "~> 0.0"},
     {:ecto_sqlite3, "~> 0.17"}
   ]
 end

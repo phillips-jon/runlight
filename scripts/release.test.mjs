@@ -60,6 +60,20 @@ test("the Java, .NET, and Rust versions move, and the Cargo install lines name t
   }
 });
 
+test("the Java install lines name the release, and the Hex ones its minor", () => {
+  const edits = planEdits(VERSIONED, readRepo, current, NEXT);
+  const after = (file) => edits.get(file).after;
+  assert.ok(after("site/src/landing.html").includes(`implementation("sh.runlight:runlight:${NEXT}")`));
+  for (const file of ["site/docs/java.md", "packages/java/README.md"]) {
+    assert.ok(after(file).includes(`implementation("sh.runlight:runlight:${NEXT}")`), file);
+    assert.match(after(file), new RegExp(`<artifactId>runlight</artifactId>\\s*<version>${NEXT}</version>`), file);
+  }
+  assert.ok(after("site/src/landing.html").includes(`{:runlight, "~&gt; ${minorOf(NEXT)}"}`));
+  for (const file of ["packages/elixir/README.md", "site/docs/elixir.md", "site/docs/install.md", "site/src/prompt.txt", "README.md"]) {
+    assert.ok(after(file).includes(`{:runlight, "~> ${minorOf(NEXT)}"}`), file);
+  }
+});
+
 test("an install line keeps its minor across a prerelease, and takes the next stable one", () => {
   const rows = [{ file: "x", pattern: /^(runlight = \{ version = ")([^"]+)(")/m, form: "minor" }];
   const at = (minor) => () => `runlight = { version = "${minor}" }\n`;
