@@ -7,9 +7,9 @@ order: 1
 
 Runlight is a library that runs inside an app you already have. It stores what it counts in your database and serves its dashboard from your own domain at `/runlight`, so there is no Runlight account to create and your data never passes through a server of ours.
 
-If your site is not a Node app, or you want one dashboard for several sites, run the [standalone server](/docs/server/) instead. Laravel, Symfony, and plain PHP apps use the [PHP package](/docs/php/), which can also run on a domain of its own on PHP hosting.
+This page sets up the TypeScript library, which needs an app that can serve routes, such as Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, or anything else that handles a web `Request`. It runs on Node 22 or later, Bun, Deno, or Cloudflare Workers.
 
-Runlight needs an app that can serve routes, such as Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, or anything else that handles a web `Request`. It runs on Node 22 or later, Bun, Deno, or Cloudflare Workers.
+Runlight is also written again for [PHP](/docs/php/), [Python](/docs/python/), [Ruby](/docs/ruby/) and [Rails](/docs/rails/), [Go](/docs/go/), [Java](/docs/java/), [.NET](/docs/dotnet/), [Elixir](/docs/elixir/), and [Rust](/docs/rust/). Each one serves the same dashboard from the same tables, and its page has the steps for that language. WordPress, Drupal, and Craft sites take a [plugin](/docs/wordpress/) that sends their visits to a Runlight you run elsewhere. For one dashboard over several sites, or for a site whose app cannot run Runlight, run the [standalone server](/docs/server/).
 
 ## 1. Install
 

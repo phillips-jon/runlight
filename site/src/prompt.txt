@@ -1,6 +1,18 @@
-Add Runlight analytics to this app. Runlight is an npm package (@runlight/sdk) that runs inside the app. It stores visits in the app's own database and serves its dashboard at /runlight. The docs are at https://runlight.sh/docs/, where each page is also available as Markdown at index.md, and https://runlight.sh/llms.txt lists every page.
+Add Runlight analytics to this app. Runlight is a package that runs inside the app. It stores visits in the app's own database and serves its dashboard at /runlight. The docs are at https://runlight.sh/docs/, where each page is also available as Markdown at index.md, and https://runlight.sh/llms.txt lists every page.
 
-If this is a PHP app (Laravel, Symfony, or plain PHP), use the Composer package runlight/runlight instead and follow https://runlight.sh/docs/php/index.md, which has the steps and code for each. The steps below are for JavaScript apps.
+The steps below are for JavaScript and TypeScript apps, which use the npm package @runlight/sdk. Runlight is also written for other languages, with the same dashboard and the same tables. If this app is in one of them, use its package and follow its page instead, which has the install, the routes for each framework, the scheduled check, and the AI agent middleware.
+
+- PHP (Laravel, Symfony, or plain PHP): composer require runlight/runlight, then https://runlight.sh/docs/php/index.md
+- Python (Django, Flask, FastAPI, or any WSGI or ASGI app): pip install runlight, then https://runlight.sh/docs/python/index.md
+- Rails: bundle add runlight and bin/rails generate runlight:install, then https://runlight.sh/docs/rails/index.md
+- Ruby (Sinatra, Hanami, Roda, or any other Rack app): bundle add runlight sqlite3, then https://runlight.sh/docs/ruby/index.md
+- Go (net/http, chi, or Echo): go get runlight.sh/go, then https://runlight.sh/docs/go/index.md
+- Java (the JDK's server, a servlet container, or Spring Boot): sh.runlight:runlight from Maven Central, then https://runlight.sh/docs/java/index.md
+- .NET (ASP.NET Core): dotnet add package Runlight.AspNetCore, then https://runlight.sh/docs/dotnet/index.md
+- Elixir (Phoenix or Plug): {:runlight, ">= 0.0.0"} in mix.exs, then https://runlight.sh/docs/elixir/index.md
+- Rust (axum, hyper, or tower): the runlight and runlight-sqlx crates, then https://runlight.sh/docs/rust/index.md
+
+A WordPress, Drupal, or Craft CMS site takes a plugin that connects it to a Runlight running elsewhere, as https://runlight.sh/docs/wordpress/index.md, https://runlight.sh/docs/drupal/index.md, and https://runlight.sh/docs/craft/index.md describe.
 
 1. Install the package with npm install @runlight/sdk better-sqlite3
    (For Postgres, run npm install @runlight/sdk pg and use postgres({ url: process.env.DATABASE_URL }) from "@runlight/sdk/postgres".

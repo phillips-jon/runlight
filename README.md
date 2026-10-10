@@ -24,9 +24,28 @@ It also runs in Docker.
 docker run -d --name runlight -p 3000:3000 -v runlight:/data ghcr.io/phillips-jon/runlight
 ```
 
-## Plugins
+## Packages
 
-Plugins for WordPress, Drupal, and Craft add the script to a CMS site and report AI agents that read its pages to a Runlight you run elsewhere. Each one has its own folder under `plugins/`.
+Runlight is written again for eight more languages. Each one serves the same dashboard and reads and writes the same tables, so any of them can read a database another one wrote.
+
+| Language | Install | Docs |
+| --- | --- | --- |
+| TypeScript and JavaScript | `npm install @runlight/sdk better-sqlite3` (Node 22 or later, Bun, Deno, or Cloudflare Workers) | [Getting started](https://runlight.sh/docs/), [Install](https://runlight.sh/docs/install/), [its README](packages/sdk/README.md) |
+| Standalone server | `npx runlight.sh`, or the Docker image above | [Standalone server](https://runlight.sh/docs/server/), [its README](packages/server/README.md) |
+| PHP | `composer require runlight/runlight` (PHP 8.2 or later), with a drop-in for a domain of its own | [PHP](https://runlight.sh/docs/php/), [its README](packages/php/README.md) |
+| WordPress | `wp plugin install runlight --activate`, or search for Runlight under Plugins, Add New | [WordPress](https://runlight.sh/docs/wordpress/) |
+| Drupal | `composer require drupal/runlight`, then `drush pm:install runlight` (Drupal 10.3 or 11) | [Drupal](https://runlight.sh/docs/drupal/) |
+| Craft CMS | `composer require runlight/craft`, then `php craft plugin/install runlight` (Craft 5) | [Craft CMS](https://runlight.sh/docs/craft/) |
+| Python | `pip install runlight` (Python 3.11 or later), with the `postgres` or `mysql` extra for those databases | [Python](https://runlight.sh/docs/python/), [its README](packages/python/README.md) |
+| Rails | `bundle add runlight`, then `bin/rails generate runlight:install` and `bin/rails db:migrate` (Rails 7.2, 8.0, or 8.1) | [Rails](https://runlight.sh/docs/rails/), [its README](packages/ruby/README.md) |
+| Ruby | `bundle add runlight sqlite3` (Ruby 3.2 or later), or `pg`, `trilogy`, or `mysql2` in place of `sqlite3` | [Ruby](https://runlight.sh/docs/ruby/), [its README](packages/ruby/README.md) |
+| Go | `go get runlight.sh/go` (Go 1.25 or later) and a `database/sql` driver, with `runlight.sh/go/chi` or `runlight.sh/go/echo` for those routers | [Go](https://runlight.sh/docs/go/), [its README](packages/go/README.md) |
+| Java | `sh.runlight:runlight` from Maven Central (Java 21 or later), with `sh.runlight:runlight-servlet` or `sh.runlight:runlight-spring-boot-starter` beside it at the same version and the app's JDBC driver | [Java](https://runlight.sh/docs/java/), [its README](packages/java/README.md) |
+| .NET | `dotnet add package Runlight.AspNetCore` (.NET 10 or later) and the app's ADO.NET driver, or `dotnet tool install --global Runlight.Server` for the standalone server | [.NET](https://runlight.sh/docs/dotnet/), [its README](packages/dotnet/README.md) |
+| Elixir | `{:runlight, ">= 0.0.0"}` in `mix.exs` (Elixir 1.18 or later on Erlang/OTP 27 or later), with the app's Ecto adapter | [Elixir](https://runlight.sh/docs/elixir/), [its README](packages/elixir/README.md) |
+| Rust | `cargo add runlight --features axum` and `cargo add runlight-sqlx --features sqlite` (or `postgres`, `mysql`), on Rust 1.88 or later and 1.94 for `runlight-sqlx` | [Rust](https://runlight.sh/docs/rust/), [its README](packages/rust/README.md) |
+
+The plugins for WordPress, Drupal, and Craft add the script to a CMS site and report AI agents that read its pages to a Runlight you run elsewhere. Each one has its own folder under `plugins/`.
 
 ## What it does
 
@@ -38,6 +57,8 @@ Beyond visitors and pages, Runlight counts goals and the revenue they bring, fun
 | --- | --- |
 | `packages/sdk` | The library, published as `@runlight/sdk`. |
 | `packages/server` | The standalone server, published as `runlight.sh`. |
+| `packages/php`, `packages/python`, `packages/ruby`, `packages/go`, `packages/java`, `packages/dotnet`, `packages/elixir`, `packages/rust` | The library written again in each of those languages, published as the table above shows. |
+| `conformance` | The recorded answers every implementation is tested against. |
 | `packages/dashboard` | The dashboard, built into the library. |
 | `packages/tracker` | The browser script, built into the library. |
 | `plugins` | The WordPress, Drupal, and Craft plugins. |
@@ -47,7 +68,7 @@ Use Node 24 to work on it, and run `npm run check` before committing.
 
 ## Releasing
 
-The library, the server, the PHP package, and the WordPress plugin share one version. The Drupal and Craft plugins take theirs from the release tag. Write the release's notes under `## Unreleased` in `CHANGELOG.md` (and in the Craft plugin's `CHANGELOG.md` and the WordPress readme's `= Unreleased =` section when they changed), then release from a clean `main`.
+The library, the server, every other language's package, and the WordPress plugin share one version. The Drupal and Craft plugins take theirs from the release tag. Write the release's notes under `## Unreleased` in `CHANGELOG.md` (and in the Craft plugin's `CHANGELOG.md` and the WordPress readme's `= Unreleased =` section when they changed), then release from a clean `main`.
 
 ```bash
 npm run release -- X.Y.Z --dry-run   # show every change and command, write nothing

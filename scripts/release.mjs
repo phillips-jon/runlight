@@ -295,7 +295,7 @@ export function planEdits(rows, readFile, current, next) {
  */
 const NOT_THE_RELEASE = [
   { file: "packages/php/src/Mcp.php", line: /\?\? '0\.0\.0'\);$/ },
-  ...["packages/elixir/README.md", "site/docs/elixir.md"].map((file) => ({ file, line: /\{:runlight, ">= 0\.0\.0"\}/ })),
+  ...["packages/elixir/README.md", "site/docs/elixir.md", "site/docs/install.md", "site/src/prompt.txt", "site/src/landing.html", "README.md"].map((file) => ({ file, line: /\{:runlight, "(>|&gt;)= 0\.0\.0"\}/ })),
 ];
 
 /**

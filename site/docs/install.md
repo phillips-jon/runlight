@@ -1,6 +1,6 @@
 ---
 title: Install
-description: Mount Runlight in Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, Bun, Deno, or Cloudflare Workers.
+description: Mount Runlight in Next.js, Nuxt, SvelteKit, Astro, Remix, Express, NestJS, Fastify, Koa, Hono, Bun, Deno, or Cloudflare Workers, or find the guide for your language.
 group: Start
 order: 2
 ---
@@ -229,9 +229,23 @@ Route only `/runlight/*` to this Worker (or check the path first, as in the Bun 
 
 If your server gives you a web `Request`, pass it to `rl.routes().handler` and return the `Response`. If it gives you Node’s `req` and `res`, use `toNodeHandler` from `@runlight/sdk/node`.
 
-## PHP
+## Other languages
 
-Laravel, Symfony, and plain PHP apps install Runlight with `composer require runlight/runlight`. [PHP](/docs/php/) has the routes for each, and the drop-in that runs Runlight on its own domain on PHP hosting.
+Runlight is written again for each of these languages, with the same dashboard and the same tables. Each page has the install, the routes for its frameworks, the scheduled check, and what differs from the TypeScript library.
+
+| Language | Install | Runs in |
+| --- | --- | --- |
+| [PHP](/docs/php/) | `composer require runlight/runlight` | Laravel, Symfony, plain PHP, and a drop-in for a domain of its own |
+| [Python](/docs/python/) | `pip install runlight` | Django, Flask, FastAPI, and any WSGI or ASGI app |
+| [Rails](/docs/rails/) | `bundle add runlight` | Rails 7.2, 8.0, and 8.1, through an engine and a generator |
+| [Ruby](/docs/ruby/) | `bundle add runlight sqlite3` | Sinatra, Hanami, Roda, and any other Rack app |
+| [Go](/docs/go/) | `go get runlight.sh/go` | net/http, chi, Echo, and any router that takes an `http.Handler` |
+| [Java](/docs/java/) | `sh.runlight:runlight` from Maven Central | The JDK’s own server, servlet containers, and Spring Boot |
+| [.NET](/docs/dotnet/) | `dotnet add package Runlight.AspNetCore` | ASP.NET Core and any other .NET app |
+| [Elixir](/docs/elixir/) | `{:runlight, ">= 0.0.0"}` in `mix.exs` | Phoenix and any Plug app |
+| [Rust](/docs/rust/) | `cargo add runlight runlight-sqlx` | axum, hyper, and any server that takes a tower service |
+
+Every language except Elixir and Rust also has a standalone server of its own, and the [standalone server](/docs/server/) page covers the Node one.
 
 ## Behind a proxy
 
