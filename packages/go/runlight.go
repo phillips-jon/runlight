@@ -84,6 +84,12 @@ type Options struct {
 	Now func() int64
 	// Fetcher makes every outgoing request. nil is a net/http one.
 	Fetcher Fetcher
+	// LocalInstalls lets a connected install be at http://localhost or
+	// http://127.0.0.1, for trying a hub and an app on one machine. Default
+	// false: otherwise anyone who can add a site could have this server ask
+	// services on its own machine, so other installs must be public https
+	// addresses.
+	LocalInstalls bool
 	// Logf reports what goes wrong where nothing can answer for it. nil logs to standard error.
 	Logf func(format string, args ...any)
 }
@@ -210,6 +216,8 @@ type Runlight struct {
 	// leaves them readable, and the dashboard says so.
 	Secret    string
 	HasSecret bool
+	// LocalInstalls says a connected install may be on this machine, at http://localhost or http://127.0.0.1.
+	LocalInstalls bool
 
 	now       func() int64
 	fetcher   Fetcher
@@ -261,19 +269,20 @@ func New(options Options) (*Runlight, error) {
 		return nil, errors.New(`Runlight: pass a store, such as runlight.NewStore(runlight.SQLite(db))`)
 	}
 	r := &Runlight{
-		Store:        options.Store,
-		ManagedSites: options.ManagedSites,
-		now:          options.Now,
-		fetcher:      options.Fetcher,
-		logf:         options.Logf,
-		geo:          options.Geo,
-		mailCode:     options.Mail,
-		turns:        map[string]*turn{},
-		overrides:    map[string]*js.Object{},
-		remotes:      map[string]Remote{},
-		remoteSeen:   map[string]RemoteInfo{},
-		routeBases:   map[string]bool{},
-		salts:        map[string]salts{},
+		Store:         options.Store,
+		ManagedSites:  options.ManagedSites,
+		LocalInstalls: options.LocalInstalls,
+		now:           options.Now,
+		fetcher:       options.Fetcher,
+		logf:          options.Logf,
+		geo:           options.Geo,
+		mailCode:      options.Mail,
+		turns:         map[string]*turn{},
+		overrides:     map[string]*js.Object{},
+		remotes:       map[string]Remote{},
+		remoteSeen:    map[string]RemoteInfo{},
+		routeBases:    map[string]bool{},
+		salts:         map[string]salts{},
 	}
 	if r.now == nil {
 		r.now = func() int64 { return time.Now().UnixMilli() }
@@ -467,7 +476,8 @@ var (
 	hostTail     = regexp.MustCompile(`[/:].*$`)
 	hostSplit    = regexp.MustCompile(`[\t\n\v\f\r \x{a0}\x{1680}\x{2000}-\x{200a}\x{2028}\x{2029}\x{202f}\x{205f}\x{3000}\x{feff},]+`)
 	domainLabel  = regexp.MustCompile(`^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$`)
-	connectURL   = regexp.MustCompile(`^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)`)
+	httpsInstall = regexp.MustCompile(`^https://[^/]+`)
+	localInstall = regexp.MustCompile(`^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)`)
 	hostIDLetter = regexp.MustCompile(`[^A-Za-z0-9._-]`)
 )
 
@@ -601,7 +611,7 @@ func (r *Runlight) RemoteInfo(ctx context.Context, id string) *RemoteInfo {
 	if have {
 		info.LastSeen = cached.LastSeen
 	}
-	answer, err := r.fetcher.Fetch(ctx, remote.URL+"/api/sites", FetchInit{Headers: web.NewHeaders("authorization", "Bearer "+remote.Token), Timeout: 8 * time.Second, MaxBytes: remoteMaxBytes})
+	answer, err := r.installFetch(ctx, remote.URL+"/api/sites", FetchInit{Headers: web.NewHeaders("authorization", "Bearer "+remote.Token), Timeout: 8 * time.Second, MaxBytes: remoteMaxBytes})
 	if err == nil {
 		if answer.Status == 401 || answer.Status == 403 {
 			info.Connection = "refused"
@@ -638,7 +648,26 @@ func (r *Runlight) ForgetRemoteInfo(id string) {
 // revokeRemoteToken asks a connected install to delete the token this
 // server holds for it. A failure leaves it listed there.
 func (r *Runlight) revokeRemoteToken(ctx context.Context, remote Remote) {
-	_, _ = r.fetcher.Fetch(ctx, remote.URL+"/api/token", FetchInit{Method: "DELETE", Headers: web.NewHeaders("authorization", "Bearer "+remote.Token), Timeout: 5 * time.Second})
+	_, _ = r.installFetch(ctx, remote.URL+"/api/token", FetchInit{Method: "DELETE", Headers: web.NewHeaders("authorization", "Bearer "+remote.Token), Timeout: 5 * time.Second})
+}
+
+// installAddress is whether an address can be another Runlight install's:
+// https, or, with local, an install on this machine, which only code can allow.
+func installAddress(url string, local bool) bool {
+	return httpsInstall.MatchString(url) || (local && localInstall.MatchString(url))
+}
+
+// installFetch fetches from another Runlight install, which someone signed
+// in named: a public address as web.PublicFetch fetches it, with no redirect
+// followed, so a token sent there goes nowhere else. With LocalInstalls, an
+// install on this machine is fetched as it is, still without following a
+// redirect.
+func (r *Runlight) installFetch(ctx context.Context, url string, init FetchInit) (*Response, error) {
+	if r.LocalInstalls && localInstall.MatchString(url) {
+		init.Redirect = "manual"
+		return r.fetcher.Fetch(ctx, url, init)
+	}
+	return web.PublicFetch(ctx, r.fetcher, url, init, 0)
 }
 
 // sortSites keeps sites by name, as localeCompare orders them.
@@ -651,7 +680,7 @@ func sortSites(sites []SiteRow) {
 // dashboard is (https://example.com/runlight), and an API token made there.
 func (r *Runlight) addRemoteSite(ctx context.Context, input *js.Object, name any) (SiteRow, error) {
 	url := strings.TrimRight(jsTrim(field(input, "url")), "/")
-	if !connectURL.MatchString(url) {
+	if !installAddress(url, r.LocalInstalls) {
 		return SiteRow{}, settingsError("Enter the install's address, like https://example.com/runlight", "connect_url")
 	}
 	token := jsTrim(field(input, "token"))
@@ -659,7 +688,7 @@ func (r *Runlight) addRemoteSite(ctx context.Context, input *js.Object, name any
 		return SiteRow{}, settingsError("Enter an API token from that install", "install_token")
 	}
 	auth := web.NewHeaders("authorization", "Bearer "+token)
-	answer, err := r.fetcher.Fetch(ctx, url+"/api/sites", FetchInit{Headers: auth, Timeout: 10 * time.Second, MaxBytes: remoteMaxBytes})
+	answer, err := r.installFetch(ctx, url+"/api/sites", FetchInit{Headers: auth, Timeout: 10 * time.Second, MaxBytes: remoteMaxBytes})
 	if err != nil {
 		if errors.Is(err, web.ErrBodyTooLong) {
 			answer = &Response{Status: 200, Header: &Headers{}}
@@ -678,7 +707,7 @@ func (r *Runlight) addRemoteSite(ctx context.Context, input *js.Object, name any
 	// What the token may do there; an install from before manage tokens has no /api/token and reads only.
 	scope := "read"
 	tokenSite := ""
-	if about, err := r.fetcher.Fetch(ctx, url+"/api/token", FetchInit{Headers: auth, Timeout: 10 * time.Second, MaxBytes: remoteMaxBytes}); err == nil && about.OK() {
+	if about, err := r.installFetch(ctx, url+"/api/token", FetchInit{Headers: auth, Timeout: 10 * time.Second, MaxBytes: remoteMaxBytes}); err == nil && about.OK() {
 		if info, err := about.JSON(); err == nil {
 			if js.Dig(info, "scope") == "manage" {
 				scope = "manage"

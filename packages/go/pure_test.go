@@ -402,11 +402,18 @@ func TestNamesLikeObjectPropertiesAreJustNames(t *testing.T) {
 
 func TestConnectAddressesAndAttempts(t *testing.T) {
 	for _, url := range []string{"https://[", "https://[::1", "https://a b"} {
-		if _, err := installURL(url); err == nil {
+		if _, err := installURL(url, true); err == nil {
 			t.Errorf("%s passed", url)
 		}
 	}
-	if url, err := installURL("https://example.com/runlight/"); err != nil || url != "https://example.com/runlight" {
+	if url, err := installURL("https://example.com/runlight/", false); err != nil || url != "https://example.com/runlight" {
+		t.Error(url, err)
+	}
+	// An install on this machine only when code allows one.
+	if _, err := installURL("http://localhost:3000", false); err == nil {
+		t.Error("http://localhost:3000 passed without LocalInstalls")
+	}
+	if url, err := installURL("http://127.0.0.1:3000/", true); err != nil || url != "http://127.0.0.1:3000" {
 		t.Error(url, err)
 	}
 	// An attempt counts only as a JSON object with a numeric expiry at or after now.

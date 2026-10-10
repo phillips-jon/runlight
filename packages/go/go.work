@@ -1,0 +1,18 @@
+// The workspace builds the chi and Echo adapters, the command, and the
+// database tests against the core in this folder. Their go.mod files have no
+// replace directives, since go install refuses a module with one, so the
+// go command reads this file instead (it is never in a module that anyone
+// requires). The replace covers the version the nested modules require,
+// which is not on the proxy until it is tagged; scripts/release.mjs moves it
+// with them. go mod tidy ignores workspaces: run node scripts/go-tidy.mjs.
+go 1.25.0
+
+use (
+	.
+	./chi
+	./cmd/runlight
+	./dbtest
+	./echo
+)
+
+replace runlight.sh/go v0.0.0 => ./

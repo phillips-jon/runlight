@@ -80,3 +80,30 @@ func TestNetHTTPAdaptersAnswerLinkDomains(t *testing.T) {
 		})
 	}
 }
+
+func TestObserveChecksTheKeyBeforeTheBody(t *testing.T) {
+	rl, err := runlight.New(runlight.Options{Store: runlight.NewStore(oneLink{}), Site: &runlight.SiteOptions{Hostnames: []string{"example.com"}}, Logf: func(string, ...any) {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	routes, err := rl.Routes(runlight.RoutesOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(routes)
+	defer server.Close()
+	// Neither key is one this install made, so the body, which would be refused, is never read.
+	for _, key := range []string{"not-a-key", "rlo_" + strings.Repeat("ab", 20)} {
+		req, _ := http.NewRequest("POST", server.URL+"/runlight/api/observe", strings.NewReader("{not json"))
+		req.Header.Set("authorization", "Bearer "+key)
+		req.Header.Set("content-type", "application/json")
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		res.Body.Close()
+		if res.StatusCode != 401 {
+			t.Errorf("%s: %d, want 401", key, res.StatusCode)
+		}
+	}
+}

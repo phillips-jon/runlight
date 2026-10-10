@@ -278,7 +278,7 @@ func (rt *Routes) api(c *call, path string, u *whatwg.URL) (*Response, error) {
 		if request.Method != "GET" {
 			r.ForgetRemoteInfo(asked)
 		}
-		return passThrough(ctx, r.fetcher, *connected, path, u, request), nil
+		return passThrough(ctx, r, *connected, path, u, request), nil
 	}
 	if connected != nil && !(request.Method == "GET" && (sharedPath(path) || path == "/api/links")) {
 		return Coded("This site is counted by its own Runlight. Connect it again from its settings to change it from here.", "site_remote", 400, nil), nil
@@ -414,7 +414,7 @@ func (rt *Routes) api(c *call, path string, u *whatwg.URL) (*Response, error) {
 		if !access.full && access.token.Site != "" && access.token.Site != asked {
 			return Coded("Unknown site", "unknown_site", 404, nil), nil
 		}
-		return passThrough(ctx, r.fetcher, *connected, path, u, nil), nil
+		return passThrough(ctx, r, *connected, path, u, nil), nil
 	}
 
 	// An API token, or someone signed in to read, may list links and see each one's clicks, but not change them.
@@ -549,6 +549,29 @@ func (rt *Routes) observeAPI(c *call) (*Response, error) {
 	if !anySite && given == "" {
 		return Coded("Unauthorized", "unauthorized", 401, nil), nil
 	}
+	// A site's own key is found before the body is read, so a stranger costs one lookup at most.
+	keySite := ""
+	if !anySite {
+		if !strings.HasPrefix(given, "rlo_") {
+			return Coded("Unauthorized", "unauthorized", 401, nil), nil
+		}
+		if err := r.Init(ctx); err != nil {
+			return nil, err
+		}
+		settings, err := r.Store.SettingsStartingWith(ctx, "observe-key:")
+		if err != nil {
+			return nil, err
+		}
+		for _, s := range settings {
+			id := strings.TrimPrefix(s.Key, "observe-key:")
+			if _, known := r.Site(id); id != "" && known && constantTimeEqual(given, s.Value) {
+				keySite = id
+			}
+		}
+		if keySite == "" {
+			return Coded("Unauthorized", "unauthorized", 401, nil), nil
+		}
+	}
 	body, refused := readJSON(request)
 	if refused != nil {
 		return refused, nil
@@ -600,19 +623,6 @@ func (rt *Routes) observeAPI(c *call) (*Response, error) {
 	if !anySite {
 		// A site's own key reports only pages on that site's domains. Pages elsewhere in a batch (another
 		// host in the same log, say) are skipped, not a reason to refuse the rest.
-		keySite := ""
-		for _, site := range r.Sites() {
-			key, has, err := r.Store.Setting(ctx, "observe-key:"+site.ID)
-			if err != nil {
-				return nil, err
-			}
-			if has && key != "" && constantTimeEqual(given, key) {
-				keySite = site.ID
-			}
-		}
-		if keySite == "" {
-			return Coded("Unauthorized", "unauthorized", 401, nil), nil
-		}
 		keep = []observed{}
 		for _, p := range pages {
 			if site, ok := r.SiteFor(p.page.Hostname, ""); ok && site.ID == keySite {
@@ -767,7 +777,7 @@ func (rt *Routes) siteWrites(c *call, raw string, u *whatwg.URL) (*Response, err
 			return Coded("Connect this site again to change it from here", "connect_again", 400, nil), nil
 		}
 		patch := web.NewRequest("PATCH", request.URL, web.NewHeaders("content-type", "application/json"), []byte(js.Stringify(forward)))
-		answer := passThrough(ctx, r.fetcher, remote, "/api/sites/"+encodeURIComponent(remote.Site), u.Clone(), patch)
+		answer := passThrough(ctx, r, remote, "/api/sites/"+encodeURIComponent(remote.Site), u.Clone(), patch)
 		if !answer.OK() {
 			return answer, nil
 		}
@@ -946,7 +956,7 @@ func (rt *Routes) reads(c *call, path string, u *whatwg.URL) (*Response, error) 
 		return Coded("Unknown site", "unknown_site", 404, nil), nil
 	}
 	if remote, isRemote := r.Remote(site.ID); isRemote {
-		return passThrough(ctx, r.fetcher, remote, path, u, request), nil
+		return passThrough(ctx, r, remote, path, u, request), nil
 	}
 
 	if path == "/api/icon" {
