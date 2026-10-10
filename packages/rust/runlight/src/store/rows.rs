@@ -186,7 +186,8 @@ pub struct TokenRow {
     pub name: String,
     /// "" reads every site; otherwise the one site it may read.
     pub site: String,
-    /// `read` or `manage`.
+    /// `read`, `manage`, or `embed` (a CMS plugin's key, which only gets tickets that open its one site's
+    /// read-only dashboard inside the CMS).
     pub scope: String,
     /// The token's hash.
     pub hash: String,

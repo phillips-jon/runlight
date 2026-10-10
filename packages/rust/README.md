@@ -14,7 +14,7 @@ runlight = { version = "0.0", features = ["axum"] }
 runlight-sqlx = { version = "0.0", features = ["sqlite"] }
 ```
 
-Create one instance and merge its routers into your app.
+Create one instance, merge its routers into your app, and add its middleware, which answers your link domains before your own routes.
 
 ```rust,no_run
 use runlight::{Runlight, RunlightOptions, RoutesOptions, SiteOptions};
@@ -24,7 +24,10 @@ let store = runlight_sqlx::connect("sqlite:data/runlight.db").await?;
 let mut options = RunlightOptions::new(store);
 options.site = Some(SiteOptions { hostnames: Some(vec!["example.com".into()]), ..SiteOptions::default() });
 let rl = Runlight::new(options)?;
-let app: axum::Router = axum::Router::new().merge(rl.routes(RoutesOptions::default())?.router()).merge(rl.link_router());
+let app: axum::Router = axum::Router::new()
+    .merge(rl.routes(RoutesOptions::default())?.router())
+    .merge(rl.link_router())
+    .layer(axum::middleware::from_fn_with_state(rl.clone(), runlight::adapters::axum_support::middleware));
 # Ok(())
 # }
 ```

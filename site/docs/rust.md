@@ -84,7 +84,7 @@ let app = axum::Router::new()
     .layer(axum::middleware::from_fn_with_state(rl.clone(), runlight::adapters::axum_support::middleware));
 ```
 
-The middleware sends requests for a link domain to its short links and records AI agent fetches of your pages. Serve the app with `into_make_service_with_connect_info::<SocketAddr>()` so Runlight sees the connection's address when no proxy header names the visitor. Then add the script to every page, just before `</head>`.
+The middleware answers a request on a [link domain](/docs/links/#custom-domains) with its short link before your own routes see it, and it records AI agent fetches of your pages. A request for any other host goes on to your app untouched. Keep the layer, since an axum router only sees the paths it was given and a link domain's short links sit at the root of their own name. Serve the app with `into_make_service_with_connect_info::<SocketAddr>()` so Runlight sees the connection's address when no proxy header names the visitor. Then add the script to every page, just before `</head>`.
 
 ```html
 <script defer src="/runlight/s.js"></script>
@@ -94,7 +94,7 @@ Then set `RUNLIGHT_TOKEN` to a long random string and open `/runlight/?token=` f
 
 ## Other servers
 
-`Routes` is a `tower::Service` for any `http::Request`, so hyper and anything else built on tower can serve it as it is. Without the `tower` feature, build a `runlight::http::Request` yourself and call `routes.handle(request).await`, which answers with a `runlight::http::Response`.
+`Routes` is a `tower::Service` for any `http::Request`, so hyper and anything else built on tower can serve it as it is. Each request it gets on a link domain is answered with the short link, and the short link service from `rl.link_service()` does the same. Without the `tower` feature, build a `runlight::http::Request` yourself and call `routes.handle(request).await`, which answers with a `runlight::http::Response`.
 
 ## The scheduled check
 
