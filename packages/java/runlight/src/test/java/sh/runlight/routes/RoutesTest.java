@@ -442,6 +442,196 @@ class RoutesTest {
   }
 
   @Test
+  void theDashboardInsideACmsOpensOneFramedPageOnceWhoseSessionReadsOneSite() {
+    Runlight rl =
+        Make.runlight(
+            new Runlight.Options()
+                .sites(
+                    List.of(
+                        Json.object(
+                            "id",
+                            "a",
+                            "name",
+                            "Site A",
+                            "hostnames",
+                            List.of("a.com"),
+                            "timezone",
+                            "UTC"),
+                        Json.object(
+                            "id",
+                            "b",
+                            "name",
+                            "Site B",
+                            "hostnames",
+                            List.of("b.com"),
+                            "timezone",
+                            "UTC"))));
+    Routes routes = rl.routes(new Routes.Options().token("secret"));
+    assertEquals(
+        400,
+        routes
+            .handle(
+                owner("/runlight/api/tokens", "POST", Json.object("name", "CMS", "scope", "embed")))
+            .status(),
+        "an embed key is for one site");
+    Map<String, Object> made =
+        body(
+            routes.handle(
+                owner(
+                    "/runlight/api/tokens",
+                    "POST",
+                    Json.object("name", "CMS", "site", "a", "scope", "embed"))));
+    String secret = (String) made.get("secret");
+    String tokenId = (String) Make.dig(made, "token.id");
+    assertEquals("embed", Make.dig(made, "token.scope"));
+    Function<String, Response> mint =
+        origin ->
+            routes.handle(
+                owner("/runlight/api/embed", "POST", Json.object("origin", origin), secret));
+    assertEquals(400, mint.apply("https://b.com").status(), "only an origin on the site's domains");
+    assertEquals(400, mint.apply("https://a.com/path").status(), "an origin, not a page");
+    String readKey =
+        (String)
+            body(routes.handle(
+                    owner(
+                        "/runlight/api/tokens",
+                        "POST",
+                        Json.object("name", "Reader", "site", "a"))))
+                .get("secret");
+    assertEquals(
+        403,
+        routes
+            .handle(
+                owner(
+                    "/runlight/api/embed", "POST", Json.object("origin", "https://a.com"), readKey))
+            .status(),
+        "only an embed key gets tickets");
+    assertEquals(
+        401,
+        routes
+            .handle(owner("/runlight/api/embed", "POST", Json.object("origin", "https://a.com")))
+            .status(),
+        "the owner's own token is no key for tickets");
+    assertEquals(
+        403,
+        routes.handle(owner("/runlight/api/stats?site=a", "GET", null, secret)).status(),
+        "an embed key reads nothing itself");
+    Response minted = mint.apply("https://www.a.com");
+    assertEquals(201, minted.status());
+    Map<String, Object> ticketBody = body(minted);
+    String ticket = (String) ticketBody.get("ticket");
+    String path = (String) ticketBody.get("path");
+    assertEquals("a", ticketBody.get("site"));
+    assertEquals("/runlight/embed?ticket=" + ticket, path);
+    assertFalse(ticket.contains(tokenId), "a ticket never names its token");
+
+    Response page = routes.handle(req(path));
+    assertEquals(200, page.status());
+    assertTrue(
+        page.headers()
+            .get("content-security-policy")
+            .endsWith("frame-ancestors https://www.a.com"));
+    assertNull(page.headers().get("x-frame-options"));
+    assertEquals("no-referrer", page.headers().get("referrer-policy"));
+    assertEquals("no-store", page.headers().get("cache-control"));
+    Matcher found = Pattern.compile("data-embed=\"([^\"]+)\"").matcher(page.text());
+    assertTrue(found.find());
+    String session = found.group(1);
+    assertTrue(session.matches("\\d+\\.[a-f0-9]{24}\\.[a-f0-9]{64}"));
+    assertTrue(page.text().contains("data-embed-origin=\"https://www.a.com\""));
+    Response again = routes.handle(req(path));
+    assertEquals(410, again.status(), "a ticket works once");
+    assertTrue(
+        again
+            .headers()
+            .get("content-security-policy")
+            .endsWith("frame-ancestors https://www.a.com"),
+        "a used ticket still says so inside its frame");
+    assertTrue(again.text().contains("data-embed=\"\""));
+    assertEquals(
+        404,
+        routes.handle(req(path.substring(0, path.length() - 1) + "0")).status(),
+        "a ticket this install did not sign opens nothing");
+
+    Map<String, String> as = Map.of("x-runlight-embed", session);
+    assertEquals(
+        "a",
+        body(routes.handle(req("/runlight/api/stats?site=b", "GET", as))).get("site"),
+        "pinned to its token's site whatever is asked");
+    Map<String, String> withOwner = new LinkedHashMap<>(as);
+    withOwner.put("authorization", "Bearer secret");
+    assertEquals(
+        403,
+        routes.handle(req("/runlight/api/links?site=a", "GET", withOwner)).status(),
+        "nothing a share cannot read, even beside the owner's token");
+    assertEquals(
+        401,
+        routes
+            .handle(req("/runlight/api/stats", "GET", Map.of("x-runlight-embed", session + "0")))
+            .status());
+    assertEquals(
+        "DENY",
+        routes.handle(req("/runlight/")).headers().get("x-frame-options"),
+        "every other page still refuses to be framed");
+
+    assertEquals(
+        200, routes.handle(owner("/runlight/api/tokens/" + tokenId, "DELETE", null)).status());
+    assertEquals(
+        401,
+        routes.handle(req("/runlight/api/stats", "GET", as)).status(),
+        "deleting the token ends its sessions at once");
+  }
+
+  @Test
+  void anEmbedTicketRunsOutAfterFiveMinutesAndItsSessionAfterAnHour() {
+    AtomicLong now = new AtomicLong(Make.utc(2026, 10, 9, 12));
+    Runlight rl =
+        Make.runlight(
+            new Runlight.Options().site(Json.object("hostnames", List.of("a.com"))).now(now::get));
+    Routes routes = rl.routes(new Routes.Options().token("secret"));
+    Map<String, Object> made =
+        body(
+            routes.handle(
+                owner(
+                    "/runlight/api/tokens",
+                    "POST",
+                    Json.object("name", "CMS", "site", "default", "scope", "embed"))));
+    String secret = (String) made.get("secret");
+    Function<String, String> mint =
+        origin ->
+            (String)
+                body(routes.handle(
+                        owner(
+                            "/runlight/api/embed", "POST", Json.object("origin", origin), secret)))
+                    .get("path");
+    String late = mint.apply("https://a.com");
+    now.addAndGet(Routes.EMBED_TICKET_MS + 1);
+    assertEquals(410, routes.handle(req(late)).status(), "a ticket lasts five minutes");
+    Response page = routes.handle(req(mint.apply("https://a.com")));
+    assertEquals(200, page.status());
+    Matcher found = Pattern.compile("data-embed=\"([^\"]+)\"").matcher(page.text());
+    assertTrue(found.find());
+    Map<String, String> as = Map.of("x-runlight-embed", found.group(1));
+    assertEquals(200, routes.handle(req("/runlight/api/stats", "GET", as)).status());
+    now.addAndGet(Routes.EMBED_SESSION_MS + 1);
+    assertEquals(
+        401,
+        routes.handle(req("/runlight/api/stats", "GET", as)).status(),
+        "a session lasts an hour");
+  }
+
+  @Test
+  void aSettingCanBeTakenOnce() {
+    Runlight rl =
+        Make.runlight(new Runlight.Options().site(Json.object("hostnames", List.of("a.com"))));
+    rl.init();
+    rl.store.setSetting("x", "1");
+    assertEquals("1", rl.store.takeSetting("x"));
+    assertNull(rl.store.takeSetting("x"));
+    assertNull(rl.store.setting("x"));
+  }
+
+  @Test
   void aCmsPluginReportsAiAgentFetchesWithItsOwnKeyWhichReadsNothing() {
     Runlight rl =
         Make.runlight(
