@@ -105,6 +105,8 @@ pre .c { color: var(--muted); }
 .install-alt a { color: var(--ink); }
 .install code { min-width: 0; overflow-wrap: anywhere; }
 .install code::before { content: "$ "; color: var(--muted); }
+/* A line for a build file, such as Gradle's or mix.exs, is not a command, so it has no prompt. */
+.install code.dep::before { content: none; }
 .copy { flex: none; font: 400 11px/1 var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--rule-2); border-radius: 2px; padding: 6px 8px; }
 .copy:hover { color: var(--ink); border-color: var(--muted); }
 .actions { display: flex; flex-wrap: wrap; gap: 12px 16px; align-items: center; margin-top: 24px; }
@@ -251,8 +253,9 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
   .menu ol { position: absolute; left: 0; top: calc(100% + 10px); min-width: 190px; background: var(--sheet); border: 1px solid var(--rule); border-radius: 3px; padding: 10px 12px; list-style: none; margin: 0; z-index: 5; display: grid; gap: 8px; }
   .top { padding-top: 20px; }
   .opening { padding: 44px 0 40px; }
-  .tabs { flex-wrap: nowrap; gap: 0; }
-  .tab { flex: 1 1 0; justify-content: center; padding: 11px 0 12px; }
+  /* Twelve tabs never fit one row on a phone, so they wrap into even rows, three or four across. */
+  .tabs { gap: 0; }
+  .tab { flex: 1 1 84px; justify-content: center; padding: 11px 0 12px; }
   .row { padding: 56px 0; }
   .stacks > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .browser .chrome { grid-template-columns: auto minmax(0, 1fr); }
@@ -300,6 +303,18 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .tab-drupal:hover .logo, .tab-drupal[aria-selected="true"] .logo { fill: #0678be; }
 .tab-craft:hover .logo, .tab-craft[aria-selected="true"] .logo { fill: #e5422b; }
 .tab-bun:hover .logo, .tab-bun[aria-selected="true"] .logo { filter: none; opacity: 1; }
+.tab-python:hover .logo, .tab-python[aria-selected="true"] .logo { fill: #3776ab; }
+.tab-ruby:hover .logo, .tab-ruby[aria-selected="true"] .logo { fill: #cc342d; }
+.tab-go:hover .logo, .tab-go[aria-selected="true"] .logo { fill: #00add8; }
+.tab-rust:hover .logo, .tab-rust[aria-selected="true"] .logo { fill: #ce422b; }
+/* Elixir's and .NET's own purples are too dark to see on dark paper, so dark paper takes lighter ones of the same hue. */
+.tab-elixir:hover .logo, .tab-elixir[aria-selected="true"] .logo { fill: #4b275f; }
+:root[data-theme="dark"] .tab-elixir:hover .logo, :root[data-theme="dark"] .tab-elixir[aria-selected="true"] .logo { fill: #9e7bc1; }
+.tab-dotnet:hover .logo, .tab-dotnet[aria-selected="true"] .logo { fill: #512bd4; }
+:root[data-theme="dark"] .tab-dotnet:hover .logo, :root[data-theme="dark"] .tab-dotnet[aria-selected="true"] .logo { fill: #9780e5; }
+/* Duke is black, which vanishes on dark paper, so Java takes the orange of its own cup. */
+.tab-java:hover .logo, .tab-java[aria-selected="true"] .logo { fill: #c45e00; }
+:root[data-theme="dark"] .tab-java:hover .logo, :root[data-theme="dark"] .tab-java[aria-selected="true"] .logo { fill: #e76f00; }
 @media (max-width: 760px) {
   .tab .logo { width: 18px; height: 18px; }
 }
@@ -350,6 +365,10 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 }
 @media (min-width: 1240px) {
   .opening .then { max-width: 640px; }
+}
+/* While the cards float on the right, the install tabs wrap before they reach them. */
+@media (min-width: 1101px) {
+  .installs { max-width: 640px; }
 }
 @media (min-width: 1360px) {
   .floaters { right: -96px; }
