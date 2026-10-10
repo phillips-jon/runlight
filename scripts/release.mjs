@@ -87,7 +87,7 @@ export const VERSIONED = [
   // The install lines name a minor ("~> 0.1" admits every 0.x from 0.1.0,
   // "~> 1.0" every 1.x), so a copied line installs this release or a later
   // compatible one. The landing page writes > as &gt;.
-  ...["packages/elixir/README.md", "site/docs/elixir.md", "site/docs/install.md", "site/src/prompt.txt", "site/src/landing.html", "README.md"].map((file) => ({ file, pattern: /(\{:runlight, "~(?:>|&gt;) )([^"]+)(")/g, form: "minor" })),
+  ...["packages/elixir/README.md", "README.md"].map((file) => ({ file, pattern: /(\{:runlight, "~(?:>|&gt;) )([^"]+)(")/g, form: "minor" })),
   // The Java build: <revision> in the parent POM alone holds its version,
   // and the flatten plugin writes it into every POM that is published.
   // build.json, which scripts/java-assets.mts writes from the SDK's VERSION,
@@ -96,8 +96,8 @@ export const VERSIONED = [
   { file: "packages/java/runlight/src/main/resources/sh/runlight/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
   // The install lines name this release: Gradle's coordinates, and Maven's
   // <version> after a Runlight artifact.
-  ...["site/src/landing.html", "site/docs/java.md", "packages/java/README.md"].map((file) => ({ file, pattern: /("sh\.runlight:runlight(?:-servlet|-spring-boot-starter)?:)([^"]+)(")/g })),
-  ...["site/docs/java.md", "packages/java/README.md"].map((file) => ({ file, pattern: /(<artifactId>runlight(?:-servlet|-spring-boot-starter)?<\/artifactId>\s*<version>)([^<]+)(<\/version>)/g })),
+  ...["packages/java/README.md"].map((file) => ({ file, pattern: /("sh\.runlight:runlight(?:-servlet|-spring-boot-starter)?:)([^"]+)(")/g })),
+  ...["packages/java/README.md"].map((file) => ({ file, pattern: /(<artifactId>runlight(?:-servlet|-spring-boot-starter)?<\/artifactId>\s*<version>)([^<]+)(<\/version>)/g })),
   // The .NET packages: Directory.Build.props alone holds their version, and
   // build.json, which scripts/dotnet-assets.mts writes from the SDK's VERSION.
   { file: "packages/dotnet/Directory.Build.props", pattern: /^(\s*<Version>)([^<]+)(<\/Version>)/m },
@@ -114,7 +114,7 @@ export const VERSIONED = [
   // The install lines name a minor ("0.1" in Cargo admits 0.1.x, "1.0"
   // every 1.x), so a copied line installs this release or a later
   // compatible one.
-  ...["packages/rust/README.md", "site/docs/rust.md"].map((file) => ({ file, pattern: /^(runlight(?:-sqlx)? = \{ version = ")([^"]+)(")/gm, form: "minor" })),
+  ...["packages/rust/README.md"].map((file) => ({ file, pattern: /^(runlight(?:-sqlx)? = \{ version = ")([^"]+)(")/gm, form: "minor" })),
 ];
 
 /** Folders with no version in any file, and why. */
@@ -156,7 +156,7 @@ export const PUBLISH = [
   // and the Go proxy serves it once anyone asks. The chi and Echo adapters
   // and the command are modules of their own, each tagged with its directory
   // at the same version. packages/go/dbtest holds tests only and is never
-  // tagged. runlight.sh answers the go command's lookups (site/build.mjs).
+  // tagged. runlight.sh answers the go command's lookups (runlightsh/runlight-website).
   { dir: "packages/go", commands: (v) => [
     ...["", "chi/", "echo/", "cmd/runlight/"].map((sub) =>
       `git tag -a packages/go/${sub}v${v} -m "Release ${v} (Go${sub ? `, ${sub.slice(0, -1)}` : ""})" v${v}^{} && git push origin packages/go/${sub}v${v}`),
@@ -450,6 +450,7 @@ function main() {
   console.log(`\nNext, by hand:\n  git push origin ${branch} ${tag}\n  # The tag's workflows wait for CI to pass on this commit (.github/workflows/ci-passed.yml); publish to npm once it has.`);
   for (const { commands } of PUBLISH) for (const command of commands(next)) console.log(`  ${command}`);
   console.log("  # Once both packages exist on npm, a later release can publish them from a workflow with npm's trusted publishing instead of by hand.");
+  console.log(`  # Then move the docs' install lines in runlightsh/runlight-website: npm run versions -- ${next}`);
   if (!options.dryRun) rmSync(zipDir, { recursive: true, force: true });
 }
 

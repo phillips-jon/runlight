@@ -53,7 +53,7 @@ test("the Java, .NET, and Rust versions move, and the Cargo install lines name t
   assert.match(cargo, new RegExp(`^version = "${NEXT}"$`, "m"));
   assert.ok(cargo.includes(`runlight = { path = "runlight", version = "=${NEXT}" }`));
   assert.ok(after("packages/rust/runlight/src/version.rs").includes(`pub const VERSION: &str = "${NEXT}";`));
-  for (const file of ["packages/rust/README.md", "site/docs/rust.md"]) {
+  for (const file of ["packages/rust/README.md"]) {
     assert.equal(edits.get(file).lines.length, 2, file);
     assert.ok(after(file).includes(`runlight = { version = "${minorOf(NEXT)}"`), file);
     assert.ok(after(file).includes(`runlight-sqlx = { version = "${minorOf(NEXT)}"`), file);
@@ -63,13 +63,11 @@ test("the Java, .NET, and Rust versions move, and the Cargo install lines name t
 test("the Java install lines name the release, and the Hex ones its minor", () => {
   const edits = planEdits(VERSIONED, readRepo, current, NEXT);
   const after = (file) => edits.get(file).after;
-  assert.ok(after("site/src/landing.html").includes(`implementation("sh.runlight:runlight:${NEXT}")`));
-  for (const file of ["site/docs/java.md", "packages/java/README.md"]) {
+  for (const file of ["packages/java/README.md"]) {
     assert.ok(after(file).includes(`implementation("sh.runlight:runlight:${NEXT}")`), file);
     assert.match(after(file), new RegExp(`<artifactId>runlight</artifactId>\\s*<version>${NEXT}</version>`), file);
   }
-  assert.ok(after("site/src/landing.html").includes(`{:runlight, "~&gt; ${minorOf(NEXT)}"}`));
-  for (const file of ["packages/elixir/README.md", "site/docs/elixir.md", "site/docs/install.md", "site/src/prompt.txt", "README.md"]) {
+  for (const file of ["packages/elixir/README.md", "README.md"]) {
     assert.ok(after(file).includes(`{:runlight, "~> ${minorOf(NEXT)}"}`), file);
   }
 });
@@ -201,15 +199,15 @@ test("a release refuses a CHANGELOG.md without an Unreleased section", () => {
 });
 
 test("a version left behind outside the table is listed", () => {
-  writeFileSync(path.join(copy, "site/docs/stray.md"), 'Install 0.0.0 now. Chrome/129.0.0.0 is not a version.\nrunlight = { version = "0.0" }\n');
+  writeFileSync(path.join(copy, "packages/stray.md"), 'Install 0.0.0 now. Chrome/129.0.0.0 is not a version.\nrunlight = { version = "0.0" }\n');
   git("add", "-A");
   git("commit", "-q", "-m", "stray");
   try {
     const { status, out } = release("0.1.0", "--dry-run");
     assert.equal(status, 0);
     assert.match(out, /Still mentioning 0\.0\.0/);
-    assert.match(out, /^ {2}site\/docs\/stray\.md:1:Install 0\.0\.0 now/m);
-    assert.match(out, /^ {2}site\/docs\/stray\.md:2:runlight = \{ version = "0\.0" \}/m);
+    assert.match(out, /^ {2}packages\/stray\.md:1:Install 0\.0\.0 now/m);
+    assert.match(out, /^ {2}packages\/stray\.md:2:runlight = \{ version = "0\.0" \}/m);
     assert.equal(out.match(/^ {2}\S+:\d+:/gm).length, 2, "only the strays, not the user agent");
   } finally {
     git("reset", "-q", "--hard", "HEAD~1");

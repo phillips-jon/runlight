@@ -2,7 +2,6 @@
 **/vendor
 **/dist
 data
-site/dist
 plugins
 .git
 .github

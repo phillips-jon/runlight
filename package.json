@@ -4,8 +4,7 @@
   "description": "Runlight: privacy friendly web analytics that lives inside your app.",
   "license": "MIT",
   "workspaces": [
-    "packages/*",
-    "site"
+    "packages/*"
   ],
   "engines": {
     "node": ">=22"
@@ -13,13 +12,12 @@
   "scripts": {
     "check:dashes": "node scripts/check-dashes.mjs",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run check:dashes && npm test --workspaces --if-present && node --test deploy/contact/server.test.mjs && npm run test:scripts && node --import tsx scripts/php-assets.mts --check && node --import tsx scripts/python-assets.mts --check && node --import tsx scripts/ruby-assets.mts --check && node --import tsx scripts/go-assets.mts --check && node scripts/go-casing.mjs --check && node scripts/go-intl.mjs --check && node --import tsx scripts/elixir-assets.mts --check && node --import tsx scripts/elixir-intl.mts --check && node --import tsx scripts/java-assets.mts --check && node --import tsx scripts/java-intl.mts --check && node --import tsx scripts/java-collation.mts --check && node --import tsx scripts/dotnet-assets.mts --check && node scripts/dotnet-intl.mjs --check && node --import tsx scripts/rust-assets.mts --check",
+    "test": "npm run check:dashes && npm test --workspaces --if-present && npm run test:scripts && node --import tsx scripts/php-assets.mts --check && node --import tsx scripts/python-assets.mts --check && node --import tsx scripts/ruby-assets.mts --check && node --import tsx scripts/go-assets.mts --check && node scripts/go-casing.mjs --check && node scripts/go-intl.mjs --check && node --import tsx scripts/elixir-assets.mts --check && node --import tsx scripts/elixir-intl.mts --check && node --import tsx scripts/java-assets.mts --check && node --import tsx scripts/java-intl.mts --check && node --import tsx scripts/java-collation.mts --check && node --import tsx scripts/dotnet-assets.mts --check && node scripts/dotnet-intl.mjs --check && node --import tsx scripts/rust-assets.mts --check",
     "test:scripts": "node --test scripts/changelogs.test.mjs scripts/release.test.mjs",
     "build": "npm run check:dashes && npm run build --workspaces --if-present && npm run php-assets && npm run python-assets && npm run ruby-assets && npm run go-assets && npm run elixir-assets && npm run java-assets && npm run dotnet-assets && npm run rust-assets",
     "test:php": "node scripts/php-test.mjs",
     "check": "npm run check:dashes && npm run typecheck && npm test && npm run test:php",
     "dev:dashboard": "node --import tsx scripts/dev-dashboard.mts",
-    "dev:site": "npm run dev --workspace site",
     "conformance": "node --import tsx scripts/conformance.mts",
     "php-assets": "node --import tsx scripts/php-assets.mts",
     "python-assets": "node --import tsx scripts/python-assets.mts",

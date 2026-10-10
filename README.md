@@ -62,7 +62,6 @@ Beyond visitors and pages, Runlight counts goals and the revenue they bring, fun
 | `packages/dashboard` | The dashboard, built into the library. |
 | `packages/tracker` | The browser script, built into the library. |
 | `plugins` | The WordPress, Drupal, and Craft plugins. |
-| `site` | runlight.sh and its documentation. |
 
 Use Node 24 to work on it, and run `npm run check` before committing.
 
