@@ -61,6 +61,74 @@ defmodule Runlight.PlugTest do
     assert call(conn(:get, "/about")).resp_body == "the app"
   end
 
+  # A short link on the link domain go.example.org, made through the API as the dashboard makes one.
+  defp link_domain! do
+    api = fn path, body ->
+      conn(:post, "/stats/api/" <> path, Jason.encode!(body))
+      |> put_req_header("authorization", "Bearer secret")
+      |> put_req_header("content-type", "application/json")
+      |> call()
+    end
+
+    assert api.("link-domains", %{domain: "go.example.org"}).status == 201
+    assert api.("links", %{url: "https://example.org/deal", slug: "deal", domain: "go.example.org"}).status == 201
+  end
+
+  defp on(conn, host), do: %{conn | host: host}
+
+  defp redirected?(conn),
+    do: conn.status in [301, 302, 307, 308] and get_resp_header(conn, "location") == ["https://example.org/deal"]
+
+  test "the observer answers a link domain before the app and leaves the app's own host to it" do
+    link_domain!()
+    assert redirected?(Router.call(conn(:get, "/deal") |> on("go.example.org"), Router.init([])))
+    assert Router.call(conn(:get, "/nothing") |> on("go.example.org"), Router.init([])).status == 404
+    assert call(conn(:get, "/deal")).resp_body == "the app"
+  end
+
+  defmodule Domains do
+    use Plug.Builder
+    plug(Runlight.Plug.LinkDomains, instance: Runlight.PlugTest.RL)
+    plug(:app)
+    def app(conn, _), do: send_resp(conn, 200, "the app")
+  end
+
+  test "the link domain Plug answers a link domain and leaves the app's own host to the app" do
+    link_domain!()
+    assert redirected?(Domains.call(conn(:get, "/deal") |> on("go.example.org"), Domains.init([])))
+    assert Domains.call(conn(:get, "/deal") |> on("example.com"), Domains.init([])).resp_body == "the app"
+  end
+
+  defmodule Root do
+    use Plug.Router
+    plug(:match)
+    plug(:dispatch)
+    forward("/", to: Runlight.Plug, init_opts: [instance: Runlight.PlugTest.RL, base_path: "", token: "secret"])
+  end
+
+  test "the dashboard's Plug answers a link domain and serves the app's own host" do
+    link_domain!()
+    assert redirected?(Root.call(conn(:get, "/deal") |> on("go.example.org"), Root.init([])))
+    tracker = Root.call(conn(:get, "/s.js") |> on("example.com"), Root.init([]))
+    assert tracker.status == 200
+    assert tracker.resp_body =~ "sendBeacon"
+  end
+
+  defmodule Links do
+    use Plug.Router
+    plug(:match)
+    plug(:dispatch)
+    forward("/", to: Runlight.Plug.Links, init_opts: [instance: Runlight.PlugTest.RL])
+  end
+
+  test "the short link Plug answers a link domain and the app's own link path" do
+    link_domain!()
+    assert redirected?(Links.call(conn(:get, "/deal") |> on("go.example.org"), Links.init([])))
+    # On the app's own host only the link path answers, for every link.
+    assert Links.call(conn(:get, "/deal") |> on("example.com"), Links.init([])).status == 404
+    assert redirected?(Links.call(conn(:get, "/go/deal") |> on("example.com"), Links.init([])))
+  end
+
   test "records a pageview the tracker sends" do
     body = Jason.encode!(%{"k" => "pageview", "u" => "https://example.com/hello", "r" => ""})
 

@@ -1147,7 +1147,12 @@ defmodule Runlight.Store do
       id: str(r["id"]),
       name: str(r["name"]),
       site: str(r["site"], ""),
-      scope: if(r["scope"] == "manage", do: "manage", else: "read"),
+      scope:
+        case r["scope"] do
+          "manage" -> "manage"
+          "embed" -> "embed"
+          _ -> "read"
+        end,
       hash: str(r["hash"]),
       hint: str(r["hint"], ""),
       createdAt: num(r["created_at"]),
@@ -1205,6 +1210,25 @@ defmodule Runlight.Store do
             Sql.escape_like(prefix) <> "%"
           ]) do
       %{key: str(r["key"]), value: str(r["value"])}
+    end
+  end
+
+  @doc "Reads a setting and deletes it. Of two callers at once, only the one whose delete took the row gets its value."
+  @spec take_setting(t(), String.t()) :: String.t() | nil
+  def take_setting(store, key) do
+    case setting(store, key) do
+      nil ->
+        nil
+
+      value ->
+        sql = ~s(DELETE FROM rl_settings WHERE "key" = ?)
+
+        gone =
+          if dialect(store) == "mysql",
+            do: Db.affected(store.db, sql, [key]),
+            else: length(all(store, ~s(#{sql} RETURNING "key"), [key]))
+
+        if gone == 1, do: value, else: nil
     end
   end
 

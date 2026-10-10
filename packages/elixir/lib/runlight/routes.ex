@@ -73,6 +73,9 @@ defmodule Runlight.Routes do
   @token_prefix "rl_"
   # The header a shared dashboard sends its share id in.
   @share_header "x-runlight-share"
+  # The header an embedded dashboard sends its session in.
+  @embed_header "x-runlight-embed"
+  # What a share, or the dashboard inside a CMS, can read: one site's reports, nothing that changes anything.
   @shared_paths MapSet.new(
                   ~w(/api/sites /api/icon /api/realtime /api/stats /api/series /api/rhythm /api/breakdown /api/goals /api/event-props /api/export /api/funnels /api/journeys)
                 )
@@ -83,6 +86,10 @@ defmodule Runlight.Routes do
   @ask_per_hour 30
   @ask_at_once 2
   @viewer_daily 50
+  # How long an embed ticket works: long enough for the admin page to load its frame, never to be kept.
+  @embed_ticket_ms 5 * 60_000
+  # How long an embedded dashboard reads before the admin page has to be loaded again for a new ticket.
+  @embed_session_ms 60 * 60_000
   @dashboard_csp "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 
   @doc "A domain name, such as go.example.com."
@@ -377,7 +384,9 @@ defmodule Runlight.Routes do
     |> JS.stringify()
   end
 
-  defp dashboard(base, share, sign_out, geo_credit, accounts, sign_in) do
+  # The dashboard page. `embed`, for the dashboard inside a CMS's admin pages, holds its session (empty once its
+  # ticket was used or ran out) and the admin origin that frames it.
+  defp dashboard(base, share, sign_out, geo_credit, accounts, sign_in, embed \\ nil) do
     b = escape_attr(base)
 
     attrs =
@@ -385,7 +394,10 @@ defmodule Runlight.Routes do
         if(sign_out not in [nil, ""], do: ~s( data-sign-out="#{escape_attr(sign_out)}"), else: "") <>
         if(sign_in not in [nil, ""], do: ~s( data-sign-in="#{escape_attr(sign_in)}"), else: "") <>
         if(geo_credit, do: ~s( data-geo-credit=""), else: "") <>
-        if accounts, do: ~s( data-accounts=""), else: ""
+        if(accounts, do: ~s( data-accounts=""), else: "") <>
+        if embed,
+          do: ~s( data-embed="#{escape_attr(embed.session)}" data-embed-origin="#{escape_attr(embed.origin)}"),
+          else: ""
 
     """
     <!doctype html>
@@ -513,8 +525,9 @@ defmodule Runlight.Routes do
           true -> access
         end
 
+      # A key for the dashboard inside a CMS gets tickets and reads nothing itself.
       token ->
-        token
+        if token["scope"] == "embed", do: false, else: token
     end
   end
 
@@ -1130,6 +1143,85 @@ defmodule Runlight.Routes do
     JS.decode_utf8(bytes)
   end
 
+  ## The dashboard inside a CMS
+
+  # The key embed tickets and sessions are signed with, made on first use and kept in the database for every process.
+  defp embed_key(rl) do
+    Runlight.init(rl)
+
+    case Store.setting(rl.store, "embed-key") do
+      nil ->
+        made = Hash.random_id(32)
+        Store.set_setting(rl.store, "embed-key", made)
+        made
+
+      saved ->
+        saved
+    end
+  end
+
+  # An embed token that still exists, for a site that still does.
+  defp embed_token(rl, id) do
+    token = Enum.find(Store.tokens(rl.store), &(&1["id"] == id))
+    if token && token["scope"] == "embed" && Runlight.site(rl, token["site"]), do: token
+  end
+
+  # A ticket for one load of the embedded dashboard, signed with when it runs out, a nonce, and the admin origin
+  # that may frame it. The nonce is kept, with the token it was made for, until the ticket is used.
+  defp embed_ticket(rl, origin, token) do
+    now = Runlight.now(rl)
+
+    # Tickets nobody used are cleared as new ones are made.
+    for %{key: key, value: value} <- Store.settings_starting_with(rl.store, "embed-ticket:"),
+        JS.number(value |> String.split(".") |> hd()) < now,
+        do: Store.set_setting(rl.store, key, nil)
+
+    expires_at = now + @embed_ticket_ms
+    nonce = Hash.random_id(16)
+    Store.set_setting(rl.store, "embed-ticket:#{nonce}", "#{expires_at}.#{token}")
+    payload = "#{expires_at}.#{nonce}.#{hex(origin)}"
+    {"#{payload}.#{Hash.hmac(embed_key(rl), "ticket.#{payload}")}", expires_at}
+  end
+
+  # What a ticket this install signed names: always its origin, and its token only the first time it is used
+  # before it runs out. Nil for anything else.
+  defp redeem_embed(rl, ticket) do
+    with [_, expires, nonce, origin, mac] <-
+           Regex.run(~r/\A(\d{1,15})\.([a-f0-9]{32})\.([a-f0-9]{2,512})\.([a-f0-9]{64})\z/, ticket),
+         true <- Crypto.constant_time_equal?(mac, Hash.hmac(embed_key(rl), "ticket.#{expires}.#{nonce}.#{origin}")),
+         origin_text = unhex(origin),
+         true <- Regex.match?(~r/\Ahttps?:\/\/[^\/?#\s]+\z/, origin_text) do
+      # A ticket works once: it is gone before anything else is checked.
+      kept = Store.take_setting(rl.store, "embed-ticket:#{nonce}")
+
+      token =
+        if kept && JS.number(expires) >= Runlight.now(rl),
+          do: embed_token(rl, kept |> String.split(".") |> Enum.at(1, ""))
+
+      %{origin: origin_text, token: token}
+    else
+      _ -> nil
+    end
+  end
+
+  # A session for an embedded dashboard, which its page sends with every read, signed with when it runs out and
+  # its token.
+  defp embed_session(rl, token) do
+    payload = "#{Runlight.now(rl) + @embed_session_ms}.#{token}"
+    "#{payload}.#{Hash.hmac(embed_key(rl), "session.#{payload}")}"
+  end
+
+  # The embed token a session this install signed was made for, while it lasts and the token still exists.
+  defp embed_reader(rl, session) do
+    with [_, expires, token, mac] <- Regex.run(~r/\A(\d{1,15})\.([a-f0-9]{24})\.([a-f0-9]{64})\z/, session),
+         false <- JS.number(expires) < Runlight.now(rl),
+         true <- Crypto.constant_time_equal?(mac, Hash.hmac(embed_key(rl), "session.#{expires}.#{token}")) do
+      embed_token(rl, token)
+    else
+      _ -> nil
+    end
+  end
+
   # The tracker with click rules inside, rebuilt when goals change.
   defp tracker_script(routes, site_id) do
     rl = routes.rl
@@ -1633,7 +1725,13 @@ defmodule Runlight.Routes do
         with {:ok, body} <- read_json(request) do
           name = body |> JS.prop("name") |> JS.nullish("") |> JS.string() |> JS.trim() |> JS.slice(0, 100)
           site = body |> JS.prop("site") |> JS.nullish("") |> JS.string()
-          scope = if JS.prop(body, "scope") == "manage", do: "manage", else: "read"
+
+          scope =
+            case JS.prop(body, "scope") do
+              "manage" -> "manage"
+              "embed" -> "embed"
+              _ -> "read"
+            end
 
           cond do
             name == "" ->
@@ -1644,6 +1742,9 @@ defmodule Runlight.Routes do
 
             scope == "manage" and site == "" ->
               coded("A token that changes settings is for one site. Pick the site.", "token_site", 400)
+
+            scope == "embed" and site == "" ->
+              coded("A key for the dashboard in a CMS is for one site. Pick the site.", "embed_site", 400)
 
             true ->
               secret = @token_prefix <> Hash.random_id(20)
@@ -1697,6 +1798,10 @@ defmodule Runlight.Routes do
     given_bearer = bearer(request)
 
     cond do
+      # An embedded dashboard reads what a share link shows and nothing else, whoever else the request comes from.
+      Request.header(request, @embed_header) != nil and not (method == "GET" and shared_path?(path)) ->
+        coded("Not available on a shared dashboard", "share_not_available", 403)
+
       # A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
       method not in ["GET", "HEAD", "OPTIONS", "DELETE"] and given_bearer == "" and not json?(request) ->
         coded("Send JSON", "send_json", 415)
@@ -1728,6 +1833,12 @@ defmodule Runlight.Routes do
 
       path == "/api/sites/connect/done" and method == "GET" ->
         connect_done(routes, request, url)
+
+      # A ticket for one load of the dashboard inside a CMS's admin pages. The plugin's server asks with its embed
+      # token on each page view and names the admin's origin, which must be one of the site's domains and alone
+      # may frame the page the ticket opens.
+      path == "/api/embed" and method == "POST" ->
+        embed_api(routes, request)
 
       true ->
         api_scoped(routes, request, path, url)
@@ -1803,6 +1914,63 @@ defmodule Runlight.Routes do
     end
   end
 
+  defp embed_api(routes, request) do
+    rl = routes.rl
+    token = api_token(routes, request)
+    site = token && Runlight.site(rl, token["site"])
+
+    cond do
+      token == nil ->
+        denied(false)
+
+      token["scope"] != "embed" ->
+        coded("Use a key for the dashboard in a CMS, made in Settings, Install", "embed_token", 403)
+
+      site == nil ->
+        coded("Unknown site", "unknown_site", 404)
+
+      true ->
+        with {:ok, body} <- read_json(request) do
+          origin = body |> JS.prop("origin") |> JS.nullish("") |> JS.string()
+
+          parsed =
+            if Regex.match?(~r/\Ahttps?:\/\/[^\/?#\s]+\z/, origin) and JS.len16(origin) <= 200,
+              do: Url.parse(origin)
+
+          if parsed == nil or Url.origin(parsed) != origin do
+            coded("Send the admin page's origin, such as https://example.com", "embed_origin", 400)
+          else
+            host = host_name(Url.host(parsed))
+            remote = Runlight.remote(rl, site["id"])
+            domains = Enum.map((remote && remote["hostnames"]) || site["hostnames"] || [], &host_name/1)
+
+            if host in domains do
+              {ticket, expires_at} = embed_ticket(rl, origin, token["id"])
+
+              json(
+                JS.obj(
+                  ticket: ticket,
+                  site: site["id"],
+                  expiresAt: expires_at,
+                  path: "#{routes.base}/embed?ticket=#{ticket}"
+                ),
+                201
+              )
+            else
+              coded(
+                "#{host} is not one of this site's domains. Add it to the site's domains in Runlight's settings.",
+                "embed_host",
+                400,
+                %{"host" => host}
+              )
+            end
+          end
+        else
+          {:error, response} -> response
+        end
+    end
+  end
+
   defp api_scoped(routes, request, path, url) do
     rl = routes.rl
     method = request.method
@@ -1831,6 +1999,10 @@ defmodule Runlight.Routes do
       end
 
     cond do
+      # An embed token gets tickets and reads nothing itself.
+      token != nil and token["scope"] == "embed" ->
+        coded("This key only opens the dashboard inside a CMS", "token_embed_only", 403)
+
       early != nil ->
         early
 
@@ -2468,7 +2640,10 @@ defmodule Runlight.Routes do
   # Each tool reads the HTTP API with the asker's own headers, as the MCP server does. A tool that names no site
   # reads `site` (the one on screen), when given.
   defp tool_reader(routes, request, url, site \\ nil) do
-    headers = Enum.reject(request.headers, fn {k, _} -> k in ["content-type", "content-length", @share_header] end)
+    headers =
+      Enum.reject(request.headers, fn {k, _} ->
+        k in ["content-type", "content-length", @share_header, @embed_header]
+      end)
 
     fn api_path, params ->
       target = Url.new("#{routes.base}#{api_path}", Url.origin(url))
@@ -2657,29 +2832,42 @@ defmodule Runlight.Routes do
     Runlight.init(rl)
     # A shared dashboard sees exactly what its visitors see, even for someone signed in.
     share_id = Request.header(request, @share_header)
+    embed = Request.header(request, @embed_header)
 
     gate =
-      if share_id != nil do
-        shared = if Regex.match?(~r/\A[a-f0-9]{32}\z/, share_id), do: Store.share_by_id(rl.store, share_id)
+      cond do
+        share_id != nil ->
+          shared = if Regex.match?(~r/\A[a-f0-9]{32}\z/, share_id), do: Store.share_by_id(rl.store, share_id)
 
-        cond do
-          shared == nil -> {:error, coded("This share link no longer works", "share_gone", 404)}
-          not shared_path?(path) -> {:error, coded("Not available on a shared dashboard", "share_not_available", 403)}
-          true -> {:ok, shared, shared["site"]}
-        end
-      else
-        case reader(routes, request) do
-          access when access in [false, "unconfigured"] ->
-            {:error, denied(access)}
+          cond do
+            shared == nil -> {:error, coded("This share link no longer works", "share_gone", 404)}
+            not shared_path?(path) -> {:error, coded("Not available on a shared dashboard", "share_not_available", 403)}
+            true -> {:ok, shared, shared["site"]}
+          end
 
-          true ->
-            {:ok, nil, nil}
+        embed != nil ->
+          case embed_reader(rl, embed) do
+            nil ->
+              {:error, coded("This dashboard has expired. Reload the page to open it again.", "embed_expired", 401)}
 
-          access ->
-            if shared_path?(path),
-              do: {:ok, nil, JS.or_else(access["site"], nil)},
-              else: {:error, coded("API tokens can only read", "token_read_only", 403)}
-        end
+            # An embedded dashboard sees what a share link of its token's site shows.
+            token ->
+              {:ok, JS.obj(id: "", site: token["site"], name: "", createdAt: 0), token["site"]}
+          end
+
+        true ->
+          case reader(routes, request) do
+            access when access in [false, "unconfigured"] ->
+              {:error, denied(access)}
+
+            true ->
+              {:ok, nil, nil}
+
+            access ->
+              if shared_path?(path),
+                do: {:ok, nil, JS.or_else(access["site"], nil)},
+                else: {:error, coded("API tokens can only read", "token_read_only", 403)}
+          end
       end
 
     case gate do
@@ -3287,6 +3475,39 @@ defmodule Runlight.Routes do
 
       unsubscribe != nil and method in ["GET", "POST"] ->
         unsubscribe_page(routes, request, Enum.at(unsubscribe, 1))
+
+      # The dashboard inside a CMS's admin pages, opened with a ticket its plugin just got. Only the admin origin
+      # the ticket names may frame it. A ticket used already or run out opens it with no session, so it says it
+      # has expired and offers to reload the admin page; anything else is refused and never framed.
+      path == "/embed" and method == "GET" ->
+        Runlight.init(rl)
+
+        case redeem_embed(rl, param(url, "ticket") || "") do
+          nil ->
+            lang = accepted_language(request)
+
+            small_page(
+              lang,
+              "<h1>#{escape_html(Messages.t(lang, "embed.goneTitle"))}</h1><p>#{escape_html(Messages.t(lang, "embed.gone"))}</p>",
+              404
+            )
+
+          found ->
+            session = if found.token, do: embed_session(rl, found.token["id"]), else: ""
+
+            Response.new(
+              dashboard(routes.base, "", "", routes.geo_credit, false, "", %{session: session, origin: found.origin}),
+              if(session != "", do: 200, else: 410),
+              [
+                {"content-type", "text/html; charset=utf-8"},
+                {"cache-control", "no-store"},
+                {"content-security-policy",
+                 String.replace(@dashboard_csp, "frame-ancestors 'none'", "frame-ancestors #{found.origin}")},
+                {"referrer-policy", "no-referrer"},
+                {"x-robots-tag", "noindex"}
+              ]
+            )
+        end
 
       share != nil and method == "GET" ->
         Runlight.init(rl)

@@ -21,6 +21,10 @@ if Code.ensure_loaded?(Plug.Conn) do
     router compiles, so nothing is read there: the token and the instance are
     read on the first request.
 
+    A request on a link domain added in Settings, such as go.example.com, is
+    answered with its redirect or a 404 before anything else, as every one of
+    these Plugs does; on every other host the request carries on.
+
     The connection's own address is passed on for the visitor's daily hash
     when no trusted proxy header names the client (see the instance's
     `:trust_proxy`).
@@ -46,9 +50,27 @@ if Code.ensure_loaded?(Plug.Conn) do
       routes_opts = opts |> Keyword.delete(:instance) |> Keyword.put(:base_path, base)
       routes = routes(rl, routes_opts)
 
-      case request(conn, if(String.ends_with?(conn.request_path, "/e"), do: @max_collect, else: @max_body)) do
-        {:ok, request, conn} -> answer(conn, Runlight.Routes.handle(routes, request))
-        {:too_large, conn} -> too_large(conn)
+      case link_domain(conn, rl) do
+        {:answered, conn} ->
+          conn
+
+        {:pass, conn} ->
+          case request(conn, if(String.ends_with?(conn.request_path, "/e"), do: @max_collect, else: @max_body)) do
+            {:ok, request, conn} -> answer(conn, Runlight.Routes.handle(routes, request))
+            {:too_large, conn} -> too_large(conn)
+          end
+      end
+    end
+
+    @doc false
+    # A request on a link domain answered with its redirect or a 404, or the connection untouched for every other
+    # host. The body is never read here, so whatever comes next still can.
+    def link_domain(conn, rl) do
+      {:ok, request, _} = request(%{conn | body_params: %{}, method: "GET"}, 0)
+
+      case Runlight.link_domain_response(rl, %{request | method: conn.method, body: ""}) do
+        nil -> {:pass, conn}
+        response -> {:answered, answer(conn, response)}
       end
     end
 
@@ -159,7 +181,8 @@ if Code.ensure_loaded?(Plug.Conn) do
     @moduledoc """
     Short links on the app's own domain: forward the instance's link path
     (default "/go") here, and `/go/{slug}` redirects to the link's
-    destination, with the click recorded.
+    destination, with the click recorded. A request on a link domain is
+    answered as that domain's links first.
 
         forward "/go", Runlight.Plug.Links
     """
@@ -171,8 +194,15 @@ if Code.ensure_loaded?(Plug.Conn) do
     @impl Plug
     def call(conn, opts) do
       rl = Runlight.instance(Keyword.get(opts, :instance, Runlight))
-      {:ok, request, conn} = Runlight.Plug.request(conn, 0)
-      Runlight.Plug.answer(conn, Runlight.link_handler(rl, request))
+
+      case Runlight.Plug.link_domain(conn, rl) do
+        {:answered, conn} ->
+          conn
+
+        {:pass, conn} ->
+          {:ok, request, conn} = Runlight.Plug.request(conn, 0)
+          Runlight.Plug.answer(conn, Runlight.link_handler(rl, request))
+      end
     end
   end
 
@@ -192,19 +222,15 @@ if Code.ensure_loaded?(Plug.Conn) do
     @impl Plug
     def call(conn, opts) do
       rl = Runlight.instance(Keyword.get(opts, :instance, Runlight))
-      {:ok, request, conn} = Runlight.Plug.request(%{conn | body_params: %{}}, 0)
-
-      case Runlight.link_domain_response(rl, %{request | body: ""}) do
-        nil -> conn
-        response -> Runlight.Plug.answer(conn, response)
-      end
+      conn |> Runlight.Plug.link_domain(rl) |> elem(1)
     end
   end
 
   defmodule Runlight.Plug.Observer do
     @moduledoc """
     Records page requests from known AI agents, which run no JavaScript, so
-    the tracker cannot see them. Put it in a pipeline; it never stops a
+    the tracker cannot see them. Put it in a pipeline. It answers a request on
+    a link domain with its redirect or a 404 and never stops any other
     request.
 
         plug Runlight.Plug.Observer
@@ -215,15 +241,22 @@ if Code.ensure_loaded?(Plug.Conn) do
     def init(opts), do: opts
 
     @impl Plug
-    def call(%Plug.Conn{method: "GET"} = conn, opts) do
+    def call(conn, opts) do
       rl = Runlight.instance(Keyword.get(opts, :instance, Runlight))
+
+      case Runlight.Plug.link_domain(conn, rl) do
+        {:answered, conn} -> conn
+        {:pass, %Plug.Conn{method: "GET"} = conn} -> observe(conn, rl)
+        {:pass, conn} -> conn
+      end
+    end
+
+    defp observe(conn, rl) do
       host = Enum.find_value(conn.req_headers, conn.host, fn {k, v} -> if k == "host", do: v end)
       query = if conn.query_string == "", do: "", else: "?" <> conn.query_string
       url = "#{if conn.scheme == :https, do: "https", else: "http"}://#{host}#{conn.request_path}#{query}"
       Runlight.observe(rl, %Runlight.Http.Request{url: url, method: "GET", headers: conn.req_headers, ref: make_ref()})
       conn
     end
-
-    def call(conn, _opts), do: conn
   end
 end
