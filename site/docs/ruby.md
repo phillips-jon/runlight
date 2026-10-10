@@ -2,7 +2,7 @@
 title: Ruby
 description: Runlight runs in Ruby 3.2 or later, inside a Rack app such as Sinatra, Hanami, or Roda, or on a domain of its own as a standalone server.
 group: Platforms
-order: 20
+order: 17.3
 ---
 
 The Ruby gem is Runlight written again in Ruby. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so either one can read a database the other wrote. It needs Ruby 3.2 or later, and it keeps its data through ActiveRecord, which it brings with it. For a Rails app, the [Rails guide](/docs/rails/) has an engine and a generator that do the setup for you.
@@ -96,7 +96,7 @@ The [scheduled check](/docs/cron/) sends email reports and keeps the data tidy. 
 RL.check
 ```
 
-Without a scheduler, set `CRON_SECRET` and have any scheduler call `/runlight/api/check` with it, as [Scheduled check](/docs/cron/#anywhere-else) shows.
+When nothing in the app can run it on a timer, set `CRON_SECRET` and have an outside scheduler call `/runlight/api/check` with it, as [Scheduled check](/docs/cron/#anywhere-else) shows.
 
 ## The standalone server
 

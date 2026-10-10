@@ -2,7 +2,7 @@
 title: Rust
 description: Runlight runs inside a Rust service on tokio, behind axum, hyper, or any server that takes a tower service, with its tables in the app's own database through sqlx.
 group: Platforms
-order: 14.97
+order: 17.8
 ---
 
 The Rust crate is Runlight written again in Rust. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so either one can read a database the other wrote. It needs Rust 1.88 or later and runs on tokio. The store comes from a second crate, `runlight-sqlx`, which needs Rust 1.94 for sqlx 0.9.
@@ -90,15 +90,15 @@ The middleware sends requests for a link domain to its short links and records A
 <script defer src="/runlight/s.js"></script>
 ```
 
-Open `/runlight/?token=` followed by your token to sign in.
+Then set `RUNLIGHT_TOKEN` to a long random string and open `/runlight/?token=` followed by that string once to sign in, as [Getting started](/docs/#5-sign-in) describes. `RoutesOptions` takes the settings `routes()` takes in [Configuration](/docs/configuration/#routes-options), in snake case, so `base_path`, `accounts`, and `origin` work as they do there.
 
 ## Other servers
 
 `Routes` is a `tower::Service` for any `http::Request`, so hyper and anything else built on tower can serve it as it is. Without the `tower` feature, build a `runlight::http::Request` yourself and call `routes.handle(request).await`, which answers with a `runlight::http::Response`.
 
-## Scheduled work
+## The scheduled check
 
-Call `rl.check().await` every few minutes from a task of your own, or let a platform cron call `POST /runlight/api/check` with the `CRON_SECRET` as a bearer token. The check rotates the daily salts, deletes visits past each site's retention, adds up finished days, and sends the email reports that are due.
+The [scheduled check](/docs/cron/) rotates the daily salts, sends email reports that are due, applies how long each site keeps its visits, and builds the rollups that keep long ranges quick. Call `rl.check().await` every few minutes from a task of your own. When nothing in the service runs on a timer, set `CRON_SECRET` and have a scheduler call `/runlight/api/check` with it, as [Scheduled check](/docs/cron/#anywhere-else) shows.
 
 ```rust
 let checker = rl.clone();
@@ -122,4 +122,8 @@ options.geo = Some(std::sync::Arc::new(runlight::mmdb::Mmdb::open("data/dbip-cit
 
 ## How it differs from the TypeScript library
 
-The crate takes its outgoing requests through a `Fetcher` you can replace, so tests and locked-down networks pass their own. It reads time zones from the system's database, so a zone whose rules changed after the TypeScript library's copy follows the newer rules. It has no standalone server of its own, since the Node server already runs any number of sites.
+The Rust crate passes the conformance tests the TypeScript library is held to, on SQLite, Postgres, MySQL, and MariaDB. The differences come from how Rust runs.
+
+- The crate takes its outgoing requests, for mail services, connected installs, site icons, and the AI Assistant, through a `Fetcher` you can replace, so tests and locked-down networks can pass their own.
+- It reads time zones from the system's database, so a zone whose rules changed after the TypeScript library's copy follows the newer rules.
+- There is no standalone server in Rust. For one dashboard over several sites, run the [Node server](/docs/server/) or the server of another language, and [connect](/docs/server/#connect-sites-that-count-themselves) this service's site to it.

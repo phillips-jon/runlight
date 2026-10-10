@@ -95,6 +95,19 @@ $rl->observe(Request::fromGlobals());
 
 Then set `RUNLIGHT_TOKEN` to a long random string and open `/runlight/?token=` followed by that string once to sign in, as [Getting started](/docs/#5-sign-in) describes. With `routes(['accounts' => true])` and a `RUNLIGHT_SECRET`, people sign in with their own email and password, as in [Accounts](/docs/configuration/#accounts).
 
+A [link domain](/docs/links/#custom-domains) answers short links at the root of a name of its own, so its requests never match the paths above. To serve one from the app, ask `linkDomainResponse()` first. It answers only on your link domains and returns `null` for every other host, so the rest of the app carries on as before.
+
+```php
+$request = Request::fromGlobals();
+$linked = $rl->linkDomainResponse($request, ['ip' => $request->remoteAddress]);
+if ($linked !== null) {
+    $linked->emit();
+    return;
+}
+```
+
+The Laravel and Symfony routes below answer only `/runlight` and `/go` too, so a link domain there needs the same check in a middleware or an event listener that runs first.
+
 ## Laravel
 
 Runlight’s routes go outside Laravel’s `web` middleware group. That group asks every POST for a CSRF token, which the tracker cannot send, and it encrypts cookies, which Runlight could then not read back. Runlight checks requests its own way.

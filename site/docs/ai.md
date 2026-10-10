@@ -24,7 +24,7 @@ export async function proxy(request: Request) {
 }
 ```
 
-This is Next.js middleware, which lives in `middleware.ts` before Next.js 16. In Express, use `app.use(observer(rl))` from `@runlight/sdk/node`.
+This is Next.js middleware, which lives in `middleware.ts` before Next.js 16. In Express, use `app.use(observer(rl))` from `@runlight/sdk/node`. In the other languages the middleware or filter that serves Runlight usually records agents too, and each language’s page, from [PHP](/docs/php/) to [Rust](/docs/rust/), shows how. A site that runs no Runlight of its own can report them from a [CMS plugin](/docs/wordpress/) or from its [web server’s access log](/docs/server/#ai-agents-from-a-log).
 
 `observe` records GET requests for pages from known agents and ignores everything else, including images, scripts, and styles. It never throws, so it is safe to call on every request. Leave it unawaited and it will not slow the response.
 

@@ -2,7 +2,7 @@
 title: Rails
 description: Runlight runs inside a Rails 7.2, 8.0, or 8.1 app, with its tables in the app's own database and its dashboard at /runlight.
 group: Platforms
-order: 19
+order: 17.2
 ---
 
 The `runlight` gem brings a Rails engine that serves Runlight from your app, with its tables in the app's own database. It is the [Ruby gem](/docs/ruby/), which gives every request the answer the TypeScript library gives, so either one can read a database the other wrote. It works with Rails 7.2, 8.0, and 8.1 on Ruby 3.2 or later, and with SQLite, Postgres, MySQL, or MariaDB.
@@ -71,3 +71,7 @@ With cron, or any scheduler that runs a command, use the rake task.
 ## In tests
 
 Runlight records nothing until a request reaches it, so tests that never load `/runlight` see no difference. A test of the dashboard itself can call `Runlight.configure` again with a store of its own, such as `Runlight::Stores.sqlite(":memory:")`, and the engine uses the new one from the next request on.
+
+## How it differs from the TypeScript library
+
+The engine is the [Ruby gem](/docs/ruby/) inside Rails, so what [the Ruby guide](/docs/ruby/#how-it-differs-from-the-typescript-library) lists applies here too. The same gem has a [standalone server](/docs/ruby/#the-standalone-server) for running Runlight on a domain of its own, with one dashboard for several sites.

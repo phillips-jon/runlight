@@ -49,7 +49,7 @@ Pick a range from the calendar or a preset (Last 30 days is the default). Compar
 
 ## Right now
 
-Click **here now** under the site name to see the last 30 minutes. The view shows pageviews per minute, the pages, sources, and countries active now, and a feed of what happened, such as “Someone in Toronto, Canada viewed /pricing from Google”. It refreshes every 10 seconds and never shows who anyone is.
+Click **here now** under the site name to see what is happening on the site. The view shows pageviews for each of the last 30 minutes and a feed of what happened in them, such as “Someone in Toronto, Canada viewed /pricing from Google”. The count of people, and the pages, sources, and countries beside it, cover the last five minutes. It refreshes every 10 seconds and never shows who anyone is.
 
 ## Sharing
 
@@ -98,14 +98,14 @@ The arrows button in the **Pages** box opens Journeys, the paths visits take thr
 
 The robot button beside **Filter** opens an assistant you can ask about your stats in plain words, such as where visitors came from last month or which pages keep people reading. It reads the numbers with the same read-only tools as the [MCP server](/docs/mcp/), for the site and dates on screen unless you ask about others, and it can never change anything.
 
-An owner sets it up once in **Settings**, **AI Assistant**. Choose Anthropic, OpenAI, Google Gemini, OpenRouter, Ollama, LM Studio, or any service with an OpenAI-compatible API, then a model and a key. Ollama and LM Studio run a model on your own machine with no key, as long as the server running Runlight can reach it. The key is kept on the server, encrypted with `RUNLIGHT_SECRET` (or the token when there is no secret), and never sent back to a browser.
+The owner or an admin sets it up once in **Settings**, **AI Assistant**. Choose Anthropic, OpenAI, Google Gemini, OpenRouter, Ollama, LM Studio, or any service with an OpenAI-compatible API, then a model and a key. Ollama and LM Studio run a model on your own machine with no key, as long as the server running Runlight can reach it. The key is kept on the server, encrypted with `RUNLIGHT_SECRET` (or the token when there is no secret), and never sent back to a browser.
 
 Each question goes to the service you chose, along with the numbers the assistant reads to answer it. Runlight keeps nothing about individual visitors, so nothing personal is sent. Everyone signed in to the dashboard can ask it, though API tokens and share links cannot. Each question spends your AI credit, so each person can ask thirty an hour, and each viewer 50 a day, a number the owner or an admin can change under **AI Assistant** or set to 0 to keep the assistant from viewers. The conversation lives in the browser tab and is gone when the tab closes.
 
 ## Keeping data
 
-Each site keeps every visit unless you choose otherwise. In **Settings**, **Data**, **Keep visits for** takes anything from 6 months to 5 years. Saving a shorter time deletes older visits and events for good, and the dashboard says from which date before you save. After that the scheduled check deletes whatever passes the limit each day. Goals, links, and settings stay. The same section has **Export everything**, a ZIP of every report since the site’s first visit, worth downloading before you shorten the time.
+Each site keeps every visit unless you choose otherwise. In **Settings**, **Data**, **Keep visits for** offers 6 months or 1, 2, 3, or 5 years. Saving a shorter time deletes older visits and events for good, and the dashboard says from which date before you save. After that the scheduled check deletes whatever passes the limit each day. Goals, links, and settings stay. The same section has **Export everything**, a ZIP of every report since the site’s first visit, worth downloading before you shorten the time.
 
 ## Settings
 
-The gear beside the site name opens Settings, which holds the site’s name and timezone; install steps; goals; email reports; sharing; custom domains for short links; importing links and visits; API tokens; the AI Assistant; and the site’s data. On the standalone server it also holds People. The dashboard’s language is in General too, and it is kept for each browser. The theme switch is in the footer, and Shift+Cmd+D (Shift+Ctrl+D) toggles the theme too.
+The gear beside the site name opens Settings. **General** holds the site’s name and timezone, along with the dashboard’s language and theme, which each browser keeps for itself. The other sections are **Install**, **Goals**, **Funnels**, **Email service**, **Email reports**, **Sharing**, **API and AI**, **Custom domains**, **Import**, **Data**, and **AI Assistant**, and the owner and admins also see **People** when accounts are on, as they always are on the standalone server. The theme switch is also in the footer, and Shift+Cmd+D (Shift+Ctrl+D) toggles it from anywhere.

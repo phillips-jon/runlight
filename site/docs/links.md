@@ -17,7 +17,7 @@ import { rl } from "@/lib/runlight";
 export const GET = rl.linkHandler();
 ```
 
-Change the path with `runlight({ linkPath: "/l" })`.
+Change the path with `runlight({ linkPath: "/l" })`. In the other languages, `/go` is served along with the rest of Runlight’s routes, as each language’s page shows.
 
 ## Making links
 
@@ -45,7 +45,7 @@ export async function proxy(request: Request) {
 }
 ```
 
-`linkDomainResponse` answers only for your link domains and returns `null` for everything else, so the rest of your app is untouched.
+`linkDomainResponse` answers only for your link domains and returns `null` for everything else, so the rest of your app is untouched. The other languages have the same check, often built into the middleware that serves Runlight, and each language’s page shows where it goes.
 
 Removing a domain keeps its links along with their clicks and stats. They move to `/go/<slug>` until you add the domain back, and then they return to it.
 

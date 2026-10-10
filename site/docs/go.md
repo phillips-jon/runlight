@@ -2,7 +2,7 @@
 title: Go
 description: Runlight runs in Go 1.25 or later, inside any net/http app, chi, or Echo, or as a server of its own.
 group: Platforms
-order: 14.6
+order: 17.4
 ---
 
 The Go module is Runlight written again in Go. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so either one can read a database the other wrote. It needs Go 1.25 or later, and the module itself requires no other module.
@@ -102,6 +102,24 @@ log.Fatal(http.ListenAndServe(":8080", rl.Observer(mux)))
 
 `rl.Observer` records the fetches of [AI agents](/docs/ai/#agents-that-read-your-pages) as your app serves its pages, and passes every request on. In an app that sends every request through one handler, `routes.Middleware(next)` answers Runlight’s own paths and passes the rest to `next` without reading their bodies. It also answers the OAuth documents that [MCP](/docs/mcp/) clients look for at the root of the site.
 
+A [link domain](/docs/links/#custom-domains) answers short links at the root of a name of its own, and the handlers above leave those requests to your app. To serve them, put middleware in front of the app that asks `rl.LinkDomainResponse` first. It answers only on your link domains and returns nil for every other host.
+
+```go
+func linkDomains(rl *runlight.Runlight, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if req.Method == http.MethodGet {
+			if request, err := runlight.FromHTTP(req); err == nil {
+				if answer, err := rl.LinkDomainResponse(req.Context(), request); err == nil && answer != nil {
+					runlight.WriteHTTP(w, answer)
+					return
+				}
+			}
+		}
+		next.ServeHTTP(w, req)
+	})
+}
+```
+
 Add the script to every page, just before `</head>`.
 
 ```html
@@ -124,7 +142,7 @@ r.Use(rl.Observer)
 runlightchi.Mount(r, rl, routes)
 ```
 
-`Mount` adds the routes under their base path, the OAuth documents, and the short links. Call it on the top router, since the routes read the full path of each request.
+`Mount` adds the routes under their base path, the OAuth documents, and the short links. Call it on the top router, since the routes read the full path of each request. Link domains need the middleware from [net/http](#net-http) as well.
 
 ## Echo
 
@@ -139,6 +157,8 @@ e := echo.New()
 e.Use(runlightecho.Observer(rl))
 runlightecho.Register(e, rl, routes)
 ```
+
+`Register` adds the routes, the OAuth documents, and the short links, as `Mount` does for chi. Link domains need the middleware from [net/http](#net-http) here too, wrapped around the Echo app.
 
 ## Other routers
 

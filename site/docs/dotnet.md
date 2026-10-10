@@ -2,7 +2,7 @@
 title: .NET
 description: Runlight runs in .NET 10 or later, inside an ASP.NET Core app, or on a domain of its own as a standalone server.
 group: Platforms
-order: 14.95
+order: 17.6
 ---
 
 The .NET package is Runlight written again in C#. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so either one can read a database the other wrote. It needs .NET 10 or later and the ADO.NET driver for your database, which your app already has if it uses that database.

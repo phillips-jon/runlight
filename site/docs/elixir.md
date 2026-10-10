@@ -2,10 +2,10 @@
 title: Elixir
 description: Runlight runs in Elixir 1.18 or later on Erlang/OTP 27 or later, inside a Phoenix or Plug app, with its tables in your own Ecto repo.
 group: Platforms
-order: 14.8
+order: 17.7
 ---
 
-The Elixir package is Runlight written again in Elixir. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so an Elixir app can read a database a Node or PHP app wrote. It needs Elixir 1.18 or later on Erlang/OTP 27 or later.
+The Elixir package is Runlight written again in Elixir. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so either one can read a database the other wrote. It needs Elixir 1.18 or later on Erlang/OTP 27 or later.
 
 ## Install
 
@@ -36,7 +36,7 @@ children = [
 ]
 ```
 
-The options have the same names as in [Configuration](/docs/configuration/#runlight-options), written in snake case, so `sites`, `trust_proxy`, `rate_limit`, `mail`, and `managed_sites` all work as they do there. The tables are created when the instance starts, and a store that cannot be reached stops the app from booting. `check_every` runs the [scheduled check](/docs/cron/) on an interval; leave it out when a cron job calls `/runlight/api/check` instead, or call `Runlight.check(Runlight.instance())` from your own scheduler.
+The options have the same names as in [Configuration](/docs/configuration/#runlight-options), written in snake case, so `sites`, `trust_proxy`, `rate_limit`, `mail`, and `managed_sites` all work as they do there. The tables are created when the instance starts, and a store that cannot be reached stops the app from booting. `check_every` runs the [scheduled check](/docs/cron/) on an interval, which rotates the daily salts, sends email reports that are due, applies how long each site keeps its visits, and builds the rollups that keep long ranges quick. Leave it out when a scheduler calls `/runlight/api/check` with `CRON_SECRET` instead, as [Scheduled check](/docs/cron/#anywhere-else) shows, or call `Runlight.check(Runlight.instance())` from a job of your own.
 
 ## Stores
 
@@ -67,7 +67,7 @@ Add the script to every page, just before `</head>`.
 <script defer src="/runlight/s.js"></script>
 ```
 
-Then open `/runlight/?token=` followed by your token once to sign in, as [Getting started](/docs/#5-sign-in) describes. With `accounts: true` and a `RUNLIGHT_SECRET`, people sign in with their own email and password, as in [Accounts](/docs/configuration/#accounts).
+Then set `RUNLIGHT_TOKEN` to a long random string and open `/runlight/?token=` followed by that string once to sign in, as [Getting started](/docs/#5-sign-in) describes. With `accounts: true` and a `RUNLIGHT_SECRET`, people sign in with their own email and password, as in [Accounts](/docs/configuration/#accounts).
 
 To count the [AI agents](/docs/ai/#agents-that-read-your-pages) that read your pages, add the observer to the `:browser` pipeline. It records their fetches and returns at once for everyone else.
 
@@ -114,3 +114,12 @@ Give each one a name and pass it to the Plugs.
 
 forward "/stats", Runlight.Plug, instance: MyApp.Stats
 ```
+
+## How it differs from the TypeScript library
+
+The Elixir package passes the conformance tests the TypeScript library is held to, on SQLite, Postgres, MySQL, and MariaDB. The differences come from how Elixir runs.
+
+- Each request runs in its own process, and the instance lives in your supervision tree. Its state, such as the tracker's rate limit and the cached lists of link domains, sits in an ETS table, so every process on a node shares it and each node keeps its own.
+- What the TypeScript library does in the background, such as deleting visits after a shorter retention is chosen, runs in a task of its own once the answer is sent.
+- New passwords are hashed with PBKDF2-SHA-256, which Erlang's crypto computes natively. Hashes the TypeScript library made with scrypt still sign in, so accounts carry over.
+- There is no standalone server in Elixir. For one dashboard over several sites, run the [Node server](/docs/server/) or the server of another language, and [connect](/docs/server/#connect-sites-that-count-themselves) this app's site to it.

@@ -2,7 +2,7 @@
 title: Python
 description: Runlight runs in Python 3.11 or later, inside a Django, Flask, or FastAPI app or any WSGI or ASGI app, or as a server of its own.
 group: Platforms
-order: 14.5
+order: 17.1
 ---
 
 The Python package is Runlight written again in Python. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so either one can read a database the other wrote. It needs Python 3.11 or later and has no dependencies of its own.

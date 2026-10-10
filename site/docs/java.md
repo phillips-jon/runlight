@@ -2,7 +2,7 @@
 title: Java
 description: Runlight runs in Java 21 or later, on the JDK's own HTTP server, in a servlet container, or in a Spring Boot app, or as a server of its own.
 group: Platforms
-order: 14.9
+order: 17.5
 ---
 
 The Java library is Runlight written again in Java. It serves the same dashboard and API, and it gives every request the answer the TypeScript library gives. Its numbers go in the same tables, so either one can read a database the other wrote. It needs Java 21 or later, and the core has no dependencies of its own.

@@ -12,6 +12,8 @@ export const rl = runlight({ store, site, /* ...options */ });
 export const routes = rl.routes({ /* ...route options */ });
 ```
 
+This page uses the TypeScript library’s names. Every other language takes the same options, spelled the way that language spells names, as its page shows, from [PHP](/docs/php/) to [Rust](/docs/rust/).
+
 ## Stores
 
 Runlight keeps everything in a handful of tables prefixed `rl_`, created on first use and upgraded in place.
@@ -159,7 +161,7 @@ The owner and admins invite more people in **Settings**, **People**, as an admin
 
 Sessions are signed with `RUNLIGHT_SECRET`, or the token when that is not set, so keep it the same across restarts and deploys. Passwords are hashed with scrypt where the runtime has it, as Node, Bun, and Deno do, and with PBKDF2 on edge runtimes such as Cloudflare Workers.
 
-If someone forgets their password, the owner or an admin can remove them and invite them again. If the owner forgets theirs, give the account a new one from a script that uses your Runlight:
+If someone forgets their password, the owner or an admin can remove them and invite them again. If the owner forgets theirs, give the account a new one from a script that uses your Runlight.
 
 ```ts
 import { Accounts } from "@runlight/sdk";

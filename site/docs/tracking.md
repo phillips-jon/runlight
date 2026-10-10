@@ -13,7 +13,7 @@ With just the script tag, Runlight records these on its own.
 - **Engaged time and scroll depth** for each pageview. Time only counts while the tab is visible and focused.
 - **Outbound links**, recorded as an `Outbound link` event with the `url` when someone clicks a link to another site.
 - **File downloads**, recorded as a `File download` event when someone clicks a link to a PDF, zip, disk image, document, audio, or video file.
-- **404s**, when the page says so (see below).
+- **404s**, on a page whose script tag has `data-404` (see below). Each one is an event named `404` whose `path` property is the address that was not found, so the properties of `404` in the Events box list the broken addresses people reached and how often.
 
 Runlight skips visits from known bots and from browsers driven by automation, such as Playwright, Selenium, and Puppeteer.
 
@@ -52,7 +52,7 @@ To count clicks on something you cannot edit, add a [click goal](/docs/goals/#cl
 | --- | --- |
 | `data-site="id"` | Which site, when one install counts several and hostnames are not enough. |
 | `data-hash` | Count changes to `location.hash` as pageviews (for hash routers). |
-| `data-404` | Treat this page as a 404 and record a `404` event with its path. |
+| `data-404` | Mark this page as a 404, so the pageview also records a `404` event with the page’s path. Put it on your not-found page, as the WordPress, Drupal, and Craft plugins do for you. |
 | `data-dnt` | Respect Do Not Track. It is off by default, since Runlight keeps nothing personal. |
 | `data-outbound="false"` | Do not record outbound link clicks. |
 | `data-downloads="false"` | Do not record file downloads. |

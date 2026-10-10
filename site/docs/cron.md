@@ -35,4 +35,4 @@ Any scheduler that can make an HTTPS request will work, including a crontab line
 0 * * * * curl -fsS -X POST https://example.com/runlight/api/check -H "Authorization: Bearer YOUR_CRON_SECRET" > /dev/null
 ```
 
-You can also call `await rl.check()` from code you already run on a timer.
+You can also call `await rl.check()` from code you already run on a timer. Each language’s page shows its own way to run the check, such as `bin/rails runlight:check` in Rails or a hosted service in .NET. The standalone servers run it themselves every five minutes.

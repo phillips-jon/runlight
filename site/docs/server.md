@@ -5,9 +5,9 @@ group: Platforms
 order: 13
 ---
 
-The standalone server is Runlight packaged as an app of its own. It suits sites that are not Node apps, and it gives several sites one dashboard. It runs the same code as the library, so reports, goals, short links, and email reports all work the same way.
+The standalone server is Runlight packaged as an app of its own. It suits a site whose app cannot run Runlight, and it gives several sites one dashboard. It runs the same code as the library, so reports, goals, short links, and email reports all work the same way.
 
-On hosting that runs PHP without Node, the [PHP drop-in](/docs/php/#the-standalone-drop-in) does the same job.
+This page covers the Node server. [Python](/docs/python/#the-standalone-server), [Ruby](/docs/ruby/#the-standalone-server), [Go](/docs/go/#the-standalone-server), [Java](/docs/java/#the-standalone-server), and [.NET](/docs/dotnet/#the-standalone-server) each have a server of their own that works the same way, and on hosting that runs PHP without Node, the [PHP drop-in](/docs/php/#the-standalone-drop-in) does the same job.
 
 ## Start it
 
@@ -102,7 +102,7 @@ stats.example.com {
 }
 ```
 
-Set `RUNLIGHT_URL` to the server’s public address, such as `https://stats.example.com`. Short links can then never take over that name, and invite and report emails link to it whatever Host header a request names. A [connected hub](/docs/api/) adds link domains and email reports only once it is set.
+Set `RUNLIGHT_URL` to the server’s public address, such as `https://stats.example.com`. Short links can then never take over that name, and invite and report emails link to it whatever Host header a request names. A [connected hub](#connect-sites-that-count-themselves) adds link domains and email reports only once it is set.
 
 Runlight reads each visitor’s address from the last `X-Forwarded-For` entry, the one your proxy adds. Set `TRUST_PROXY` to `x-real-ip` or `cf-connecting-ip` when that header holds the address instead, such as behind Cloudflare and another proxy. Set `TRUST_PROXY=false` when nothing sits in front of the server, so a visitor cannot send a false address.
 
