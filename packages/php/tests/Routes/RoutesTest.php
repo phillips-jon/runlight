@@ -256,6 +256,56 @@ final class RoutesTest extends TestCase
         $this->assertSame(404, $routes->handle(self::req($share['path']))->status);
     }
 
+    public function testTheDashboardInsideACmsOpensOneFramedPageOnceWhoseSessionReadsOneSite(): void
+    {
+        Make::needsCore($this);
+        $rl = Make::runlight(['sites' => [
+            ['id' => 'a', 'name' => 'Site A', 'hostnames' => ['a.com'], 'timezone' => 'UTC'],
+            ['id' => 'b', 'name' => 'Site B', 'hostnames' => ['b.com'], 'timezone' => 'UTC'],
+        ]]);
+        $routes = $rl->routes(['token' => 'secret']);
+        $made = Make::body($routes->handle(Make::owner('/runlight/api/tokens', 'POST', ['name' => 'CMS', 'site' => 'a', 'scope' => 'embed'])));
+        $mint = fn (string $origin): Response => $routes->handle(Make::owner('/runlight/api/embed', 'POST', ['origin' => $origin], $made['secret']));
+        $this->assertSame(400, $mint('https://b.com')->status, "only an origin on the site's own domains");
+        $minted = $mint('https://www.a.com');
+        $this->assertSame(201, $minted->status);
+        ['ticket' => $ticket, 'path' => $path, 'site' => $site] = Make::body($minted);
+        $this->assertSame('a', $site);
+        $this->assertSame("/runlight/embed?ticket=$ticket", $path);
+        $this->assertStringNotContainsString($made['token']['id'], $ticket, 'a ticket never names its token');
+
+        $page = $routes->handle(self::req($path));
+        $this->assertSame(200, $page->status);
+        $this->assertStringEndsWith('frame-ancestors https://www.a.com', (string) $page->headers->get('content-security-policy'));
+        $this->assertNull($page->headers->get('x-frame-options'));
+        $this->assertSame('no-referrer', $page->headers->get('referrer-policy'));
+        $this->assertSame(1, preg_match('/data-embed="([^"]+)"/', $page->text(), $found));
+        $session = $found[1];
+        $this->assertMatchesRegularExpression('/^\d+\.[a-f0-9]{24}\.[a-f0-9]{64}$/', $session);
+        $again = $routes->handle(self::req($path));
+        $this->assertSame(410, $again->status, 'a ticket works once');
+        $this->assertStringEndsWith('frame-ancestors https://www.a.com', (string) $again->headers->get('content-security-policy'), 'a used ticket still says so inside its frame');
+
+        $as = ['x-runlight-embed' => $session];
+        $this->assertSame('a', Make::body($routes->handle(self::req('/runlight/api/stats?site=b', 'GET', $as)))['site'], "pinned to its token's site whatever is asked");
+        $this->assertSame(403, $routes->handle(self::req('/runlight/api/links?site=a', 'GET', $as + ['authorization' => 'Bearer secret']))->status, 'nothing a share cannot read, even beside the owner\'s token');
+        $this->assertSame('DENY', $routes->handle(self::req('/runlight/'))->headers->get('x-frame-options'), 'every other page still refuses to be framed');
+
+        $this->assertSame(200, $routes->handle(Make::owner("/runlight/api/tokens/{$made['token']['id']}", 'DELETE'))->status);
+        $this->assertSame(401, $routes->handle(self::req('/runlight/api/stats', 'GET', $as))->status, 'deleting the token ends its sessions at once');
+    }
+
+    public function testASettingCanBeTakenOnce(): void
+    {
+        Make::needsCore($this);
+        $rl = Make::runlight(['site' => ['hostnames' => ['a.com']]]);
+        $rl->init();
+        $rl->store->setSetting('x', '1');
+        $this->assertSame('1', $rl->store->takeSetting('x'));
+        $this->assertNull($rl->store->takeSetting('x'));
+        $this->assertNull($rl->store->setting('x'));
+    }
+
     public function testACmsPluginReportsAiAgentFetchesWithItsOwnKeyWhichReadsNothing(): void
     {
         Make::needsCore($this);

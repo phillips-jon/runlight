@@ -50,7 +50,9 @@ final class Routes
     public const TOKEN_PREFIX = 'rl_';
     /** The header a shared dashboard sends its share id in. */
     public const SHARE_HEADER = 'x-runlight-share';
-    /** What a share can read: one site's reports, nothing that changes anything. */
+    /** The header an embedded dashboard sends its session in. */
+    public const EMBED_HEADER = 'x-runlight-embed';
+    /** What a share, or the dashboard inside a CMS, can read: one site's reports, nothing that changes anything. */
     public const SHARED_PATHS = ['/api/sites', '/api/icon', '/api/realtime', '/api/stats', '/api/series', '/api/rhythm', '/api/breakdown', '/api/goals', '/api/event-props', '/api/export', '/api/funnels', '/api/journeys'];
     /** Where the tracker's click rules go; the script ships with this string in their place. */
     private const RULES_PLACEHOLDER = '"__RUNLIGHT_RULES__"';
@@ -66,6 +68,10 @@ final class Routes
     /** Questions each viewer may ask a day, until an owner sets another number. */
     public const VIEWER_DAILY = 50;
     private const SHARE_ID = '/^[a-f0-9]{32}\z/';
+    /** How long an embed ticket works: long enough for the admin page to load its frame, never to be kept. */
+    public const EMBED_TICKET_MS = 5 * 60_000;
+    /** How long an embedded dashboard reads before the admin page has to be loaded again for a new ticket. */
+    public const EMBED_SESSION_MS = 60 * 60_000;
     private const PATH_DIMENSIONS = ['page', 'entry', 'exit', 'ai_page'];
     /** runlight.ts's LINK_DOMAIN_CHECK: the path on every link domain that answers when the domain reaches this Runlight. */
     private const LINK_DOMAIN_CHECK = '/.well-known/runlight-link-domain';
@@ -543,8 +549,13 @@ final class Routes
         return Json::encode((object) $urls);
     }
 
-    /** The dashboard's page, which holds no data: the API it calls checks access. */
-    public static function dashboard(string $base, string $share = '', string $signOut = '', bool $geoCredit = false, bool $accounts = false, string $signIn = ''): string
+    /**
+     * The dashboard's page, which holds no data: the API it calls checks access. `$embed` is the dashboard inside a
+     * CMS's admin pages: its session (empty once its ticket was used or ran out) and the admin origin that frames it.
+     *
+     * @param array{session: string, origin: string}|null $embed
+     */
+    public static function dashboard(string $base, string $share = '', string $signOut = '', bool $geoCredit = false, bool $accounts = false, string $signIn = '', ?array $embed = null): string
     {
         $b = self::escapeAttr($base);
         $hash = self::hash('dashboardHash');
@@ -552,7 +563,8 @@ final class Routes
             . ($signOut !== '' ? ' data-sign-out="' . self::escapeAttr($signOut) . '"' : '')
             . ($signIn !== '' ? ' data-sign-in="' . self::escapeAttr($signIn) . '"' : '')
             . ($geoCredit ? ' data-geo-credit=""' : '')
-            . ($accounts ? ' data-accounts=""' : '');
+            . ($accounts ? ' data-accounts=""' : '')
+            . ($embed !== null ? ' data-embed="' . self::escapeAttr($embed['session']) . '" data-embed-origin="' . self::escapeAttr($embed['origin']) . '"' : '');
         return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex\">\n<title>Runlight</title>\n"
             . '<link rel="icon" href="' . Brand::runlightIcon() . "\">\n"
             . "<link rel=\"stylesheet\" href=\"$b/assets/app.$hash.css\">\n</head>\n<body>\n"
@@ -747,7 +759,8 @@ final class Routes
     {
         $token = $this->apiToken($request);
         if ($token !== null) {
-            return $token;
+            // A key for the dashboard inside a CMS gets tickets and reads nothing itself.
+            return $token['scope'] === 'embed' ? false : $token;
         }
         if (($this->options['authorize'] ?? null) !== null || $this->web !== null) {
             $access = $this->canRead($request);
@@ -1113,6 +1126,103 @@ final class Routes
         $unhex = fn (string $text): string => Js::scrub((string) hex2bin(substr($text, 0, strlen($text) - strlen($text) % 2)));
         $origin = $unhex($parts[3]);
         return self::isOrigin($origin) ? ['origin' => $origin, 'site' => $unhex($parts[2])] : null;
+    }
+
+    /** The key embed tickets and sessions are signed with, made on first use and kept in the database for every process. */
+    private function embedKey(): string
+    {
+        $this->rl->init();
+        $saved = $this->store()->setting('embed-key');
+        if ($saved !== null && $saved !== '') {
+            return $saved;
+        }
+        $made = Hash::randomId(32);
+        $this->store()->setSetting('embed-key', $made);
+        return $made;
+    }
+
+    /**
+     * An embed token that still exists, for a site that still does.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function embedToken(string $id): ?array
+    {
+        foreach ($this->store()->tokens() as $token) {
+            if ($token['id'] === $id) {
+                return $token['scope'] === 'embed' && $this->rl->site($token['site']) !== null ? $token : null;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * A ticket for one load of the embedded dashboard, signed with when it runs out, a nonce, and the admin origin
+     * that may frame it. The nonce is kept, with the token it was made for, until the ticket is used.
+     *
+     * @return array{ticket: string, expiresAt: int|float}
+     */
+    private function embedTicket(string $origin, string $token): array
+    {
+        $now = $this->rl->now();
+        // Tickets nobody used are cleared as new ones are made.
+        foreach ($this->store()->settingsStartingWith('embed-ticket:') as $row) {
+            if (Js::number(explode('.', $row['value'])[0]) < $now) {
+                $this->store()->setSetting($row['key'], null);
+            }
+        }
+        $expiresAt = $now + self::EMBED_TICKET_MS;
+        $nonce = Hash::randomId(16);
+        $this->store()->setSetting("embed-ticket:$nonce", "$expiresAt.$token");
+        $payload = "$expiresAt.$nonce." . bin2hex($origin);
+        return ['ticket' => "$payload." . Hash::hmac($this->embedKey(), "ticket.$payload"), 'expiresAt' => $expiresAt];
+    }
+
+    /**
+     * What a ticket this install signed names: always its origin, and its token only the first time it is used
+     * before it runs out. Null for anything else.
+     *
+     * @return array{origin: string, token: ?array<string, mixed>}|null
+     */
+    private function redeemEmbed(string $ticket): ?array
+    {
+        if (!preg_match('/^(\d{1,15})\.([a-f0-9]{32})\.([a-f0-9]{2,512})\.([a-f0-9]{64})\z/', $ticket, $parts)) {
+            return null;
+        }
+        if (!self::constantTimeEqual($parts[4], Hash::hmac($this->embedKey(), "ticket.{$parts[1]}.{$parts[2]}.{$parts[3]}"))) {
+            return null;
+        }
+        $origin = Js::scrub((string) hex2bin(substr($parts[3], 0, strlen($parts[3]) - strlen($parts[3]) % 2)));
+        if (!self::isOrigin($origin)) {
+            return null;
+        }
+        // A ticket works once: it is gone before anything else is checked.
+        $kept = $this->store()->takeSetting("embed-ticket:{$parts[2]}");
+        $token = $kept !== null && $kept !== '' && Js::number($parts[1]) >= $this->rl->now() ? $this->embedToken(explode('.', $kept)[1] ?? '') : null;
+        return ['origin' => $origin, 'token' => $token];
+    }
+
+    /** A session for an embedded dashboard, which its page sends with every read, signed with when it runs out and its token. */
+    private function embedSession(string $token): string
+    {
+        $payload = ($this->rl->now() + self::EMBED_SESSION_MS) . ".$token";
+        return "$payload." . Hash::hmac($this->embedKey(), "session.$payload");
+    }
+
+    /**
+     * The embed token a session this install signed was made for, while it lasts and the token still exists.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function embedReader(string $session): ?array
+    {
+        if (!preg_match('/^(\d{1,15})\.([a-f0-9]{24})\.([a-f0-9]{64})\z/', $session, $parts) || Js::number($parts[1]) < $this->rl->now()) {
+            return null;
+        }
+        if (!self::constantTimeEqual($parts[3], Hash::hmac($this->embedKey(), "session.{$parts[1]}.{$parts[2]}"))) {
+            return null;
+        }
+        return $this->embedToken($parts[2]);
     }
 
     /**
@@ -1496,9 +1606,16 @@ final class Routes
             if ($site !== '' && !in_array($site, array_column($this->sites(), 'id'), true)) {
                 return self::coded('Unknown site', 'unknown_site', 404);
             }
-            $scope = Js::get($body, 'scope') === 'manage' ? 'manage' : 'read';
+            $scope = match (Js::get($body, 'scope')) {
+                'manage' => 'manage',
+                'embed' => 'embed',
+                default => 'read',
+            };
             if ($scope === 'manage' && $site === '') {
                 return self::coded('A token that changes settings is for one site. Pick the site.', 'token_site', 400);
+            }
+            if ($scope === 'embed' && $site === '') {
+                return self::coded('A key for the dashboard in a CMS is for one site. Pick the site.', 'embed_site', 400);
             }
             $secret = self::TOKEN_PREFIX . Hash::randomId(20);
             $row = ['id' => Hash::randomId(), 'name' => $name, 'site' => $site, 'scope' => $scope, 'hash' => Hash::sha256($secret), 'hint' => substr($secret, -4), 'createdAt' => $this->rl->now(), 'lastUsedAt' => null];
@@ -1521,7 +1638,7 @@ final class Routes
     private function readApi(Request $request, Url $url, ?string $defaultSite = null): \Closure
     {
         $headers = new Headers($request->headers);
-        foreach (['content-type', 'content-length', self::SHARE_HEADER] as $name) {
+        foreach (['content-type', 'content-length', self::SHARE_HEADER, self::EMBED_HEADER] as $name) {
             $headers->delete($name);
         }
         return function (string $apiPath, array $params) use ($headers, $url, $defaultSite): Response {
@@ -1543,6 +1660,10 @@ final class Routes
     {
         $rl = $this->rl;
         $method = $request->method;
+        // An embedded dashboard reads what a share link shows and nothing else, whoever else the request comes from.
+        if ($request->headers->get(self::EMBED_HEADER) !== null && !($method === 'GET' && self::sharedPath($path))) {
+            return self::coded('Not available on a shared dashboard', 'share_not_available', 403);
+        }
         // A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
         // That holds without a cookie too, since a browser also sends Basic credentials or comes from an
         // allowed address on its own. A bearer token is never sent by the browser on its own, so it needs no check.
@@ -1613,7 +1734,44 @@ final class Routes
             return new Response('', 303, ['location' => $to, 'cache-control' => 'no-store']);
         }
 
+        // A ticket for one load of the dashboard inside a CMS's admin pages. The plugin's server asks with its embed
+        // token on each page view and names the admin's origin, which must be one of the site's domains and alone
+        // may frame the page the ticket opens.
+        if ($path === '/api/embed' && $method === 'POST') {
+            $token = $this->apiToken($request);
+            if ($token === null) {
+                return self::denied(false);
+            }
+            if ($token['scope'] !== 'embed') {
+                return self::coded('Use a key for the dashboard in a CMS, made in Settings, Install', 'embed_token', 403);
+            }
+            $site = $rl->site($token['site']);
+            if ($site === null) {
+                return self::coded('Unknown site', 'unknown_site', 404);
+            }
+            $body = self::readJson($request);
+            if ($body instanceof Response) {
+                return $body;
+            }
+            $origin = self::text($body, 'origin');
+            $parsed = self::isOrigin($origin) && Js::length($origin) <= 200 ? Url::parse($origin) : null;
+            if ($parsed === null || $parsed->origin() !== $origin) {
+                return self::coded("Send the admin page's origin, such as https://example.com", 'embed_origin', 400);
+            }
+            $host = self::hostName($parsed->host());
+            $domains = array_map(self::hostName(...), $rl->remote($site['id'])['hostnames'] ?? $site['hostnames']);
+            if (!in_array($host, $domains, true)) {
+                return self::coded("$host is not one of this site's domains. Add it to the site's domains in Runlight's settings.", 'embed_host', 400, ['host' => $host]);
+            }
+            ['ticket' => $ticket, 'expiresAt' => $expiresAt] = $this->embedTicket($origin, $token['id']);
+            return self::json(['ticket' => $ticket, 'site' => $site['id'], 'expiresAt' => $expiresAt, 'path' => "{$this->base}/embed?ticket=$ticket"], 201);
+        }
+
         $token = str_starts_with(self::bearer($request), self::TOKEN_PREFIX) ? $this->apiToken($request) : null;
+        // An embed token gets tickets and reads nothing itself.
+        if ($token !== null && $token['scope'] === 'embed') {
+            return self::coded('This key only opens the dashboard inside a CMS', 'token_embed_only', 403);
+        }
         if ($token !== null && $token['scope'] === 'manage' && self::managePath($method, $path)) {
             $asked = $url->searchParams()->get('site');
             $siteMatch = preg_match('#^/api/sites/([^/]+)\z#', $path, $sm) ? $sm : null;
@@ -2258,6 +2416,14 @@ final class Routes
                 return self::coded('Not available on a shared dashboard', 'share_not_available', 403);
             }
             $only = $shared['site'];
+        } elseif ($request->headers->get(self::EMBED_HEADER) !== null) {
+            $token = $this->embedReader((string) $request->headers->get(self::EMBED_HEADER));
+            if ($token === null) {
+                return self::coded('This dashboard has expired. Reload the page to open it again.', 'embed_expired', 401);
+            }
+            // An embedded dashboard sees what a share link of its token's site shows.
+            $shared = ['id' => '', 'site' => $token['site'], 'name' => '', 'createdAt' => 0];
+            $only = $token['site'];
         } else {
             $access = $this->reader($request);
             if ($access === false || $access === 'unconfigured') {
@@ -2657,6 +2823,26 @@ final class Routes
 
         if (preg_match('#^/unsubscribe/([^/]+)/?\z#', $path, $unsubscribe) && ($method === 'GET' || $method === 'POST')) {
             return $this->unsubscribePage($request, $unsubscribe[1]);
+        }
+
+        // The dashboard inside a CMS's admin pages, opened with a ticket its plugin just got. Only the admin origin
+        // the ticket names may frame it. A ticket used already or run out opens it with no session, so it says it
+        // has expired and offers to reload the admin page; anything else is refused and never framed.
+        if ($path === '/embed' && $method === 'GET') {
+            $rl->init();
+            $found = $this->redeemEmbed($url->searchParams()->get('ticket') ?? '');
+            if ($found === null) {
+                ['t' => $t, 'lang' => $lang] = Messages::translator(self::acceptedLanguage($request));
+                return self::smallPage($lang, '<h1>' . self::escapeHtml($t('embed.goneTitle')) . '</h1><p>' . self::escapeHtml($t('embed.gone')) . '</p>', 404);
+            }
+            $session = $found['token'] !== null ? $this->embedSession($found['token']['id']) : '';
+            return new Response(self::dashboard($base, '', '', !empty($this->options['geoCredit']), false, '', ['session' => $session, 'origin' => $found['origin']]), $session !== '' ? 200 : 410, [
+                'content-type' => 'text/html; charset=utf-8',
+                'cache-control' => 'no-store',
+                'content-security-policy' => str_replace("frame-ancestors 'none'", "frame-ancestors {$found['origin']}", self::DASHBOARD_CSP),
+                'referrer-policy' => 'no-referrer',
+                'x-robots-tag' => 'noindex',
+            ]);
         }
 
         if (preg_match('#^/share/([^/]+)/?\z#', $path, $sharePage) && $method === 'GET') {
