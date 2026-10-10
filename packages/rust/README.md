@@ -14,6 +14,8 @@ runlight = { version = "0.0", features = ["axum"] }
 runlight-sqlx = { version = "0.0", features = ["sqlite"] }
 ```
 
+The `runlight` crate needs Rust 1.88 or later. `runlight-sqlx` needs Rust 1.94 or later, as sqlx 0.9 does, so an app that uses both needs 1.94.
+
 Create one instance, merge its routers into your app, and add its middleware, which answers your link domains before your own routes.
 
 ```rust,no_run

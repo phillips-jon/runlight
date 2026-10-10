@@ -73,6 +73,8 @@ async fn hub(router: Arc<Router>, now: Arc<AtomicI64>, managed: bool) -> Runligh
     options.managed_sites = managed;
     options.secret = Some("k".repeat(32));
     options.fetcher = Some(router);
+    // The install plays an app on this machine.
+    options.local_installs = true;
     options.now = Some(Arc::new(move || now.load(Ordering::SeqCst)));
     let rl = Runlight::new(options).unwrap();
     rl.init().await.unwrap();
@@ -287,10 +289,10 @@ async fn an_install_that_cannot_connect_says_why() {
 #[test]
 fn an_address_the_url_parser_refuses_is_the_address_error() {
     for url in ["https://[", "https://[::1", "https://a b"] {
-        assert_eq!(install_url(Some(&Value::from(url))).unwrap_err().code, "url", "{url}");
+        assert_eq!(install_url(Some(&Value::from(url)), false).unwrap_err().code, "url", "{url}");
     }
     assert_eq!(
-        install_url(Some(&Value::from("https://example.com/runlight/"))).unwrap(),
+        install_url(Some(&Value::from("https://example.com/runlight/")), false).unwrap(),
         "https://example.com/runlight"
     );
 }
@@ -320,4 +322,35 @@ async fn an_attempt_saved_without_an_expiry_has_expired() {
 
 async fn hub_with(router: Arc<Router>) -> Runlight {
     hub(router, Arc::new(AtomicI64::new(START)), true).await
+}
+
+#[tokio::test]
+async fn a_hub_never_asks_its_own_machine_or_network_for_an_install_unless_code_allows_it() {
+    let router = default_install();
+    let mut options = RunlightOptions::new(runlight_sqlx::connect(":memory:").await.unwrap());
+    options.managed_sites = true;
+    options.secret = Some("k".repeat(32));
+    options.fetcher = Some(router.clone());
+    let hub = Runlight::new(options).unwrap();
+    hub.init().await.unwrap();
+    let back = "https://hub.example.com/runlight/api/sites/connect/done";
+    let add = |url: &str| {
+        let hub = hub.clone();
+        let input = js::parse(&format!(r#"{{"remote":{{"url":"{url}","token":"rl_x"}}}}"#)).unwrap();
+        async move { hub.add_site(&input).await.unwrap_err().coded().map(|e| e.code.clone()) }
+    };
+    for url in ["http://127.0.0.1:4100/runlight", "http://localhost:4100/runlight"] {
+        assert_eq!(add(url).await.as_deref(), Some("connect_url"), "{url}");
+        refused(start_connect(&hub, Some(&Value::from(url)), back, "").await, "url");
+    }
+    for url in [
+        "https://127.0.0.1:4100/runlight",
+        "https://localhost:4100/runlight",
+        "https://169.254.169.254/runlight",
+        "https://[::ffff:10.0.0.1]/runlight",
+    ] {
+        assert_eq!(add(url).await.as_deref(), Some("unreachable"), "{url}");
+        refused(start_connect(&hub, Some(&Value::from(url)), back, "").await, "unreachable");
+    }
+    assert!(router.requests.lock().unwrap().is_empty());
 }

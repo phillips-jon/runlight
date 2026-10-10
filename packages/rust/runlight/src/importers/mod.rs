@@ -63,7 +63,16 @@ pub async fn import_step(
     cursor: Option<&str>,
     done: f64,
 ) -> Result<ImportStep, ImportError> {
-    import_step_with(rl, &Http::new(rl.fetcher().clone()), site, source, credentials, cursor, done).await
+    import_step_with(
+        rl,
+        &Http::new(rl.fetcher().clone()).with_lookup(rl.lookup().cloned()),
+        site,
+        source,
+        credentials,
+        cursor,
+        done,
+    )
+    .await
 }
 
 /// [`import_step`] with the requests sent through `http`.

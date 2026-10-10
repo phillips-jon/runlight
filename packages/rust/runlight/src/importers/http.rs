@@ -6,18 +6,26 @@ use std::sync::Arc;
 
 use super::types::ImportError;
 use crate::BoxFuture;
-use crate::http::{FetchInit, SharedFetcher, Url};
+use crate::http::FetchError;
+use crate::http::{SharedFetcher, Url};
 use crate::js::{self, Value};
+use crate::safefetch::{Lookup, PublicFetchError, PublicFetchInit, public_fetch};
+
+/// The most one answer may weigh; a page of a thousand events is well under a megabyte.
+const MAX_BYTES: usize = 32 * 1024 * 1024;
 
 /// Waits this many milliseconds.
 pub type Sleep = Arc<dyn Fn(f64) -> BoxFuture<'static, ()> + Send + Sync>;
 
 /// How an importer reaches another service: the fetcher every request goes through, and how it
-/// waits between tries (tests pass one that only records the wait).
+/// waits between tries (tests pass one that only records the wait). The address can come from
+/// whoever runs an import (a self-hosted Umami), so only public https addresses are asked, with no
+/// redirect followed, which would carry the key somewhere else.
 #[derive(Clone)]
 pub struct Http {
     fetcher: SharedFetcher,
     sleep: Sleep,
+    lookup: Option<Lookup>,
 }
 
 impl Http {
@@ -32,12 +40,19 @@ impl Http {
                     }
                 })
             }),
+            lookup: None,
         }
     }
 
     /// Requests through `fetcher`, waiting with `sleep`.
     pub fn with_sleep(fetcher: SharedFetcher, sleep: Sleep) -> Http {
-        Http { fetcher, sleep }
+        Http { fetcher, sleep, lookup: None }
+    }
+
+    /// The same, with this standing in for DNS where addresses are checked (tests pass their own).
+    pub fn with_lookup(mut self, lookup: Option<Lookup>) -> Http {
+        self.lookup = lookup;
+        self
     }
 
     /// Waits `ms` milliseconds (`pause`).
@@ -47,7 +62,8 @@ impl Http {
 
     /// GET (or the method given) a URL and read its JSON, with `accept: application/json` and the
     /// headers given. A request that cannot reach the host is tried three times; a rate limit or server
-    /// error four, waiting as the service asks (at most ten seconds).
+    /// error four, waiting as the service asks (at most ten seconds). An address off the public
+    /// internet is not tried at all.
     pub async fn get_json(
         &self,
         url: &str,
@@ -57,17 +73,24 @@ impl Http {
     ) -> Result<Value, ImportError> {
         let mut attempt: u32 = 1;
         loop {
-            let mut init = FetchInit::method(method).header("accept", "application/json").timeout(20_000);
+            let mut init = PublicFetchInit {
+                method: method.to_ascii_uppercase(),
+                body: body.map(|b| b.as_bytes().to_vec()),
+                max_bytes: Some(MAX_BYTES),
+                lookup: self.lookup.clone(),
+                ..PublicFetchInit::new(20_000)
+            };
+            init.headers.set("accept", "application/json");
             for (k, v) in headers {
-                init = init.header(k, v);
+                init.headers.set(k, v);
             }
-            if let Some(b) = body {
-                init = init.body(b.as_bytes().to_vec());
-            }
-            let response = match self.fetcher.fetch(url, init).await {
+            let response = match public_fetch(&*self.fetcher, url, &init).await {
                 Ok(r) => r,
-                Err(_) => {
-                    if attempt < 3 {
+                Err(PublicFetchError::Fetch(FetchError::TooLong(max))) => {
+                    return Err(ImportError::other(FetchError::TooLong(max).to_string()));
+                }
+                Err(e) => {
+                    if attempt < 3 && !matches!(e, PublicFetchError::Private(_)) {
                         attempt += 1;
                         continue;
                     }

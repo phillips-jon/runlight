@@ -172,6 +172,7 @@ async fn get(
         max_bytes: Some(max_bytes),
         truncate,
         lookup: lookup.cloned(),
+        ..PublicFetchInit::new(TIMEOUT_MS)
     };
     public_fetch(fetcher, url, &init).await.ok()
 }

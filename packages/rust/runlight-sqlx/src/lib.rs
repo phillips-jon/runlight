@@ -62,7 +62,8 @@ pub fn postgres(pool: sqlx::PgPool) -> SqlStore {
 
 /// Runlight's tables in MySQL 8.4 or MariaDB 11.4 and later, on the app's pool, which needs at least
 /// two connections. Text is utf8mb4 with a binary collation, so it compares and sorts by code point,
-/// as SQLite and Postgres do.
+/// as SQLite and Postgres do. Values are written into each statement escaped with backslashes, so each
+/// statement first takes NO_BACKSLASH_ESCAPES out of its connection's sql_mode.
 #[cfg(feature = "mysql")]
 pub fn mysql(pool: sqlx::MySqlPool) -> SqlStore {
     SqlStore::new(Arc::new(MysqlDb::new(pool)))

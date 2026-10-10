@@ -30,7 +30,7 @@ pub async fn umami_sign_in(
     token: Option<Value>,
 ) -> Result<(String, Option<Value>), ImportError> {
     let base = replace_first(js_re!(r"/+$"), js::trim(credentials.get("url").map_or("", String::as_str)), "");
-    if !test(js_re!(r"^https?://[^/]+"), &base) {
+    if !test(js_re!(r"^https://[^/]+"), &base) {
         return Err(ImportError::new(
             "Enter your Umami address, like https://stats.example.com",
             "import_umami_address",

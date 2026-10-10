@@ -15,6 +15,8 @@ use crate::{arr, obj};
 
 const PENDING_MS: i64 = 15 * 60_000;
 const TIMEOUT_MS: u64 = 10_000;
+/// The most an install's answer while connecting may weigh; a real one is under a kilobyte.
+const MAX_BYTES: usize = 64 * 1024;
 
 /// Why connecting failed, as a code the dashboard says in its own words. The
 /// first four (`expired`, `denied`, `refused`, and `token`) come back from the
@@ -68,19 +70,30 @@ fn host_of(url: &str) -> Result<String, ConnectFailure> {
     Url::parse(url).map(|u| u.host()).ok_or_else(invalid_url)
 }
 
-/// The install's address as its dashboard is, without a trailing slash.
-pub fn install_url(value: Option<&Value>) -> Result<String, ConnectError> {
+/// The install's address as its dashboard is, without a trailing slash. `local` allows an install on
+/// this machine, at http://localhost or http://127.0.0.1.
+pub fn install_url(value: Option<&Value>, local: bool) -> Result<String, ConnectError> {
     let url = crate::re::replace_all(js_re!(r"/+$"), js::trim(&js::str_or_empty(value)), "");
     // The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
-    if !test(js_re!(r"^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"), &url) || !Url::can_parse(&url) {
+    if !crate::safefetch::install_address(&url, local) || !Url::can_parse(&url) {
         return Err(CodedError::new("Enter the install's address, like https://example.com/runlight", "url", &[]));
     }
     Ok(url)
 }
 
-/// `answer.json()`, or `None` where the body is not JSON.
+/// `answer.json()`, or `None` where the body is not JSON or weighs more than [`MAX_BYTES`].
 fn json_of(answer: &Response) -> Option<Value> {
+    if answer.body.len() > MAX_BYTES {
+        return None;
+    }
     answer.json_body().ok()
+}
+
+/// A request to the install, read no further than one byte past [`MAX_BYTES`].
+fn capped(mut init: FetchInit) -> FetchInit {
+    init.max_bytes = Some(MAX_BYTES + 1);
+    init.truncate = true;
+    init
 }
 
 /// A saved attempt, or `None` when it cannot be read or has no time it runs
@@ -116,16 +129,18 @@ pub async fn start_connect(
     back: &str,
     site: &str,
 ) -> Result<String, ConnectFailure> {
-    let url = install_url(input).map_err(ConnectFailure::Connect)?;
+    let url = install_url(input, runlight.local_installs()).map_err(ConnectFailure::Connect)?;
     let unreachable = |url: &str| -> ConnectFailure {
         match host_of(url) {
             Ok(host) => refuse(format!("Could not reach {url}"), "unreachable", &[("host", &host)]),
             Err(e) => e,
         }
     };
-    let fetcher = runlight.fetcher();
-    let Ok(answer) = fetcher
-        .fetch(&format!("{url}/.well-known/oauth-authorization-server"), FetchInit::default().timeout(TIMEOUT_MS))
+    let Ok(answer) = runlight
+        .fetch_install(
+            &format!("{url}/.well-known/oauth-authorization-server"),
+            capped(FetchInit::default().timeout(TIMEOUT_MS)),
+        )
         .await
     else {
         return Err(unreachable(&url));
@@ -158,13 +173,15 @@ pub async fn start_connect(
 
     let back_host = host_of(back)?;
     let body = obj! { "client_name" => format!("Runlight at {back_host}"), "redirect_uris" => arr![back] };
-    let Ok(registered) = fetcher
-        .fetch(
+    let Ok(registered) = runlight
+        .fetch_install(
             &js::js_string(registration),
-            FetchInit::method("POST")
-                .header("content-type", "application/json")
-                .body(body.to_json())
-                .timeout(TIMEOUT_MS),
+            capped(
+                FetchInit::method("POST")
+                    .header("content-type", "application/json")
+                    .body(body.to_json())
+                    .timeout(TIMEOUT_MS),
+            ),
         )
         .await
     else {
@@ -251,13 +268,14 @@ pub async fn finish_connect(runlight: &Runlight, params: &SearchParams) -> Resul
         ("code_verifier", text("verifier")),
     ]);
     let answer = runlight
-        .fetcher()
-        .fetch(
+        .fetch_install(
             &text("token"),
-            FetchInit::method("POST")
-                .header("content-type", "application/x-www-form-urlencoded")
-                .body(form.to_string())
-                .timeout(TIMEOUT_MS),
+            capped(
+                FetchInit::method("POST")
+                    .header("content-type", "application/x-www-form-urlencoded")
+                    .body(form.to_string())
+                    .timeout(TIMEOUT_MS),
+            ),
         )
         .await
         .ok();
@@ -281,12 +299,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn install_addresses_are_https_or_local() {
-        let url = |s: &str| install_url(Some(&Value::from(s)));
+    fn install_addresses_are_https_or_local_when_allowed() {
+        let url = |s: &str| install_url(Some(&Value::from(s)), false);
         assert_eq!(url(" https://example.com/runlight// ").unwrap(), "https://example.com/runlight");
-        assert_eq!(url("http://localhost:3000").unwrap(), "http://localhost:3000");
+        assert_eq!(url("http://localhost:3000").unwrap_err().code, "url");
+        assert_eq!(install_url(Some(&Value::from("http://localhost:3000")), true).unwrap(), "http://localhost:3000");
+        assert_eq!(install_url(Some(&Value::from("http://10.0.0.1")), true).unwrap_err().code, "url");
         assert_eq!(url("javascript:alert(1)").unwrap_err().code, "url");
         assert_eq!(url("http://example.com").unwrap_err().code, "url");
-        assert_eq!(install_url(None).unwrap_err().code, "url");
+        assert_eq!(install_url(None, false).unwrap_err().code, "url");
     }
 }
