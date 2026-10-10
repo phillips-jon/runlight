@@ -10,8 +10,8 @@
     ],
     "support": {
         "docs": "https://runlight.sh/docs/craft/",
-        "issues": "https://github.com/phillips-jon/runlight/issues",
-        "source": "https://github.com/phillips-jon/runlight/tree/main/plugins/craft"
+        "issues": "https://github.com/runlightsh/runlight/issues",
+        "source": "https://github.com/runlightsh/runlight/tree/main/plugins/craft"
     },
     "require": {
         "php": ">=8.2",

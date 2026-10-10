@@ -2,7 +2,7 @@
 # CHANGELOG.md as the notes (scripts/release-notes.mjs) and the WordPress
 # plugin's zip (plugins/wordpress/build.php) attached twice: as
 # runlight-X.Y.Z.zip, and as runlight.zip, so that
-# https://github.com/phillips-jon/runlight/releases/latest/download/runlight.zip
+# https://github.com/runlightsh/runlight/releases/latest/download/runlight.zip
 # always serves the newest stable release's plugin.
 #
 # A release that is already there keeps its title and notes, and uploads

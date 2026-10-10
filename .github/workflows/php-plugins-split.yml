@@ -20,7 +20,7 @@
 #                            access to it
 #   CRAFT_SPLIT_ENABLED      "true" to push the plugin
 #   CRAFT_SPLIT_REPOSITORY   the plugin's GitHub repository as owner/name
-#                            (phillips-jon/runlight-craft)
+#                            (runlightsh/runlight-craft)
 #   CRAFT_SPLIT_DEPLOY_KEY   secret, the private half of a deploy key with
 #                            write access to it
 name: PHP plugins split

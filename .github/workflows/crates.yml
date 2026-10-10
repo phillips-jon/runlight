@@ -20,7 +20,7 @@
 # release is published by hand (cargo login, then
 # `cargo publish --workspace` in packages/rust). Then on crates.io, for each
 # of the two crates: Settings, Trusted Publishing, add a GitHub publisher
-# with owner phillips-jon, repository runlight, workflow crates.yml, and
+# with owner runlightsh, repository runlight, workflow crates.yml, and
 # environment crates; and here, create the environment "crates" (Settings,
 # Environments), optionally with required reviewers so each publish waits
 # for a click, and set the repository variable CRATES_ENABLED to true.

@@ -1,6 +1,6 @@
 # Packagist reads a package from the root of a repository, so packages/php is
 # copied, with its own history, to a read-only repository of its own,
-# phillips-jon/runlight-php (or PHP_SPLIT_REPO, a repository variable, as
+# runlightsh/runlight-php (or PHP_SPLIT_REPO, a repository variable, as
 # owner/name). The split is `git subtree split`, which gives the same commits
 # for the same history every time, so each push only adds to the last.
 #
@@ -32,7 +32,7 @@ permissions:
 jobs:
   # Whether PHP_SPLIT_DEPLOY_KEY is set; a job's `if` cannot read a secret.
   gate:
-    if: github.repository == 'phillips-jon/runlight'
+    if: github.repository == 'runlightsh/runlight'
     runs-on: ubuntu-latest
     outputs:
       enabled: ${{ steps.gate.outputs.enabled }}
@@ -53,7 +53,7 @@ jobs:
       cancel-in-progress: false
     env:
       DEPLOY_KEY: ${{ secrets.PHP_SPLIT_DEPLOY_KEY }}
-      SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'phillips-jon/runlight-php' }}
+      SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'runlightsh/runlight-php' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -90,7 +90,7 @@ jobs:
       cancel-in-progress: false
     env:
       DEPLOY_KEY: ${{ secrets.PHP_SPLIT_DEPLOY_KEY }}
-      SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'phillips-jon/runlight-php' }}
+      SPLIT_REPO: ${{ vars.PHP_SPLIT_REPO || 'runlightsh/runlight-php' }}
       TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

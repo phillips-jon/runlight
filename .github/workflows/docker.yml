@@ -1,6 +1,6 @@
 # A release tag -> the standalone server's Docker image, built from the
 # Dockerfile for linux/amd64 and linux/arm64 and pushed to
-# ghcr.io/phillips-jon/runlight, tagged with the version (0.1.0) and, for the
+# ghcr.io/runlightsh/runlight, tagged with the version (0.1.0) and, for the
 # highest stable release, latest. A prerelease (0.2.0-beta.1) is never latest,
 # and neither is a rerun for an older tag. Pushing the same tags again
 # replaces them, so a rerun is safe. Can also be started by hand for a tag.
@@ -74,7 +74,7 @@ jobs:
           esac
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "latest=$latest" >> "$GITHUB_OUTPUT"
-          echo "$TAG builds ghcr.io/phillips-jon/runlight:$version (latest: $latest)"
+          echo "$TAG builds ghcr.io/runlightsh/runlight:$version (latest: $latest)"
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -85,7 +85,7 @@ jobs:
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ghcr.io/phillips-jon/runlight
+          images: ghcr.io/runlightsh/runlight
           flavor: latest=false
           tags: |
             type=raw,value=${{ steps.version.outputs.version }}

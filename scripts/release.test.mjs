@@ -135,7 +135,7 @@ test("a dry run shows every edit and command, and writes nothing", () => {
   const sdk = out.indexOf("npm publish --workspace packages/sdk --access public");
   const server = out.indexOf("npm publish --workspace packages/server --access public");
   assert.ok(sdk > 0 && server > sdk, "the SDK is published before the server");
-  assert.match(out, /ghcr\.io\/phillips-jon\/runlight as 0\.1\.0 and latest/);
+  assert.match(out, /ghcr\.io\/runlightsh\/runlight as 0\.1\.0 and latest/);
   assert.match(out, /drupal\.org's repository as the tag 0\.1\.0 on the branch 0\.1\.x/);
   assert.equal(git("status", "--porcelain"), "");
   assert.equal(git("tag", "--list"), "");

@@ -45,8 +45,8 @@ runlight = "runlight.server.cli:main"
 [project.urls]
 Homepage = "https://runlight.sh"
 Documentation = "https://runlight.sh/docs/python/"
-Source = "https://github.com/phillips-jon/runlight/tree/main/packages/python"
-Issues = "https://github.com/phillips-jon/runlight/issues"
+Source = "https://github.com/runlightsh/runlight/tree/main/packages/python"
+Issues = "https://github.com/runlightsh/runlight/issues"
 
 [dependency-groups]
 # psycopg and PyMySQL for the Postgres and MySQL tests (run when RUNLIGHT_TEST_PG

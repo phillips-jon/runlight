@@ -7,7 +7,7 @@
     <Copyright>Copyright (c) Jon C. Phillips</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://runlight.sh</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/phillips-jon/runlight</RepositoryUrl>
+    <RepositoryUrl>https://github.com/runlightsh/runlight</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>analytics;privacy;web-analytics;short-links</PackageTags>
   </PropertyGroup>

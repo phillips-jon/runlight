@@ -14,7 +14,7 @@ This page covers the Node server. [Python](/docs/python/#the-standalone-server),
 With Docker, run this.
 
 ```bash
-docker run -d --name runlight -p 3000:3000 -v runlight:/data ghcr.io/phillips-jon/runlight
+docker run -d --name runlight -p 3000:3000 -v runlight:/data ghcr.io/runlightsh/runlight
 ```
 
 When a proxy on the same machine adds HTTPS, as in [Put it on the internet](#put-it-on-the-internet), publish the port on the loopback address only, with `-p 127.0.0.1:3000:3000`. Docker opens a published port past firewalls such as ufw, and a client that reaches the plain port directly can name any host and send a false forwarded address.

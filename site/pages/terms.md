@@ -11,7 +11,7 @@ These are the terms for runlight.sh and the Runlight software. They are short be
 
 ## 1. The software
 
-Runlight (the `@runlight/sdk` package on npm and the code on GitHub) is released under the [MIT License](https://github.com/phillips-jon/runlight/blob/main/LICENSE). That license alone governs how you use, copy, change, and share the code.
+Runlight (the `@runlight/sdk` package on npm and the code on GitHub) is released under the [MIT License](https://github.com/runlightsh/runlight/blob/main/LICENSE). That license alone governs how you use, copy, change, and share the code.
 
 ## 2. Your installation, your data
 

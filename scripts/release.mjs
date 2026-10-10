@@ -144,11 +144,11 @@ export const PUBLISH = [
   // The server requires the SDK at exactly this release, so the SDK goes first.
   { dir: "packages/server", commands: (v) => [
     "npm publish --workspace packages/server --access public",
-    `# packages/server: the pushed tag v${v} also builds the Docker image for linux/amd64 and linux/arm64 and pushes it to ghcr.io/phillips-jon/runlight as ${v}${v.includes("-") ? "" : " and latest"}, by .github/workflows/docker.yml (once DOCKER_ENABLED is true)`,
+    `# packages/server: the pushed tag v${v} also builds the Docker image for linux/amd64 and linux/arm64 and pushes it to ghcr.io/runlightsh/runlight as ${v}${v.includes("-") ? "" : " and latest"}, by .github/workflows/docker.yml (once DOCKER_ENABLED is true)`,
   ] },
   // Packagist reads composer.json from a repository's root and versions from
   // its tags, so packages/php goes to a read-only repository of its own.
-  { dir: "packages/php", commands: (v) => [`# packages/php: the pushed tag v${v} is split to phillips-jon/runlight-php, which Packagist watches, by .github/workflows/php-split.yml (once PHP_SPLIT_DEPLOY_KEY is set)`] },
+  { dir: "packages/php", commands: (v) => [`# packages/php: the pushed tag v${v} is split to runlightsh/runlight-php, which Packagist watches, by .github/workflows/php-split.yml (once PHP_SPLIT_DEPLOY_KEY is set)`] },
   { dir: "packages/python", commands: (v) => [`# packages/python: the pushed tag v${v} is built and published to PyPI as runlight by .github/workflows/pypi.yml, with trusted publishing (once PYPI_ENABLED is true)`] },
   { dir: "packages/ruby", commands: (v) => [`(cd packages/ruby && gem build runlight.gemspec && gem push runlight-${v}.gem)`] },
   // Go modules publish by tag: a module in a subdirectory is versioned by a
@@ -173,7 +173,7 @@ export const PUBLISH = [
   { dir: "packages/rust", commands: (v) => [`# packages/rust: the pushed tag v${v} is published to crates.io as runlight, then runlight-sqlx, by .github/workflows/crates.yml, with trusted publishing (once CRATES_ENABLED is true); the first release by hand, (cd packages/rust && cargo publish --workspace)`] },
   { dir: "plugins/wordpress", commands: (v) => [`# plugins/wordpress: the pushed tag v${v} gets a GitHub release with its CHANGELOG.md section as notes and the plugin's zip attached as runlight-${v}.zip and runlight.zip, by .github/workflows/release.yml (once RELEASE_ENABLED is true)`] },
   { dir: "plugins/drupal", commands: (v) => [`# plugins/drupal: the pushed tag is split to drupal.org's repository as the tag ${v} on the branch ${v.split(".").slice(0, 2).join(".")}.x by .github/workflows/php-plugins-split.yml (once DRUPAL_SPLIT_ENABLED is true); then make the drupal.org release from the ${v} tag`] },
-  { dir: "plugins/craft", commands: (v) => [`# plugins/craft: the pushed tag v${v} is split to phillips-jon/runlight-craft, which Packagist and the Craft Plugin Store read, by .github/workflows/php-plugins-split.yml (once CRAFT_SPLIT_ENABLED is true)`] },
+  { dir: "plugins/craft", commands: (v) => [`# plugins/craft: the pushed tag v${v} is split to runlightsh/runlight-craft, which Packagist and the Craft Plugin Store read, by .github/workflows/php-plugins-split.yml (once CRAFT_SPLIT_ENABLED is true)`] },
 ];
 
 /** Folders that do not ship on their own, and why. */

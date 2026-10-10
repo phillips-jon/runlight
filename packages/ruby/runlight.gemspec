@@ -14,9 +14,9 @@ Gem::Specification.new do |spec|
   spec.required_ruby_version = ">= 3.2"
   spec.metadata = {
     "homepage_uri" => spec.homepage,
-    "source_code_uri" => "https://github.com/phillips-jon/runlight/tree/main/packages/ruby",
-    "changelog_uri" => "https://github.com/phillips-jon/runlight/releases",
-    "bug_tracker_uri" => "https://github.com/phillips-jon/runlight/issues",
+    "source_code_uri" => "https://github.com/runlightsh/runlight/tree/main/packages/ruby",
+    "changelog_uri" => "https://github.com/runlightsh/runlight/releases",
+    "bug_tracker_uri" => "https://github.com/runlightsh/runlight/issues",
     "documentation_uri" => "https://runlight.sh/docs/ruby/",
     "rubygems_mfa_required" => "true",
   }

@@ -21,7 +21,7 @@ npx runlight.sh
 It also runs in Docker.
 
 ```bash
-docker run -d --name runlight -p 3000:3000 -v runlight:/data ghcr.io/phillips-jon/runlight
+docker run -d --name runlight -p 3000:3000 -v runlight:/data ghcr.io/runlightsh/runlight
 ```
 
 ## Packages
@@ -81,10 +81,10 @@ It never pushes or publishes. It prints what to run next, which is `git push ori
 
 | Workflow | What it does | Switch |
 | --- | --- | --- |
-| `docker.yml` | Builds the server's image for amd64 and arm64 and pushes it to `ghcr.io/phillips-jon/runlight` | `DOCKER_ENABLED` variable |
+| `docker.yml` | Builds the server's image for amd64 and arm64 and pushes it to `ghcr.io/runlightsh/runlight` | `DOCKER_ENABLED` variable |
 | `release.yml` | Makes the GitHub release from the changelog and attaches the WordPress zip as `runlight.zip` | `RELEASE_ENABLED` variable |
-| `php-split.yml` | Pushes `packages/php` and the tag to `phillips-jon/runlight-php` for Packagist | `PHP_SPLIT_DEPLOY_KEY` secret |
-| `php-plugins-split.yml` | Pushes the Drupal module to drupal.org and the Craft plugin to `phillips-jon/runlight-craft` | `DRUPAL_SPLIT_ENABLED` and `CRAFT_SPLIT_ENABLED` variables |
+| `php-split.yml` | Pushes `packages/php` and the tag to `runlightsh/runlight-php` for Packagist | `PHP_SPLIT_DEPLOY_KEY` secret |
+| `php-plugins-split.yml` | Pushes the Drupal module to drupal.org and the Craft plugin to `runlightsh/runlight-craft` | `DRUPAL_SPLIT_ENABLED` and `CRAFT_SPLIT_ENABLED` variables |
 | `pypi.yml` | Builds `packages/python` and publishes it to PyPI as `runlight` with trusted publishing | `PYPI_ENABLED` variable |
 | `hex.yml` | Publishes `packages/elixir` to Hex as `runlight`, with its docs on HexDocs | `HEX_ENABLED` variable and `HEX_API_KEY` secret |
 | `maven.yml` | Builds, signs, and publishes `sh.runlight:runlight`, `runlight-servlet`, and `runlight-spring-boot-starter` to Maven Central through the Central Publisher Portal | `MAVEN_ENABLED` variable, with the Portal token and the GPG key as secrets |

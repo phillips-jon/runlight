@@ -33,12 +33,12 @@ As joncphillips:
    ```
 5. The bare clone. A bare clone has no fetch refspec, and `release-deploy` reads `refs/remotes/origin/main`, so add one and fetch once:
    ```
-   git clone --bare github-runlight:phillips-jon/runlight.git /var/www/runlight.sh-repo.git
+   git clone --bare github-runlight:runlightsh/runlight.git /var/www/runlight.sh-repo.git
    git -C /var/www/runlight.sh-repo.git config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
    git -C /var/www/runlight.sh-repo.git fetch origin
    git -C /var/www/runlight.sh-repo.git rev-parse refs/remotes/origin/main   # prints a commit
    ```
-   Once the repository is public, `https://github.com/phillips-jon/runlight.git` works without the key.
+   Once the repository is public, `https://github.com/runlightsh/runlight.git` works without the key.
 6. `mkdir /var/www/runlight.sh-releases`
 7. The first release, without switching: run `deploy/release-deploy --prepare` from a checkout of the repository, then `ln -s /var/www/runlight.sh-releases/<name> /var/www/runlight.sh`.
 

@@ -15,7 +15,7 @@ The server listens on port 3000 and keeps its data in a `runlight-data` folder i
 The same server runs in Docker.
 
 ```bash
-docker run -d --name runlight -p 3000:3000 -v runlight:/data ghcr.io/phillips-jon/runlight
+docker run -d --name runlight -p 3000:3000 -v runlight:/data ghcr.io/runlightsh/runlight
 ```
 
 The owner invites other people as admins, members, or viewers, and everyone can turn on two-factor sign-in. The server also makes short links on your own domains and emails weekly or monthly reports. It can show sites counted by Runlight inside other apps too.

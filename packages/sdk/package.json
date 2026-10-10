@@ -5,7 +5,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/phillips-jon/runlight.git",
+    "url": "git+https://github.com/runlightsh/runlight.git",
     "directory": "packages/sdk"
   },
   "homepage": "https://runlight.sh",

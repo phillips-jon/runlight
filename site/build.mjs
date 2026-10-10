@@ -24,7 +24,7 @@ const CHECK = args.includes("--check");
 const SERVE = args.includes("--serve");
 const DIST = CHECK ? mkdtempSync(path.join(tmpdir(), "runlight-site-")) : path.join(here, "dist");
 const SITE = "https://runlight.sh";
-const GITHUB = "https://github.com/phillips-jon/runlight";
+const GITHUB = "https://github.com/runlightsh/runlight";
 const PORT = Number(process.env.PORT ?? 4330);
 
 const escape = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
