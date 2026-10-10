@@ -92,7 +92,7 @@ public final class Standalone {
     public String secret;
     public String token;
     public String url;
-    public Object trustProxy = true;
+    public Object trustProxy;
     public Geo.Lookup geo;
     public boolean geoCredit;
     public LongSupplier now;
@@ -188,12 +188,12 @@ public final class Standalone {
     this.publicHost = publicUrl != null ? Routes.hostName(publicUrl.host()) : null;
 
     Runlight.Options settings =
-        new Runlight.Options()
-            .store(store)
-            .managedSites(true)
-            .secret(options.secret)
-            .trustProxy(trustProxy)
-            .now(now);
+        new Runlight.Options().store(store).managedSites(true).secret(options.secret).now(now);
+    // Unset stays unset, so the library's default applies and it can warn when nothing sits in
+    // front.
+    if (options.trustProxy != null) {
+      settings.trustProxy(options.trustProxy);
+    }
     if (options.geo != null) {
       settings.geo(options.geo);
     }

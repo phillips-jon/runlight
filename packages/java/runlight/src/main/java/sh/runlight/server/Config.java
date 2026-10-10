@@ -260,11 +260,15 @@ public final class Config implements AutoCloseable {
 
   /**
    * False with nothing in front, the one header the proxy sets, such as cf-connecting-ip behind
-   * Cloudflare, or true.
+   * Cloudflare, or true. Null when unset, so the library's default applies and it can warn when
+   * nothing sits in front.
    */
   public Object trustProxy() {
     String value = get("TRUST_PROXY");
     value = value == null ? "" : value.toLowerCase(Locale.ROOT);
+    if (value.isEmpty()) {
+      return null;
+    }
     if (value.equals("false")) {
       return false;
     }
