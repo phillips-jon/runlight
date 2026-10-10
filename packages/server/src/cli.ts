@@ -132,7 +132,8 @@ async function main(): Promise<void> {
     secret: secretFor(dataDir),
     ...(env("RUNLIGHT_TOKEN") ? { token: env("RUNLIGHT_TOKEN") } : {}),
     // "false" with nothing in front, or the one header your proxy sets, such as cf-connecting-ip behind Cloudflare.
-    trustProxy: ((value) => (value === "false" ? false : value === "x-forwarded-for" || value === "x-real-ip" || value === "cf-connecting-ip" ? value : true))(env("TRUST_PROXY")?.toLowerCase()),
+    // Unset stays unset, so the library's default applies and it can warn when nothing sits in front.
+    trustProxy: ((value) => (value === undefined || value === "" ? undefined : value === "false" ? false : value === "x-forwarded-for" || value === "x-real-ip" || value === "cf-connecting-ip" ? value : true))(env("TRUST_PROXY")?.toLowerCase()),
   });
 
   if (command === "password") {

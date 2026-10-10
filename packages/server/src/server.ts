@@ -90,7 +90,7 @@ export function createServer(options: ServerOptions): RunlightServer {
     store: options.store,
     managedSites: true,
     secret: options.secret,
-    trustProxy: options.trustProxy ?? true,
+    ...(options.trustProxy === undefined ? {} : { trustProxy: options.trustProxy }),
     ...(options.geo ? { geo: options.geo } : {}),
     now,
   });

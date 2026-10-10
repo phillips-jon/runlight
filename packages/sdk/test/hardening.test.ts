@@ -170,3 +170,28 @@ test("a proxy's x-forwarded-host is only believed when proxy headers are trusted
   assert.equal(await ask(setup("sqlite", { site, trustProxy: false }).rl), false, "an untrusted header cannot claim the site");
   assert.equal(await ask(setup("sqlite", { site }).rl), true, "behind a trusted proxy, its header names the host");
 });
+
+test("with trustProxy left at its default, a public address with no proxy header is warned about once", () => {
+  const warn = console.warn;
+  const said: string[] = [];
+  console.warn = (message: string) => void said.push(message);
+  try {
+    const bare = new Request("https://example.com/e");
+    const forwarded = new Request("https://example.com/e", { headers: { "x-forwarded-for": "8.8.4.4" } });
+    const quiet = setup("sqlite", { site: { hostnames: ["example.com"] }, trustProxy: true }).rl;
+    assert.equal(quiet.clientIp(bare, { ip: "8.8.8.8" }), "8.8.8.8");
+    assert.deepEqual(said, [], "trustProxy set on purpose is never second-guessed");
+
+    const rl = setup("sqlite", { site: { hostnames: ["example.com"] } }).rl;
+    rl.clientIp(forwarded, { ip: "10.0.0.2" });
+    rl.clientIp(bare, { ip: "127.0.0.1" });
+    rl.clientIp(bare, { ip: "192.168.1.5" });
+    assert.deepEqual(said, [], "a proxy's header, or a private or loopback address, says nothing");
+    assert.equal(rl.clientIp(bare, { ip: "8.8.8.8" }), "8.8.8.8");
+    rl.clientIp(bare, { ip: "1.1.1.1" });
+    assert.equal(said.length, 1, "said once");
+    assert.match(said[0]!, /trustProxy: false/);
+  } finally {
+    console.warn = warn;
+  }
+});

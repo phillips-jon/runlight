@@ -7,7 +7,7 @@ import { parsePayload, MAX_BODY, type Payload } from "./payload.js";
 import { Links } from "./links.js";
 import { PROVIDERS, type AssistantSettings } from "./assistant.js";
 import { readJsonCapped } from "./body.js";
-import { installAddress, installFetch } from "./safefetch.js";
+import { installAddress, installFetch, publicAddress } from "./safefetch.js";
 import { RateLimit } from "./limit.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww, type Page } from "./sources.js";
@@ -174,6 +174,8 @@ export class Runlight {
   private overrides = new Map<string, SiteOverrides>();
   private readonly geo: GeoLookup | undefined;
   private readonly trustProxy: boolean | "x-forwarded-for" | "x-real-ip" | "cf-connecting-ip";
+  /** True until trustProxy left at its default has been seen answering a public address directly, and warned about once. */
+  private warnDirect: boolean;
   private readonly limit: RateLimit | null;
   readonly now: () => number;
   /** Short links: create, change, delete, and import. */
@@ -214,6 +216,7 @@ export class Runlight {
     }
     this.geo = options.geo;
     this.trustProxy = options.trustProxy ?? true;
+    this.warnDirect = options.trustProxy === undefined;
     const perMinute = options.rateLimit ?? 120;
     // false, 0, or anything that is not a positive number means no limit, never a limit of nothing.
     this.limit = perMinute === false || !(Number(perMinute) > 0) ? null : new RateLimit(Number(perMinute), () => this.now());
@@ -767,6 +770,14 @@ export class Runlight {
       const forwarded =
         this.trustProxy === true ? (last("x-forwarded-for") ?? h.get("x-real-ip") ?? h.get("cf-connecting-ip")) : this.trustProxy === "x-forwarded-for" ? last("x-forwarded-for") : h.get(this.trustProxy);
       if (forwarded?.trim()) return forwarded.trim();
+      // A public address with no forwarding header means nothing sits in front, and then any client
+      // could name its own address in one. Said once, only when trustProxy was left at its default.
+      if (this.warnDirect && context.ip && publicAddress(context.ip)) {
+        this.warnDirect = false;
+        console.warn(
+          "Runlight: a request came straight from a public address with no proxy in front, but trustProxy is on by default, so a client could send X-Forwarded-For and choose its own address, getting round the rate limits. Set trustProxy: false when nothing sits in front of this server, or put a proxy in front that sets the header.",
+        );
+      }
     }
     return context.ip ?? "";
   }
