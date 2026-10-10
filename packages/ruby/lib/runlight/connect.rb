@@ -13,15 +13,18 @@ module Runlight
   # the PKCE `verifier`, the `redirect` address, its `token` endpoint, and when it `expires`.
   module Connect
     PENDING_MS = 15 * 60_000
-    private_constant :PENDING_MS
+    # The most an install's answer while connecting may weigh; a real one is under a kilobyte.
+    MAX_BYTES = 64 * 1024
+    private_constant :PENDING_MS, :MAX_BYTES
 
     module_function
 
     # The install's address as its dashboard is, without a trailing slash.
-    def install_url(value)
+    # local: whether an install on this machine is allowed (the Core's localInstalls).
+    def install_url(value, local = false)
       url = Js.trim(Js.string(value.nil? ? "" : value)).sub(%r{/+\z}, "")
       # The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
-      unless url.match?(%r{\Ahttps://[^/]+|\Ahttp://(localhost|127\.0\.0\.1)(:\d+)?(/|\z)}) && !Http::Url.parse(url).nil?
+      unless Safefetch.install_address?(url, local) && !Http::Url.parse(url).nil?
         raise ConnectError.new("Enter the install's address, like https://example.com/runlight", "url")
       end
 
@@ -57,10 +60,12 @@ module Runlight
 
     # Starts connecting: returns the address of the install's consent page.
     def start_connect(runlight, input, back, site = "")
-      url = install_url(input)
+      local = runlight.local_installs
+      url = install_url(input, local)
       host = Http::Url.new(url).host
       begin
-        answer = Safefetch.owner_fetch("#{url}/.well-known/oauth-authorization-server", { "timeoutMs" => 10_000 }, runlight.fetcher)
+        answer = Safefetch.owner_fetch("#{url}/.well-known/oauth-authorization-server",
+                                       { "timeoutMs" => 10_000, "maxBytes" => MAX_BYTES }, runlight.fetcher, local)
       rescue StandardError
         raise ConnectError.new("Could not reach #{url}", "unreachable", { "host" => host })
       end
@@ -87,7 +92,8 @@ module Runlight
           "headers" => { "content-type" => "application/json" },
           "body" => Json.encode({ "client_name" => "Runlight at #{Http::Url.new(back).host}", "redirect_uris" => [back] }),
           "timeoutMs" => 10_000,
-        }, runlight.fetcher)
+          "maxBytes" => MAX_BYTES,
+        }, runlight.fetcher, local)
       rescue StandardError
         raise ConnectError.new("Could not reach #{url}", "unreachable", { "host" => host })
       end
@@ -153,7 +159,8 @@ module Runlight
             "code_verifier" => pending["verifier"],
           }).to_s,
           "timeoutMs" => 10_000,
-        }, runlight.fetcher)
+          "maxBytes" => MAX_BYTES,
+        }, runlight.fetcher, runlight.local_installs)
       rescue StandardError
         answer = nil
       end

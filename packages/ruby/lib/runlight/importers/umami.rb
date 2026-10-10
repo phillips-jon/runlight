@@ -23,7 +23,7 @@ module Runlight
       # Returns { "base", "token" }.
       def self.umami_sign_in(http, credentials, token = nil)
         base = Client.trim(credentials["url"].to_s).sub(%r{/+\z}, "")
-        unless base.match?(%r{\Ahttps?://[^/]+})
+        unless base.match?(%r{\Ahttps://[^/]+})
           raise ImportError.new("Enter your Umami address, like https://stats.example.com", "import_umami_address")
         end
 

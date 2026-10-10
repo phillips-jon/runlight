@@ -9,6 +9,8 @@ module Runlight
     # String(), truthiness, and fields that may be missing). An importer takes one,
     # so tests can pass a fake fetcher and a sleep that does not wait.
     class Client
+      # The most one answer may weigh; a page of a thousand events is well under a megabyte.
+      MAX_BYTES = 32 * 1024 * 1024
       ISO_DATE = /\A([+-]\d{6}|\d{4})(?:-(\d{2})(?:-(\d{2}))?)?(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+-]\d{2}:\d{2})?)?\z/i
       private_constant :ISO_DATE
 
@@ -28,12 +30,14 @@ module Runlight
       def get_json(url, init = {})
         attempt = 1
         loop do
-          options = { "headers" => { "accept" => "application/json" }.merge(init["headers"] || {}), "timeoutMs" => 20_000 }
+          options = { "headers" => { "accept" => "application/json" }.merge(init["headers"] || {}), "timeoutMs" => 20_000,
+                      "maxBytes" => MAX_BYTES }
           options["method"] = init["method"] unless init["method"].nil?
           options["body"] = init["body"] unless init["body"].nil?
           begin
             response = @owner ? Safefetch.owner_fetch(url, options, @fetcher) : @fetcher.fetch(url, options)
-          rescue PrivateAddressError
+          rescue PrivateAddressError, Http::BodyTooLong
+            # An address off the public internet, or an answer past the cap, is the same on every try.
             host = Http::Url.new(url).host
             raise ImportError.new("Could not reach #{host}", "unreachable", { "host" => host })
           rescue Http::FetchError

@@ -182,7 +182,8 @@ class CoreSitesTest < CoreTestCase
         Response.json({ "scope" => scope, "site" => "default" })
       end
     end
-    hub = Runlight::Core.new({ "store" => Runlight::Stores.sqlite(":memory:"), "managedSites" => true, "secret" => "k" * 32, "fetcher" => fetcher })
+    hub = Runlight::Core.new({ "store" => Runlight::Stores.sqlite(":memory:"), "managedSites" => true, "secret" => "k" * 32, "fetcher" => fetcher,
+                               "localInstalls" => true })
     first = hub.add_site({ "remote" => { "url" => "http://127.0.0.1:4100/runlight", "token" => "rl_read" } })["id"]
     assert_equal "read", hub.remote(first)["scope"]
     scope = "manage"
