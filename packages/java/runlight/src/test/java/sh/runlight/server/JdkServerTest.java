@@ -240,6 +240,10 @@ class JdkServerTest {
         "ip 127.0.0.1 https://127.0.0.1:" + server.getAddress().getPort() + "/cookies/x?y=1",
         get("/cookies/x?y=1", "x-forwarded-proto", "HTTPS, http").body(),
         "the scheme a proxy names");
+    // Idle work runs after the answer is closed, so the client can read it first.
+    for (int i = 0; i < 200 && idled.get() < 2; i++) {
+      Thread.sleep(10);
+    }
     assertEquals(2, idled.get());
   }
 
