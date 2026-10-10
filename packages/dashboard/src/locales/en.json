@@ -982,5 +982,18 @@
   "error.admin_only": "Only the owner or an admin can change this.",
   "error.owner_protected": "Nobody but the owner can change or remove the owner.",
   "error.owner_hand_over": "Only the owner can hand over ownership.",
-  "error.owner_needs_admin": "Make them an admin first."
+  "error.owner_needs_admin": "Make them an admin first.",
+  "embed.goneTitle": "This dashboard link does not work",
+  "embed.gone": "Open the dashboard again from your site's admin pages.",
+  "embed.expiredTitle": "This view has expired",
+  "embed.expired": "The dashboard inside your admin pages stays open for an hour at a time. Reload the page to open it again.",
+  "embed.reload": "Reload the page",
+  "embedKey.title": "Key for the dashboard in your CMS",
+  "embedKey.intro": "With this key in their settings, the WordPress, Drupal, and Craft plugins show this site's dashboard inside your admin pages. It opens the read-only view a share link shows and cannot read anything itself. Delete it in Settings, API and AI to stop it at once.",
+  "embedKey.make": "Make a key",
+  "embedKey.another": "Make another key",
+  "embedKey.name": "Dashboard in a CMS",
+  "tokens.embeds": "Opens the dashboard in a CMS",
+  "error.embed_expired": "This dashboard has expired. Reload the page to open it again.",
+  "error.embed_site": "A key for the dashboard in a CMS is for one site. Pick the site."
 }

@@ -1,6 +1,6 @@
 <?php
 /**
- * wp-admin: the settings page, the menu link to the dashboard, and a check
+ * wp-admin: the settings page, the menu item for the dashboard, and a check
  * that the address answers.
  *
  * @package Runlight
@@ -18,22 +18,14 @@ final class Admin {
 	public static function boot(): void {
 		add_action( 'admin_menu', array( self::class, 'menu' ) );
 		add_action( 'admin_init', array( self::class, 'register' ) );
+		add_action( 'admin_enqueue_scripts', array( Dashboard::class, 'scripts' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( RUNLIGHT_PLUGIN_FILE ), array( self::class, 'action_links' ) );
 	}
 
 	public static function menu(): void {
 		add_options_page( __( 'Runlight', 'runlight' ), __( 'Runlight', 'runlight' ), 'manage_options', self::PAGE, array( self::class, 'page' ) );
-		$settings = Settings::get();
-		if ( '' !== $settings['address'] ) {
-			// A top-level item that opens the dashboard, where the numbers are.
-			add_menu_page( __( 'Runlight', 'runlight' ), __( 'Runlight', 'runlight' ), 'manage_options', 'runlight-dashboard', '__return_null', self::icon(), 3 );
-			global $menu;
-			foreach ( (array) $menu as $i => $item ) {
-				if ( isset( $item[2] ) && 'runlight-dashboard' === $item[2] ) {
-					$menu[ $i ][2] = $settings['address'] . '/'; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited
-				}
-			}
-		}
+		// A top-level item for the dashboard, where the numbers are, or the steps to see them there.
+		add_menu_page( __( 'Runlight', 'runlight' ), __( 'Runlight', 'runlight' ), 'manage_options', Dashboard::PAGE, array( Dashboard::class, 'page' ), self::icon(), 3 );
 	}
 
 	/** The R mark, as wp-admin's menu wants it: a data URI it can tint. */
@@ -116,6 +108,13 @@ final class Admin {
 						<td>
 							<input id="runlight-key" class="regular-text code" type="password" autocomplete="off" name="<?php echo esc_attr( Settings::OPTION ); ?>[observe_key]" value="" placeholder="<?php echo '' !== $settings['observe_key'] ? esc_attr__( 'Saved. Leave blank to keep it for this address.', 'runlight' ) : ''; ?>">
 							<p class="description"><?php esc_html_e( 'Optional. With this site’s key from Runlight’s Settings, Install, Key for CMS plugins, the plugin reports AI agents such as ChatGPT and Claude reading your pages. They run no JavaScript, so the script cannot see them. The key can report fetches for this site and nothing else.', 'runlight' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="runlight-dashboard-key"><?php esc_html_e( 'Dashboard key', 'runlight' ); ?></label></th>
+						<td>
+							<input id="runlight-dashboard-key" class="regular-text code" type="password" autocomplete="off" name="<?php echo esc_attr( Settings::OPTION ); ?>[dashboard_key]" value="" placeholder="<?php echo '' !== $settings['dashboard_key'] ? esc_attr__( 'Saved. Leave blank to keep it for this address.', 'runlight' ) : ''; ?>">
+							<p class="description"><?php esc_html_e( 'Optional. With this site’s key from Runlight’s Settings, Install, Key for the dashboard in your CMS, the Runlight item in the admin menu shows this site’s numbers right here. The key opens the same read-only view a share link shows, framed only by this admin, and cannot read anything itself.', 'runlight' ); ?></p>
 						</td>
 					</tr>
 					<tr>

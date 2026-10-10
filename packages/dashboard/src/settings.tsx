@@ -441,6 +441,44 @@ function PluginKey({ site }: { site: Site }) {
   );
 }
 
+/**
+ * A key the WordPress, Drupal, and Craft plugins use to show this site's dashboard inside the CMS's admin pages:
+ * an API token that only gets tickets for this site's read-only view, shown once.
+ */
+function EmbedKey({ site }: { site: Site }) {
+  const [secret, setSecret] = useState("");
+  const [error, setError] = useState("");
+  const make = () =>
+    api
+      .createToken(t("embedKey.name"), site.id, "embed")
+      .then((r) => {
+        setError("");
+        setSecret(r.secret);
+      })
+      .catch((e: Error) => setError(e.message));
+  return (
+    <div class="settings-group">
+      <p class="settings-text">
+        <strong>{t("embedKey.title")}</strong>
+      </p>
+      <p class="settings-text">{t("embedKey.intro")}</p>
+      {secret ? (
+        <>
+          <p class="settings-text">{t("tokens.once")}</p>
+          <Code>{secret}</Code>
+        </>
+      ) : null}
+      <div class="settings-actions start">
+        <button type="button" class="ghost" onClick={() => void make()}>
+          <Icon name="key" />
+          {t(secret ? "embedKey.another" : "embedKey.make")}
+        </button>
+      </div>
+      {error ? <span class="settings-error">{error}</span> : null}
+    </div>
+  );
+}
+
 /** Settings, Import: visit history from Umami, or short links from any of several services. */
 function Import({ site }: { site: Site }) {
   const [kind, setKind] = useState<"visits" | "links">("visits");
@@ -518,6 +556,7 @@ export function proxy(request: Request) {
         )}
       </div>
       <PluginKey site={site} />
+      <EmbedKey site={site} />
       <div class="settings-group">
         <div class="field-row">
           <span class="field-label">{t("install.ignore")}</span>

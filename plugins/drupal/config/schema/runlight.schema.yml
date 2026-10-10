@@ -11,6 +11,9 @@ runlight.settings:
     observe_key:
       type: string
       label: 'Observe key'
+    dashboard_key:
+      type: string
+      label: 'Dashboard key'
     skip_admins:
       type: boolean
       label: 'Leave out administrators'

@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Settings {
 	public const OPTION = 'runlight_settings';
 
-	/** @return array{address:string,site:string,observe_key:string,skip_admins:bool,outbound:bool,downloads:bool} */
+	/** @return array{address:string,site:string,observe_key:string,dashboard_key:string,skip_admins:bool,outbound:bool,downloads:bool} */
 	public static function get(): array {
 		$saved = get_option( self::OPTION, array() );
 		$saved = is_array( $saved ) ? $saved : array();
@@ -22,6 +22,7 @@ final class Settings {
 			'address'     => isset( $saved['address'] ) ? (string) $saved['address'] : '',
 			'site'        => isset( $saved['site'] ) ? (string) $saved['site'] : '',
 			'observe_key' => isset( $saved['observe_key'] ) ? (string) $saved['observe_key'] : '',
+			'dashboard_key' => isset( $saved['dashboard_key'] ) ? (string) $saved['dashboard_key'] : '',
 			'skip_admins' => ! isset( $saved['skip_admins'] ) || (bool) $saved['skip_admins'],
 			'outbound'    => ! isset( $saved['outbound'] ) || (bool) $saved['outbound'],
 			'downloads'   => ! isset( $saved['downloads'] ) || (bool) $saved['downloads'],
@@ -52,14 +53,17 @@ final class Settings {
 	public static function sanitize( $input ): array {
 		$input  = is_array( $input ) ? $input : array();
 		$before = self::get();
-		$key     = isset( $input['observe_key'] ) ? trim( sanitize_text_field( wp_unslash( (string) $input['observe_key'] ) ) ) : '';
-		$address = self::sanitize_address( isset( $input['address'] ) ? sanitize_text_field( wp_unslash( (string) $input['address'] ) ) : '' );
+		$key       = isset( $input['observe_key'] ) ? trim( sanitize_text_field( wp_unslash( (string) $input['observe_key'] ) ) ) : '';
+		$dashboard = isset( $input['dashboard_key'] ) ? trim( sanitize_text_field( wp_unslash( (string) $input['dashboard_key'] ) ) ) : '';
+		$address   = self::sanitize_address( isset( $input['address'] ) ? sanitize_text_field( wp_unslash( (string) $input['address'] ) ) : '' );
+		$same      = $address === $before['address'];
 		return array(
 			'address'     => $address,
 			'site'        => isset( $input['site'] ) ? preg_replace( '/[^a-z0-9._-]/i', '', (string) $input['site'] ) : '',
 			// Left blank, a saved key stays, so it never has to be shown again, but only for the same
 			// address: pointed somewhere else, the plugin must never send that Runlight's key there.
-			'observe_key' => '' === $key ? ( $address === $before['address'] ? $before['observe_key'] : '' ) : $key,
+			'observe_key' => '' === $key ? ( $same ? $before['observe_key'] : '' ) : $key,
+			'dashboard_key' => '' === $dashboard ? ( $same ? $before['dashboard_key'] : '' ) : $dashboard,
 			'skip_admins' => ! empty( $input['skip_admins'] ),
 			'outbound'    => ! empty( $input['outbound'] ),
 			'downloads'   => ! empty( $input['downloads'] ),

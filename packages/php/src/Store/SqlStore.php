@@ -989,7 +989,11 @@ final class SqlStore
             'id' => (string) $r['id'],
             'name' => (string) $r['name'],
             'site' => (string) ($r['site'] ?? ''),
-            'scope' => ($r['scope'] ?? null) === 'manage' ? 'manage' : 'read',
+            'scope' => match ($r['scope'] ?? null) {
+                'manage' => 'manage',
+                'embed' => 'embed',
+                default => 'read',
+            },
             'hash' => (string) $r['hash'],
             'hint' => (string) ($r['hint'] ?? ''),
             'createdAt' => Js::number($r['created_at']),
@@ -1050,6 +1054,20 @@ final class SqlStore
     {
         $rows = $this->db->all("SELECT \"key\", value FROM rl_settings WHERE \"key\" LIKE ? ESCAPE '\\'", [Sql::escapeLike($prefix) . '%']);
         return array_map(static fn (array $r): array => ['key' => (string) $r['key'], 'value' => (string) $r['value']], $rows);
+    }
+
+    /** Reads a setting and deletes it. Of two callers at once, only the one whose delete took the row gets its value. */
+    public function takeSetting(string $key): ?string
+    {
+        $value = $this->setting($key);
+        if ($value === null) {
+            return null;
+        }
+        $sql = 'DELETE FROM rl_settings WHERE "key" = ?';
+        $gone = $this->db->dialect() === 'mysql' && method_exists($this->db, 'affected')
+            ? $this->db->affected($sql, [$key])
+            : count($this->db->all("$sql RETURNING \"key\"", [$key]));
+        return $gone === 1 ? $value : null;
     }
 
     public function setSetting(string $key, ?string $value): void

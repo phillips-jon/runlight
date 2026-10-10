@@ -344,7 +344,13 @@ function localeUrls(base: string): string {
 
 export { RUNLIGHT_ICON };
 
-const DASHBOARD = (base: string, share = "", signOut = "", geoCredit = false, accounts = false, signIn = "") => `<!doctype html>
+/** The dashboard inside a CMS's admin pages: its session (empty once its ticket was used or ran out) and the admin origin that frames it. */
+interface Embedded {
+  session: string;
+  origin: string;
+}
+
+const DASHBOARD = (base: string, share = "", signOut = "", geoCredit = false, accounts = false, signIn = "", embed: Embedded | null = null) => `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -355,7 +361,7 @@ const DASHBOARD = (base: string, share = "", signOut = "", geoCredit = false, ac
 <link rel="stylesheet" href="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.css">
 </head>
 <body>
-<div id="app" data-base="${escapeAttr(base)}"${share ? ` data-share="${escapeAttr(share)}"` : ""}${signOut ? ` data-sign-out="${escapeAttr(signOut)}"` : ""}${signIn ? ` data-sign-in="${escapeAttr(signIn)}"` : ""}${geoCredit ? ` data-geo-credit=""` : ""}${accounts ? ` data-accounts=""` : ""} data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json" data-locales="${escapeAttr(localeUrls(base))}"></div>
+<div id="app" data-base="${escapeAttr(base)}"${share ? ` data-share="${escapeAttr(share)}"` : ""}${signOut ? ` data-sign-out="${escapeAttr(signOut)}"` : ""}${signIn ? ` data-sign-in="${escapeAttr(signIn)}"` : ""}${geoCredit ? ` data-geo-credit=""` : ""}${accounts ? ` data-accounts=""` : ""}${embed ? ` data-embed="${escapeAttr(embed.session)}" data-embed-origin="${escapeAttr(embed.origin)}"` : ""} data-world="${escapeAttr(base)}/assets/world.${WORLD_HASH}.json" data-locales="${escapeAttr(localeUrls(base))}"></div>
 <script type="module" src="${escapeAttr(base)}/assets/app.${DASHBOARD_HASH}.js"></script>
 </body>
 </html>
@@ -366,7 +372,9 @@ const TOKEN_PREFIX = "rl_";
 
 /** The header a shared dashboard sends its share id in. */
 const SHARE_HEADER = "x-runlight-share";
-/** What a share can read: one site's reports, nothing that changes anything. */
+/** The header an embedded dashboard sends its session in. */
+const EMBED_HEADER = "x-runlight-embed";
+/** What a share, or the dashboard inside a CMS, can read: one site's reports, nothing that changes anything. */
 const SHARED_PATHS = new Set(["/api/sites", "/api/icon", "/api/realtime", "/api/stats", "/api/series", "/api/rhythm", "/api/breakdown", "/api/goals", "/api/event-props", "/api/export", "/api/funnels", "/api/journeys"]);
 const sharedPath = (path: string) => SHARED_PATHS.has(path) || /^\/api\/goals\/[a-f0-9]{24}$/.test(path);
 
@@ -402,6 +410,10 @@ const ASK_AT_ONCE = 2;
 /** Questions each viewer may ask a day, until an owner sets another number. */
 const VIEWER_DAILY = 50;
 const SHARE_ID = /^[a-f0-9]{32}$/;
+/** How long an embed ticket works: long enough for the admin page to load its frame, never to be kept. */
+const EMBED_TICKET_MS = 5 * 60_000;
+/** How long an embedded dashboard reads before the admin page has to be loaded again for a new ticket. */
+const EMBED_SESSION_MS = 60 * 60_000;
 
 const DASHBOARD_CSP =
   "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
@@ -498,7 +510,8 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   /** Who may read stats: the owner (true), an API token or a read-only sign-in, or nobody. */
   async function reader(request: Request): Promise<true | TokenRow | false | "unconfigured"> {
     const token = await apiToken(request);
-    if (token) return token;
+    // A key for the dashboard inside a CMS gets tickets and reads nothing itself.
+    if (token) return token.scope === "embed" ? false : token;
     if (options.authorize || web) {
       const access = await canRead(request);
       // A read-only sign-in reads like an API token for every site.
@@ -771,6 +784,67 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     return ORIGIN.test(origin) ? { origin, site: unhex(parts[2]!) } : null;
   }
 
+  /** The key embed tickets and sessions are signed with, made on first use and kept in the database for every process. */
+  async function embedKey(): Promise<string> {
+    await runlight.init();
+    const saved = await runlight.store.setting("embed-key");
+    if (saved) return saved;
+    const made = randomId(32);
+    await runlight.store.setSetting("embed-key", made);
+    return made;
+  }
+
+  /** An embed token that still exists, for a site that still does. */
+  async function embedToken(id: string): Promise<TokenRow | null> {
+    const token = (await runlight.store.tokens()).find((t) => t.id === id) ?? null;
+    return token && token.scope === "embed" && runlight.site(token.site) ? token : null;
+  }
+
+  /**
+   * A ticket for one load of the embedded dashboard, signed with when it runs out, a nonce, and the admin origin
+   * that may frame it. The nonce is kept, with the token it was made for, until the ticket is used.
+   */
+  async function embedTicket(origin: string, token: string): Promise<{ ticket: string; expiresAt: number }> {
+    const now = runlight.now();
+    // Tickets nobody used are cleared as new ones are made.
+    for (const { key, value } of await runlight.store.settingsStartingWith("embed-ticket:")) if (Number(value.split(".")[0]) < now) await runlight.store.setSetting(key, null);
+    const expiresAt = now + EMBED_TICKET_MS;
+    const nonce = randomId(16);
+    await runlight.store.setSetting(`embed-ticket:${nonce}`, `${expiresAt}.${token}`);
+    const payload = `${expiresAt}.${nonce}.${hex(origin)}`;
+    return { ticket: `${payload}.${await hmac(await embedKey(), `ticket.${payload}`)}`, expiresAt };
+  }
+
+  /**
+   * What a ticket this install signed names: always its origin, and its token only the first time it is used
+   * before it runs out. Null for anything else.
+   */
+  async function redeemEmbed(ticket: string): Promise<{ origin: string; token: TokenRow | null } | null> {
+    const parts = /^(\d{1,15})\.([a-f0-9]{32})\.([a-f0-9]{2,512})\.([a-f0-9]{64})$/.exec(ticket);
+    if (!parts) return null;
+    if (!constantTimeEqual(parts[4]!, await hmac(await embedKey(), `ticket.${parts[1]}.${parts[2]}.${parts[3]}`))) return null;
+    const origin = unhex(parts[3]!);
+    if (!ORIGIN.test(origin)) return null;
+    // A ticket works once: it is gone before anything else is checked.
+    const kept = await runlight.store.takeSetting(`embed-ticket:${parts[2]}`);
+    const token = kept && Number(parts[1]) >= runlight.now() ? await embedToken(kept.split(".")[1] ?? "") : null;
+    return { origin, token };
+  }
+
+  /** A session for an embedded dashboard, which its page sends with every read, signed with when it runs out and its token. */
+  async function embedSession(token: string): Promise<string> {
+    const payload = `${runlight.now() + EMBED_SESSION_MS}.${token}`;
+    return `${payload}.${await hmac(await embedKey(), `session.${payload}`)}`;
+  }
+
+  /** The embed token a session this install signed was made for, while it lasts and the token still exists. */
+  async function embedReader(session: string): Promise<TokenRow | null> {
+    const parts = /^(\d{1,15})\.([a-f0-9]{24})\.([a-f0-9]{64})$/.exec(session);
+    if (!parts || Number(parts[1]) < runlight.now()) return null;
+    if (!constantTimeEqual(parts[3]!, await hmac(await embedKey(), `session.${parts[1]}.${parts[2]}`))) return null;
+    return embedToken(parts[2]!);
+  }
+
   async function trackerScript(siteId: string | null): Promise<{ body: string; etag: string }> {
     const key = siteId ?? "";
     const cached = trackers.get(key);
@@ -1032,8 +1106,9 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (!name) return coded("Name the token", "token_name", 400);
       const site = String(body.site ?? "");
       if (site && !runlight.sites.some((s) => s.id === site)) return coded("Unknown site", "unknown_site", 404);
-      const scope = body.scope === "manage" ? "manage" : "read";
+      const scope = body.scope === "manage" ? "manage" : body.scope === "embed" ? "embed" : "read";
       if (scope === "manage" && !site) return coded("A token that changes settings is for one site. Pick the site.", "token_site", 400);
+      if (scope === "embed" && !site) return coded("A key for the dashboard in a CMS is for one site. Pick the site.", "embed_site", 400);
       const secret = `${TOKEN_PREFIX}${randomId(20)}`;
       const row: TokenRow = { id: randomId(), name, site, scope, hash: await sha256(secret), hint: secret.slice(-4), createdAt: runlight.now(), lastUsedAt: null };
       await runlight.store.insertToken(row);
@@ -1053,6 +1128,10 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
   }
 
   async function api(request: Request, path: string, url: URL): Promise<Response> {
+    // An embedded dashboard reads what a share link shows and nothing else, whoever else the request comes from.
+    if (request.headers.get(EMBED_HEADER) !== null && !(request.method === "GET" && sharedPath(path))) {
+      return coded("Not available on a shared dashboard", "share_not_available", 403);
+    }
     // A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
     // That holds without a cookie too, since a browser also sends Basic credentials or comes from an
     // allowed address on its own. A bearer token is never sent by the browser on its own, so it needs no check.
@@ -1111,7 +1190,31 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       return new Response(null, { status: 303, headers: { location: to, "cache-control": "no-store" } });
     }
 
+    // A ticket for one load of the dashboard inside a CMS's admin pages. The plugin's server asks with its embed
+    // token on each page view and names the admin's origin, which must be one of the site's domains and alone
+    // may frame the page the ticket opens.
+    if (path === "/api/embed" && request.method === "POST") {
+      const token = await apiToken(request);
+      if (!token) return denied(false);
+      if (token.scope !== "embed") return coded("Use a key for the dashboard in a CMS, made in Settings, Install", "embed_token", 403);
+      const site = runlight.site(token.site);
+      if (!site) return coded("Unknown site", "unknown_site", 404);
+      const body = await readJson(request);
+      if (body instanceof Response) return body;
+      const origin = String(body.origin ?? "");
+      const parsed = ORIGIN.test(origin) && origin.length <= 200 && URL.canParse(origin) ? new URL(origin) : null;
+      if (!parsed || parsed.origin !== origin) return coded("Send the admin page's origin, such as https://example.com", "embed_origin", 400);
+      const host = hostName(parsed.host);
+      if (!(runlight.remote(site.id)?.hostnames ?? site.hostnames).map(hostName).includes(host)) {
+        return coded(`${host} is not one of this site's domains. Add it to the site's domains in Runlight's settings.`, "embed_host", 400, { host });
+      }
+      const { ticket, expiresAt } = await embedTicket(origin, token.id);
+      return json({ ticket, site: site.id, expiresAt, path: `${base}/embed?ticket=${ticket}` }, 201);
+    }
+
     const token = bearer(request).startsWith(TOKEN_PREFIX) ? await apiToken(request) : null;
+    // An embed token gets tickets and reads nothing itself.
+    if (token?.scope === "embed") return coded("This key only opens the dashboard inside a CMS", "token_embed_only", 403);
     if (token?.scope === "manage" && managePath(request.method, path)) {
       const asked = url.searchParams.get("site");
       const siteMatch = /^\/api\/sites\/([^/]+)$/.exec(path);
@@ -1375,7 +1478,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (turn instanceof Response) return turn;
       // Each tool reads the HTTP API with the asker's own headers, as the MCP server does.
       const headers = new Headers(request.headers);
-      for (const name of ["content-type", "content-length", SHARE_HEADER]) headers.delete(name);
+      for (const name of ["content-type", "content-length", SHARE_HEADER, EMBED_HEADER]) headers.delete(name);
       const readApi = (apiPath: string, params: [string, string][]) => {
         const target = new URL(`${base}${apiPath}`, url.origin);
         for (const [key, value] of params) target.searchParams.append(key, value);
@@ -1566,6 +1669,12 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (!shared) return coded("This share link no longer works", "share_gone", 404);
       if (!sharedPath(path)) return coded("Not available on a shared dashboard", "share_not_available", 403);
       only = shared.site;
+    } else if (request.headers.get(EMBED_HEADER) !== null) {
+      const token = await embedReader(request.headers.get(EMBED_HEADER)!);
+      if (!token) return coded("This dashboard has expired. Reload the page to open it again.", "embed_expired", 401);
+      // An embedded dashboard sees what a share link of its token's site shows.
+      shared = { id: "", site: token.site, name: "", createdAt: 0 };
+      only = token.site;
     } else {
       const access = await reader(request);
       if (access === false || access === "unconfigured") return denied(access);
@@ -1893,7 +2002,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
         }
         // Each tool reads the HTTP API with the caller's own headers, so it sees what they may.
         const headers = new Headers(request.headers);
-        for (const name of ["content-type", "content-length", SHARE_HEADER]) headers.delete(name);
+        for (const name of ["content-type", "content-length", SHARE_HEADER, EMBED_HEADER]) headers.delete(name);
         return await mcpResponse(request, (apiPath, params) => {
           const target = new URL(`${base}${apiPath}`, url.origin);
           for (const [key, value] of params) target.searchParams.append(key, value);
@@ -1903,6 +2012,29 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
 
       const unsubscribe = /^\/unsubscribe\/([^/]+)\/?$/.exec(path);
       if (unsubscribe && (request.method === "GET" || request.method === "POST")) return await unsubscribePage(request, unsubscribe[1]!);
+
+      // The dashboard inside a CMS's admin pages, opened with a ticket its plugin just got. Only the admin origin
+      // the ticket names may frame it. A ticket used already or run out opens it with no session, so it says it
+      // has expired and offers to reload the admin page; anything else is refused and never framed.
+      if (path === "/embed" && request.method === "GET") {
+        await runlight.init();
+        const found = await redeemEmbed(url.searchParams.get("ticket") ?? "");
+        if (!found) {
+          const { t, lang } = translator(acceptedLanguage(request));
+          return smallPage(lang, `<h1>${escapeHtml(t("embed.goneTitle"))}</h1><p>${escapeHtml(t("embed.gone"))}</p>`, 404);
+        }
+        const session = found.token ? await embedSession(found.token.id) : "";
+        return new Response(DASHBOARD(base, "", "", options.geoCredit, false, "", { session, origin: found.origin }), {
+          status: session ? 200 : 410,
+          headers: {
+            "content-type": "text/html; charset=utf-8",
+            "cache-control": "no-store",
+            "content-security-policy": DASHBOARD_CSP.replace("frame-ancestors 'none'", `frame-ancestors ${found.origin}`),
+            "referrer-policy": "no-referrer",
+            "x-robots-tag": "noindex",
+          },
+        });
+      }
 
       const sharePage = /^\/share\/([^/]+)\/?$/.exec(path);
       if (sharePage && request.method === "GET") {

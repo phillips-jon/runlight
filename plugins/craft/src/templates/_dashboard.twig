@@ -1,0 +1,36 @@
+{% extends '_layouts/cp' %}
+{% set title = 'Runlight' %}
+
+{% block actionButton %}
+  {% if full %}
+    <a class="btn" href="{{ full }}" target="_blank" rel="noopener">Open in Runlight</a>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {% if not address %}
+    <p>Enter your Runlight’s address and a dashboard key on the <a href="{{ cpUrl(settingsUrl) }}">settings page</a> to see this site’s numbers here.</p>
+  {% elseif not hasKey %}
+    <p>To see this site’s numbers here, make a dashboard key in your Runlight under Settings, Install, Key for the dashboard in your CMS, and enter it on the <a href="{{ cpUrl(settingsUrl) }}">settings page</a>.</p>
+  {% elseif error %}
+    <p class="error">{{ error }} <a href="{{ cpUrl(settingsUrl) }}">Check the settings</a></p>
+  {% else %}
+    <iframe id="runlight-embed" src="{{ frame }}" data-runlight-origin="{{ origin }}" title="Runlight dashboard" referrerpolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads" style="display:block;width:100%;height:calc(100vh - 220px);min-height:600px;border:0;border-radius:8px;background:transparent"></iframe>
+    {% js %}
+      (function () {
+        var frame = document.getElementById("runlight-embed");
+        if (!frame) return;
+        var origin = frame.getAttribute("data-runlight-origin");
+        function fit() {
+          var top = frame.getBoundingClientRect().top + window.scrollY;
+          frame.style.height = Math.max(600, window.innerHeight - top - 48) + "px";
+        }
+        fit();
+        window.addEventListener("resize", fit);
+        window.addEventListener("message", function (event) {
+          if (event.origin === origin && event.source === frame.contentWindow && event.data && event.data.type === "runlight:reload") location.reload();
+        });
+      })();
+    {% endjs %}
+  {% endif %}
+{% endblock %}

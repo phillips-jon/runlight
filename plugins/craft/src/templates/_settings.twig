@@ -39,6 +39,15 @@
   suggestEnvVars: true,
 }) }}
 
+{{ forms.autosuggestField({
+  label: 'Dashboard key',
+  instructions: 'Optional. With this site’s key from Runlight’s Settings, Install, Key for the dashboard in your CMS, the Runlight item in the Control Panel shows this site’s numbers right there. The key opens the same read-only view a share link shows, framed only by this Control Panel, and cannot read anything itself. Use an environment variable, such as `$RUNLIGHT_DASHBOARD_KEY`, to keep it out of project config.',
+  id: 'dashboardKey',
+  name: 'dashboardKey',
+  value: settings.dashboardKey,
+  suggestEnvVars: true,
+}) }}
+
 {{ forms.lightswitchField({
   label: 'Leave out Control Panel users’ visits',
   id: 'skipAdmins',

@@ -982,5 +982,18 @@
   "error.admin_only": "Só o proprietário ou um administrador pode mudar isso.",
   "error.owner_protected": "Ninguém além do proprietário pode mudar ou remover o proprietário.",
   "error.owner_hand_over": "Só o proprietário pode passar a propriedade.",
-  "error.owner_needs_admin": "Torne a pessoa administrador primeiro."
+  "error.owner_needs_admin": "Torne a pessoa administrador primeiro.",
+  "embed.goneTitle": "Este link do painel não funciona",
+  "embed.gone": "Abra o painel novamente a partir da administração do seu site.",
+  "embed.expiredTitle": "Esta visualização expirou",
+  "embed.expired": "O painel dentro da sua administração fica aberto por uma hora de cada vez. Recarregue a página para abri-lo de novo.",
+  "embed.reload": "Recarregar a página",
+  "embedKey.title": "Chave para o painel no seu CMS",
+  "embedKey.intro": "Com esta chave nas configurações, os plugins para WordPress, Drupal e Craft mostram o painel deste site dentro da sua administração. Ela abre a visualização somente leitura que um link compartilhado mostra e não consegue ler nada sozinha. Exclua-a em Configurações, API e IA para pará-la na hora.",
+  "embedKey.make": "Criar uma chave",
+  "embedKey.another": "Criar outra chave",
+  "embedKey.name": "Painel em um CMS",
+  "tokens.embeds": "Abre o painel em um CMS",
+  "error.embed_expired": "Este painel expirou. Recarregue a página para abri-lo de novo.",
+  "error.embed_site": "Uma chave para o painel em um CMS é para um só site. Escolha o site."
 }

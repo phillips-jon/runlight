@@ -118,6 +118,34 @@ export interface View {
 export const base = document.getElementById("app")?.dataset.base ?? "";
 /** Set when this page is a shared, read-only dashboard; every request carries it. */
 export const share = document.getElementById("app")?.dataset.share ?? "";
+/**
+ * Set when this page is the dashboard inside a CMS's admin pages: the admin origin that frames it. It reads what
+ * a share shows, with a session held only in this page, since a frame from another site may get no cookies.
+ */
+export const embedOrigin = document.getElementById("app")?.dataset.embedOrigin ?? "";
+/** The embedded dashboard's session, sent with every read; empty when its ticket was used already or ran out. */
+const embedSession = document.getElementById("app")?.dataset.embed ?? "";
+/** Whether the embedded dashboard has a session to read with. */
+export const embedLive = Boolean(embedSession);
+/** A read-only view of one site: a share link or the dashboard inside a CMS. */
+export const shared = Boolean(share || embedOrigin);
+
+/** What every read sends: a share's id or an embedded dashboard's session, when there is one. */
+const readHeaders = (): Record<string, string> | undefined =>
+  share ? { "x-runlight-share": share } : embedOrigin ? { "x-runlight-embed": embedSession } : undefined;
+
+const expiredListeners = new Set<() => void>();
+/** Calls back once an embedded dashboard's session has run out, so the page can say so. */
+export function onEmbedExpired(listener: () => void): () => void {
+  expiredListeners.add(listener);
+  return () => expiredListeners.delete(listener);
+}
+/** Whether a refused read means the embedded dashboard's session has run out, and says so to whoever listens. */
+function expired(response: Response): boolean {
+  if (!embedOrigin || response.status !== 401) return false;
+  for (const listener of expiredListeners) listener();
+  return true;
+}
 /** Where the standalone server signs people out; empty in library mode. */
 export const signOut = document.getElementById("app")?.dataset.signOut ?? "";
 /** Where the standalone server signs people in, for when a session ends; empty in library mode. */
@@ -269,8 +297,8 @@ export interface ApiToken {
   name: string;
   /** "" for every site. */
   site: string;
-  /** "manage" also changes its site's settings, for a Runlight hub. */
-  scope?: "read" | "manage";
+  /** "manage" also changes its site's settings, for a Runlight hub; "embed" only opens its site's dashboard inside a CMS. */
+  scope?: "read" | "manage" | "embed";
   hint: string;
   createdAt: number;
   lastUsedAt: number | null;
@@ -303,19 +331,25 @@ async function failure(response: Response): Promise<ApiError> {
 async function get<T>(path: string, params: URLSearchParams): Promise<T> {
   const response = await fetch(`${base}/api/${path}?${params}`, {
     credentials: "same-origin",
-    headers: share ? { "x-runlight-share": share } : undefined,
+    headers: readHeaders(),
   });
-  if (!response.ok) throw await failure(response);
+  if (!response.ok) {
+    expired(response);
+    throw await failure(response);
+  }
   return response.json() as Promise<T>;
 }
 
-/** Fetches a file from the API (with a share's header when there is one) and saves it under the server's name. */
+/** Fetches a file from the API (with a share's or an embed's header when there is one) and saves it under the server's name. */
 export async function download(path: string, params: URLSearchParams): Promise<void> {
   const response = await fetch(`${base}/api/${path}?${params}`, {
     credentials: "same-origin",
-    headers: share ? { "x-runlight-share": share } : undefined,
+    headers: readHeaders(),
   });
-  if (!response.ok) throw await failure(response);
+  if (!response.ok) {
+    expired(response);
+    throw await failure(response);
+  }
   const name = /filename="([^"]+)"/.exec(response.headers.get("content-disposition") ?? "")?.[1] ?? "runlight-export";
   const link = document.createElement("a");
   link.href = URL.createObjectURL(await response.blob());
@@ -433,7 +467,7 @@ export const api = {
   deleteReport: (site: string, id: string) => del(`reports/${id}${siteQuery(site)}`),
   sendReport: (site: string, id: string) => send<{ ok: true }>("POST", `reports/${id}/send${siteQuery(site)}`, {}),
   tokens: () => get<{ tokens: ApiToken[] }>("tokens", new URLSearchParams()),
-  createToken: (name: string, site: string) => send<{ token: ApiToken; secret: string }>("POST", "tokens", { name, site }),
+  createToken: (name: string, site: string, scope?: "embed") => send<{ token: ApiToken; secret: string }>("POST", "tokens", { name, site, ...(scope ? { scope } : {}) }),
   deleteToken: (id: string) => del(`tokens/${id}`),
   shares: (site: string) => get<{ shares: Share[] }>("shares", new URLSearchParams(site ? { site } : {})),
   createShare: (site: string, name: string) => send<{ share: Share }>("POST", `shares${siteQuery(site)}`, { name }),

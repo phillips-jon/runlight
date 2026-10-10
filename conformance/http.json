@@ -18588,6 +18588,1511 @@
       ]
     },
     {
+      "name": "the dashboard inside a CMS: embed tokens, tickets, framing, and sessions",
+      "site": {
+        "hostnames": [
+          "blog.example.com"
+        ],
+        "timezone": "UTC"
+      },
+      "sites": [
+        {
+          "id": "blog",
+          "hostnames": [
+            "blog.example.com"
+          ],
+          "timezone": "UTC"
+        },
+        {
+          "id": "shop",
+          "hostnames": [
+            "shop.example.com"
+          ],
+          "timezone": "UTC"
+        }
+      ],
+      "start": 1791288000000,
+      "token": "conformance",
+      "steps": [
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.1"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://blog.example.com/",
+            "r": "https://www.google.com/",
+            "i": "a1"
+          },
+          "expect": {
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/e",
+          "headers": {
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36",
+            "x-forwarded-for": "203.0.113.2"
+          },
+          "body": {
+            "k": "pageview",
+            "u": "https://shop.example.com/",
+            "i": "b1"
+          },
+          "expect": {
+            "status": 202,
+            "headers": {
+              "access-control-allow-origin": "*"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/tokens",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "CMS",
+            "scope": "embed"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "A key for the dashboard in a CMS is for one site. Pick the site.",
+              "code": "embed_site"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/tokens",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "CMS",
+            "site": "blog",
+            "scope": "embed"
+          },
+          "capture": {
+            "key": "secret",
+            "keyId": "token.id"
+          },
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "token": {
+                "id": "<id>",
+                "name": "CMS",
+                "site": "blog",
+                "scope": "embed",
+                "hint": "<hint>",
+                "createdAt": 1791288000000,
+                "lastUsedAt": null
+              },
+              "secret": "<secret>"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/tokens",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "Reader",
+            "site": "blog"
+          },
+          "capture": {
+            "reader": "secret"
+          },
+          "advance": 1000,
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "token": {
+                "id": "<id>",
+                "name": "Reader",
+                "site": "blog",
+                "scope": "read",
+                "hint": "<hint>",
+                "createdAt": 1791288001000,
+                "lastUsedAt": null
+              },
+              "secret": "<secret>"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/tokens",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "tokens": [
+                {
+                  "id": "<id>",
+                  "name": "Reader",
+                  "site": "blog",
+                  "scope": "read",
+                  "hint": "<hint>",
+                  "createdAt": 1791288001000,
+                  "lastUsedAt": null
+                },
+                {
+                  "id": "<id>",
+                  "name": "CMS",
+                  "site": "blog",
+                  "scope": "embed",
+                  "hint": "<hint>",
+                  "createdAt": 1791288000000,
+                  "lastUsedAt": null
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/token",
+          "headers": {
+            "authorization": "Bearer {{key}}"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "scope": "embed",
+              "site": "blog"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/sites",
+          "headers": {
+            "authorization": "Bearer {{key}}"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This key only opens the dashboard inside a CMS",
+              "code": "token_embed_only"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off",
+          "headers": {
+            "authorization": "Bearer {{key}}"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This key only opens the dashboard inside a CMS",
+              "code": "token_embed_only"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/links?period=today",
+          "headers": {
+            "authorization": "Bearer {{key}}"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This key only opens the dashboard inside a CMS",
+              "code": "token_embed_only"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/observe",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "url": "https://blog.example.com/",
+            "userAgent": "GPTBot/1.2"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This key only opens the dashboard inside a CMS",
+              "code": "token_embed_only"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/goals",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "name": "X",
+            "kind": "event",
+            "match": "X"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This key only opens the dashboard inside a CMS",
+              "code": "token_embed_only"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/mcp",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/list"
+          },
+          "expect": {
+            "status": 401,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "www-authenticate": "Bearer realm=\"runlight\", resource_metadata=\"https://example.com/runlight/.well-known/oauth-protected-resource\"",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Unauthorized",
+              "code": "unauthorized"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "expect": {
+            "status": 401,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Unauthorized",
+              "code": "unauthorized"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "expect": {
+            "status": 401,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Unauthorized",
+              "code": "unauthorized"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{reader}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Use a key for the dashboard in a CMS, made in Settings, Install",
+              "code": "embed_token"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer rl_doesnotexist",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "expect": {
+            "status": 401,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Unauthorized",
+              "code": "unauthorized"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "text/plain"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "expect": {
+            "status": 415,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Send JSON",
+              "code": "send_json"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {},
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Send the admin page's origin, such as https://example.com",
+              "code": "embed_origin"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "blog.example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Send the admin page's origin, such as https://example.com",
+              "code": "embed_origin"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com/wp-admin/"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Send the admin page's origin, such as https://example.com",
+              "code": "embed_origin"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "HTTPS://Blog.example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Send the admin page's origin, such as https://example.com",
+              "code": "embed_origin"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com:443"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Send the admin page's origin, such as https://example.com",
+              "code": "embed_origin"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog%zz.example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Send the admin page's origin, such as https://example.com",
+              "code": "embed_origin"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.blog.example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Send the admin page's origin, such as https://example.com",
+              "code": "embed_origin"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": 5
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Send the admin page's origin, such as https://example.com",
+              "code": "embed_origin"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://shop.example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "shop.example.com is not one of this site's domains. Add it to the site's domains in Runlight's settings.",
+              "code": "embed_host",
+              "params": {
+                "host": "shop.example.com"
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://admin.blog.example.com"
+          },
+          "expect": {
+            "status": 400,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "admin.blog.example.com is not one of this site's domains. Add it to the site's domains in Runlight's settings.",
+              "code": "embed_host",
+              "params": {
+                "host": "admin.blog.example.com"
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This key only opens the dashboard inside a CMS",
+              "code": "token_embed_only"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "capture": {
+            "ticket": "ticket"
+          },
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "ticket": "<ticket>",
+              "site": "blog",
+              "expiresAt": 1791288301000,
+              "path": "/runlight/embed?ticket=<value>"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "http://www.blog.example.com:8080"
+          },
+          "capture": {
+            "second": "ticket"
+          },
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "ticket": "<ticket>",
+              "site": "blog",
+              "expiresAt": 1791288301000,
+              "path": "/runlight/embed?ticket=<value>"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "capture": {
+            "third": "ticket"
+          },
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "ticket": "<ticket>",
+              "site": "blog",
+              "expiresAt": 1791288301000,
+              "path": "/runlight/embed?ticket=<value>"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/embed?ticket={{ticket}}&theme=dark",
+          "look": [
+            "data-embed=\"",
+            "data-embed-origin=\"https://blog.example.com\"",
+            "data-base=\"/runlight\"",
+            "data-share",
+            "data-accounts",
+            "data-embed=\"\""
+          ],
+          "capture": {
+            "session": "text~data-embed=\"([^\"]+)\""
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "text/html",
+              "cache-control": "no-store",
+              "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors https://blog.example.com",
+              "referrer-policy": "no-referrer",
+              "x-robots-tag": "noindex"
+            },
+            "found": [
+              true,
+              true,
+              true,
+              false,
+              false,
+              false
+            ]
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/embed?ticket={{ticket}}",
+          "look": [
+            "data-embed=\"\"",
+            "data-embed-origin=\"https://blog.example.com\""
+          ],
+          "expect": {
+            "status": 410,
+            "headers": {
+              "content-type": "text/html",
+              "cache-control": "no-store",
+              "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors https://blog.example.com",
+              "referrer-policy": "no-referrer",
+              "x-robots-tag": "noindex"
+            },
+            "found": [
+              true,
+              true
+            ]
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/embed?ticket={{ticket}}0",
+          "expect": {
+            "status": 404,
+            "headers": {
+              "content-type": "text/html",
+              "cache-control": "no-store",
+              "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
+              "referrer-policy": "no-referrer"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/embed?ticket=nope",
+          "headers": {
+            "accept-language": "de-DE,de;q=0.9"
+          },
+          "look": [
+            "lang=\"de\""
+          ],
+          "expect": {
+            "status": 404,
+            "headers": {
+              "content-type": "text/html",
+              "cache-control": "no-store",
+              "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
+              "referrer-policy": "no-referrer"
+            },
+            "found": [
+              true
+            ]
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/embed",
+          "expect": {
+            "status": 404,
+            "headers": {
+              "content-type": "text/html",
+              "cache-control": "no-store",
+              "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'",
+              "referrer-policy": "no-referrer"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/embed?ticket={{third}}",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json"
+          },
+          "body": {},
+          "expect": {
+            "status": 404,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Not found",
+              "code": "not_found"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/sites",
+          "headers": {
+            "x-runlight-embed": "{{session}}"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "sites": [
+                {
+                  "id": "blog",
+                  "name": "blog.example.com",
+                  "hostnames": [],
+                  "timezone": "UTC",
+                  "lastSeen": 1791288000000
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off",
+          "headers": {
+            "x-runlight-embed": "{{session}}"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "site": "blog",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "UTC"
+              },
+              "stats": {
+                "visitors": 1,
+                "visits": 1,
+                "pageviews": 1,
+                "viewsPerVisit": 1,
+                "bounceRate": 1,
+                "visitDuration": 0
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/breakdown?period=today&dimension=source",
+          "headers": {
+            "x-runlight-embed": "{{session}}"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "site": "blog",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "UTC"
+              },
+              "dimension": "source",
+              "rows": [
+                {
+                  "value": "Google",
+                  "visitors": 1,
+                  "visits": 1,
+                  "bounceRate": 1,
+                  "pageviews": 1,
+                  "visitDuration": 0
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?site=shop&period=today&compare=off",
+          "headers": {
+            "x-runlight-embed": "{{session}}"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "site": "blog",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "UTC"
+              },
+              "stats": {
+                "visitors": 1,
+                "visits": 1,
+                "pageviews": 1,
+                "viewsPerVisit": 1,
+                "bounceRate": 1,
+                "visitDuration": 0
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/links?period=today",
+          "headers": {
+            "x-runlight-embed": "{{session}}"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Not available on a shared dashboard",
+              "code": "share_not_available"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/tokens",
+          "headers": {
+            "x-runlight-embed": "{{session}}"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Not available on a shared dashboard",
+              "code": "share_not_available"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/shares?site=blog",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "x-runlight-embed": "{{session}}"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Not available on a shared dashboard",
+              "code": "share_not_available"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/goals",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json",
+            "x-runlight-embed": "{{session}}"
+          },
+          "body": {
+            "name": "X",
+            "kind": "event",
+            "match": "X"
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Not available on a shared dashboard",
+              "code": "share_not_available"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/assistant/chat",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "content-type": "application/json",
+            "x-runlight-embed": "{{session}}"
+          },
+          "body": {
+            "messages": [
+              {
+                "role": "user",
+                "content": "Hi"
+              }
+            ]
+          },
+          "expect": {
+            "status": 403,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Not available on a shared dashboard",
+              "code": "share_not_available"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/sites",
+          "headers": {
+            "authorization": "Bearer conformance",
+            "x-runlight-embed": "{{session}}"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "sites": [
+                {
+                  "id": "blog",
+                  "name": "blog.example.com",
+                  "hostnames": [],
+                  "timezone": "UTC",
+                  "lastSeen": 1791288000000
+                }
+              ]
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today",
+          "headers": {
+            "x-runlight-embed": "nope"
+          },
+          "expect": {
+            "status": 401,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This dashboard has expired. Reload the page to open it again.",
+              "code": "embed_expired"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today",
+          "headers": {
+            "x-runlight-embed": "{{session}}0"
+          },
+          "expect": {
+            "status": 401,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This dashboard has expired. Reload the page to open it again.",
+              "code": "embed_expired"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/",
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "text/html",
+              "cache-control": "no-store",
+              "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+              "x-frame-options": "DENY",
+              "referrer-policy": "same-origin"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/embed?ticket={{second}}",
+          "look": [
+            "data-embed=\"\"",
+            "data-embed-origin=\"http://www.blog.example.com:8080\""
+          ],
+          "advance": 300001,
+          "expect": {
+            "status": 410,
+            "headers": {
+              "content-type": "text/html",
+              "cache-control": "no-store",
+              "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors http://www.blog.example.com:8080",
+              "referrer-policy": "no-referrer",
+              "x-robots-tag": "noindex"
+            },
+            "found": [
+              true,
+              true
+            ]
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off",
+          "headers": {
+            "x-runlight-embed": "{{session}}"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "site": "blog",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "UTC"
+              },
+              "stats": {
+                "visitors": 1,
+                "visits": 1,
+                "pageviews": 1,
+                "viewsPerVisit": 1,
+                "bounceRate": 1,
+                "visitDuration": 0
+              }
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off",
+          "headers": {
+            "x-runlight-embed": "{{session}}"
+          },
+          "advance": 3300000,
+          "expect": {
+            "status": 401,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This dashboard has expired. Reload the page to open it again.",
+              "code": "embed_expired"
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "capture": {
+            "fourth": "ticket"
+          },
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "ticket": "<ticket>",
+              "site": "blog",
+              "expiresAt": 1791291901001,
+              "path": "/runlight/embed?ticket=<value>"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/embed?ticket={{fourth}}",
+          "capture": {
+            "fresh": "text~data-embed=\"([^\"]+)\""
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "text/html",
+              "cache-control": "no-store",
+              "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors https://blog.example.com",
+              "referrer-policy": "no-referrer",
+              "x-robots-tag": "noindex"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off",
+          "headers": {
+            "x-runlight-embed": "{{fresh}}"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "site": "blog",
+              "range": {
+                "from": "2026-10-06",
+                "to": "2026-10-06",
+                "interval": "hour",
+                "timezone": "UTC"
+              },
+              "stats": {
+                "visitors": 1,
+                "visits": 1,
+                "pageviews": 1,
+                "viewsPerVisit": 1,
+                "bounceRate": 1,
+                "visitDuration": 0
+              }
+            }
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "capture": {
+            "fifth": "ticket"
+          },
+          "expect": {
+            "status": 201,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "ticket": "<ticket>",
+              "site": "blog",
+              "expiresAt": 1791291901001,
+              "path": "/runlight/embed?ticket=<value>"
+            }
+          }
+        },
+        {
+          "method": "DELETE",
+          "path": "/api/tokens/{{keyId}}",
+          "headers": {
+            "authorization": "Bearer conformance"
+          },
+          "expect": {
+            "status": 200,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "ok": true
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/stats?period=today&compare=off",
+          "headers": {
+            "x-runlight-embed": "{{fresh}}"
+          },
+          "expect": {
+            "status": 401,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "This dashboard has expired. Reload the page to open it again.",
+              "code": "embed_expired"
+            }
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/embed?ticket={{fifth}}",
+          "look": [
+            "data-embed=\"\""
+          ],
+          "expect": {
+            "status": 410,
+            "headers": {
+              "content-type": "text/html",
+              "cache-control": "no-store",
+              "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors https://blog.example.com",
+              "referrer-policy": "no-referrer",
+              "x-robots-tag": "noindex"
+            },
+            "found": [
+              true
+            ]
+          }
+        },
+        {
+          "method": "POST",
+          "path": "/api/embed",
+          "headers": {
+            "authorization": "Bearer {{key}}",
+            "content-type": "application/json"
+          },
+          "body": {
+            "origin": "https://blog.example.com"
+          },
+          "expect": {
+            "status": 401,
+            "headers": {
+              "content-type": "application/json",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff"
+            },
+            "body": {
+              "error": "Unauthorized",
+              "code": "unauthorized"
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "API tokens, manage tokens, and what each may do",
       "site": {
         "hostnames": [

@@ -9,7 +9,7 @@ use craft\helpers\App;
 
 /**
  * Where the site's Runlight is, and what it sends. Every string may name an
- * environment variable ("$RUNLIGHT_OBSERVE_KEY"), so the key need not be in
+ * environment variable ("$RUNLIGHT_OBSERVE_KEY"), so the keys need not be in
  * project config; config/runlight.php wins over the form, as every plugin's
  * config file does.
  */
@@ -23,6 +23,9 @@ final class Settings extends Model
 
     /** With the Runlight's RUNLIGHT_OBSERVE_KEY, AI agents reading pages are reported. */
     public string $observeKey = '';
+
+    /** With a key from the Runlight's Settings, Install, Key for the dashboard in your CMS, the Control Panel shows the site's numbers. */
+    public string $dashboardKey = '';
 
     public bool $skipAdmins = true;
     public bool $outbound = true;
@@ -41,10 +44,15 @@ final class Settings extends Model
         return trim((string) App::parseEnv($this->observeKey));
     }
 
+    public function getDashboardKey(): string
+    {
+        return trim((string) App::parseEnv($this->dashboardKey));
+    }
+
     protected function defineRules(): array
     {
         return [
-            [['address', 'site', 'observeKey'], 'string'],
+            [['address', 'site', 'observeKey', 'dashboardKey'], 'string'],
             [['site'], 'match', 'pattern' => '/^[a-z0-9._-]*$/i'],
             [['skipAdmins', 'outbound', 'downloads'], 'boolean'],
         ];

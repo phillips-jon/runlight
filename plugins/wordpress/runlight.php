@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Runlight
  * Plugin URI:        https://runlight.sh/
- * Description:       Counts your site's visitors with Runlight: privacy friendly analytics with no cookies, kept in your own database. Adds the script, reports AI agents that read your pages, and links to your dashboard.
+ * Description:       Counts your site's visitors with Runlight: privacy friendly analytics with no cookies, kept in your own database. Adds the script, reports AI agents that read your pages, and shows your dashboard in wp-admin.
  * Version:           0.0.0
  * Requires at least: 6.3
  * Requires PHP:      8.1
@@ -26,6 +26,7 @@ require_once __DIR__ . '/includes/Agents.php';
 require_once __DIR__ . '/includes/Settings.php';
 require_once __DIR__ . '/includes/Tracker.php';
 require_once __DIR__ . '/includes/Admin.php';
+require_once __DIR__ . '/includes/Dashboard.php';
 
 \Runlight\WordPress\Tracker::boot();
 if ( is_admin() ) {

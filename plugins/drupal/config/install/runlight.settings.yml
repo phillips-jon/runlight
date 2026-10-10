@@ -1,6 +1,7 @@
 address: ''
 site: ''
 observe_key: ''
+dashboard_key: ''
 skip_admins: true
 outbound: true
 downloads: true

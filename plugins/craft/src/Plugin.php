@@ -17,7 +17,7 @@ use yii\web\Response;
 /**
  * Runlight for Craft CMS: the script on every front-end page, AI agents
  * reported to Runlight after the response has gone, and a Control Panel
- * item that opens the dashboard. The numbers live in your Runlight.
+ * item that shows the dashboard. The numbers live in your Runlight.
  *
  * @method Settings getSettings()
  */
