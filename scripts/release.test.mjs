@@ -109,6 +109,21 @@ before(() => {
     mkdirSync(path.dirname(path.join(copy, file)), { recursive: true });
     copyFileSync(from, path.join(copy, file));
   }
+  // The dry runs release 0.0.0 as 0.1.0, so a tree already released, or one a
+  // release is checking with its bump in place, goes back to an unreleased 0.0.0.
+  if (current !== "0.0.0") {
+    const readCopy = (file) => readFileSync(path.join(copy, file), "utf8");
+    for (const [file, { after }] of planEdits(VERSIONED, readCopy, current, "0.0.0")) writeFileSync(path.join(copy, file), after);
+    const version = current.replace(/\./g, "\\.");
+    const unrelease = (file, released, unreleased, heading) => {
+      const text = readCopy(file);
+      if (!unreleased.test(text)) writeFileSync(path.join(copy, file), text.replace(released, heading));
+    };
+    for (const file of ["CHANGELOG.md", "plugins/craft/CHANGELOG.md"]) {
+      unrelease(file, new RegExp(`^## ${version} - \\d{4}-\\d{2}-\\d{2}$`, "m"), /^## Unreleased[ \t]*$/m, "## Unreleased");
+    }
+    unrelease("plugins/wordpress/readme.txt", new RegExp(`^= ${version} =$`, "m"), /^= Unreleased =$/m, "= Unreleased =");
+  }
   git("init", "-q", "-b", "main");
   git("add", "-A");
   git("commit", "-q", "-m", "copy");
