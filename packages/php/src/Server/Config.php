@@ -77,12 +77,18 @@ final class Config
         return preg_match('#^(/|\\\\|[A-Za-z]:[\\\\/])#', $value) ? $value : "{$this->root}/$value";
     }
 
-    /** The data folder, made on first use and readable only by this user. */
+    /**
+     * The data folder, made on first use and readable only by this user. An .htaccess in it turns Apache away
+     * from it even without mod_rewrite, for when the drop-in's folder is also the project folder.
+     */
     public function dataDir(): string
     {
         $dir = $this->dataPath();
         if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
             throw new \RuntimeException("Runlight: could not make the data folder $dir. Make it, writable by the web server, or set DATA_DIR.");
+        }
+        if (!is_file("$dir/.htaccess")) {
+            @file_put_contents("$dir/.htaccess", "Require all denied\n");
         }
         return $dir;
     }
@@ -140,9 +146,10 @@ final class Config
             }
             return $this->secret = $saved;
         }
+        // Readable by this user alone before the secret is in it.
+        @chmod($file, 0600);
         fwrite($handle, "$made\n");
         fclose($handle);
-        @chmod($file, 0600);
         return $this->secret = $made;
     }
 

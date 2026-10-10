@@ -314,8 +314,6 @@ final class Routes
             $init = [
                 'method' => $write ? $request->method : 'GET',
                 'headers' => $headers,
-                // An install that answers with a redirect gets no fetch of somewhere else on its behalf.
-                'redirect' => 'manual',
                 // A long report or an export is worked out in full before the install sends a byte, so reads get
                 // two minutes.
                 'timeoutMs' => $write ? 30_000 : 120_000,
@@ -323,7 +321,8 @@ final class Routes
             if ($write) {
                 $init['body'] = $request->text();
             }
-            $answer = $this->rl->fetcher->fetch($target->href(), $init);
+            // An install that answers with a redirect gets no fetch of somewhere else on its behalf.
+            $answer = Safefetch::installFetch($target->href(), [...$init, 'local' => $this->rl->localInstalls], $this->rl->fetcher);
         } catch (\Throwable $error) {
             if ($error instanceof FetchError && $error->timedOut) {
                 return self::coded("$host took too long to answer. Try a shorter range.", 'remote_slow', 504, ['host' => $host]);
@@ -354,12 +353,13 @@ final class Routes
         // carries its code and params for the dashboard to put in its own words.
         if ($answer->status >= 400 && !$download) {
             try {
-                $text = Body::utf8($answer->text());
+                // No further than an error could need.
+                $text = Body::readTextCapped($answer, 65_536);
             } catch (\Throwable) {
                 $text = '';
             }
             $body = null;
-            if (Js::length($text) <= 65_536) {
+            if ($text !== '') {
                 [$parsed, $value] = Js::parseJson($text);
                 $body = $parsed && Js::isObject($value) ? $value : null;
             }
@@ -2182,6 +2182,23 @@ final class Routes
         if (!$anySite && $given === '') {
             return self::coded('Unauthorized', 'unauthorized', 401);
         }
+        // A site's own key is found before the body is read, so a stranger costs one lookup at most.
+        $keySite = null;
+        if (!$anySite) {
+            if (!str_starts_with($given, 'rlo_')) {
+                return self::coded('Unauthorized', 'unauthorized', 401);
+            }
+            $rl->init();
+            foreach ($this->store()->settingsStartingWith('observe-key:') as ['key' => $key, 'value' => $value]) {
+                $id = substr($key, strlen('observe-key:'));
+                if ($id !== '' && self::constantTimeEqual($given, (string) $value) && $rl->site($id) !== null) {
+                    $keySite = $id;
+                }
+            }
+            if ($keySite === null) {
+                return self::coded('Unauthorized', 'unauthorized', 401);
+            }
+        }
         $body = self::readJson($request);
         if ($body instanceof Response) {
             return $body;
@@ -2215,16 +2232,6 @@ final class Routes
         if (!$anySite) {
             // A site's own key reports only pages on that site's domains. Pages elsewhere in a batch (another
             // host in the same log, say) are skipped, not a reason to refuse the rest.
-            $keySite = null;
-            foreach ($this->sites() as $site) {
-                $key = $this->store()->setting("observe-key:{$site['id']}");
-                if ($key !== null && $key !== '' && self::constantTimeEqual($given, $key)) {
-                    $keySite = $site['id'];
-                }
-            }
-            if ($keySite === null) {
-                return self::coded('Unauthorized', 'unauthorized', 401);
-            }
             $keep = array_values(array_filter($pages, fn (array $p) => ($rl->siteFor($p['page']->hostname)['id'] ?? null) === $keySite));
             // A single report for another site's page is a misconfigured plugin, which should hear about it.
             if (!$batch && $keep === []) {

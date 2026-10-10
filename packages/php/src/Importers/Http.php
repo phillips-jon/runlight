@@ -8,7 +8,10 @@ use Runlight\Http\CurlFetcher;
 use Runlight\Http\Fetcher;
 use Runlight\Http\FetchError;
 use Runlight\Http\Url;
+use Runlight\Body;
 use Runlight\Json;
+use Runlight\PrivateAddressError;
+use Runlight\Safefetch;
 use Runlight\Undefined;
 
 /**
@@ -19,6 +22,9 @@ use Runlight\Undefined;
  */
 final class Http
 {
+    /** The most one answer may weigh; a page of a thousand events is well under a megabyte. */
+    private const MAX_BYTES = 32 * 1024 * 1024;
+
     private readonly Fetcher $fetcher;
     /** @var \Closure(int|float): void */
     private readonly \Closure $sleep;
@@ -40,14 +46,15 @@ final class Http
     }
 
     /**
-     * Fetches JSON, decoded to arrays.
+     * Fetches JSON, decoded to arrays. The address can come from whoever runs an import (a self-hosted Umami),
+     * so only public https addresses are asked, with no redirect followed, which would carry the key elsewhere.
      *
      * @param array{headers?: array<string, string>, method?: string, body?: string} $init
      */
     public function getJson(string $url, array $init = []): mixed
     {
         for ($attempt = 1; ; $attempt++) {
-            $options = ['headers' => ['accept' => 'application/json', ...($init['headers'] ?? [])], 'timeoutMs' => 20_000];
+            $options = ['headers' => ['accept' => 'application/json', ...($init['headers'] ?? [])], 'timeoutMs' => 20_000, 'maxBytes' => self::MAX_BYTES];
             if (isset($init['method'])) {
                 $options['method'] = $init['method'];
             }
@@ -55,16 +62,16 @@ final class Http
                 $options['body'] = $init['body'];
             }
             try {
-                $response = $this->fetcher->fetch($url, $options);
-            } catch (FetchError) {
-                if ($attempt < 3) {
+                $response = Safefetch::publicFetch($url, $options, $this->fetcher);
+            } catch (FetchError|PrivateAddressError $error) {
+                if ($attempt < 3 && !$error instanceof PrivateAddressError) {
                     continue;
                 }
                 $host = (new Url($url))->host();
                 throw new ImportError("Could not reach $host", 'unreachable', ['host' => $host]);
             }
             if ($response->ok()) {
-                return Json::decode($response->text(), true);
+                return Body::readJsonCapped($response, self::MAX_BYTES, true);
             }
             if ($response->status === 401) {
                 throw new HttpError('The key or sign-in was refused', 401, 'import_refused');

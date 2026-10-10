@@ -19,13 +19,15 @@ use Runlight\Http\Url;
 final class Connect
 {
     private const PENDING_MS = 15 * 60_000;
+    /** The most an install's answer while connecting may weigh; a real one is under a kilobyte. */
+    private const MAX_BYTES = 64 * 1024;
 
     /** The install's address as its dashboard is, without a trailing slash. */
-    public static function installUrl(mixed $value): string
+    public static function installUrl(mixed $value, bool $local = false): string
     {
         $url = (string) preg_replace('#/+$#', '', Js::trim(Js::string($value ?? '')));
         // The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
-        if (!preg_match('#^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)#D', $url) || !Url::canParse($url)) {
+        if (!Safefetch::installAddress($url, $local) || !Url::canParse($url)) {
             throw new ConnectError("Enter the install's address, like https://example.com/runlight", 'url');
         }
         return $url;
@@ -63,20 +65,26 @@ final class Connect
         return rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
     }
 
-    /** A JSON body as arrays, or null when it is not JSON, as `answer.json().catch(() => null)`. */
+    /** A JSON body as arrays, or null when it is not JSON or is over MAX_BYTES, as TS's readJsonCapped gives. */
     private static function json(Http\Response $answer): mixed
     {
-        [$ok, $value] = Js::parseJson($answer->text());
+        try {
+            $text = Body::readTextCapped($answer, self::MAX_BYTES);
+        } catch (\Throwable) {
+            return null;
+        }
+        [$ok, $value] = Js::parseJson($text);
         return $ok ? json_decode(Json::encode($value), true) : null;
     }
 
     /** Starts connecting: returns the address of the install's consent page. */
     public static function startConnect(Runlight $runlight, mixed $input, string $back, string $site = ''): string
     {
-        $url = self::installUrl($input);
+        $local = $runlight->localInstalls;
+        $url = self::installUrl($input, $local);
         $host = (new Url($url))->host();
         try {
-            $answer = $runlight->fetcher->fetch("$url/.well-known/oauth-authorization-server", ['timeoutMs' => 10_000]);
+            $answer = Safefetch::installFetch("$url/.well-known/oauth-authorization-server", ['timeoutMs' => 10_000, 'maxBytes' => self::MAX_BYTES, 'truncate' => true, 'local' => $local], $runlight->fetcher);
         } catch (\Throwable) {
             throw new ConnectError("Could not reach $url", 'unreachable', ['host' => $host]);
         }
@@ -99,12 +107,15 @@ final class Connect
         }
 
         try {
-            $registered = $runlight->fetcher->fetch($meta['registration_endpoint'], [
+            $registered = Safefetch::installFetch($meta['registration_endpoint'], [
                 'method' => 'POST',
                 'headers' => ['content-type' => 'application/json'],
                 'body' => Json::encode(['client_name' => 'Runlight at ' . (new Url($back))->host(), 'redirect_uris' => [$back]]),
                 'timeoutMs' => 10_000,
-            ]);
+                'maxBytes' => self::MAX_BYTES,
+                'truncate' => true,
+                'local' => $local,
+            ], $runlight->fetcher);
         } catch (\Throwable) {
             throw new ConnectError("Could not reach $url", 'unreachable', ['host' => $host]);
         }
@@ -161,7 +172,7 @@ final class Connect
 
         $answer = null;
         try {
-            $answer = $runlight->fetcher->fetch($pending['token'], [
+            $answer = Safefetch::installFetch($pending['token'], [
                 'method' => 'POST',
                 'headers' => ['content-type' => 'application/x-www-form-urlencoded'],
                 'body' => (new SearchParams([
@@ -172,7 +183,10 @@ final class Connect
                     'code_verifier' => $pending['verifier'],
                 ]))->toString(),
                 'timeoutMs' => 10_000,
-            ]);
+                'maxBytes' => self::MAX_BYTES,
+                'truncate' => true,
+                'local' => $runlight->localInstalls,
+            ], $runlight->fetcher);
         } catch (\Throwable) {
         }
         $granted = $answer !== null && $answer->ok() ? self::json($answer) : null;

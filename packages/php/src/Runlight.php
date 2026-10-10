@@ -44,6 +44,9 @@ use Runlight\Store\SqlStore;
  *   for connected installs. Default the RUNLIGHT_SECRET environment variable, then RUNLIGHT_TOKEN.
  * - rateLimit: tracker requests allowed per visitor address per minute. Default 120, which a real visitor
  *   never reaches; false turns the limit off.
+ * - localInstalls: lets a connected install be at http://localhost or http://127.0.0.1, for trying a hub and
+ *   an app on one machine. Default false: otherwise anyone who can add a site could have this server ask
+ *   services on its own machine, so other installs must be public https addresses.
  * - now: callable(): int, the clock in milliseconds. For tests.
  * - fetcher: the Fetcher every outgoing request goes through. Default CurlFetcher.
  *
@@ -90,6 +93,8 @@ final class Runlight
     public readonly ?string $secret;
     /** Every outgoing request goes through it. */
     public readonly Fetcher $fetcher;
+    /** Whether a connected install may be on this machine, at http://localhost or http://127.0.0.1. */
+    public readonly bool $localInstalls;
     /**
      * Where routes() serves the dashboard and API, which a link domain leaves alone, as a list without
      * repeats. Middleware often runs apart from the routes, where none were made, so the default "/runlight"
@@ -155,6 +160,7 @@ final class Runlight
         $this->limit = !($number > 0) ? null : new RateLimit((int) min(PHP_INT_MAX, floor($number)), fn (): int => $this->now(), null, !isset($options['now']));
         $this->clock = $options['now'] ?? static fn (): int => (int) floor(microtime(true) * 1000);
         $this->fetcher = $options['fetcher'] ?? new CurlFetcher();
+        $this->localInstalls = (bool) ($options['localInstalls'] ?? false);
         $this->links = new Links($this);
         $this->linkPath = '/' . preg_replace('#^/+|/+$#', '', (string) ($options['linkPath'] ?? '/go'));
         $this->mailInCode = $options['mail'] ?? null;
@@ -483,7 +489,7 @@ final class Runlight
         }
         $info = ['lastSeen' => $cached['lastSeen'] ?? null, 'retentionMonths' => Undefined::value(), 'connection' => 'unreachable'];
         try {
-            $answer = $this->fetcher->fetch("{$remote['url']}/api/sites", ['headers' => ['authorization' => "Bearer {$remote['token']}"], 'timeoutMs' => 8000, 'maxBytes' => self::REMOTE_MAX_BYTES]);
+            $answer = Safefetch::installFetch("{$remote['url']}/api/sites", ['headers' => ['authorization' => "Bearer {$remote['token']}"], 'timeoutMs' => 8000, 'maxBytes' => self::REMOTE_MAX_BYTES, 'local' => $this->localInstalls], $this->fetcher);
             if ($answer->status === 401 || $answer->status === 403) {
                 $info['connection'] = 'refused';
             }
@@ -527,7 +533,7 @@ final class Runlight
     private function revokeRemoteToken(array $remote): void
     {
         try {
-            $this->fetcher->fetch("{$remote['url']}/api/token", ['method' => 'DELETE', 'headers' => ['authorization' => "Bearer {$remote['token']}"], 'timeoutMs' => 5_000]);
+            Safefetch::installFetch("{$remote['url']}/api/token", ['method' => 'DELETE', 'headers' => ['authorization' => "Bearer {$remote['token']}"], 'timeoutMs' => 5_000, 'local' => $this->localInstalls], $this->fetcher);
         } catch (\Throwable) {
         }
     }
@@ -540,7 +546,7 @@ final class Runlight
     private function addRemoteSite(array $input): array
     {
         $url = (string) preg_replace('#/+$#', '', Js::trim(Js::string($input['url'] ?? '')));
-        if (!preg_match('#^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)#D', $url)) {
+        if (!Safefetch::installAddress($url, $this->localInstalls)) {
             throw new SettingsError("Enter the install's address, like https://example.com/runlight", 'connect_url');
         }
         $token = Js::trim(Js::string($input['token'] ?? ''));
@@ -549,7 +555,7 @@ final class Runlight
         }
         $body = null;
         try {
-            $answer = $this->fetcher->fetch("$url/api/sites", ['headers' => ['authorization' => "Bearer $token"], 'timeoutMs' => 10_000, 'maxBytes' => self::REMOTE_MAX_BYTES]);
+            $answer = Safefetch::installFetch("$url/api/sites", ['headers' => ['authorization' => "Bearer $token"], 'timeoutMs' => 10_000, 'maxBytes' => self::REMOTE_MAX_BYTES, 'local' => $this->localInstalls], $this->fetcher);
         } catch (BodyTooLong) {
             // An answer too long to read is no Runlight's.
             throw new SettingsError("$url did not answer like a Runlight install", 'connect_not_runlight', ['url' => $url]);
@@ -568,7 +574,7 @@ final class Runlight
         $scope = 'read';
         $tokenSite = '';
         try {
-            $about = $this->fetcher->fetch("$url/api/token", ['headers' => ['authorization' => "Bearer $token"], 'timeoutMs' => 10_000, 'maxBytes' => self::REMOTE_MAX_BYTES]);
+            $about = Safefetch::installFetch("$url/api/token", ['headers' => ['authorization' => "Bearer $token"], 'timeoutMs' => 10_000, 'maxBytes' => self::REMOTE_MAX_BYTES, 'local' => $this->localInstalls], $this->fetcher);
             $info = $about->ok() ? self::jsonOrNull($about) : null;
             if (is_array($info) && ($info['scope'] ?? null) === 'manage') {
                 $scope = 'manage';
@@ -1583,6 +1589,7 @@ final class Runlight
             $this->currentSalts($this->now(), $timezone);
         }
         $this->dropOldSalts($this->now());
+        $this->limit?->sweep();
         // Every site's retention covers any one site's that is still waiting.
         $this->pruning = [];
         try {

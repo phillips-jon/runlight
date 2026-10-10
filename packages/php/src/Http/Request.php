@@ -54,8 +54,43 @@ final class Request
             $headers['content-length'] = (string) $_SERVER['CONTENT_LENGTH'];
         }
         $method = (string) ($_SERVER['REQUEST_METHOD'] ?? 'GET');
-        $body = in_array(strtoupper($method), ['GET', 'HEAD'], true) ? '' : (string) file_get_contents('php://input');
+        $body = '';
+        if (!in_array(strtoupper($method), ['GET', 'HEAD'], true)) {
+            $input = fopen('php://input', 'rb');
+            $body = $input === false ? '' : self::readBody($input, $uri, $headers['content-length'] ?? null);
+        }
         return new self("$scheme://$host$uri", $method, $headers, $body, (string) ($_SERVER['REMOTE_ADDR'] ?? ''));
+    }
+
+    /**
+     * A request body read from a stream, up to the limit for its path, as the Node adapter reads one: 16 KB for
+     * the collect endpoint, whose payloads are under 8 KB, and 10 MB for the rest, such as a link import of 5,000
+     * rows. One byte past the limit is all that is read, so a larger body never fills memory.
+     *
+     * @param resource $stream
+     * @throws BodyTooLarge past the limit, for a 413
+     */
+    public static function readBody($stream, string $target, ?string $declared = null): string
+    {
+        $limit = preg_match('#/e$#D', (string) parse_url($target, PHP_URL_PATH)) ? 16 * 1024 : 10 * 1024 * 1024;
+        if ($declared !== null && is_numeric(trim($declared)) && (float) trim($declared) > $limit) {
+            throw new BodyTooLarge("Request body over $limit bytes");
+        }
+        $body = (string) stream_get_contents($stream, $limit + 1);
+        if (strlen($body) > $limit) {
+            throw new BodyTooLarge("Request body over $limit bytes");
+        }
+        return $body;
+    }
+
+    /** The answer to a body past its limit. The rest of the upload is unread, so the connection is not reused. */
+    public static function tooLarge(): Response
+    {
+        return new Response('{"error":"That request is too large"}', 413, [
+            'content-type' => 'application/json; charset=utf-8',
+            'cache-control' => 'no-store',
+            'connection' => 'close',
+        ]);
     }
 
     public function text(): string

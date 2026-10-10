@@ -8,6 +8,7 @@ use Runlight\Accounts\Accounts;
 use Runlight\Accounts\Crypto;
 use Runlight\Accounts\Web;
 use Runlight\Hash;
+use Runlight\Http\BodyTooLarge;
 use Runlight\Http\Request;
 use Runlight\Http\Response;
 use Runlight\Http\Url;
@@ -242,7 +243,12 @@ final class Standalone
      */
     public function serve(): void
     {
-        $request = Request::fromGlobals();
+        try {
+            $request = Request::fromGlobals();
+        } catch (BodyTooLarge) {
+            Request::tooLarge()->emit(true);
+            return;
+        }
         $response = $this->handle($request, ['ip' => $request->remoteAddress]);
         $response->emit($request->method !== 'HEAD');
         if (function_exists('fastcgi_finish_request')) {

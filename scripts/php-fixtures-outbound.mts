@@ -341,7 +341,7 @@ const scenarios: Scenario[] = [
     { pattern: "\\/websites\\/u-1\\/events.*page=2&", body: { data: [{ sessionId: "s9", createdAt: "2026-03-02T00:00:00Z", urlPath: "/golden", urlQuery: "", referrerDomain: "t.co", referrerPath: "/x", country: "FR", city: "Paris", device: "mobile", os: "Android", browser: "chrome" }], count: 3 } },
     { pattern: "\\/websites\\/u-1\\/sessions", body: { data: [{ id: "s1", screen: "390x844", language: "en-GB", region: "ENG" }, { id: "s2", screen: "1920x1080", language: "en-US", region: "CA" }], count: 2 } },
   ], known: ["known https://a.com/k"] },
-  { name: "umami key paged", source: "umami", credentials: { url: "http://stats.example.com", apiKey: "k" }, routes: [
+  { name: "umami key paged", source: "umami", credentials: { url: "https://stats.example.com", apiKey: "k" }, routes: [
     { pattern: "\\/api\\/links\\?page=1&", body: { data: Array.from({ length: 5 }, (_, i) => ({ id: `u${i}`, name: `N${i}`, url: `https://a.com/${i}`, slug: `s${i}`, createdAt: "2026-01-01T00:00:00Z", deletedAt: null })), count: 6 } },
     { pattern: "\\/api\\/links\\?page=2&", body: { data: [{ id: "u5", name: "N5", url: "https://a.com/5", slug: "s5", createdAt: "x", deletedAt: null }], count: 6 } },
     { pattern: "\\/websites\\/", body: { data: [], count: 0 } },

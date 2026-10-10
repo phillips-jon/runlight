@@ -6,8 +6,9 @@ namespace Runlight;
 
 /**
  * Counts tracker requests per address in fixed one-minute windows. Addresses
- * are hashed with a key made once per server, so the count never holds an IP,
- * and each window's counts are dropped when it ends.
+ * are hashed with a key made each day, so the count never holds an IP, each
+ * window's counts are dropped when it ends, and yesterday's key goes with them,
+ * so no leftover hash can be matched to an address by trying them all.
  *
  * PHP forgets everything between requests, so the counts live where requests
  * can share them: APCu when it is loaded, or else one small file per window in
@@ -19,6 +20,9 @@ final class RateLimit
     /** @var array<string, int> counts kept in this process, used when neither APCu nor a temporary folder works */
     private array $counts = [];
     private int $window = 0;
+    /** @var array<string, string> today's key by its file, read once per process */
+    private static array $keys = [];
+    private ?string $ownKey = null;
 
     /**
      * @param callable(): int $now milliseconds
@@ -36,9 +40,10 @@ final class RateLimit
         if ($ip === '') {
             return true;
         }
-        $window = intdiv(($this->now)(), 60_000);
-        $id = substr(hash('sha256', self::key() . $ip), 0, 16);
-        if ($this->shared && function_exists('apcu_enabled') && apcu_enabled()) {
+        $ms = ($this->now)();
+        $window = intdiv($ms, 60_000);
+        $id = substr(hash('sha256', $this->key(intdiv($ms, 86_400_000)) . $ip), 0, 16);
+        if ($this->shared && self::apcu()) {
             $name = "runlight:rl:$window:$id";
             apcu_add($name, 0, 120);
             $count = apcu_inc($name);
@@ -58,9 +63,41 @@ final class RateLimit
         return $this->counts[$id] <= $this->perMinute;
     }
 
+    /**
+     * Deletes the windows that have ended and every key but today's. Each counted request does this, and the
+     * scheduled check does too, so the files go even once the requests stop.
+     */
+    public function sweep(): void
+    {
+        if (!$this->shared) {
+            return;
+        }
+        $ms = ($this->now)();
+        $window = intdiv($ms, 60_000);
+        $today = 'key-' . intdiv($ms, 86_400_000);
+        foreach (glob($this->folder() . '/*') ?: [] as $old) {
+            $name = basename($old);
+            // A bare "key" is one an earlier version kept for good.
+            $stale = ctype_digit($name) ? (int) $name < $window - 1 : ($name === 'key' || (str_starts_with($name, 'key-') && $name !== $today));
+            if ($stale) {
+                @unlink($old);
+            }
+        }
+    }
+
+    private function folder(): string
+    {
+        return ($this->dir ?? sys_get_temp_dir()) . '/runlight-rate';
+    }
+
+    private static function apcu(): bool
+    {
+        return function_exists('apcu_enabled') && apcu_enabled();
+    }
+
     private function countInFile(int $window, string $id): ?int
     {
-        $dir = ($this->dir ?? sys_get_temp_dir()) . '/runlight-rate';
+        $dir = $this->folder();
         if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
             return null;
         }
@@ -82,42 +119,60 @@ final class RateLimit
         } finally {
             fclose($handle);
         }
-        // Earlier windows are no longer needed.
-        foreach (glob("$dir/*") ?: [] as $old) {
-            if ((int) basename($old) < $window - 1) {
-                @unlink($old);
-            }
-        }
+        $this->sweep();
         return $counts[$id];
     }
 
-    /** A key made once and kept beside the counts, so the hashes cannot be turned back into addresses without it. */
-    private static function key(): string
+    /**
+     * Today's key, shared by every request on the server, so the hashes cannot be turned back into addresses
+     * without it. A limiter that counts on its own keeps a key of its own in memory.
+     */
+    private function key(int $day): string
     {
-        static $key = null;
-        if ($key !== null) {
-            return $key;
+        if (!$this->shared) {
+            return $this->ownKey ??= random_bytes(16);
         }
-        if (function_exists('apcu_enabled') && apcu_enabled()) {
-            $stored = apcu_fetch('runlight:rl:key');
-            if (is_string($stored)) {
-                return $key = $stored;
+        $dir = $this->folder();
+        $file = "$dir/key-$day";
+        if (isset(self::$keys[$file])) {
+            return self::$keys[$file];
+        }
+        if (self::apcu()) {
+            $name = "runlight:rl:key:$day";
+            $stored = apcu_fetch($name);
+            if (!is_string($stored)) {
+                apcu_add($name, random_bytes(16), 2 * 86_400);
+                $stored = apcu_fetch($name);
             }
-            $made = random_bytes(16);
-            apcu_add('runlight:rl:key', $made);
-            $stored = apcu_fetch('runlight:rl:key');
-            return $key = is_string($stored) ? $stored : $made;
-        }
-        $file = sys_get_temp_dir() . '/runlight-rate/key';
-        $stored = @file_get_contents($file);
-        if (is_string($stored) && strlen($stored) === 16) {
-            return $key = $stored;
+            if (is_string($stored)) {
+                return self::$keys[$file] = $stored;
+            }
         }
         $made = random_bytes(16);
-        @mkdir(dirname($file), 0700, true);
-        if (@file_put_contents($file, $made, LOCK_EX) !== false) {
-            @chmod($file, 0600);
+        if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) {
+            return self::$keys[$file] = $made;
         }
-        return $key = $made;
+        $handle = @fopen($file, 'c+');
+        if ($handle === false) {
+            return self::$keys[$file] = $made;
+        }
+        try {
+            // Readable by the owner alone before anything is in it, and written under a lock so two first
+            // requests agree.
+            @chmod($file, 0600);
+            flock($handle, LOCK_EX);
+            $stored = (string) stream_get_contents($handle);
+            if (strlen($stored) !== 16) {
+                ftruncate($handle, 0);
+                rewind($handle);
+                fwrite($handle, $made);
+                fflush($handle);
+                $stored = $made;
+            }
+            flock($handle, LOCK_UN);
+        } finally {
+            fclose($handle);
+        }
+        return self::$keys[$file] = $stored;
     }
 }

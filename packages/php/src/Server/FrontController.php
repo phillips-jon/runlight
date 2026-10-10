@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Runlight\Server;
 
+use Runlight\Http\BodyTooLarge;
 use Runlight\Http\Request;
 use Runlight\Http\Response;
 use Runlight\Json;
@@ -26,7 +27,12 @@ final class FrontController
 {
     public static function serve(Runlight $rl, Routes $routes): void
     {
-        $request = Request::fromGlobals();
+        try {
+            $request = Request::fromGlobals();
+        } catch (BodyTooLarge) {
+            Request::tooLarge()->emit(true);
+            return;
+        }
         $response = self::answer($rl, $routes, $request);
         $response->emit($request->method !== 'HEAD');
         // The visitor has the answer; whatever is left runs without keeping them waiting.

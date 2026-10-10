@@ -314,6 +314,9 @@ final class RoutesTest extends TestCase
         $send = fn (string $key, mixed $body): Response => $routes->handle(Make::owner('/runlight/api/observe', 'POST', $body, $key));
         $gpt = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot';
         $this->assertSame(401, $send('wrong', ['url' => 'https://blog.example.com/post', 'userAgent' => $gpt])->status);
+        // The key is checked before the body is read: a stranger's bad JSON is a 401, not a 400.
+        $this->assertSame(401, $routes->handle(new \Runlight\Http\Request('https://example.com/runlight/api/observe', 'POST', ['authorization' => 'Bearer wrong', 'content-type' => 'application/json'], '{nope'))->status);
+        $this->assertSame(401, $routes->handle(new \Runlight\Http\Request('https://example.com/runlight/api/observe', 'POST', ['authorization' => 'Bearer rlo_unknown', 'content-type' => 'application/json'], '{nope'))->status);
         $this->assertSame(400, $send('agents', ['url' => 'not a url', 'userAgent' => $gpt])->status);
         $this->assertSame(204, $send('agents', ['url' => 'https://blog.example.com/post', 'userAgent' => $gpt])->status);
         $this->assertSame(204, $send('agents', ['url' => 'https://blog.example.com/style.css', 'userAgent' => $gpt])->status, 'assets are ignored, quietly');

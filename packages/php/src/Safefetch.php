@@ -205,20 +205,37 @@ final class Safefetch
         return false;
     }
 
+    /** @var (\Closure(string): list<string>)|null */
+    private static ?\Closure $testLookup = null;
+
     /**
-     * GETs an https URL on the public internet, following up to `redirects`
-     * redirects that stay on it, within `timeoutMs` in all. Throws a
+     * For tests: names are looked up here instead of in DNS, by every publicFetch not given a `lookup` of its
+     * own. Every address is still checked. Null goes back to DNS.
+     *
+     * @param (callable(string): list<string>)|null $lookup
+     */
+    public static function lookupInTests(?callable $lookup): void
+    {
+        self::$testLookup = $lookup === null ? null : \Closure::fromCallable($lookup);
+    }
+
+    /**
+     * Fetches an https URL on the public internet, following up to `redirects`
+     * redirects that stay on it, within `timeoutMs` in all. Only a GET follows
+     * redirects; anything else comes back with the redirect as it is. Throws a
      * PrivateAddressError for an address off it, and a FetchError with
      * `timedOut` when time runs out. A redirect past the last one comes back as
      * it is. `maxBytes` and `truncate` go to the Fetcher, for a capped read.
      * `lookup` stands in for DNS in tests.
      *
-     * @param array{timeoutMs: int, headers?: array<string, string>, redirects?: int, maxBytes?: int, truncate?: bool, lookup?: callable(string): list<string>} $init
+     * @param array{timeoutMs: int, method?: string, headers?: array<string, string>, body?: string, redirects?: int, maxBytes?: int, truncate?: bool, lookup?: callable(string): list<string>} $init
      */
     public static function publicFetch(string $target, array $init, ?Fetcher $fetcher = null): Response
     {
         $fetcher ??= new CurlFetcher();
-        $lookup = $init['lookup'] ?? self::lookup(...);
+        $lookup = $init['lookup'] ?? self::$testLookup ?? self::lookup(...);
+        $method = strtoupper($init['method'] ?? 'GET');
+        $redirects = $method === 'GET' ? ($init['redirects'] ?? 0) : 0;
         $until = hrtime(true) + $init['timeoutMs'] * 1_000_000;
         $url = new Url($target);
         for ($hop = 0; ; $hop++) {
@@ -253,8 +270,8 @@ final class Safefetch
             if ($left <= 0) {
                 throw self::timedOut();
             }
-            $options = ['headers' => $init['headers'] ?? [], 'redirect' => 'manual', 'timeoutMs' => $left];
-            foreach (['maxBytes', 'truncate'] as $key) {
+            $options = ['method' => $method, 'headers' => $init['headers'] ?? [], 'redirect' => 'manual', 'timeoutMs' => $left];
+            foreach (['body', 'maxBytes', 'truncate'] as $key) {
                 if (isset($init[$key])) {
                     $options[$key] = $init[$key];
                 }
@@ -272,11 +289,40 @@ final class Safefetch
                 throw $error;
             }
             $location = $answer->headers->get('location');
-            if ($answer->status < 300 || $answer->status >= 400 || $location === null || $location === '' || $hop >= ($init['redirects'] ?? 0)) {
+            if ($answer->status < 300 || $answer->status >= 400 || $location === null || $location === '' || $hop >= $redirects) {
                 return $answer;
             }
             $url = new Url($location, $url->href());
         }
+    }
+
+    /** An install on this machine: http://localhost or http://127.0.0.1, with any port. */
+    private const LOCAL_INSTALL = '#^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)#';
+
+    /**
+     * Whether an address can be another Runlight install's: https, or, with `local`, an install on this machine,
+     * which only code can allow.
+     */
+    public static function installAddress(string $url, bool $local): bool
+    {
+        return preg_match('#^https://[^/]+#', $url) === 1 || ($local && preg_match(self::LOCAL_INSTALL, $url) === 1);
+    }
+
+    /**
+     * Fetches from another Runlight install, which someone signed in named: a public address as publicFetch
+     * fetches it, with no redirect followed, so a token sent there goes nowhere else. With `local`, an install
+     * on this machine is fetched as it is, still without following a redirect.
+     *
+     * @param array{timeoutMs: int, local: bool, method?: string, headers?: array<string, string>, body?: string, maxBytes?: int} $init
+     */
+    public static function installFetch(string $target, array $init, ?Fetcher $fetcher = null): Response
+    {
+        $local = $init['local'];
+        unset($init['local']);
+        if ($local && preg_match(self::LOCAL_INSTALL, $target)) {
+            return ($fetcher ?? new CurlFetcher())->fetch($target, ['method' => 'GET', 'headers' => [], ...$init, 'redirect' => 'manual']);
+        }
+        return self::publicFetch($target, [...$init, 'redirects' => 0], $fetcher);
     }
 
     private static function timedOut(): FetchError

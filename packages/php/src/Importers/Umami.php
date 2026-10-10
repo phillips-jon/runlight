@@ -38,7 +38,7 @@ final class Umami implements Importer
     public static function umamiSignIn(Http $http, array $credentials, mixed $token = null): array
     {
         $base = (string) preg_replace('#/+$#', '', Http::trim((string) ($credentials['url'] ?? '')));
-        if (!preg_match('#^https?://[^/]+#', $base)) {
+        if (!preg_match('#^https://[^/]+#', $base)) {
             throw new ImportError('Enter your Umami address, like https://stats.example.com', 'import_umami_address');
         }
         $key = Http::trim((string) ($credentials['apiKey'] ?? ''));

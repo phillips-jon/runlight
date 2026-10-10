@@ -209,7 +209,7 @@ final class SitesTest extends CoreTestCase
             }
             return Response::json(['scope' => $scope, 'site' => 'default']);
         });
-        $hub = new Runlight(['store' => Stores::sqlite(':memory:'), 'managedSites' => true, 'secret' => str_repeat('k', 32), 'fetcher' => $fetcher]);
+        $hub = new Runlight(['store' => Stores::sqlite(':memory:'), 'managedSites' => true, 'secret' => str_repeat('k', 32), 'fetcher' => $fetcher, 'localInstalls' => true]);
         $first = $hub->addSite(['remote' => ['url' => 'http://127.0.0.1:4100/runlight', 'token' => 'rl_read']])['id'];
         self::assertSame('read', $hub->remote($first)['scope']);
         $scope = 'manage';
