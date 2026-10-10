@@ -215,6 +215,69 @@ class RoutesRoutesTest < RoutesTestCase
     assert_equal 404, routes.handle(req(share["path"])).status
   end
 
+  def test_the_dashboard_inside_a_cms_opens_one_framed_page_once_whose_session_reads_one_site
+    now = RoutesMake.utc(2026, 10, 9, 12)
+    rl = RoutesMake.runlight({ "sites" => [
+      { "id" => "a", "name" => "Site A", "hostnames" => ["a.com"], "timezone" => "UTC" },
+      { "id" => "b", "name" => "Site B", "hostnames" => ["b.com"], "timezone" => "UTC" },
+    ], "now" => -> { now } })
+    routes = rl.routes({ "token" => "secret" })
+    assert_equal "embed_site", RoutesMake.body(routes.handle(RoutesMake.owner("/runlight/api/tokens", "POST", { "name" => "CMS", "scope" => "embed" })))["code"]
+    made = RoutesMake.body(routes.handle(RoutesMake.owner("/runlight/api/tokens", "POST", { "name" => "CMS", "site" => "a", "scope" => "embed" })))
+    assert_equal "embed", made["token"]["scope"]
+    mint = ->(origin, key = made["secret"]) { routes.handle(RoutesMake.owner("/runlight/api/embed", "POST", { "origin" => origin }, key)) }
+    assert_equal "embed_host", RoutesMake.body(mint.call("https://b.com"))["code"], "only an origin on the site's own domains"
+    assert_equal "embed_origin", RoutesMake.body(mint.call("https://a.com/admin"))["code"]
+    assert_equal "unauthorized", RoutesMake.body(mint.call("https://a.com", "secret"))["code"]
+    reading = RoutesMake.body(routes.handle(RoutesMake.owner("/runlight/api/tokens", "POST", { "name" => "Read", "site" => "a" })))["secret"]
+    assert_equal "embed_token", RoutesMake.body(mint.call("https://a.com", reading))["code"]
+    assert_equal 403, routes.handle(RoutesMake.owner("/runlight/api/stats?site=a", "GET", nil, made["secret"])).status, "an embed key reads nothing itself"
+    minted = mint.call("https://www.a.com")
+    assert_equal 201, minted.status
+    answer = RoutesMake.body(minted)
+    ticket = answer["ticket"]
+    assert_equal "a", answer["site"]
+    assert_equal "/runlight/embed?ticket=#{ticket}", answer["path"]
+    refute_includes ticket, made["token"]["id"], "a ticket never names its token"
+
+    page = routes.handle(req(answer["path"]))
+    assert_equal 200, page.status
+    assert page.headers.get("content-security-policy").end_with?("frame-ancestors https://www.a.com")
+    assert_nil page.headers.get("x-frame-options")
+    assert_equal "no-referrer", page.headers.get("referrer-policy")
+    session = page.text[/data-embed="([^"]+)"/, 1]
+    assert_match(/\A\d+\.[a-f0-9]{24}\.[a-f0-9]{64}\z/, session)
+    again = routes.handle(req(answer["path"]))
+    assert_equal 410, again.status, "a ticket works once"
+    assert again.headers.get("content-security-policy").end_with?("frame-ancestors https://www.a.com"), "a used ticket still says so inside its frame"
+    assert_includes again.text, 'data-embed=""'
+    assert_equal 404, routes.handle(req("/runlight/embed?ticket=#{ticket.sub(/.\z/, ticket.end_with?("0") ? "1" : "0")}")).status, "an unsigned ticket is refused"
+
+    as = { "x-runlight-embed" => session }
+    assert_equal "a", RoutesMake.body(routes.handle(req("/runlight/api/stats?site=b", "GET", as)))["site"], "pinned to its token's site whatever is asked"
+    assert_equal 403, routes.handle(req("/runlight/api/links?site=a", "GET", as.merge("authorization" => "Bearer secret"))).status, "nothing a share cannot read, even beside the owner's token"
+    assert_equal "DENY", routes.handle(req("/runlight/")).headers.get("x-frame-options"), "every other page still refuses to be framed"
+
+    later = RoutesMake.body(mint.call("https://a.com"))
+    now += Runlight::Routes::EMBED_TICKET_MS + 1
+    assert_equal 410, routes.handle(req(later["path"])).status, "a ticket runs out"
+    now += Runlight::Routes::EMBED_SESSION_MS
+    assert_equal "embed_expired", RoutesMake.body(routes.handle(req("/runlight/api/stats", "GET", as)))["code"], "a session runs out"
+    now -= Runlight::Routes::EMBED_SESSION_MS
+
+    assert_equal 200, routes.handle(RoutesMake.owner("/runlight/api/tokens/#{made["token"]["id"]}", "DELETE")).status
+    assert_equal 401, routes.handle(req("/runlight/api/stats", "GET", as)).status, "deleting the token ends its sessions at once"
+  end
+
+  on_every_database("a setting can be taken once") do |kind|
+    store = Databases.fresh(kind)
+    store.migrate
+    store.set_setting("x", "1")
+    assert_equal "1", store.take_setting("x")
+    assert_nil store.take_setting("x")
+    assert_nil store.setting("x")
+  end
+
   def test_a_cms_plugin_reports_ai_agent_fetches_with_its_own_key_which_reads_nothing
     rl = RoutesMake.runlight({ "site" => { "hostnames" => ["blog.example.com"] } })
     routes = rl.routes({ "token" => "secret", "observeKey" => "agents" })

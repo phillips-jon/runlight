@@ -51,6 +51,17 @@ class RackAppTest < Minitest::Test
     assert_equal "https://example.org/launch", answer.headers["location"]
   end
 
+  def test_a_link_domain_is_answered_before_the_app_and_the_apps_own_host_reaches_the_app
+    @rl.init
+    @store.add_link_domain("go.example.com", "default", @now)
+    @rl.forget_link_domains
+    @rl.links.create("default", { "slug" => "launch", "url" => "https://example.org/launch", "domain" => "go.example.com" })
+    answer = @app.get("/launch", "HTTP_HOST" => "go.example.com", "HTTP_USER_AGENT" => SAFARI)
+    assert_includes [301, 302, 307, 308], answer.status
+    assert_equal "https://example.org/launch", answer.headers["location"]
+    assert_equal "app saw GET /launch ", @app.get("/launch", "HTTP_HOST" => "example.com", "HTTP_USER_AGENT" => SAFARI).body
+  end
+
   def test_alone_it_answers_everything_and_a_head_has_no_body
     alone = Rack::MockRequest.new(Runlight::RackApp.new(runlight: @rl, base_path: "/runlight", token: TOKEN))
     assert_equal 404, alone.get("/elsewhere", "HTTP_HOST" => "example.com").status

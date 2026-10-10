@@ -55,6 +55,20 @@ class RailsEngineTest < Minitest::Test
     assert_equal "Example", Runlight::Json.decode(sites.body).dig(0, "name") || Runlight::Json.decode(sites.body).dig("sites", 0, "name")
   end
 
+  def test_a_link_domain_is_answered_before_the_router_and_the_apps_own_host_reaches_the_app
+    core = Runlight.instance
+    core.init
+    core.store.add_link_domain("go.example.com", "default", core.now)
+    core.forget_link_domains
+    core.links.create("default", { "slug" => "hello", "url" => "https://example.org/launch", "domain" => "go.example.com" })
+    safari = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+    answer = @app.get("/hello", "HTTP_HOST" => "go.example.com", "HTTP_USER_AGENT" => safari)
+    assert_includes [301, 302, 307, 308], answer.status
+    assert_equal "https://example.org/launch", answer.headers["location"]
+    hello = @app.get("/hello", "HTTP_HOST" => "example.com", "HTTP_USER_AGENT" => safari)
+    assert_equal "hello from the app", hello.body
+  end
+
   def test_the_tracker_records_a_pageview_without_a_csrf_token
     event = Runlight::Json.encode({ "k" => "pageview", "u" => "https://example.com/pricing", "r" => "" })
     answer = @app.post("/runlight/e", "HTTP_HOST" => "example.com", "CONTENT_TYPE" => "text/plain", input: event,

@@ -33,7 +33,9 @@ module Runlight
     TOKEN_PREFIX = "rl_"
     # The header a shared dashboard sends its share id in.
     SHARE_HEADER = "x-runlight-share"
-    # What a share can read: one site's reports, nothing that changes anything.
+    # The header an embedded dashboard sends its session in.
+    EMBED_HEADER = "x-runlight-embed"
+    # What a share, or the dashboard inside a CMS, can read: one site's reports, nothing that changes anything.
     SHARED_PATHS = %w[/api/sites /api/icon /api/realtime /api/stats /api/series /api/rhythm /api/breakdown /api/goals
                       /api/event-props /api/export /api/funnels /api/journeys].freeze
     # Where the tracker's click rules go; the script ships with this string in their place.
@@ -50,6 +52,10 @@ module Runlight
     # Questions each viewer may ask a day, until an owner sets another number.
     VIEWER_DAILY = 50
     SHARE_ID = /\A[a-f0-9]{32}\z/
+    # How long an embed ticket works: long enough for the admin page to load its frame, never to be kept.
+    EMBED_TICKET_MS = 5 * 60_000
+    # How long an embedded dashboard reads before the admin page has to be loaded again for a new ticket.
+    EMBED_SESSION_MS = 60 * 60_000
     PATH_DIMENSIONS = %w[page entry exit ai_page].freeze
     # runlight.ts's LINK_DOMAIN_CHECK: the path on every link domain that answers when the domain reaches this Runlight.
     LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain"
@@ -357,15 +363,18 @@ module Runlight
         Json.encode(urls)
       end
 
-      # The dashboard's page, which holds no data: the API it calls checks access.
-      def dashboard(base, share = "", sign_out = "", geo_credit = false, accounts = false, sign_in = "")
+      # The dashboard's page, which holds no data: the API it calls checks access. `embed` is the dashboard inside a
+      # CMS's admin pages: { "session", "origin" }, its session (empty once its ticket was used or ran out) and the
+      # admin origin that frames it.
+      def dashboard(base, share = "", sign_out = "", geo_credit = false, accounts = false, sign_in = "", embed = nil)
         b = escape_attr(base)
         hash = build_hash("dashboardHash")
         attributes = (share != "" ? " data-share=\"#{escape_attr(share)}\"" : "") +
                      (sign_out != "" ? " data-sign-out=\"#{escape_attr(sign_out)}\"" : "") +
                      (sign_in != "" ? " data-sign-in=\"#{escape_attr(sign_in)}\"" : "") +
                      (geo_credit ? ' data-geo-credit=""' : "") +
-                     (accounts ? ' data-accounts=""' : "")
+                     (accounts ? ' data-accounts=""' : "") +
+                     (embed.nil? ? "" : " data-embed=\"#{escape_attr(embed["session"])}\" data-embed-origin=\"#{escape_attr(embed["origin"])}\"")
         "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex\">\n<title>Runlight</title>\n" \
           "<link rel=\"icon\" href=\"#{Brand.runlight_icon}\">\n" \
           "<link rel=\"stylesheet\" href=\"#{b}/assets/app.#{hash}.css\">\n</head>\n<body>\n" \
@@ -596,7 +605,8 @@ module Runlight
     # Who may read stats: the owner (true), an API token or a read-only sign-in (its row), or nobody.
     def reader(request)
       token = api_token(request)
-      return token unless token.nil?
+      # A key for the dashboard inside a CMS gets tickets and reads nothing itself.
+      return token["scope"] == "embed" ? false : token unless token.nil?
 
       if !@options["authorize"].nil? || !@web.nil?
         access = can_read(request)
@@ -986,6 +996,72 @@ module Runlight
       origin?(origin) ? { "origin" => origin, "site" => unhex.call(parts[2]) } : nil
     end
 
+    # The key embed tickets and sessions are signed with, made on first use and kept in the database for every process.
+    def embed_key
+      @rl.init
+      saved = store.setting("embed-key")
+      return saved if !saved.nil? && saved != ""
+
+      made = Hashing.random_id(32)
+      store.set_setting("embed-key", made)
+      made
+    end
+
+    # An embed token that still exists, for a site that still does.
+    def embed_token(id)
+      token = store.tokens.find { |t| t["id"] == id }
+      return nil if token.nil?
+
+      token["scope"] == "embed" && token["site"] != "" && !@rl.site(token["site"]).nil? ? token : nil
+    end
+
+    # A ticket for one load of the embedded dashboard, signed with when it runs out, a nonce, and the admin origin
+    # that may frame it. The nonce is kept, with the token it was made for, until the ticket is used.
+    def embed_ticket(origin, token)
+      now = @rl.now
+      # Tickets nobody used are cleared as new ones are made.
+      store.settings_starting_with("embed-ticket:").each do |row|
+        store.set_setting(row["key"], nil) if Js.number(row["value"].split(".", -1).first.to_s) < now
+      end
+      expires_at = now + EMBED_TICKET_MS
+      nonce = Hashing.random_id(16)
+      store.set_setting("embed-ticket:#{nonce}", "#{expires_at}.#{token}")
+      payload = "#{expires_at}.#{nonce}.#{origin.unpack1("H*")}"
+      { "ticket" => "#{payload}.#{Hashing.hmac(embed_key, "ticket.#{payload}")}", "expiresAt" => expires_at }
+    end
+
+    # What a ticket this install signed names: always its origin, and its token only the first time it is used
+    # before it runs out. Nil for anything else.
+    def redeem_embed(ticket)
+      parts = ticket.match(/\A(\d{1,15})\.([a-f0-9]{32})\.([a-f0-9]{2,512})\.([a-f0-9]{64})\z/)
+      return nil if parts.nil?
+      return nil unless constant_time_equal(parts[4], Hashing.hmac(embed_key, "ticket.#{parts[1]}.#{parts[2]}.#{parts[3]}"))
+
+      hex = parts[3]
+      origin = Js.scrub([hex[0, hex.length - (hex.length % 2)]].pack("H*"))
+      return nil unless origin?(origin)
+
+      # A ticket works once: it is gone before anything else is checked.
+      kept = store.take_setting("embed-ticket:#{parts[2]}")
+      token = !kept.nil? && kept != "" && Js.number(parts[1]) >= @rl.now ? embed_token(kept.split(".", -1)[1] || "") : nil
+      { "origin" => origin, "token" => token }
+    end
+
+    # A session for an embedded dashboard, which its page sends with every read, signed with when it runs out and its token.
+    def embed_session(token)
+      payload = "#{@rl.now + EMBED_SESSION_MS}.#{token}"
+      "#{payload}.#{Hashing.hmac(embed_key, "session.#{payload}")}"
+    end
+
+    # The embed token a session this install signed was made for, while it lasts and the token still exists.
+    def embed_reader(session)
+      parts = session.match(/\A(\d{1,15})\.([a-f0-9]{24})\.([a-f0-9]{64})\z/)
+      return nil if parts.nil? || Js.number(parts[1]) < @rl.now
+      return nil unless constant_time_equal(parts[3], Hashing.hmac(embed_key, "session.#{parts[1]}.#{parts[2]}"))
+
+      embed_token(parts[2])
+    end
+
     # The tracker with click rules inside, rebuilt when goals change. With ?site= it carries only that site's rules,
     # so one site's visitors never see another site's domains or goals. The standalone server's snippet always names
     # the site; without a name it serves no rules, and an app's own install, whose sites all belong to one owner,
@@ -1310,8 +1386,10 @@ module Runlight
         site = text(body, "site")
         return coded("Unknown site", "unknown_site", 404) if site != "" && sites.none? { |s| s["id"] == site }
 
-        scope = Js.get(body, "scope") == "manage" ? "manage" : "read"
+        asked_scope = Js.get(body, "scope")
+        scope = %w[manage embed].include?(asked_scope) ? asked_scope : "read"
         return coded("A token that changes settings is for one site. Pick the site.", "token_site", 400) if scope == "manage" && site == ""
+        return coded("A key for the dashboard in a CMS is for one site. Pick the site.", "embed_site", 400) if scope == "embed" && site == ""
 
         secret = "#{TOKEN_PREFIX}#{Hashing.random_id(20)}"
         row = { "id" => Hashing.random_id, "name" => name, "site" => site, "scope" => scope, "hash" => Hashing.sha256(secret),
@@ -1336,7 +1414,7 @@ module Runlight
     # callable taking the path and a list of [name, value] pairs.
     def read_api(request, url, default_site = nil)
       headers = Http::Headers.new(request.headers)
-      ["content-type", "content-length", SHARE_HEADER].each { |name| headers.delete(name) }
+      ["content-type", "content-length", SHARE_HEADER, EMBED_HEADER].each { |name| headers.delete(name) }
       lambda do |api_path, params|
         target = Http::Url.new("#{@base}#{api_path}", url.origin)
         query = target.search_params
@@ -1351,6 +1429,10 @@ module Runlight
     def api(request, path, url)
       rl = @rl
       method = request.method
+      # An embedded dashboard reads what a share link shows and nothing else, whoever else the request comes from.
+      if !request.headers.get(EMBED_HEADER).nil? && !(method == "GET" && shared_path?(path))
+        return coded("Not available on a shared dashboard", "share_not_available", 403)
+      end
       # A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
       # That holds without a cookie too, since a browser also sends Basic credentials or comes from an
       # allowed address on its own. A bearer token is never sent by the browser on its own, so it needs no check.
@@ -1415,7 +1497,37 @@ module Runlight
         return Http::Response.new("", status: 303, headers: { "location" => to, "cache-control" => "no-store" })
       end
 
+      # A ticket for one load of the dashboard inside a CMS's admin pages. The plugin's server asks with its embed
+      # token on each page view and names the admin's origin, which must be one of the site's domains and alone
+      # may frame the page the ticket opens.
+      if path == "/api/embed" && method == "POST"
+        token = api_token(request)
+        return denied(false) if token.nil?
+        return coded("Use a key for the dashboard in a CMS, made in Settings, Install", "embed_token", 403) if token["scope"] != "embed"
+
+        site = token["site"] != "" ? rl.site(token["site"]) : nil
+        return coded("Unknown site", "unknown_site", 404) if site.nil?
+
+        body = read_json(request)
+        return body if body.is_a?(Http::Response)
+
+        origin = text(body, "origin")
+        parsed = origin?(origin) && Js.length(origin) <= 200 ? Http::Url.parse(origin) : nil
+        return coded("Send the admin page's origin, such as https://example.com", "embed_origin", 400) if parsed.nil? || parsed.origin != origin
+
+        host = host_name(parsed.host)
+        domains = ((rl.remote(site["id"]) || {})["hostnames"] || site["hostnames"] || []).map { |h| host_name(h) }
+        unless domains.include?(host)
+          return coded("#{host} is not one of this site's domains. Add it to the site's domains in Runlight's settings.", "embed_host", 400, { "host" => host })
+        end
+
+        made = embed_ticket(origin, token["id"])
+        return json({ "ticket" => made["ticket"], "site" => site["id"], "expiresAt" => made["expiresAt"], "path" => "#{@base}/embed?ticket=#{made["ticket"]}" }, 201)
+      end
+
       token = bearer(request).start_with?(TOKEN_PREFIX) ? api_token(request) : nil
+      # An embed token gets tickets and reads nothing itself.
+      return coded("This key only opens the dashboard inside a CMS", "token_embed_only", 403) if !token.nil? && token["scope"] == "embed"
       if !token.nil? && token["scope"] == "manage" && manage_path(method, path)
         asked = url.search_params.get("site")
         site_match = path.match(%r{\A/api/sites/([^/]+)\z})
@@ -1966,7 +2078,15 @@ module Runlight
       shared = nil
       # The one site a share or a site's API token may read; nil for every site.
       only = nil
-      if share_id.nil?
+      embed = request.headers.get(EMBED_HEADER)
+      if share_id.nil? && !embed.nil?
+        token = embed_reader(embed)
+        return coded("This dashboard has expired. Reload the page to open it again.", "embed_expired", 401) if token.nil?
+
+        # An embedded dashboard sees what a share link of its token's site shows.
+        shared = { "id" => "", "site" => token["site"], "name" => "", "createdAt" => 0 }
+        only = token["site"]
+      elsif share_id.nil?
         access = reader(request)
         return denied(access) if access == false || access == "unconfigured"
 
@@ -2309,6 +2429,28 @@ module Runlight
 
       if (unsubscribe = path.match(%r{\A/unsubscribe/([^/]+)/?\z})) && %w[GET POST].include?(method)
         return unsubscribe_page(request, unsubscribe[1])
+      end
+
+      # The dashboard inside a CMS's admin pages, opened with a ticket its plugin just got. Only the admin origin
+      # the ticket names may frame it. A ticket used already or run out opens it with no session, so it says it
+      # has expired and offers to reload the admin page; anything else is refused and never framed.
+      if path == "/embed" && method == "GET"
+        rl.init
+        found = redeem_embed(url.search_params.get("ticket") || "")
+        if found.nil?
+          translator = Messages.translator(accepted_language(request))
+          t = translator["t"]
+          return small_page(translator["lang"], "<h1>#{escape_html(t.call("embed.goneTitle"))}</h1><p>#{escape_html(t.call("embed.gone"))}</p>", 404)
+        end
+        session = found["token"].nil? ? "" : embed_session(found["token"]["id"])
+        page = dashboard(base, "", "", Js.truthy?(@options["geoCredit"]), false, "", { "session" => session, "origin" => found["origin"] })
+        return Http::Response.new(page, status: session != "" ? 200 : 410, headers: {
+          "content-type" => "text/html; charset=utf-8",
+          "cache-control" => "no-store",
+          "content-security-policy" => DASHBOARD_CSP.sub("frame-ancestors 'none'", "frame-ancestors #{found["origin"]}"),
+          "referrer-policy" => "no-referrer",
+          "x-robots-tag" => "noindex",
+        })
       end
 
       if (share_page = path.match(%r{\A/share/([^/]+)/?\z})) && method == "GET"

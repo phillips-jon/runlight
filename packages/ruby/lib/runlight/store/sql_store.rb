@@ -12,7 +12,7 @@ module Runlight
     # - ReportRow: {id, site, email, frequency: "weekly"|"monthly", lang, token, origin, lastPeriod, lastSentAt, createdAt}
     # - ShareRow: {id, site, name, createdAt}
     # - FunnelRow: {id, site, name, steps: Array<{kind: "page"|"event", match}>, createdAt}
-    # - TokenRow: {id, name, site, scope: "read"|"manage", hash, hint, createdAt, lastUsedAt}
+    # - TokenRow: {id, name, site, scope: "read"|"manage"|"embed", hash, hint, createdAt, lastUsedAt}
     # - LinkRow: {id, site, domain, slug, name, url, createdAt, updatedAt}
     # - SessionRow: {id, site, visitor, startedAt, hostname, referrerHost, referrerPath, source, channel, utmSource,
     #   utmMedium, utmCampaign, utmTerm, utmContent, country, region, city, browser, browserVersion, os, osVersion, device, screen, language}
@@ -612,6 +612,20 @@ module Runlight
       def settings_starting_with(prefix)
         rows = @db.all("SELECT \"key\", value FROM rl_settings WHERE \"key\" LIKE ? ESCAPE '\\'", ["#{Sql.escape_like(prefix)}%"])
         rows.map { |r| { "key" => Sql.string(r["key"]), "value" => Sql.string(r["value"]) } }
+      end
+
+      # Reads a setting and deletes it. Of two callers at once, only the one whose delete took the row gets its value.
+      def take_setting(key)
+        value = setting(key)
+        return nil if value.nil?
+
+        sql = "DELETE FROM rl_settings WHERE \"key\" = ?"
+        gone = if @db.dialect == "mysql" && @db.respond_to?(:affected)
+                 @db.affected(sql, [key])
+               else
+                 @db.all("#{sql} RETURNING \"key\"", [key]).length
+               end
+        gone == 1 ? value : nil
       end
 
       def set_setting(key, value)
@@ -1524,7 +1538,7 @@ module Runlight
           "id" => Sql.string(r["id"]),
           "name" => Sql.string(r["name"]),
           "site" => Sql.string(r["site"]),
-          "scope" => r["scope"] == "manage" ? "manage" : "read",
+          "scope" => %w[manage embed].include?(r["scope"]) ? r["scope"] : "read",
           "hash" => Sql.string(r["hash"]),
           "hint" => Sql.string(r["hint"]),
           "createdAt" => Sql.number(r["created_at"]),
