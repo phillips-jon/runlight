@@ -217,7 +217,7 @@ final class Url
             throw new \InvalidArgumentException('Invalid URL');
         }
         if ($port !== '') {
-            if (!ctype_digit($port) || (int) $port > 65535) {
+            if (!preg_match('/^[0-9]+\z/', $port) || (int) $port > 65535) {
                 throw new \InvalidArgumentException('Invalid URL');
             }
             $port = (string) (int) $port;
@@ -241,7 +241,7 @@ final class Url
         $colon = strrpos($authority, ':');
         $host = $colon === false ? $authority : substr($authority, 0, $colon);
         $port = $colon === false ? '' : substr($authority, $colon + 1);
-        if (preg_match('/[\x00 #\/:<>?@\[\\\\\]^|]/', $host) || ($port !== '' && (!ctype_digit($port) || (int) $port > 65535))) {
+        if (preg_match('/[\x00 #\/:<>?@\[\\\\\]^|]/', $host) || ($port !== '' && (!preg_match('/^[0-9]+\z/', $port) || (int) $port > 65535))) {
             throw new \InvalidArgumentException('Invalid URL');
         }
         $this->hostname = self::encode($host, '');

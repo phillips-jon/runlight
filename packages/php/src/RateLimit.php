@@ -78,7 +78,7 @@ final class RateLimit
         foreach (glob($this->folder() . '/*') ?: [] as $old) {
             $name = basename($old);
             // A bare "key" is one an earlier version kept for good.
-            $stale = ctype_digit($name) ? (int) $name < $window - 1 : ($name === 'key' || (str_starts_with($name, 'key-') && $name !== $today));
+            $stale = preg_match('/^[0-9]+\z/', $name) ? (int) $name < $window - 1 : ($name === 'key' || (str_starts_with($name, 'key-') && $name !== $today));
             if ($stale) {
                 @unlink($old);
             }
