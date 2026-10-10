@@ -2,6 +2,7 @@
 
 require "fileutils"
 require "openssl"
+require "securerandom"
 require "tmpdir"
 
 module Runlight
@@ -10,7 +11,7 @@ module Runlight
   # (never from request input), cached for a day.
   #
   # The cache lives in this process and in one small file per origin in the
-  # system's temporary folder, so every process of an app server shares it.
+  # system's temporary folder (a folder of the user's own), so every process of an app server shares it.
   # An icon is a Hash {"body" => bytes, "type" => media type}.
   module Icon
     TIMEOUT_MS = 4000
@@ -20,7 +21,9 @@ module Runlight
     CACHE_SIZE = 500
     # A <link> tag, matched on bytes so case folding stays ASCII, as JavaScript's /i does.
     LINK = /<link(?![A-Za-z0-9_])[^>]*>/in
-    private_constant :TIMEOUT_MS, :MAX_BYTES, :DAY, :CACHE_SIZE, :LINK
+    # Where the system has it, opening a link fails rather than following it.
+    NOFOLLOW = File.const_defined?(:NOFOLLOW) ? File::NOFOLLOW : 0
+    private_constant :TIMEOUT_MS, :MAX_BYTES, :DAY, :CACHE_SIZE, :LINK, :NOFOLLOW
 
     # Origin to {"at" => ms, "icon" => icon or nil}.
     @cache = {}
@@ -131,7 +134,8 @@ module Runlight
       file = file(origin, dir)
       return nil if file.nil?
 
-      saved = Json.try_decode(File.read(file))
+      # A link put where the file goes is not followed.
+      saved = Json.try_decode(File.open(file, File::RDONLY | NOFOLLOW, &:read))
       return nil if !saved.is_a?(Hash) || !saved.key?("at")
 
       body = saved["body"].is_a?(String) ? saved["body"].unpack1("m0") : nil
@@ -153,9 +157,14 @@ module Runlight
       saved = { "at" => entry["at"] }
       saved.merge!("type" => entry["icon"]["type"], "body" => [entry["icon"]["body"]].pack("m0")) unless entry["icon"].nil?
       begin
-        File.open(file, File::WRONLY | File::CREAT | File::TRUNC, 0o600) do |handle|
-          handle.flock(File::LOCK_EX)
-          handle.write(Json.encode(saved))
+        # Written whole to a file made new, then renamed over the old one, which replaces a link rather than
+        # following it, so a reader never sees half a file and nothing is written through a planted link.
+        temp = "#{file}.#{SecureRandom.hex(8)}.tmp"
+        begin
+          File.open(temp, File::WRONLY | File::CREAT | File::EXCL | NOFOLLOW, 0o600) { |handle| handle.write(Json.encode(saved)) }
+          File.rename(temp, file)
+        ensure
+          FileUtils.rm_f(temp)
         end
         # Past the cap the oldest files go.
         files = Dir.glob(File.join(File.dirname(file), "*.json"))
@@ -169,9 +178,15 @@ module Runlight
       end
     end
 
+    # The cache file for an origin, in a folder of this user's own (named for the user, so users sharing a
+    # host never share one), or nil when that folder is not safely this user's alone: someone else's, a link,
+    # or open to others' writes.
     def file(origin, dir)
-      dir = File.join(dir || Dir.tmpdir, "runlight-icons")
+      dir = File.join(dir || Dir.tmpdir, "runlight-icons-#{Process.uid}")
       FileUtils.mkdir_p(dir, mode: 0o700)
+      stat = File.lstat(dir)
+      return nil if !stat.directory? || !stat.owned? || stat.mode.anybits?(0o022)
+
       File.join(dir, "#{OpenSSL::Digest::SHA256.hexdigest(origin)}.json")
     rescue SystemCallError
       nil

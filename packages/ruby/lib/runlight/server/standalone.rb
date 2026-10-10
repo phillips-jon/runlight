@@ -23,11 +23,9 @@ module Runlight
       # a server reached at more names than this needs RUNLIGHT_URL to keep the rest from becoming link domains.
       MAX_OWN_HOSTS = 20
 
-      # The collect endpoint's limit; its payloads are under 8 KB.
-      MAX_COLLECT_BODY = 16 * 1024
-
-      # Everything else, such as a link import of 5,000 rows.
-      MAX_BODY = 10 * 1024 * 1024
+      # The collect endpoint's limit, and everyone else's, as every Rack entry point keeps them.
+      MAX_COLLECT_BODY = Http::Request::MAX_COLLECT_BODY
+      MAX_BODY = Http::Request::MAX_BODY
 
       # How often the server runs the scheduled check, in seconds.
       EVERY = 5 * 60
@@ -163,10 +161,10 @@ module Runlight
       # deletions) once the server has sent the answer. Bodies past the limits the Node server keeps get a 413, and
       # X-Forwarded-Proto names the scheme, as the Node server reads them.
       def call(env)
-        limit = "#{env["SCRIPT_NAME"]}#{env["PATH_INFO"]}".end_with?("/e") ? MAX_COLLECT_BODY : MAX_BODY
+        limit = Http::Request.limit_for("#{env["SCRIPT_NAME"]}#{env["PATH_INFO"]}")
         method = env["REQUEST_METHOD"].to_s.upcase
         unless %w[GET HEAD].include?(method)
-          text = read_body(env, limit)
+          text = Http::Request.read_capped(env, limit)
           return [413, { "content-type" => "application/json" }, [TOO_LARGE]] if text.nil?
 
           env["rack.input"] = StringIO.new(text)
@@ -243,23 +241,6 @@ module Runlight
         @runlight.idle
       rescue StandardError => e
         warn "Runlight: #{e.message}"
-      end
-
-      # The request body, read up to the limit, or nil past it.
-      def read_body(env, limit)
-        length = env["CONTENT_LENGTH"].to_s
-        return nil if length.match?(/\A\d+\z/) && length.to_i > limit
-
-        input = env["rack.input"]
-        return "".b if input.nil?
-
-        input.rewind if input.respond_to?(:rewind)
-        body = "".b
-        while (chunk = input.read(64 * 1024))
-          body << chunk
-          return nil if body.bytesize > limit
-        end
-        body
       end
 
       # The name a request came in on, read as link domains read it.

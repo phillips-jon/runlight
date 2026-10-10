@@ -60,7 +60,7 @@ module Runlight
       url = install_url(input)
       host = Http::Url.new(url).host
       begin
-        answer = runlight.fetcher.fetch("#{url}/.well-known/oauth-authorization-server", { "timeoutMs" => 10_000 })
+        answer = Safefetch.owner_fetch("#{url}/.well-known/oauth-authorization-server", { "timeoutMs" => 10_000 }, runlight.fetcher)
       rescue StandardError
         raise ConnectError.new("Could not reach #{url}", "unreachable", { "host" => host })
       end
@@ -82,12 +82,12 @@ module Runlight
       end
 
       begin
-        registered = runlight.fetcher.fetch(meta["registration_endpoint"], {
+        registered = Safefetch.owner_fetch(meta["registration_endpoint"], {
           "method" => "POST",
           "headers" => { "content-type" => "application/json" },
           "body" => Json.encode({ "client_name" => "Runlight at #{Http::Url.new(back).host}", "redirect_uris" => [back] }),
           "timeoutMs" => 10_000,
-        })
+        }, runlight.fetcher)
       rescue StandardError
         raise ConnectError.new("Could not reach #{url}", "unreachable", { "host" => host })
       end
@@ -142,7 +142,7 @@ module Runlight
 
       answer = nil
       begin
-        answer = runlight.fetcher.fetch(pending["token"], {
+        answer = Safefetch.owner_fetch(pending["token"], {
           "method" => "POST",
           "headers" => { "content-type" => "application/x-www-form-urlencoded" },
           "body" => Http::SearchParams.new({
@@ -153,7 +153,7 @@ module Runlight
             "code_verifier" => pending["verifier"],
           }).to_s,
           "timeoutMs" => 10_000,
-        })
+        }, runlight.fetcher)
       rescue StandardError
         answer = nil
       end

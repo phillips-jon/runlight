@@ -7,6 +7,13 @@ require "securerandom"
 
 ActiveRecord::Base.logger = nil if defined?(ActiveRecord::Base)
 
+# The made-up installs and services the fake fetchers answer (an Umami at stats.example.com, an install at
+# install.example.net) resolve to a public address, so fetches that only go to the public internet reach them.
+# Tests of the address checks themselves pass a lookup of their own.
+Runlight::Safefetch.resolver = lambda do |name|
+  name.match?(/(\A|\.)example\.(com|net)\z/) ? ["93.184.215.14"] : Runlight::Safefetch.lookup(name)
+end
+
 # The language-neutral fixtures the PHP port's tests read (scripts/php-fixtures-*.mts writes them from the
 # TypeScript SDK), and the conformance files, read where they are rather than copied.
 module Fixtures

@@ -538,7 +538,12 @@ module Runlight
 
     # The routes as a Rack app. The answer to a HEAD has no body.
     def call(env)
-      request = Http::Request.from_rack(env)
+      begin
+        request = Http::Request.from_rack(env)
+      rescue Http::Request::TooLarge
+        return [413, { "content-type" => "application/json; charset=utf-8", "connection" => "close" },
+                [Json.encode({ "error" => "That request is too large" })]]
+      end
       status, headers, body = handle(request).to_rack
       [status, headers, request.method == "HEAD" ? [] : body]
     end
@@ -682,14 +687,14 @@ module Runlight
         init = {
           "method" => write ? request.method : "GET",
           "headers" => headers,
-          # An install that answers with a redirect gets no fetch of somewhere else on its behalf.
-          "redirect" => "manual",
+          # An install that answers with a redirect gets no fetch of somewhere else on its behalf (owner_fetch
+          # follows none).
           # A long report or an export is worked out in full before the install sends a byte, so reads get
           # two minutes.
           "timeoutMs" => write ? 30_000 : 120_000,
         }
         init["body"] = request.text if write
-        answer = @rl.fetcher.fetch(target.href, init)
+        answer = Safefetch.owner_fetch(target.href, init, @rl.fetcher)
       rescue StandardError => e
         if e.is_a?(Http::FetchError) && e.timed_out?
           return coded("#{host} took too long to answer. Try a shorter range.", "remote_slow", 504, { "host" => host })
@@ -1885,6 +1890,17 @@ module Runlight
       any_site = (!@observe_key.nil? && @observe_key != "" && given != "" && constant_time_equal(given, @observe_key)) || can_read(request) == true
       return coded("Unauthorized", "unauthorized", 401) if !any_site && given == ""
 
+      rl.init
+      # A site's own key, checked before the body is read, so a wrong key costs no parsing.
+      key_site = nil
+      unless any_site
+        sites.each do |site|
+          key = store.setting("observe-key:#{site["id"]}")
+          key_site = site["id"] if !key.nil? && key != "" && constant_time_equal(given, key)
+        end
+        return coded("Unauthorized", "unauthorized", 401) if key_site.nil?
+      end
+
       body = read_json(request)
       return body if body.is_a?(Http::Response)
 
@@ -1914,18 +1930,10 @@ module Runlight
           "at" => !whenever.nil? && whenever.to_f.finite? ? whenever : nil,
         }
       end
-      rl.init
       keep = pages
       unless any_site
         # A site's own key reports only pages on that site's domains. Pages elsewhere in a batch (another
         # host in the same log, say) are skipped, not a reason to refuse the rest.
-        key_site = nil
-        sites.each do |site|
-          key = store.setting("observe-key:#{site["id"]}")
-          key_site = site["id"] if !key.nil? && key != "" && constant_time_equal(given, key)
-        end
-        return coded("Unauthorized", "unauthorized", 401) if key_site.nil?
-
         keep = pages.select { |p| rl.site_for(p["page"].hostname)&.[]("id") == key_site }
         # A single report for another site's page is a misconfigured plugin, which should hear about it.
         return coded("Unauthorized", "unauthorized", 401) if !batch && keep.empty?
