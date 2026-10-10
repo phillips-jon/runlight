@@ -15,6 +15,8 @@ For scripts, make a read-only token in **Settings**, **API and AI**, and keep `R
 
 A `manage` token belongs to a [standalone server](/docs/server/#connect-sites-that-count-themselves) that shows this site. It reads like a read-only token and can also change one site’s goals, funnels, short links, link domains, email reports, and share links, along with its name, timezone, and retention, and get tickets for the element picker. It can never touch other sites, people, tokens, imports, or the mail service, and it cannot change where the site lives. It sees which mail service sends reports and from which address, and the service’s keys and account details stay hidden from it. It adds link domains and email reports only when the install knows its own address, through `origin` in `routes()` or `RUNLIGHT_URL` on the standalone server. The standalone server gets one through OAuth when you connect the site, so you rarely make one by hand.
 
+An `embed` token belongs to a WordPress, Drupal, or Craft plugin that shows one site’s dashboard inside the CMS’s admin pages. It reads nothing itself and answers 403 with `token_embed_only` everywhere else. Its one use is `POST /api/embed`, which makes a ticket for a single load of the dashboard in a frame. Make one in **Settings**, **Install**, **Key for the dashboard in your CMS**, or with `POST /api/tokens`.
+
 Requests that change something must send `content-type: application/json`.
 
 ## Reading reports
@@ -50,6 +52,8 @@ Every report takes the same query parameters.
 | `GET /api/links/:id` | One link’s clicks over time, sources, countries, devices, and browsers. |
 | `GET /api/icon` | The site’s icon as an image, fetched from the site’s own domain, or a 404 when it has none. Share links can read it too. |
 
+A share link and the dashboard inside a CMS read the reports in the table above without a token, except `GET /api/links` and `GET /api/links/:id`, for the one site they show. A share link’s page sends `x-runlight-share` with its id. The embedded dashboard’s page sends `x-runlight-embed` with the session its ticket opened, which lasts an hour and ends at once when its token is deleted. Once it has run out, reads answer 401 with `embed_expired`. A request that carries `x-runlight-embed` gets nothing more, whatever else it sends, and any other request with it answers 403 with `share_not_available`.
+
 `breakdown` and `filter` accept the dimensions `page`, `entry`, `exit`, `hostname`, `event`, `referrer`, `source`, `channel`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `country`, `region`, `city`, `browser`, `browser_version`, `os`, `os_version`, `device`, `screen`, and `language`. `breakdown` also takes `ai_agent` and `ai_page`.
 
 ## Changing things
@@ -78,7 +82,9 @@ Every report takes the same query parameters.
 | `GET` or `POST /api/check` | Runs the [scheduled check](/docs/cron/). |
 | `POST /api/observe` | Records a page served to an AI agent, sent as `{ "url", "userAgent", "at" }`, where `at` is when it was served (within the last week, as epoch milliseconds or an ISO date) and can be left out. Send up to 500 at once as `{ "fetches": [...] }`. It accepts the token or an observe key, and the CMS plugins and the [log reader](/docs/server/#ai-agents-from-a-log) call it. |
 | `GET /api/tokens` | Lists API tokens with each one’s name, site, scope, last four characters, and when it was last used. The tokens themselves are never returned. |
-| `POST /api/tokens` | Makes a token from `{ "name", "site", "scope" }` and returns it once as `secret`. Leave `site` empty for every site. `scope` is `read` (the default) or `manage`, which needs a `site`. |
+| `POST /api/tokens` | Makes a token from `{ "name", "site", "scope" }` and returns it once as `secret`. Leave `site` empty for every site. `scope` is `read` (the default), `manage`, or `embed`, and the last two need a `site`. |
+| `POST /api/embed` | Makes a ticket that opens the site’s dashboard once in a frame, from `{ "origin" }`, the origin of the admin page that frames it, such as `https://example.com`. Only an `embed` token can ask, and the origin’s host, leaving out `www.`, must be one of its site’s domains. It answers 201 with `{ "ticket", "site", "expiresAt", "path" }`, where `path` is `/runlight/embed?ticket=…`. A ticket works once, within five minutes. |
+| `GET /embed?ticket=` | The dashboard for a frame, outside `/api`. With a ticket that has not been used or run out, it answers 200 with a page that only the ticket’s origin may frame (`frame-ancestors` in its CSP, and no `X-Frame-Options`) and holds an hour’s session in memory, with no cookie. A ticket already used or run out answers 410 with a page that says so and asks the admin page to reload, framed by the same origin. Anything else answers 404 with a plain page that nothing may frame. Add `theme=light` or `theme=dark` to match the admin around it until someone picks a theme in the frame. |
 | `GET /api/observe-key`, `POST /api/observe-key/new` | Read a site’s key for CMS plugins, made the first time it is asked for, or replace it with a new one, which stops the old one at once. |
 | `GET /api/token` | Says what the token sent with it may do, as `{ "scope", "site" }`. A hub asks this before it offers to change anything. |
 | `DELETE /api/token` | Deletes the token sent with it. A hub does this when it disconnects a site or is given a new token. |
@@ -157,6 +163,11 @@ These are the codes and the params each one fills. An error a connected install 
 | `domain_not_public` | `domain` | {domain} is not a public domain name. Use one that browsers anywhere can reach. |
 | `domain_taken` | `domain` | {domain} already belongs to another site. |
 | `email_invalid` |  | Enter an email address. |
+| `embed_expired` |  | This dashboard has expired. Reload the page to open it again. |
+| `embed_host` | `host` | {host} is not one of this site’s domains. Add it to the site’s domains in Runlight’s settings. |
+| `embed_origin` |  | Send the admin page’s origin, such as https://example.com. |
+| `embed_site` |  | A key for the dashboard in a CMS is for one site. Pick the site. |
+| `embed_token` |  | Use a key for the dashboard in a CMS, made in Settings, Install. |
 | `event_needed` |  | Name the event. |
 | `filter_bad` | `filter` | The filter "{filter}" is not one Runlight reads. |
 | `filters_max` | `max` | Use at most {max} filters at once. |
@@ -261,6 +272,7 @@ These are the codes and the params each one fills. An error a connected install 
 | `sites_in_code` |  | Sites are set in code here, so they are changed there. |
 | `smtp_starttls` |  | The SMTP server does not offer STARTTLS. Pick TLS or none for Security. |
 | `test_email` |  | Enter an email address to send the test to. |
+| `token_embed_only` |  | This key only opens the dashboard inside a CMS. |
 | `token_manage_only` |  | A manage token changes only its own site’s settings. |
 | `token_name` |  | Name the token. |
 | `token_read_only` |  | API tokens can only read. |

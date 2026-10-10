@@ -12,7 +12,7 @@ The Runlight plugin connects a Craft 5 site to a Runlight you run elsewhere, eit
 - It adds Runlight’s script to every front-end page and marks 404 pages.
 - It leaves out Control Panel users’ own visits unless you turn that off.
 - It reports AI agents such as ChatGPT and Claude when they fetch your pages, after the response has been sent.
-- It adds a Runlight item to the Control Panel that opens your dashboard.
+- It adds a Runlight item to the Control Panel that shows this site’s dashboard there.
 
 ## Set it up
 
@@ -28,8 +28,19 @@ As with any Craft plugin, every setting can also come from `config/runlight.php`
 return [
     'address' => 'https://stats.example.com/runlight',
     'observeKey' => '$RUNLIGHT_OBSERVE_KEY',
+    'dashboardKey' => '$RUNLIGHT_DASHBOARD_KEY',
 ];
 ```
+
+## The dashboard in the Control Panel
+
+With a dashboard key, the Runlight item shows this site’s dashboard in the Control Panel. It is the same read-only view a share link shows, with its reports and date ranges and none of Runlight’s settings, short links, people, or other sites. The **Open in Runlight** button opens the full dashboard in your own Runlight.
+
+1. In Runlight, open **Settings**, **Install** for this site and choose **Make a key** under **Key for the dashboard in your CMS**. Copy the key, which Runlight shows only once.
+2. Put it in Craft’s `.env` as `RUNLIGHT_DASHBOARD_KEY`, and enter `$RUNLIGHT_DASHBOARD_KEY` as the dashboard key under Settings, Plugins, Runlight, which keeps the key itself out of project config.
+3. Make sure the address the Control Panel is served from is among the site’s domains in Runlight, since only an admin page on one of them may show the dashboard. A leading `www.` makes no difference.
+
+The key never reaches the browser. Each time an admin opens the page, the plugin’s server sends the key and the admin’s origin to Runlight and gets back a ticket that opens the dashboard once, within five minutes. The page loads the dashboard from your Runlight in a frame that only this admin may show. The frame keeps its session in the page for an hour, without cookies, so browsers that block cookies in frames still show it. Once the hour is up, the frame says so and reloads the page when asked. Deleting the key in Runlight’s **Settings**, **API and AI** stops it and every open session at once. Only people who can access the Runlight plugin, admins included, see the page. Your Runlight must be served over HTTPS when the Control Panel is, or the browser refuses the frame.
 
 ## Static caching
 
