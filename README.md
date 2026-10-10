@@ -85,6 +85,15 @@ It never pushes or publishes. It prints what to run next, which is `git push ori
 | `release.yml` | Makes the GitHub release from the changelog and attaches the WordPress zip as `runlight.zip` | `RELEASE_ENABLED` variable |
 | `php-split.yml` | Pushes `packages/php` and the tag to `phillips-jon/runlight-php` for Packagist | `PHP_SPLIT_DEPLOY_KEY` secret |
 | `php-plugins-split.yml` | Pushes the Drupal module to drupal.org and the Craft plugin to `phillips-jon/runlight-craft` | `DRUPAL_SPLIT_ENABLED` and `CRAFT_SPLIT_ENABLED` variables |
+| `pypi.yml` | Builds `packages/python` and publishes it to PyPI as `runlight` with trusted publishing | `PYPI_ENABLED` variable |
+| `hex.yml` | Publishes `packages/elixir` to Hex as `runlight`, with its docs on HexDocs | `HEX_ENABLED` variable and `HEX_API_KEY` secret |
+| `maven.yml` | Builds, signs, and publishes `sh.runlight:runlight`, `runlight-servlet`, and `runlight-spring-boot-starter` to Maven Central through the Central Publisher Portal | `MAVEN_ENABLED` variable, with the Portal token and the GPG key as secrets |
+| `nuget.yml` | Packs `Runlight`, `Runlight.AspNetCore`, and `Runlight.Server` and publishes them to nuget.org in that order with trusted publishing | `NUGET_ENABLED` variable |
+| `crates.yml` | Publishes the `runlight` crate and then `runlight-sqlx` to crates.io with trusted publishing | `CRATES_ENABLED` variable |
+
+The PyPI, NuGet, and crates.io workflows publish from a GitHub environment of the same name, so a required reviewer there makes each publish wait for a click. Each workflow's header says what to set up first. crates.io trusts a workflow only for a crate that already exists, so the first Rust release is published by hand with `cargo publish --workspace` in `packages/rust`.
+
+Two languages ship from the commands the script prints. The Ruby gem is built and pushed by hand with `gem build runlight.gemspec` and `gem push runlight-X.Y.Z.gem` in `packages/ruby`. Go modules are versioned by tags, so the release commit also gets `packages/go/vX.Y.Z` and a tag of the same form for each of the `chi`, `echo`, and `cmd/runlight` modules. Once those are pushed, `go list -m` against `proxy.golang.org` makes the Go proxy fetch them, and `runlight.sh` answers the go command's lookups for `runlight.sh/go`.
 
 After the Drupal split, make the release on drupal.org from the pushed tag.
 
