@@ -4,7 +4,7 @@ require "json"
 
 module Runlight
   # The gem's own version, which the release keeps equal to the npm package's.
-  GEM_VERSION = "0.0.0"
+  GEM_VERSION = "0.1.0"
 
   # The SDK's version and the HTTP API's, read from assets/build.json, which
   # scripts/ruby-assets.mts writes from the TypeScript SDK, so the two always

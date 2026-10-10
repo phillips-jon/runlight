@@ -20,7 +20,7 @@ var protocolVersions = []string{"2025-11-25", "2025-06-18", "2025-03-26", "2024-
 
 // version is version.ts's VERSION, which the root package holds; it is
 // copied here so this package does not import the root one.
-const version = "0.0.0"
+const version = "0.1.0"
 
 // dimensions are the dimensions a breakdown reads, as query.ts's DIMENSIONS lists them.
 var dimensions = []any{

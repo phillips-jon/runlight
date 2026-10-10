@@ -1,6 +1,6 @@
 # Release Notes for Runlight
 
-## Unreleased
+## 0.1.0 - 2026-10-10
 
 ### Added
 - The plugin adds Runlight's script to every front-end page and marks 404 pages.

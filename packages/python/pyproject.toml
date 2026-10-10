@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "runlight"
-version = "0.0.0"
+version = "0.1.0"
 description = "Privacy friendly web analytics that lives inside your Python app. Mount a route, add a script tag, read your stats at /runlight."
 readme = "README.md"
 license = "MIT"

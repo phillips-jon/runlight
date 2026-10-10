@@ -10,8 +10,8 @@ Add the crates.
 
 ```toml
 [dependencies]
-runlight = { version = "0.0", features = ["axum"] }
-runlight-sqlx = { version = "0.0", features = ["sqlite"] }
+runlight = { version = "0.1", features = ["axum"] }
+runlight-sqlx = { version = "0.1", features = ["sqlite"] }
 ```
 
 The `runlight` crate needs Rust 1.88 or later. `runlight-sqlx` needs Rust 1.94 or later, as sqlx 0.9 does, so an app that uses both needs 1.94.

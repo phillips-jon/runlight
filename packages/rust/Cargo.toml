@@ -3,7 +3,7 @@ resolver = "3"
 members = ["runlight", "runlight-sqlx"]
 
 [workspace.package]
-version = "0.0.0"
+version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
 license = "MIT"
@@ -16,7 +16,7 @@ categories = ["web-programming", "asynchronous"]
 # runlight-sqlx requires runlight at exactly the release's version, so a
 # release's crates always come together.
 [workspace.dependencies]
-runlight = { path = "runlight", version = "=0.0.0" }
+runlight = { path = "runlight", version = "=0.1.0" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

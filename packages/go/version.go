@@ -3,7 +3,7 @@ package runlight
 import "runlight.sh/go/internal/assets"
 
 // Version is the release, the same for every Runlight package.
-const Version = "0.0.0"
+const Version = "0.1.0"
 
 // APIVersion is bumped when the HTTP API changes shape, so the dashboard
 // and the hub can tell.

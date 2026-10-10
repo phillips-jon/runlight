@@ -42,7 +42,7 @@ Runlight is written again for eight more languages. Each one serves the same das
 | Go | `go get runlight.sh/go` (Go 1.25 or later) and a `database/sql` driver, with `runlight.sh/go/chi` or `runlight.sh/go/echo` for those routers | [Go](https://runlight.sh/docs/go/), [its README](packages/go/README.md) |
 | Java | `sh.runlight:runlight` from Maven Central (Java 21 or later), with `sh.runlight:runlight-servlet` or `sh.runlight:runlight-spring-boot-starter` beside it at the same version and the app's JDBC driver | [Java](https://runlight.sh/docs/java/), [its README](packages/java/README.md) |
 | .NET | `dotnet add package Runlight.AspNetCore` (.NET 10 or later) and the app's ADO.NET driver, or `dotnet tool install --global Runlight.Server` for the standalone server | [.NET](https://runlight.sh/docs/dotnet/), [its README](packages/dotnet/README.md) |
-| Elixir | `{:runlight, "~> 0.0"}` in `mix.exs` (Elixir 1.18 or later on Erlang/OTP 27 or later), with the app's Ecto adapter | [Elixir](https://runlight.sh/docs/elixir/), [its README](packages/elixir/README.md) |
+| Elixir | `{:runlight, "~> 0.1"}` in `mix.exs` (Elixir 1.18 or later on Erlang/OTP 27 or later), with the app's Ecto adapter | [Elixir](https://runlight.sh/docs/elixir/), [its README](packages/elixir/README.md) |
 | Rust | `cargo add runlight --features axum` and `cargo add runlight-sqlx --features sqlite` (or `postgres`, `mysql`), on Rust 1.88 or later and 1.94 for `runlight-sqlx` | [Rust](https://runlight.sh/docs/rust/), [its README](packages/rust/README.md) |
 
 The plugins for WordPress, Drupal, and Craft add the script to a CMS site and report AI agents that read its pages to a Runlight you run elsewhere. Each one has its own folder under `plugins/`.

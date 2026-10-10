@@ -1,6 +1,6 @@
 {
   "name": "@runlight/sdk",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Privacy friendly web analytics that lives inside your app. Mount a route, add a script tag, read your stats at /runlight.",
   "license": "MIT",
   "repository": {
