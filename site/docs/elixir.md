@@ -78,7 +78,7 @@ pipeline :browser do
 end
 ```
 
-A [link domain](/docs/links/#custom-domains) answers short links on a name of its own. Put its Plug in your endpoint, before the router, so requests on that name never reach your pages.
+A [link domain](/docs/links/#custom-domains) answers short links on a name of its own. Each of Runlight's Plugs answers a request on a link domain before anything else and passes every other request on untouched. A Phoenix router only runs them for paths it matches, so put the link domain Plug in your endpoint, before the router, and every request on that name is answered there.
 
 ```elixir file=lib/my_app_web/endpoint.ex
 plug Runlight.Plug.LinkDomains
@@ -87,12 +87,13 @@ plug MyAppWeb.Router
 
 ## Plug.Router
 
-A `Plug.Router` forwards the same way.
+A `Plug.Router` forwards the same way. The link domain Plug goes before `:match`, so it sees every request.
 
 ```elixir file=lib/my_app/router.ex
 defmodule MyApp.Router do
   use Plug.Router
 
+  plug Runlight.Plug.LinkDomains
   plug :match
   plug :dispatch
 
