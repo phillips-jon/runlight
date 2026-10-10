@@ -51,6 +51,7 @@ jobs:
       contents: read
     with:
       tag: ${{ inputs.tag }}
+      workflows: ci.yml rust.yml
 
   package:
     needs: ci

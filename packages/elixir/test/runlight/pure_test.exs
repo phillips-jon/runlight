@@ -161,7 +161,13 @@ defmodule Runlight.PureTest do
     end
 
     for c <- f["recordedPaths"], do: assert(Sources.recorded_path(c["input"]) == c["path"], inspect(c["input"]))
-    for c <- f["readablePaths"], do: assert(Sources.readable_path(c["input"]) == c["path"], inspect(c["input"]))
+    # \p{C} counts unassigned characters, so the answer follows the Unicode version of this OTP's PCRE: OTP 27's
+    # predates Unicode 15, and a character assigned since (U+31350) stays encoded there, as it would in an older
+    # Node. Those cases are left out, as the Python port leaves them out on Python 3.11.
+    for c <- f["readablePaths"], not Regex.match?(~r/\p{Cn}/u, c["path"]) do
+      assert Sources.readable_path(c["input"]) == c["path"], inspect(c["input"])
+    end
+
     for c <- f["stripWww"], do: assert(Sources.strip_www(c["input"]) == c["host"])
     _ = &source_obj/1
   end
@@ -495,5 +501,35 @@ defmodule Runlight.PureTest do
         assert Messages.t(w["lang"], t["key"], vars) == t["text"], "#{w["lang"]} #{t["key"]}"
       end
     end
+  end
+
+  # The pictographs are a spelled-out class, since OTP 27's PCRE has no \p{Extended_Pictographic}.
+  test "thanks, with or without pictographs, gets a short reply; a question does not" do
+    for text <- [
+          "Thanks!",
+          "thank you",
+          "Thanks!! \u{1F64F}",
+          "ok",
+          "Great, thanks.",
+          "\u{1F44D}",
+          "\u{2764}\u{FE0F}",
+          "merci beaucoup",
+          "Danke schön!",
+          "valeu"
+        ] do
+      assert Runlight.Assistant.acknowledgement(text, "en"), text
+    end
+
+    for text <- [
+          "Thanks, and what about last week?",
+          "What was my bounce rate?",
+          "ok so which pages?",
+          "great results?",
+          "\u{1F44D}?"
+        ] do
+      refute Runlight.Assistant.acknowledgement(text, "en"), text
+    end
+
+    assert Runlight.Assistant.acknowledgement("merci", "fr") =~ "plaisir"
   end
 end

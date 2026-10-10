@@ -30,6 +30,15 @@ public static class Time
     /// <summary>Names Intl reads as another zone.</summary>
     private static readonly Dictionary<string, string> Aliases = new(StringComparer.Ordinal)
     {
+        // Old names the time zone database made links in 2024b, which Debian and Ubuntu still build as zones of
+        // their own with other history (WET kept to UTC in 1970); ICU reads them as the links.
+        ["cet"] = "Europe/Brussels",
+        ["eet"] = "Europe/Athens",
+        ["est"] = "America/Panama",
+        ["hst"] = "Pacific/Honolulu",
+        ["met"] = "Europe/Brussels",
+        ["mst"] = "America/Phoenix",
+        ["wet"] = "Europe/Lisbon",
         // ICU's three letter names, kept from early Java.
         ["act"] = "Australia/Darwin",
         ["aet"] = "Australia/Sydney",

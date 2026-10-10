@@ -242,6 +242,31 @@ func TestTimeZones(t *testing.T) {
 	}
 }
 
+// The old names the time zone database made links in 2024b are read as those
+// links, as ICU reads them, even where the system builds them as zones of
+// their own (Debian's WET kept to UTC in 1970, while Lisbon was an hour ahead).
+func TestLinkedLegacyZones(t *testing.T) {
+	for _, c := range []struct {
+		zone string
+		ts   int64
+		want string
+	}{
+		{"WET", 0, "1970-01-01 3 1"},
+		{"wet", 15638400000, "1970-07-01 2 1"},
+		{"CET", 0, "1970-01-01 3 1"},
+		{"EST", 0, "1969-12-31 2 19"},
+		{"MST", 15638400000, "1970-06-30 1 17"},
+	} {
+		if !IsTimezone(c.zone) {
+			t.Errorf("%s is not taken", c.zone)
+			continue
+		}
+		if got := localOf(c.ts, c.zone); got != c.want {
+			t.Errorf("%s at %d: %s not %s", c.zone, c.ts, got, c.want)
+		}
+	}
+}
+
 func TestDatesAndRanges(t *testing.T) {
 	f := fixture.PHP(t, "time.json")
 	same(t, "periods", Periods, js.Dig(f, "periods"))

@@ -61,6 +61,7 @@ jobs:
       contents: read
     with:
       tag: ${{ inputs.tag }}
+      workflows: ci.yml java.yml
 
   # Everything that resolves a dependency or runs a build, with no secret in
   # reach.

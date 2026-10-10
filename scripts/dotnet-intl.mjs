@@ -68,7 +68,12 @@ let current = null;
 try {
   current = readFileSync(file, "utf8");
 } catch {}
-if (process.argv.includes("--check")) {
+// Another ICU (CI's Node, say) writes other data, so only the ICU that wrote the file compares it, as
+// scripts/go-intl.mjs does.
+const written = /from Node's ICU ([^ ]+)\. Do not edit\./.exec(current ?? "")?.[1];
+if (process.argv.includes("--check") && written && written !== process.versions.icu) {
+  console.log(`dotnet-intl: intl.json was written from ICU ${written}, this Node has ${process.versions.icu}`);
+} else if (process.argv.includes("--check")) {
   if (current !== text) {
     console.error("dotnet-intl: intl.json is stale. Run node scripts/dotnet-intl.mjs");
     process.exit(1);
