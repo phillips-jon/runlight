@@ -101,6 +101,18 @@ pub fn to_http(response: Response) -> http::Response<Full<Bytes>> {
 
 type Answer = Pin<Box<dyn Future<Output = Result<http::Response<Full<Bytes>>, Infallible>> + Send>>;
 
+/// The answer for a request that arrived on a link domain added in Settings, before anything else looks
+/// at it, or `None` for every other host and for the dashboard's own paths on a link domain.
+async fn on_link_domain(runlight: &Runlight, request: &Request) -> Option<Response> {
+    match runlight.link_domain_response(request).await {
+        Ok(answer) => answer,
+        Err(error) => {
+            eprintln!("Runlight: {error}");
+            None
+        }
+    }
+}
+
 impl<B> tower_service::Service<http::Request<B>> for Routes
 where
     B: Body + Send + 'static,
@@ -119,7 +131,10 @@ where
         let routes = self.clone();
         Box::pin(async move {
             Ok(to_http(match to_request(request).await {
-                Ok(request) => routes.handle(request).await,
+                Ok(request) => match on_link_domain(routes.rl(), &request).await {
+                    Some(answer) => answer,
+                    None => routes.handle(request).await,
+                },
                 Err(refused) => refused,
             }))
         })
@@ -148,10 +163,17 @@ where
         let runlight = self.0.clone();
         Box::pin(async move {
             let answer = match to_request(request).await {
-                Ok(request) => runlight.link_response(&request).await.unwrap_or_else(|error| {
-                    eprintln!("Runlight: {error}");
-                    Response::new("Not found", 404, Headers::new().with("content-type", "text/plain; charset=utf-8"))
-                }),
+                Ok(request) => match on_link_domain(&runlight, &request).await {
+                    Some(answer) => answer,
+                    None => runlight.link_response(&request).await.unwrap_or_else(|error| {
+                        eprintln!("Runlight: {error}");
+                        Response::new(
+                            "Not found",
+                            404,
+                            Headers::new().with("content-type", "text/plain; charset=utf-8"),
+                        )
+                    }),
+                },
                 Err(refused) => refused,
             };
             Ok(to_http(answer))
@@ -167,7 +189,9 @@ impl Runlight {
 }
 
 /// axum: the routes mounted at their base path and the short links at their link path, as one
-/// `Router` to merge into the app's. Link domains and AI agent fetches go through `middleware`.
+/// `Router` to merge into the app's. A router only sees the paths it routes, so link domains, whose short
+/// links sit at the root of their own name, and AI agent fetches go through `middleware`, which runs
+/// before the app's own routes.
 #[cfg(feature = "axum")]
 pub mod axum_support {
     use super::*;
