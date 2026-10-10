@@ -91,7 +91,8 @@ type TokenRow struct {
 	Site string `json:"site"`
 	// Scope is read, which reads stats, or manage, which for a Runlight hub also changes its one site's
 	// goals, funnels, short links, link domains, email reports, and share links, along with its name,
-	// timezone, and retention, and gets tickets for the element picker.
+	// timezone, and retention, and gets tickets for the element picker. Embed, for a CMS plugin, only gets
+	// tickets that open its one site's reports inside the CMS's admin pages, and reads nothing itself.
 	Scope string `json:"scope"`
 	Hash  string `json:"hash"`
 	// Hint is the token's last four characters, so people can tell theirs apart.

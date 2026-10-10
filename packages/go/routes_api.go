@@ -37,10 +37,65 @@ func methodIn(method string, list ...string) bool {
 	return false
 }
 
+// embedAPI answers POST /api/embed: a ticket for one load of the dashboard inside a CMS's admin pages.
+func (rt *Routes) embedAPI(c *call) (*Response, error) {
+	ctx, request, r := c.ctx, c.req, rt.r
+	token, err := rt.apiToken(c)
+	if err != nil {
+		return nil, err
+	}
+	if token == nil {
+		return denied(canNo), nil
+	}
+	if token.Scope != "embed" {
+		return Coded("Use a key for the dashboard in a CMS, made in Settings, Install", "embed_token", 403, nil), nil
+	}
+	site, known := r.Site(token.Site)
+	if !known {
+		return Coded("Unknown site", "unknown_site", 404, nil), nil
+	}
+	body, refused := readJSON(request)
+	if refused != nil {
+		return refused, nil
+	}
+	origin := field(body, "origin")
+	var parsed *whatwg.URL
+	if originPattern.MatchString(origin) && js.Length16(origin) <= 200 {
+		parsed, _ = whatwg.Parse(origin)
+	}
+	if parsed == nil || parsed.Origin() != origin {
+		return Coded("Send the admin page's origin, such as https://example.com", "embed_origin", 400, nil), nil
+	}
+	host := HostName(parsed.Host())
+	hostnames := site.Hostnames
+	if remote, isRemote := r.Remote(site.ID); isRemote {
+		hostnames = remote.Hostnames
+	}
+	mine := false
+	for _, h := range hostnames {
+		if HostName(h) == host {
+			mine = true
+			break
+		}
+	}
+	if !mine {
+		return Coded(host+" is not one of this site's domains. Add it to the site's domains in Runlight's settings.", "embed_host", 400, js.NewObject("host", host)), nil
+	}
+	ticket, expiresAt, err := rt.embedTicket(ctx, origin, token.ID)
+	if err != nil {
+		return nil, err
+	}
+	return jsonAnswer(js.NewObject("ticket", ticket, "site", site.ID, "expiresAt", expiresAt, "path", rt.base+"/embed?ticket="+ticket), 201), nil
+}
+
 // api answers /api and everything under it.
 func (rt *Routes) api(c *call, path string, u *whatwg.URL) (*Response, error) {
 	ctx, request := c.ctx, c.req
 	r := rt.r
+	// An embedded dashboard reads what a share link shows and nothing else, whoever else the request comes from.
+	if _, has := request.Header.Lookup(embedHeader); has && !(request.Method == "GET" && sharedPath(path)) {
+		return Coded("Not available on a shared dashboard", "share_not_available", 403, nil), nil
+	}
 	// A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
 	// That holds without a cookie too, since a browser also sends Basic credentials or comes from an
 	// allowed address on its own. A bearer token is never sent by the browser on its own, so it needs no check.
@@ -135,12 +190,23 @@ func (rt *Routes) api(c *call, path string, u *whatwg.URL) (*Response, error) {
 		return web.NewResponse(303, nil, "location", to, "cache-control", "no-store"), nil
 	}
 
+	// A ticket for one load of the dashboard inside a CMS's admin pages. The plugin's server asks with its embed
+	// token on each page view and names the admin's origin, which must be one of the site's domains and alone
+	// may frame the page the ticket opens.
+	if path == "/api/embed" && request.Method == "POST" {
+		return rt.embedAPI(c)
+	}
+
 	var token *TokenRow
 	if strings.HasPrefix(bearer(request), tokenPrefix) {
 		var err error
 		if token, err = rt.apiToken(c); err != nil {
 			return nil, err
 		}
+	}
+	// An embed token gets tickets and reads nothing itself.
+	if token != nil && token.Scope == "embed" {
+		return Coded("This key only opens the dashboard inside a CMS", "token_embed_only", 403, nil), nil
 	}
 	if token != nil && token.Scope == "manage" && ManagePath(request.Method, path) {
 		asked, has := queryValue(u, "site")
@@ -771,6 +837,17 @@ func (rt *Routes) reads(c *call, path string, u *whatwg.URL) (*Response, error) 
 			return Coded("Not available on a shared dashboard", "share_not_available", 403, nil), nil
 		}
 		only = shared.Site
+	} else if session, has := request.Header.Lookup(embedHeader); has {
+		token, err := rt.embedReader(ctx, session)
+		if err != nil {
+			return nil, err
+		}
+		if token == nil {
+			return Coded("This dashboard has expired. Reload the page to open it again.", "embed_expired", 401, nil), nil
+		}
+		// An embedded dashboard sees what a share link of its token's site shows.
+		shared = &ShareRow{Site: token.Site}
+		only = token.Site
 	} else {
 		access, err := rt.reader(c)
 		if err != nil {
@@ -1380,6 +1457,37 @@ func (rt *Routes) handle(ctx context.Context, request *Request) (answer *Respons
 	if m := unsubPath.FindStringSubmatch(path); m != nil && (request.Method == "GET" || request.Method == "POST") {
 		return rt.unsubscribePage(ctx, request, m[1])
 	}
+	// The dashboard inside a CMS's admin pages, opened with a ticket its plugin just got. Only the admin origin
+	// the ticket names may frame it. A ticket used already or run out opens it with no session, so it says it
+	// has expired and offers to reload the admin page; anything else is refused and never framed.
+	if path == "/embed" && request.Method == "GET" {
+		if err := r.Init(ctx); err != nil {
+			return nil, err
+		}
+		ticket, _ := queryValue(u, "ticket")
+		origin, token, found, err := rt.redeemEmbed(ctx, ticket)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			tr := NewTranslator(acceptedLanguage(request))
+			return smallPage(tr.Lang, "<h1>"+escapeHTML(tr.T("embed.goneTitle", nil))+"</h1><p>"+escapeHTML(tr.T("embed.gone", nil))+"</p>", 404), nil
+		}
+		session := ""
+		if token != nil {
+			if session, err = rt.embedSession(ctx, token.ID); err != nil {
+				return nil, err
+			}
+		}
+		status := 410
+		if session != "" {
+			status = 200
+		}
+		return web.NewResponse(status, []byte(dashboardPage(rt.base, "", "", rt.options.GeoCredit, false, "", &embedded{session: session, origin: origin})),
+			"content-type", "text/html; charset=utf-8", "cache-control", "no-store",
+			"content-security-policy", strings.Replace(dashboardCSP, "frame-ancestors 'none'", "frame-ancestors "+origin, 1),
+			"referrer-policy", "no-referrer", "x-robots-tag", "noindex"), nil
+	}
 	if m := sharePage.FindStringSubmatch(path); m != nil && request.Method == "GET" {
 		if err := r.Init(ctx); err != nil {
 			return nil, err
@@ -1395,7 +1503,7 @@ func (rt *Routes) handle(ctx context.Context, request *Request) (answer *Respons
 			tr := NewTranslator(acceptedLanguage(request))
 			return smallPage(tr.Lang, "<h1>"+escapeHTML(tr.T("share.goneTitle", nil))+"</h1><p>"+escapeHTML(tr.T("share.gone", nil))+"</p>", 404), nil
 		}
-		return web.NewResponse(200, []byte(dashboardPage(rt.base, share.ID, "", rt.options.GeoCredit, false, "")),
+		return web.NewResponse(200, []byte(dashboardPage(rt.base, share.ID, "", rt.options.GeoCredit, false, "", nil)),
 			"content-type", "text/html; charset=utf-8", "cache-control", "no-store", "content-security-policy", dashboardCSP, "x-frame-options", "DENY",
 			// The share id is the key; never send it on to another site.
 			"referrer-policy", "no-referrer", "x-robots-tag", "noindex"), nil
@@ -1414,7 +1522,7 @@ func (rt *Routes) handle(ctx context.Context, request *Request) (answer *Respons
 				"set-cookie", tokenCookie+"="+cookieValue(rt.token)+"; Path="+firstNonEmpty(rt.base, "/")+"; HttpOnly; SameSite=Lax; Max-Age=2592000"+secure), nil
 		}
 		// The page itself holds no data; the API it calls checks access and the page explains how to sign in when it is refused.
-		return web.NewResponse(200, []byte(dashboardPage(rt.base, "", rt.signOut, rt.options.GeoCredit, rt.web != nil, rt.signIn)),
+		return web.NewResponse(200, []byte(dashboardPage(rt.base, "", rt.signOut, rt.options.GeoCredit, rt.web != nil, rt.signIn, nil)),
 			"content-type", "text/html; charset=utf-8", "cache-control", "no-store", "content-security-policy", dashboardCSP, "x-frame-options", "DENY", "referrer-policy", "same-origin"), nil
 	}
 	return Coded("Not found", "not_found", 404, nil), nil

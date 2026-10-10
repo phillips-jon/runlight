@@ -1181,8 +1181,8 @@ func (s *Store) JourneyPages(ctx context.Context, query Query, perVisit int) ([]
 
 func tokenRow(r Row) TokenRow {
 	scope := "read"
-	if str(r["scope"]) == "manage" {
-		scope = "manage"
+	if v := str(r["scope"]); v == "manage" || v == "embed" {
+		scope = v
 	}
 	return TokenRow{ID: str(r["id"]), Name: str(r["name"]), Site: strOr(r["site"], ""), Scope: scope, Hash: str(r["hash"]), Hint: strOr(r["hint"], ""),
 		CreatedAt: numInt(r["created_at"]), LastUsedAt: nullableInt(r["last_used_at"])}
@@ -1251,6 +1251,28 @@ func (s *Store) SettingsStartingWith(ctx context.Context, prefix string) ([]Sett
 		out = append(out, Setting{Key: str(r["key"]), Value: str(r["value"])})
 	}
 	return out, nil
+}
+
+// TakeSetting reads a setting and deletes it. Of two callers at once, only
+// the one whose delete took the row gets its value.
+func (s *Store) TakeSetting(ctx context.Context, key string) (string, bool, error) {
+	value, has, err := s.Setting(ctx, key)
+	if err != nil || !has {
+		return "", false, err
+	}
+	sql := `DELETE FROM rl_settings WHERE "key" = ?`
+	var n int64
+	if a, ok := s.db.(Affecter); ok {
+		n, err = a.Affected(ctx, sql, key)
+	} else {
+		var rows []Row
+		rows, err = s.db.All(ctx, sql+` RETURNING "key"`, key)
+		n = int64(len(rows))
+	}
+	if err != nil || n != 1 {
+		return "", false, err
+	}
+	return value, true, nil
 }
 
 // SetSetting changes an install-wide setting; nil deletes it.

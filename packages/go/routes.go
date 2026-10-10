@@ -330,6 +330,10 @@ func (rt *Routes) reader(c *call) (readerResult, error) {
 		return readerResult{}, err
 	}
 	if token != nil {
+		// A key for the dashboard inside a CMS gets tickets and reads nothing itself.
+		if token.Scope == "embed" {
+			return readerResult{}, nil
+		}
 		return readerResult{token: token}, nil
 	}
 	access := rt.canRead(c)
@@ -863,6 +867,134 @@ func (rt *Routes) pickTarget(ctx context.Context, ticket string) (string, string
 		return "", "", false, nil
 	}
 	return origin, unhexText(parts[2]), true, nil
+}
+
+// embedKey is the key embed tickets and sessions are signed with, made on first use and kept in the database for every process.
+func (rt *Routes) embedKey(ctx context.Context) (string, error) {
+	if err := rt.r.Init(ctx); err != nil {
+		return "", err
+	}
+	saved, ok, err := rt.r.Store.Setting(ctx, "embed-key")
+	if err != nil || (ok && saved != "") {
+		return saved, err
+	}
+	made := randomID(32)
+	return made, rt.r.Store.SetSetting(ctx, "embed-key", &made)
+}
+
+// embedToken is an embed token that still exists, for a site that still does.
+func (rt *Routes) embedToken(ctx context.Context, id string) (*TokenRow, error) {
+	tokens, err := rt.r.Store.Tokens(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tokens {
+		if t.ID == id {
+			if _, known := rt.r.Site(t.Site); t.Scope == "embed" && known {
+				return &t, nil
+			}
+			return nil, nil
+		}
+	}
+	return nil, nil
+}
+
+// embedTicket is a ticket for one load of the embedded dashboard, signed with when it runs out, a nonce, and
+// the admin origin that may frame it. The nonce is kept, with the token it was made for, until the ticket is used.
+func (rt *Routes) embedTicket(ctx context.Context, origin, token string) (string, int64, error) {
+	now := rt.r.now()
+	// Tickets nobody used are cleared as new ones are made.
+	kept, err := rt.r.Store.SettingsStartingWith(ctx, "embed-ticket:")
+	if err != nil {
+		return "", 0, err
+	}
+	for _, s := range kept {
+		if js.Number(strings.Split(s.Value, ".")[0]) < float64(now) {
+			if err := rt.r.Store.SetSetting(ctx, s.Key, nil); err != nil {
+				return "", 0, err
+			}
+		}
+	}
+	expiresAt := now + embedTicketMs
+	nonce := randomID(16)
+	value := fmt.Sprintf("%d.%s", expiresAt, token)
+	if err := rt.r.Store.SetSetting(ctx, "embed-ticket:"+nonce, &value); err != nil {
+		return "", 0, err
+	}
+	key, err := rt.embedKey(ctx)
+	if err != nil {
+		return "", 0, err
+	}
+	payload := fmt.Sprintf("%d.%s.%s", expiresAt, nonce, hexText(origin))
+	return payload + "." + hmacHex(key, "ticket."+payload), expiresAt, nil
+}
+
+var (
+	embedTicketPattern  = regexp.MustCompile(`^(\d{1,15})\.([a-f0-9]{32})\.([a-f0-9]{2,512})\.([a-f0-9]{64})$`)
+	embedSessionPattern = regexp.MustCompile(`^(\d{1,15})\.([a-f0-9]{24})\.([a-f0-9]{64})$`)
+)
+
+// redeemEmbed is what a ticket this install signed names: always its origin, and its token only the first
+// time it is used before it runs out. False for anything else.
+func (rt *Routes) redeemEmbed(ctx context.Context, ticket string) (string, *TokenRow, bool, error) {
+	parts := embedTicketPattern.FindStringSubmatch(ticket)
+	if parts == nil {
+		return "", nil, false, nil
+	}
+	key, err := rt.embedKey(ctx)
+	if err != nil {
+		return "", nil, false, err
+	}
+	if !constantTimeEqual(parts[4], hmacHex(key, "ticket."+parts[1]+"."+parts[2]+"."+parts[3])) {
+		return "", nil, false, nil
+	}
+	origin := unhexText(parts[3])
+	if !originPattern.MatchString(origin) {
+		return "", nil, false, nil
+	}
+	// A ticket works once: it is gone before anything else is checked.
+	kept, has, err := rt.r.Store.TakeSetting(ctx, "embed-ticket:"+parts[2])
+	if err != nil {
+		return "", nil, false, err
+	}
+	var token *TokenRow
+	if has && js.Number(parts[1]) >= float64(rt.r.now()) {
+		id := ""
+		if pieces := strings.Split(kept, "."); len(pieces) > 1 {
+			id = pieces[1]
+		}
+		if token, err = rt.embedToken(ctx, id); err != nil {
+			return "", nil, false, err
+		}
+	}
+	return origin, token, true, nil
+}
+
+// embedSession is a session for an embedded dashboard, which its page sends with every read, signed with
+// when it runs out and its token.
+func (rt *Routes) embedSession(ctx context.Context, token string) (string, error) {
+	key, err := rt.embedKey(ctx)
+	if err != nil {
+		return "", err
+	}
+	payload := fmt.Sprintf("%d.%s", rt.r.now()+embedSessionMs, token)
+	return payload + "." + hmacHex(key, "session."+payload), nil
+}
+
+// embedReader is the embed token a session this install signed was made for, while it lasts and the token still exists.
+func (rt *Routes) embedReader(ctx context.Context, session string) (*TokenRow, error) {
+	parts := embedSessionPattern.FindStringSubmatch(session)
+	if parts == nil || js.Number(parts[1]) < float64(rt.r.now()) {
+		return nil, nil
+	}
+	key, err := rt.embedKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !constantTimeEqual(parts[3], hmacHex(key, "session."+parts[1]+"."+parts[2])) {
+		return nil, nil
+	}
+	return rt.embedToken(ctx, parts[2])
 }
 
 // trackerScript is the tracker with click rules inside, rebuilt when goals change. With ?site= it carries
@@ -1412,11 +1544,14 @@ func (rt *Routes) tokensAPI(c *call, path string) (*Response, error) {
 			return Coded("Unknown site", "unknown_site", 404, nil), nil
 		}
 		scope := "read"
-		if body.Value("scope") == "manage" {
-			scope = "manage"
+		if v := body.Value("scope"); v == "manage" || v == "embed" {
+			scope = v.(string)
 		}
 		if scope == "manage" && site == "" {
 			return Coded("A token that changes settings is for one site. Pick the site.", "token_site", 400, nil), nil
+		}
+		if scope == "embed" && site == "" {
+			return Coded("A key for the dashboard in a CMS is for one site. Pick the site.", "embed_site", 400, nil), nil
 		}
 		secret := tokenPrefix + randomID(20)
 		row := TokenRow{ID: randomID(12), Name: name, Site: site, Scope: scope, Hash: sha256Hex(secret), Hint: secret[len(secret)-4:], CreatedAt: rt.r.now()}

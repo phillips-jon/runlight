@@ -108,7 +108,7 @@ func isAssistantError(err error) bool {
 // innerRead reads the HTTP API as the asker, with their own headers, for a tool.
 func (rt *Routes) innerRead(c *call, u *whatwg.URL, site string) mcp.APIRead {
 	headers := c.req.Header.Clone()
-	for _, name := range []string{"content-type", "content-length", shareHeader} {
+	for _, name := range []string{"content-type", "content-length", shareHeader, embedHeader} {
 		headers.Delete(name)
 	}
 	return func(ctx context.Context, apiPath string, params mcp.Params) (*web.Response, error) {

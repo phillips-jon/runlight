@@ -246,8 +246,15 @@ func localeURLs(base string) string {
 	return js.Stringify(o)
 }
 
+// embedded is the dashboard inside a CMS's admin pages: its session (empty once its ticket was used or ran
+// out) and the admin origin that frames it.
+type embedded struct {
+	session string
+	origin  string
+}
+
 // dashboardPage is the dashboard's HTML, which holds no data.
-func dashboardPage(base, share, signOut string, geoCredit, accounts bool, signIn string) string {
+func dashboardPage(base, share, signOut string, geoCredit, accounts bool, signIn string, embed *embedded) string {
 	var attrs strings.Builder
 	if share != "" {
 		attrs.WriteString(` data-share="` + escapeAttr(share) + `"`)
@@ -263,6 +270,9 @@ func dashboardPage(base, share, signOut string, geoCredit, accounts bool, signIn
 	}
 	if accounts {
 		attrs.WriteString(` data-accounts=""`)
+	}
+	if embed != nil {
+		attrs.WriteString(` data-embed="` + escapeAttr(embed.session) + `" data-embed-origin="` + escapeAttr(embed.origin) + `"`)
 	}
 	b := escapeAttr(base)
 	return `<!doctype html>
@@ -289,7 +299,10 @@ const tokenPrefix = "rl_"
 // shareHeader is the header a shared dashboard sends its share id in.
 const shareHeader = "x-runlight-share"
 
-// sharedPaths are what a share can read: one site's reports, nothing that changes anything.
+// embedHeader is the header an embedded dashboard sends its session in.
+const embedHeader = "x-runlight-embed"
+
+// sharedPaths are what a share, or the dashboard inside a CMS, can read: one site's reports, nothing that changes anything.
 var sharedPaths = map[string]bool{"/api/sites": true, "/api/icon": true, "/api/realtime": true, "/api/stats": true, "/api/series": true, "/api/rhythm": true, "/api/breakdown": true, "/api/goals": true, "/api/event-props": true, "/api/export": true, "/api/funnels": true, "/api/journeys": true}
 
 var goalPath = regexp.MustCompile(`^/api/goals/[a-f0-9]{24}$`)
@@ -334,6 +347,10 @@ const (
 	pickHostsPlaceholder = `"__RUNLIGHT_PICK_HOSTS__"`
 	// pickTicketMs is how long a picker ticket works: long enough to find the element, not to be kept.
 	pickTicketMs = 30 * 60_000
+	// embedTicketMs is how long an embed ticket works: long enough for the admin page to load its frame, never to be kept.
+	embedTicketMs = 5 * 60_000
+	// embedSessionMs is how long an embedded dashboard reads before the admin page has to be loaded again for a new ticket.
+	embedSessionMs = 60 * 60_000
 	// askPerHour and askAtOnce are the questions one person may put to the assistant in an hour, and at once.
 	askPerHour = 30
 	askAtOnce  = 2
