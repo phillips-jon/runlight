@@ -171,9 +171,10 @@ defmodule Runlight.Safefetch do
   @doc """
   Fetches an https URL on the public internet (a GET unless `method:` and
   `body:` say otherwise), following up to `redirects:` redirects that stay
-  on it, within `timeout:` milliseconds in all. Answers `{:error, :private}`
-  for an address off it and `{:error, :timeout}` when time runs out. A
-  redirect past the last one comes back as it is.
+  on it, within `timeout:` milliseconds in all. Only a GET follows
+  redirects; anything else comes back with the redirect as it is. Answers
+  `{:error, :private}` for an address off it and `{:error, :timeout}` when
+  time runs out. A redirect past the last one comes back as it is.
   """
   @spec public_fetch(Runlight.t(), String.t(), keyword()) :: {:ok, Response.t()} | {:error, term()}
   def public_fetch(rl, target, opts) do
@@ -185,20 +186,29 @@ defmodule Runlight.Safefetch do
     end
   end
 
+  # An install on this machine: http://localhost or http://127.0.0.1, with any port.
+  @local_install ~r/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/
+
   @doc false
-  # A request to an address someone typed in: an install to connect, or a service to import from. This machine
-  # named outright over http (http://localhost or http://127.0.0.1, which those address checks let through for
-  # development) is fetched as it is; everything else only on the public internet, with up to three redirects for
-  # a GET.
-  @spec fetch_entered(Runlight.t(), String.t(), keyword()) :: {:ok, Response.t()} | {:error, term()}
-  def fetch_entered(rl, target, opts) do
-    if Regex.match?(~r/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|\?|$)/, target) do
-      Runlight.fetch(rl, target, Keyword.put(opts, :redirect, :manual))
-    else
-      get = Keyword.get(opts, :method, "GET") in ["GET", "HEAD"]
-      public_fetch(rl, target, Keyword.put_new(opts, :redirects, if(get, do: 3, else: 0)))
-    end
+  # Whether an address can be another Runlight install's: https, or, with `local`, an install on this machine,
+  # which only code can allow (the instance's `:local_installs`).
+  @spec install_address?(String.t(), boolean()) :: boolean()
+  def install_address?(url, local),
+    do: Regex.match?(~r/^https:\/\/[^\/]+/, url) or (local and Regex.match?(@local_install, url))
+
+  @doc false
+  # Fetches from another Runlight install, which someone signed in named: a public address as public_fetch/3
+  # fetches it, with no redirect followed, so a token sent there goes nowhere else. With the instance's
+  # `:local_installs`, an install on this machine is fetched as it is, still without following a redirect.
+  @spec install_fetch(Runlight.t(), String.t(), keyword()) :: {:ok, Response.t()} | {:error, term()}
+  def install_fetch(rl, target, opts) do
+    if rl.local_installs and Regex.match?(@local_install, target),
+      do: Runlight.fetch(rl, target, Keyword.put(opts, :redirect, :manual)),
+      else: public_fetch(rl, target, Keyword.put(opts, :redirects, 0))
   end
+
+  defp redirects(opts),
+    do: if(String.upcase(Keyword.get(opts, :method, "GET")) == "GET", do: Keyword.get(opts, :redirects, 0), else: 0)
 
   defp hop(rl, url, opts, deadline, n) do
     host = url.hostname |> String.replace(~r/^\[|\]$/, "") |> String.downcase()
@@ -231,7 +241,7 @@ defmodule Runlight.Safefetch do
 
             next = location && Url.parse(location, url)
 
-            if answer.status < 300 or answer.status >= 400 or location == nil or n >= Keyword.get(opts, :redirects, 0) or
+            if answer.status < 300 or answer.status >= 400 or location == nil or n >= redirects(opts) or
                  next == nil,
                do: {:ok, answer},
                else: hop(rl, next, opts, deadline, n + 1)

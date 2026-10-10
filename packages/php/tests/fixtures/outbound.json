@@ -7194,7 +7194,7 @@
    "name": "umami key paged",
    "source": "umami",
    "credentials": {
-    "url": "http://stats.example.com",
+    "url": "https://stats.example.com",
     "apiKey": "k"
    },
    "routes": [
@@ -7281,7 +7281,7 @@
    "requests": [
     {
      "method": "GET",
-     "url": "http://stats.example.com/api/links?page=1&pageSize=5",
+     "url": "https://stats.example.com/api/links?page=1&pageSize=5",
      "headers": {
       "accept": "application/json",
       "authorization": "Bearer k"
@@ -7290,7 +7290,7 @@
     },
     {
      "method": "GET",
-     "url": "http://stats.example.com/api/links?page=2&pageSize=5",
+     "url": "https://stats.example.com/api/links?page=2&pageSize=5",
      "headers": {
       "accept": "application/json",
       "authorization": "Bearer k"
@@ -7299,7 +7299,7 @@
     },
     {
      "method": "GET",
-     "url": "http://stats.example.com/api/websites/u5/events?startAt=1791385445678&endAt=1791471905678&page=1&pageSize=1000",
+     "url": "https://stats.example.com/api/websites/u5/events?startAt=1791385445678&endAt=1791471905678&page=1&pageSize=1000",
      "headers": {
       "accept": "application/json",
       "authorization": "Bearer k"
@@ -7308,7 +7308,7 @@
     },
     {
      "method": "GET",
-     "url": "http://stats.example.com/api/websites/u5/sessions?startAt=1791385445678&endAt=1791471905678&page=1&pageSize=1000",
+     "url": "https://stats.example.com/api/websites/u5/sessions?startAt=1791385445678&endAt=1791471905678&page=1&pageSize=1000",
      "headers": {
       "accept": "application/json",
       "authorization": "Bearer k"

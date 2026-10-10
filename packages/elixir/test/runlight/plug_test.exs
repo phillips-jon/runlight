@@ -142,13 +142,15 @@ defmodule Runlight.PlugTest do
   end
 
   test "an observe report with a key nobody gave is refused before its body is read" do
-    conn =
-      conn(:post, "/stats/api/observe", "not json")
-      |> put_req_header("authorization", "Bearer wrong")
-      |> put_req_header("content-type", "application/json")
-      |> call()
+    for key <- ["wrong", "rlo_nobodys"] do
+      conn =
+        conn(:post, "/stats/api/observe", "not json")
+        |> put_req_header("authorization", "Bearer " <> key)
+        |> put_req_header("content-type", "application/json")
+        |> call()
 
-    assert conn.status == 401
+      assert conn.status == 401, key
+    end
   end
 end
 

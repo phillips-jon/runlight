@@ -440,7 +440,7 @@ defmodule Runlight.Importers.Shorteners do
   def umami_sign_in(http, credentials, token \\ nil) do
     base = (Map.get(credentials, "url") || "") |> JS.trim() |> String.replace(~r/\/+\z/, "")
 
-    unless Regex.match?(~r/^https?:\/\/[^\/]+/, base),
+    unless Regex.match?(~r/^https:\/\/[^\/]+/, base),
       do:
         raise(ImportError,
           message: "Enter your Umami address, like https://stats.example.com",

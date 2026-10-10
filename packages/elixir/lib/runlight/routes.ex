@@ -672,13 +672,12 @@ defmodule Runlight.Routes do
     host = Url.host(Url.new(remote["url"]))
 
     fetched =
-      Runlight.Safefetch.fetch_entered(routes.rl, Url.href(target),
+      Runlight.Safefetch.install_fetch(routes.rl, Url.href(target),
         method: if(write, do: request.method, else: "GET"),
         headers: headers,
         body: if(write, do: Request.text(request)),
         # An install that answers with a redirect gets no fetch of somewhere else on its behalf.
         redirect: :manual,
-        redirects: 0,
         # A long report or an export is worked out in full before the install sends a byte, so reads get two minutes.
         timeout: if(write, do: 30_000, else: 120_000)
       )
@@ -2099,14 +2098,20 @@ defmodule Runlight.Routes do
     end
   end
 
-  # The site whose own observe key this is, or nil.
+  # The site whose own observe key this is, or nil: every key read in one query, so a stranger costs one lookup at
+  # most, and only for something shaped like a site's key.
   defp observe_key_site(rl, given) do
-    Runlight.init(rl)
+    if String.starts_with?(given, "rlo_") do
+      Runlight.init(rl)
 
-    Enum.reduce(Runlight.sites(rl), nil, fn site, found ->
-      key = Store.setting(rl.store, "observe-key:#{site["id"]}")
-      if key && Crypto.constant_time_equal?(given, key), do: site["id"], else: found
-    end)
+      Enum.reduce(Store.settings_starting_with(rl.store, "observe-key:"), nil, fn %{key: key, value: value}, found ->
+        id = String.replace_prefix(key, "observe-key:", "")
+
+        if id != "" and is_binary(value) and Crypto.constant_time_equal?(given, value) and Runlight.site(rl, id) != nil,
+          do: id,
+          else: found
+      end)
+    end
   end
 
   defp observe_pages(rl, key_site, batch, pages) do
