@@ -13,12 +13,12 @@
 
 {{ forms.autosuggestField({
   label: 'Runlight address',
-  instructions: 'Where Runlight is mounted: the address its dashboard opens at, such as `https://stats.example.com/runlight`. Add this site’s hostname to that Runlight’s sites, or its visits are ignored.',
+  instructions: 'The address Runlight answers at, where its dashboard opens, such as `https://example.com/runlight` for an app with Runlight mounted, or `https://stats.example.com` for the standalone server. That Runlight must count this site, or its visits are ignored.',
   id: 'address',
   name: 'address',
   value: settings.address,
   suggestEnvVars: true,
-  placeholder: 'https://stats.example.com/runlight',
+  placeholder: 'https://example.com/runlight or https://stats.example.com',
 }) }}
 
 {{ forms.textField({

@@ -34,7 +34,7 @@ The script sets no cookies and stores nothing in the visitor's browser. Runlight
 == Installation ==
 
 1. Install and activate the plugin.
-2. Go to Settings, Runlight, and enter your Runlight's address, such as `https://stats.example.com/runlight`. The page checks that it answers.
+2. Go to Settings, Runlight, and enter the address your Runlight answers at, such as `https://example.com/runlight` for an app with Runlight mounted, or `https://stats.example.com` for the standalone server. The page checks that it answers.
 3. Make sure that Runlight counts this site's hostname.
 4. To count AI agents, copy this site's key from Settings, Install, Key for CMS plugins in your Runlight and enter it here. The key can only report AI agent fetches for this one site.
 5. To see the numbers in wp-admin, make a key under Settings, Install, Key for the dashboard in your CMS in your Runlight and enter it as the dashboard key. That Runlight must list this site's hostname among the site's domains, since only an admin on one of them may show its dashboard.

@@ -15,7 +15,7 @@ use craft\helpers\App;
  */
 final class Settings extends Model
 {
-    /** Where Runlight is mounted, such as https://stats.example.com/runlight. */
+    /** The address Runlight answers at, such as https://example.com/runlight in an app or https://stats.example.com for the standalone server. */
     public string $address = '';
 
     /** Only needed when that Runlight counts several sites and cannot tell this one by hostname. */

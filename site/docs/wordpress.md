@@ -5,11 +5,11 @@ group: Platforms
 order: 15
 ---
 
-The Runlight plugin connects a WordPress site to a Runlight you run elsewhere, either in an app with Runlight mounted or on the standalone server. The numbers live in your Runlight, and WordPress stores only the plugin’s one setting.
+The Runlight plugin connects a WordPress site to a Runlight you run elsewhere, either in an app with Runlight mounted or on the standalone server. The numbers live in your Runlight, and WordPress keeps only the plugin’s settings, in one option.
 
 ## What it does
 
-- It adds Runlight’s script to every page and marks 404 pages so broken links show up in Events.
+- It adds Runlight’s script to every page. On a page WordPress answers with a 404, the script also records an event named 404 with the missing page’s path, so the properties of 404 in the Events box list the broken addresses people reached and how often.
 - It leaves out administrators’ own visits unless you turn that off.
 - It reports AI agents such as ChatGPT and Claude when they fetch your pages. Agents run no JavaScript, so the script cannot see them, and the plugin reports them from the server without waiting for a reply.
 - It adds a Runlight item to the admin menu that shows this site’s dashboard in wp-admin.
@@ -17,9 +17,11 @@ The Runlight plugin connects a WordPress site to a Runlight you run elsewhere, e
 ## Set it up
 
 1. Install the plugin and activate it.
-2. In your Runlight, add the site’s hostname to `hostnames` so it is counted (see [Configuration](/docs/configuration/#sites)).
-3. In WordPress, go to Settings, Runlight, and enter the address Runlight is mounted at, such as `https://stats.example.com/runlight`. When you save, the plugin checks that the address answers and tells you the result.
+2. In your Runlight, make sure the site is counted. On the standalone server, add it from the site menu, and in an app, add its hostname to `hostnames` (see [Configuration](/docs/configuration/#sites)).
+3. In WordPress, go to Settings, Runlight, and enter the address Runlight answers at, such as `https://example.com/runlight` for an app with Runlight mounted, or `https://stats.example.com` for the standalone server. When you save, the plugin checks that the address answers and tells you the result.
 4. To count AI agents, copy this site’s key from **Settings**, **Install**, **Key for CMS plugins** in Runlight and enter it in the plugin. The key can only report agent fetches for this one site, so it cannot read your stats or write into another site.
+
+The same page has three more settings. **Site id** names this site in your Runlight, and it is needed only when that Runlight counts several sites and cannot tell this one by its hostname. Under **Counting**, **Count clicks on links to other sites** records each click on a link to another site as an event named Outbound link, and **Count file downloads** records each click on a link to a file, such as a PDF or a zip, as an event named File download. Both are on until you turn them off.
 
 ## The dashboard in wp-admin
 

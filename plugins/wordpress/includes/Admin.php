@@ -64,7 +64,7 @@ final class Admin {
 		}
 		$body = json_decode( (string) wp_remote_retrieve_body( $response ), true );
 		if ( 200 !== wp_remote_retrieve_response_code( $response ) || ! is_array( $body ) || 'runlight' !== ( $body['name'] ?? '' ) ) {
-			return array( false, __( 'Something answered, but not Runlight. Check the address ends where Runlight is mounted, such as /runlight.', 'runlight' ) );
+			return array( false, __( 'Something answered, but not Runlight. Check that this is the address Runlight answers at, such as https://example.com/runlight for an app with Runlight mounted, or https://stats.example.com for the standalone server.', 'runlight' ) );
 		}
 		return array( true, sprintf( /* translators: %s: the version */ __( 'Connected to Runlight %s.', 'runlight' ), (string) ( $body['version'] ?? '' ) ) );
 	}
@@ -92,8 +92,8 @@ final class Admin {
 					<tr>
 						<th scope="row"><label for="runlight-address"><?php esc_html_e( 'Runlight address', 'runlight' ); ?></label></th>
 						<td>
-							<input id="runlight-address" class="regular-text code" type="url" name="<?php echo esc_attr( Settings::OPTION ); ?>[address]" value="<?php echo esc_attr( $settings['address'] ); ?>" placeholder="https://stats.example.com/runlight">
-							<p class="description"><?php esc_html_e( 'Where Runlight is mounted: the address its dashboard opens at. Add this site’s hostname to that Runlight’s sites, or its visits are ignored.', 'runlight' ); ?></p>
+							<input id="runlight-address" class="regular-text code" type="url" name="<?php echo esc_attr( Settings::OPTION ); ?>[address]" value="<?php echo esc_attr( $settings['address'] ); ?>" placeholder="https://example.com/runlight or https://stats.example.com">
+							<p class="description"><?php esc_html_e( 'The address Runlight answers at, where its dashboard opens. That Runlight must count this site, or its visits are ignored.', 'runlight' ); ?></p>
 						</td>
 					</tr>
 					<tr>

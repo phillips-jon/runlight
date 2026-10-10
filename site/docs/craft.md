@@ -9,7 +9,7 @@ The Runlight plugin connects a Craft 5 site to a Runlight you run elsewhere, eit
 
 ## What it does
 
-- It adds Runlight’s script to every front-end page and marks 404 pages.
+- It adds Runlight’s script to every front-end page. On a page Craft answers with a 404, the script also records an event named 404 with the missing page’s path, so the properties of 404 in the Events box list the broken addresses people reached and how often.
 - It leaves out Control Panel users’ own visits unless you turn that off.
 - It reports AI agents such as ChatGPT and Claude when they fetch your pages, after the response has been sent.
 - It adds a Runlight item to the Control Panel that shows this site’s dashboard there.
@@ -17,8 +17,8 @@ The Runlight plugin connects a Craft 5 site to a Runlight you run elsewhere, eit
 ## Set it up
 
 1. Install the plugin by running `composer require runlight/craft` and then `php craft plugin/install runlight`.
-2. In your Runlight, make sure the site’s hostname is counted (see [Configuration](/docs/configuration/#sites)).
-3. Go to Settings, Plugins, Runlight, and enter the address Runlight is mounted at, such as `https://stats.example.com/runlight`. The page checks that the address answers.
+2. In your Runlight, make sure the site is counted. On the standalone server, add it from the site menu, and in an app, add its hostname to `hostnames` (see [Configuration](/docs/configuration/#sites)).
+3. Go to Settings, Plugins, Runlight, and enter the address Runlight answers at, such as `https://example.com/runlight` for an app with Runlight mounted, or `https://stats.example.com` for the standalone server. The page checks that the address answers.
 4. To count AI agents, copy this site’s key from **Settings**, **Install**, **Key for CMS plugins** in Runlight and put it in Craft’s `.env` as `RUNLIGHT_OBSERVE_KEY`. Then enter `$RUNLIGHT_OBSERVE_KEY` as the observe key, which keeps the key itself out of project config. The key can only report agent fetches for this one site.
 
 As with any Craft plugin, every setting can also come from `config/runlight.php`, and values there override the Control Panel.
@@ -26,7 +26,7 @@ As with any Craft plugin, every setting can also come from `config/runlight.php`
 ```php
 <?php
 return [
-    'address' => 'https://stats.example.com/runlight',
+    'address' => 'https://stats.example.com',
     'observeKey' => '$RUNLIGHT_OBSERVE_KEY',
     'dashboardKey' => '$RUNLIGHT_DASHBOARD_KEY',
 ];
