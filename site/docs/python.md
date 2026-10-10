@@ -86,7 +86,7 @@ MIDDLEWARE = [
 RUNLIGHT = "myproject.analytics.rl"
 ```
 
-`RUNLIGHT` holds the instance itself or the dotted path to it, and a path to a function that makes one works too. `RUNLIGHT_ROUTES` passes options to the routes with their TypeScript names, such as `{"accounts": True}`. The middleware serves the dashboard and API under `/runlight` and short links at `/go`. Every link domain you add in **Settings** must also be in `ALLOWED_HOSTS`.
+`RUNLIGHT` holds the instance itself or the dotted path to it, and a path to a function that makes one works too. `RUNLIGHT_ROUTES` passes options to the routes with their TypeScript names, such as `{"accounts": True}`. The middleware serves the dashboard and API under `/runlight`, short links at `/go`, and every link domain you add in **Settings**, before Django’s own URLs. Each link domain must also be in `ALLOWED_HOSTS`.
 
 Run the [scheduled check](/docs/cron/) from cron with the management command.
 
@@ -96,7 +96,7 @@ Run the [scheduled check](/docs/cron/) from cron with the management command.
 
 ## Flask
 
-Pass the app and the instance to `init_app`, which puts Runlight in front of the app’s own views.
+Pass the app and the instance to `init_app`, which puts Runlight in front of the app’s own views. It answers under `/runlight`, at `/go`, and on every link domain you add in **Settings**, and passes everything else to your app.
 
 ```python file=app.py
 from flask import Flask
@@ -116,7 +116,7 @@ Options for the routes go in as keyword arguments, such as `runlight.flask.init_
 
 ## FastAPI
 
-`init_app` adds Runlight as middleware in front of the app’s routes. It works for Starlette apps as well.
+`init_app` adds Runlight as middleware in front of the app’s routes, so it answers under `/runlight`, at `/go`, and on every link domain you add in **Settings**. It works for Starlette apps as well.
 
 ```python file=main.py
 from fastapi import FastAPI
