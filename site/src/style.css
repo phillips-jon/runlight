@@ -211,8 +211,6 @@ footer ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
 .pager a { text-decoration: none; display: grid; }
 .pager a small { color: var(--muted); font: 400 11.5px/1.6 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
 .pager .next { text-align: right; margin-left: auto; }
-.edit { font-size: 15px; color: var(--muted); }
-.edit a { color: var(--muted); }
 
 /* 404 and 50x: one centred block, as on preflight.sh. */
 .lost { display: grid; justify-items: center; text-align: center; padding: clamp(64px, 14vh, 150px) 0 clamp(72px, 16vh, 170px); }

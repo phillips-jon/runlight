@@ -206,7 +206,6 @@ function docPage(doc, docs, assets) {
 ${doc.meta.description ? `<p class="lede">${escape(doc.meta.description)}</p>` : ""}
 ${html}
 ${pager}
-<p class="edit"><a href="${GITHUB}/blob/main/site/docs/${doc.file}" rel="noopener">Edit this page on GitHub</a></p>
 </article>
 ${toc}
 </div>`;
