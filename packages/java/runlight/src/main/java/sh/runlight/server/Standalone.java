@@ -54,7 +54,8 @@ public final class Standalone {
           "/mcp",
           "/s.js",
           "/pick.js",
-          "/e");
+          "/e",
+          "/embed");
 
   /**
    * The most names remembered as the server's own. The first ones stay and later ones are not

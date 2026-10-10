@@ -243,6 +243,21 @@ class ServletTest {
     assertEquals(200, check.status());
     assertEquals("{\"runlight\":true,\"domain\":\"t.example.com\"}", check.text());
     assertEquals(404, RawHttp.get(port, "/nothing", "Host", "t.example.com").status());
+    RawHttp.Answer made =
+        RawHttp.send(
+            port,
+            "POST",
+            "/runlight/api/links",
+            utf8(
+                "{\"url\":\"https://example.org/launch\",\"slug\":\"launch\",\"domain\":\"t.example.com\"}"),
+            "Content-Type",
+            "application/json");
+    assertEquals(201, made.status(), made.text());
+    RawHttp.Answer linked =
+        RawHttp.get(port, "/launch", "Host", "t.example.com", "User-Agent", CHROME);
+    assertEquals(302, linked.status());
+    assertEquals("https://example.org/launch", linked.header("location"));
+    assertEquals("app /launch", RawHttp.get(port, "/launch").text(), "the app keeps its own");
     assertEquals(
         200,
         RawHttp.get(port, "/runlight/api/sites", "Host", "t.example.com").status(),

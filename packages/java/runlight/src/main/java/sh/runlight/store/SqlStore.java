@@ -1352,7 +1352,10 @@ public final class SqlStore implements AutoCloseable {
         "id", text(r.get("id")),
         "name", text(r.get("name")),
         "site", text(r.get("site")),
-        "scope", "manage".equals(r.get("scope")) ? "manage" : "read",
+        "scope",
+            "manage".equals(r.get("scope"))
+                ? "manage"
+                : "embed".equals(r.get("scope")) ? "embed" : "read",
         "hash", text(r.get("hash")),
         "hint", text(r.get("hint")),
         "createdAt", num(r.get("created_at")),
@@ -1409,6 +1412,23 @@ public final class SqlStore implements AutoCloseable {
             "SELECT \"key\", value FROM rl_settings WHERE \"key\" LIKE ? ESCAPE '\\'",
             List.of(Sql.escapeLike(prefix) + "%")),
         r -> Json.object("key", text(r.get("key")), "value", text(r.get("value"))));
+  }
+
+  /**
+   * Reads a setting and deletes it. Of two callers at once, only the one whose delete took the row
+   * gets its value.
+   */
+  public String takeSetting(String key) {
+    String value = setting(key);
+    if (value == null) {
+      return null;
+    }
+    String sql = "DELETE FROM rl_settings WHERE \"key\" = ?";
+    long gone =
+        db.dialect().equals("mysql")
+            ? db.affected(sql, List.of(key))
+            : db.all(sql + " RETURNING \"key\"", List.of(key)).size();
+    return gone == 1 ? value : null;
   }
 
   public void setSetting(String key, String value) {

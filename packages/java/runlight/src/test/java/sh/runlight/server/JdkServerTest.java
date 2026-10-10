@@ -54,17 +54,18 @@ class JdkServerTest {
     Routes routes = rl.routes(new Routes.Options().basePath("/runlight").token("owner"));
     server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
     server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
-    JdkServer.mount(server, rl, routes);
+    // Link domains come with the app's own handler; nothing more is added for them.
     HttpContext app =
-        server.createContext(
-            "/",
+        JdkServer.mount(
+            server,
+            rl,
+            routes,
             exchange -> {
               byte[] body = "the app".getBytes(StandardCharsets.UTF_8);
               exchange.sendResponseHeaders(200, body.length);
               exchange.getResponseBody().write(body);
               exchange.close();
             });
-    app.getFilters().add(JdkServer.linkDomains(rl));
     app.getFilters().add(JdkServer.observer(rl));
     server.createContext(
         "/cookies",

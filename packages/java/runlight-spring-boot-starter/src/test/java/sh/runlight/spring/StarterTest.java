@@ -21,6 +21,9 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.jdbc.datasource.TransactionAwareDataSourceProxy;
+import org.springframework.web.servlet.function.RouterFunction;
+import org.springframework.web.servlet.function.RouterFunctions;
+import org.springframework.web.servlet.function.ServerResponse;
 import org.sqlite.SQLiteDataSource;
 import sh.runlight.Js;
 import sh.runlight.Json;
@@ -217,6 +220,52 @@ class StarterTest {
       assertSame(store, rl.store);
       assertSame(context.getBean("ownRoutes"), context.getBean(Routes.class));
       assertEquals(200, RawHttp.get(port(context), "/runlight/api/sites").status());
+    }
+  }
+
+  @Test
+  void aLinkDomainIsAnsweredBeforeTheAppWhichKeepsItsOwnHost() throws Exception {
+    try (ConfigurableApplicationContext context =
+        start(
+            c ->
+                c.registerBean(
+                    "appRoutes",
+                    RouterFunction.class,
+                    () ->
+                        RouterFunctions.route()
+                            .GET("/launch", r -> ServerResponse.ok().body("the app"))
+                            .build()),
+            database(),
+            "runlight.site.hostnames=example.com",
+            "runlight.token=app-token",
+            "runlight.check.enabled=false")) {
+      int port = port(context);
+      String[] auth = {"Authorization", "Bearer app-token", "Content-Type", "application/json"};
+      RawHttp.Answer domain =
+          RawHttp.send(
+              port,
+              "POST",
+              "/runlight/api/link-domains",
+              utf8("{\"domain\":\"go.example.com\"}"),
+              auth);
+      assertEquals(201, domain.status(), domain.text());
+      RawHttp.Answer made =
+          RawHttp.send(
+              port,
+              "POST",
+              "/runlight/api/links",
+              utf8(
+                  "{\"url\":\"https://example.com/launch\",\"slug\":\"launch\",\"domain\":\"go.example.com\"}"),
+              auth);
+      assertEquals(201, made.status(), made.text());
+
+      RawHttp.Answer linked =
+          RawHttp.get(port, "/launch", "Host", "go.example.com", "User-Agent", CHROME);
+      assertEquals(302, linked.status());
+      assertEquals("https://example.com/launch", linked.header("location"));
+      RawHttp.Answer app = RawHttp.get(port, "/launch", "User-Agent", CHROME);
+      assertEquals(200, app.status());
+      assertEquals("the app", app.text(), "the app's own host reaches the app");
     }
   }
 

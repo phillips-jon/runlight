@@ -54,7 +54,13 @@ public final class Routes {
   /** The header a shared dashboard sends its share id in. */
   public static final String SHARE_HEADER = "x-runlight-share";
 
-  /** What a share can read: one site's reports, nothing that changes anything. */
+  /** The header an embedded dashboard sends its session in. */
+  public static final String EMBED_HEADER = "x-runlight-embed";
+
+  /**
+   * What a share, or the dashboard inside a CMS, can read: one site's reports, nothing that changes
+   * anything.
+   */
   public static final List<String> SHARED_PATHS =
       List.of(
           "/api/sites",
@@ -91,6 +97,22 @@ public final class Routes {
   public static final long VIEWER_DAILY = 50;
 
   private static final Pattern SHARE_ID = Pattern.compile("^[a-f0-9]{32}\\z");
+
+  /**
+   * How long an embed ticket works: long enough for the admin page to load its frame, never kept.
+   */
+  public static final long EMBED_TICKET_MS = 5 * 60_000L;
+
+  /**
+   * How long an embedded dashboard reads before the admin page has to be loaded again for a new
+   * ticket.
+   */
+  public static final long EMBED_SESSION_MS = 60 * 60_000L;
+
+  private static final Pattern EMBED_TICKET =
+      Pattern.compile("^(\\d{1,15})\\.([a-f0-9]{32})\\.([a-f0-9]{2,512})\\.([a-f0-9]{64})\\z");
+  private static final Pattern EMBED_SESSION =
+      Pattern.compile("^(\\d{1,15})\\.([a-f0-9]{24})\\.([a-f0-9]{64})\\z");
   private static final List<String> PATH_DIMENSIONS = List.of("page", "entry", "exit", "ai_page");
 
   public static final String DASHBOARD_CSP =
@@ -847,6 +869,23 @@ public final class Routes {
       boolean geoCredit,
       boolean accounts,
       String signIn) {
+    return dashboard(base, share, signOut, geoCredit, accounts, signIn, null, null);
+  }
+
+  /**
+   * The dashboard's page, and for the dashboard inside a CMS's admin pages its session (empty once
+   * its ticket was used or ran out) and the admin origin that frames it. Without an origin it is
+   * the ordinary page.
+   */
+  public static String dashboard(
+      String base,
+      String share,
+      String signOut,
+      boolean geoCredit,
+      boolean accounts,
+      String signIn,
+      String embedSession,
+      String embedOrigin) {
     String b = escapeAttr(base);
     String hash = hash("dashboardHash");
     String attributes =
@@ -854,7 +893,14 @@ public final class Routes {
             + (!signOut.isEmpty() ? " data-sign-out=\"" + escapeAttr(signOut) + "\"" : "")
             + (!signIn.isEmpty() ? " data-sign-in=\"" + escapeAttr(signIn) + "\"" : "")
             + (geoCredit ? " data-geo-credit=\"\"" : "")
-            + (accounts ? " data-accounts=\"\"" : "");
+            + (accounts ? " data-accounts=\"\"" : "")
+            + (embedOrigin != null
+                ? " data-embed=\""
+                    + escapeAttr(embedSession)
+                    + "\" data-embed-origin=\""
+                    + escapeAttr(embedOrigin)
+                    + "\""
+                : "");
     return "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<meta name=\"robots\" content=\"noindex\">\n<title>Runlight</title>\n"
         + "<link rel=\"icon\" href=\""
         + Brand.runlightIcon()
@@ -1069,7 +1115,8 @@ public final class Routes {
   private Object reader(Request request) {
     Map<String, Object> apiToken = apiToken(request);
     if (apiToken != null) {
-      return apiToken;
+      // A key for the dashboard inside a CMS gets tickets and reads nothing itself.
+      return "embed".equals(apiToken.get("scope")) ? (Object) false : apiToken;
     }
     if (options.authorize != null || web != null) {
       Object access = canRead(request);
@@ -1629,6 +1676,159 @@ public final class Routes {
     return isOrigin(origin) ? Json.object("origin", origin, "site", unhex(parts.group(2))) : null;
   }
 
+  /**
+   * The key embed tickets and sessions are signed with, made on first use and kept in the database
+   * for every process.
+   */
+  private String embedKey() {
+    rl.init();
+    String saved = store().setting("embed-key");
+    if (saved != null && !saved.isEmpty()) {
+      return saved;
+    }
+    String made = Hash.randomId(32);
+    store().setSetting("embed-key", made);
+    return made;
+  }
+
+  /** An embed token that still exists, for a site that still does. */
+  private Map<String, Object> embedToken(String id) {
+    for (Map<String, Object> token : store().tokens()) {
+      if (id.equals(token.get("id"))) {
+        return "embed".equals(token.get("scope")) && rl.site((String) token.get("site")) != null
+            ? token
+            : null;
+      }
+    }
+    return null;
+  }
+
+  /** POST /api/embed: a ticket for one load of the embedded dashboard, for an embed token. */
+  private Response embedApi(Request request) {
+    Map<String, Object> token = apiToken(request);
+    if (token == null) {
+      return denied(false);
+    }
+    if (!"embed".equals(token.get("scope"))) {
+      return coded(
+          "Use a key for the dashboard in a CMS, made in Settings, Install", "embed_token", 403);
+    }
+    Map<String, Object> site = rl.site((String) token.get("site"));
+    if (site == null) {
+      return coded("Unknown site", "unknown_site", 404);
+    }
+    Object read = readJson(request);
+    if (read instanceof Response r) {
+      return r;
+    }
+    String origin = text(asMap(read), "origin");
+    Url parsed = isOrigin(origin) && origin.length() <= 200 ? Url.parse(origin) : null;
+    if (parsed == null || !parsed.origin().equals(origin)) {
+      return coded(
+          "Send the admin page's origin, such as https://example.com", "embed_origin", 400);
+    }
+    String host = hostName(parsed.host());
+    Map<String, Object> remote = rl.remote((String) site.get("id"));
+    Object names =
+        remote != null && remote.get("hostnames") != null
+            ? remote.get("hostnames")
+            : site.get("hostnames");
+    boolean known = false;
+    for (Object name : (List<?>) names) {
+      if (hostName(String.valueOf(name)).equals(host)) {
+        known = true;
+        break;
+      }
+    }
+    if (!known) {
+      return coded(
+          host
+              + " is not one of this site's domains. Add it to the site's domains in Runlight's settings.",
+          "embed_host",
+          400,
+          Json.object("host", host));
+    }
+    long now = rl.now();
+    // Tickets nobody used are cleared as new ones are made.
+    for (Map<String, Object> row : store().settingsStartingWith("embed-ticket:")) {
+      if (Js.toNumber(((String) row.get("value")).split("\\.", -1)[0]) < now) {
+        store().setSetting((String) row.get("key"), null);
+      }
+    }
+    long expiresAt = now + EMBED_TICKET_MS;
+    String nonce = Hash.randomId(16);
+    store().setSetting("embed-ticket:" + nonce, expiresAt + "." + token.get("id"));
+    String payload = expiresAt + "." + nonce + "." + HexFormat.of().formatHex(Js.utf8(origin));
+    String ticket = payload + "." + Hash.hmac(embedKey(), "ticket." + payload);
+    return json(
+        Json.object(
+            "ticket",
+            ticket,
+            "site",
+            site.get("id"),
+            "expiresAt",
+            expiresAt,
+            "path",
+            base + "/embed?ticket=" + ticket),
+        201);
+  }
+
+  /**
+   * What a ticket this install signed names: always its origin ("origin"), and its token's id
+   * ("token") only the first time it is used before it runs out. Null for anything else.
+   */
+  private Map<String, Object> redeemEmbed(String ticket) {
+    Matcher parts = EMBED_TICKET.matcher(ticket);
+    if (!parts.find()) {
+      return null;
+    }
+    if (!constantTimeEqual(
+        parts.group(4),
+        Hash.hmac(
+            embedKey(),
+            "ticket." + parts.group(1) + "." + parts.group(2) + "." + parts.group(3)))) {
+      return null;
+    }
+    String origin = unhex(parts.group(3));
+    if (!isOrigin(origin)) {
+      return null;
+    }
+    // A ticket works once: it is gone before anything else is checked.
+    String kept = store().takeSetting("embed-ticket:" + parts.group(2));
+    Map<String, Object> token = null;
+    if (kept != null && !kept.isEmpty() && Js.toNumber(parts.group(1)) >= rl.now()) {
+      String[] split = kept.split("\\.", -1);
+      token = embedToken(split.length > 1 ? split[1] : "");
+    }
+    Map<String, Object> out = new LinkedHashMap<>();
+    out.put("origin", origin);
+    out.put("token", token != null ? token.get("id") : null);
+    return out;
+  }
+
+  /**
+   * A session for an embedded dashboard, which its page sends with every read, signed with when it
+   * runs out and its token.
+   */
+  private String embedSession(String token) {
+    String payload = (rl.now() + EMBED_SESSION_MS) + "." + token;
+    return payload + "." + Hash.hmac(embedKey(), "session." + payload);
+  }
+
+  /** The embed token a session this install signed was made for, while it lasts and it exists. */
+  private Map<String, Object> embedReader(String session) {
+    Matcher parts = EMBED_SESSION.matcher(session);
+    if (!parts.find() || Js.toNumber(parts.group(1)) < rl.now()) {
+      return null;
+    }
+    if (!constantTimeEqual(
+        parts.group(3),
+        Hash.hmac(embedKey(), "session." + parts.group(1) + "." + parts.group(2)))) {
+      return null;
+    }
+    return embedToken(parts.group(2));
+  }
+
   private static String unhex(String text) {
     String even = text.substring(0, text.length() - text.length() % 2);
     return new String(HexFormat.of().parseHex(even), StandardCharsets.UTF_8);
@@ -2146,10 +2346,15 @@ public final class Routes {
       if (!site.isEmpty() && rl.site(site) == null) {
         return coded("Unknown site", "unknown_site", 404);
       }
-      String scope = "manage".equals(Js.get(body, "scope")) ? "manage" : "read";
+      Object asked = Js.get(body, "scope");
+      String scope = "manage".equals(asked) ? "manage" : "embed".equals(asked) ? "embed" : "read";
       if (scope.equals("manage") && site.isEmpty()) {
         return coded(
             "A token that changes settings is for one site. Pick the site.", "token_site", 400);
+      }
+      if (scope.equals("embed") && site.isEmpty()) {
+        return coded(
+            "A key for the dashboard in a CMS is for one site. Pick the site.", "embed_site", 400);
       }
       String secret = TOKEN_PREFIX + Hash.randomId(20);
       Map<String, Object> row = new LinkedHashMap<>();
@@ -2196,7 +2401,7 @@ public final class Routes {
    */
   private Mcp.ApiRead readApi(Request request, Url url, String defaultSite) {
     Headers headers = new Headers(request.headers());
-    for (String name : List.of("content-type", "content-length", SHARE_HEADER)) {
+    for (String name : List.of("content-type", "content-length", SHARE_HEADER, EMBED_HEADER)) {
       headers.delete(name);
     }
     return (apiPath, params) -> {
@@ -2217,6 +2422,12 @@ public final class Routes {
   private Response api(Request request, String path, Url url) {
     Runlight rl = this.rl;
     String method = request.method();
+    // An embedded dashboard reads what a share link shows and nothing else, whoever else the
+    // request comes from.
+    if (request.headers().get(EMBED_HEADER) != null
+        && !(method.equals("GET") && sharedPath(path))) {
+      return coded("Not available on a shared dashboard", "share_not_available", 403);
+    }
     // A write must be JSON, which a form on another page cannot send, even the writes that carry
     // no body. That holds without a cookie too, since a browser also sends Basic credentials or
     // comes from an allowed address on its own. A bearer token is never sent by the browser on its
@@ -2320,7 +2531,18 @@ public final class Routes {
           new byte[0], 303, Headers.of("location", to, "cache-control", "no-store"));
     }
 
+    // A ticket for one load of the dashboard inside a CMS's admin pages. The plugin's server asks
+    // with its embed token on each page view and names the admin's origin, which must be one of the
+    // site's domains and alone may frame the page the ticket opens.
+    if (path.equals("/api/embed") && method.equals("POST")) {
+      return embedApi(request);
+    }
+
     Map<String, Object> token = bearer(request).startsWith(TOKEN_PREFIX) ? apiToken(request) : null;
+    // An embed token gets tickets and reads nothing itself.
+    if (token != null && "embed".equals(token.get("scope"))) {
+      return coded("This key only opens the dashboard inside a CMS", "token_embed_only", 403);
+    }
     if (token != null && "manage".equals(token.get("scope")) && managePath(method, path)) {
       String asked = url.searchParams().get("site");
       Matcher siteMatch = SITE_PATH.matcher(path);
@@ -3120,6 +3342,15 @@ public final class Routes {
         return coded("Not available on a shared dashboard", "share_not_available", 403);
       }
       only = (String) shared.get("site");
+    } else if (request.headers().get(EMBED_HEADER) != null) {
+      Map<String, Object> embedToken = embedReader(request.headers().get(EMBED_HEADER));
+      if (embedToken == null) {
+        return coded(
+            "This dashboard has expired. Reload the page to open it again.", "embed_expired", 401);
+      }
+      // An embedded dashboard sees what a share link of its token's site shows.
+      only = (String) embedToken.get("site");
+      shared = Json.object("id", "", "site", only, "name", "", "createdAt", 0L);
     } else {
       Object access = reader(request);
       if (refusedReader(access)) {
@@ -3805,6 +4036,44 @@ public final class Routes {
     Matcher unsubscribe = UNSUBSCRIBE.matcher(path);
     if (unsubscribe.find() && (method.equals("GET") || method.equals("POST"))) {
       return unsubscribePage(request, unsubscribe.group(1));
+    }
+
+    // The dashboard inside a CMS's admin pages, opened with a ticket its plugin just got. Only the
+    // admin origin the ticket names may frame it. A ticket used already or run out opens it with no
+    // session, so it says it has expired and offers to reload the admin page; anything else is
+    // refused and never framed.
+    if (path.equals("/embed") && method.equals("GET")) {
+      rl.init();
+      String ticket = url.searchParams().get("ticket");
+      Map<String, Object> found = redeemEmbed(ticket != null ? ticket : "");
+      if (found == null) {
+        Messages.Translator t = Messages.translator(acceptedLanguage(request));
+        return smallPage(
+            t.lang(),
+            "<h1>"
+                + escapeHtml(t.t("embed.goneTitle"))
+                + "</h1><p>"
+                + escapeHtml(t.t("embed.gone"))
+                + "</p>",
+            404);
+      }
+      String origin = (String) found.get("origin");
+      String tokenId = (String) found.get("token");
+      String session = tokenId != null ? embedSession(tokenId) : "";
+      return new Response(
+          dashboard(base, "", "", options.geoCredit, false, "", session, origin),
+          !session.isEmpty() ? 200 : 410,
+          Headers.of(
+              "content-type",
+              "text/html; charset=utf-8",
+              "cache-control",
+              "no-store",
+              "content-security-policy",
+              DASHBOARD_CSP.replace("frame-ancestors 'none'", "frame-ancestors " + origin),
+              "referrer-policy",
+              "no-referrer",
+              "x-robots-tag",
+              "noindex"));
     }
 
     Matcher sharePage = SHARE_PAGE.matcher(path);
