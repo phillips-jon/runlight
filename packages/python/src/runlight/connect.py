@@ -13,13 +13,16 @@ import re
 from typing import Any
 
 from . import _js
+from .body import read_text_capped
 from .hash import random_id
 from .http import Response, SearchParams, Url
 from .oauth import s256
+from .safefetch import install_address, install_fetch
 
 PENDING_MS = 15 * 60_000
+# The most an install's answer while connecting may weigh; a real one is under a kilobyte.
+MAX_BYTES = 64 * 1024
 
-_INSTALL = re.compile(r"https://[^/]+|http://(localhost|127\.0\.0\.1)(:[0-9]+)?(/|\Z)")
 _STATE = re.compile(r"[a-f0-9]{32}\Z")
 
 
@@ -36,19 +39,21 @@ class ConnectError(_js.RangeError):
         self.params = {} if params is None else params
 
 
-def install_url(value: Any) -> str:
-    """The install's address as its dashboard is, without a trailing slash."""
+def install_url(value: Any, local: bool = False) -> str:
+    """The install's address as its dashboard is, without a trailing slash: https, or, with `local`, an install
+    on this machine."""
     url = re.sub(r"/+\Z", "", _js.trim(_js.string("" if value is None or value is _js.UNDEFINED else value)))
     # The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
-    if not _INSTALL.match(url) or not Url.can_parse(url):
+    if not install_address(url, local) or not Url.can_parse(url):
         raise ConnectError("Enter the install's address, like https://example.com/runlight", "url")
     return url
 
 
 def _json(answer: Response) -> Any:
-    """The body as JSON, or None when it is not, as `answer.json().catch(() => null)`."""
+    """The body as JSON, read no further than MAX_BYTES, or None when it is not, as
+    `readJsonCapped(answer, MAX_BYTES).catch(() => null)`."""
     try:
-        ok, value = _js.try_loads(answer.content())
+        ok, value = _js.try_loads(read_text_capped(answer, MAX_BYTES))
     except Exception:  # noqa: BLE001
         return None
     return value if ok else None
@@ -81,10 +86,11 @@ def _same_origin(endpoint: Any, origin: str) -> bool:
 
 def start_connect(runlight: Any, input: Any, back: str, site: str = "") -> str:  # noqa: A002
     """Starts connecting: returns the address of the install's consent page."""
-    url = install_url(input)
+    local = runlight.local_installs
+    url = install_url(input, local)
     host = Url(url).host
     try:
-        answer = runlight.fetcher.fetch(f"{url}/.well-known/oauth-authorization-server", {"timeoutMs": 10_000})
+        answer = install_fetch(f"{url}/.well-known/oauth-authorization-server", {"timeoutMs": 10_000, "local": local}, runlight.fetcher)
     except Exception:  # noqa: BLE001
         raise ConnectError(f"Could not reach {url}", "unreachable", {"host": host}) from None
     meta = _json(answer) if answer.ok else None
@@ -101,12 +107,13 @@ def start_connect(runlight: Any, input: Any, back: str, site: str = "") -> str: 
         raise ConnectError(f"{url} runs an older Runlight. Update it, or connect it with an API token from its Settings.", "old", {"url": url})
 
     try:
-        registered = runlight.fetcher.fetch(_js.string(meta["registration_endpoint"]), {
+        registered = install_fetch(_js.string(meta["registration_endpoint"]), {
             "method": "POST",
             "headers": {"content-type": "application/json"},
             "body": _js.dumps({"client_name": f"Runlight at {Url(back).host}", "redirect_uris": [back]}),
             "timeoutMs": 10_000,
-        })  # fmt: skip
+            "local": local,
+        }, runlight.fetcher)  # fmt: skip
     except Exception:  # noqa: BLE001
         raise ConnectError(f"Could not reach {url}", "unreachable", {"host": host}) from None
     client = _json(registered)
@@ -171,7 +178,7 @@ def finish_connect(runlight: Any, params: SearchParams) -> str:
 
     answer = None
     try:
-        answer = runlight.fetcher.fetch(pending["token"], {
+        answer = install_fetch(_js.string(pending["token"]), {
             "method": "POST",
             "headers": {"content-type": "application/x-www-form-urlencoded"},
             "body": SearchParams({
@@ -182,7 +189,8 @@ def finish_connect(runlight: Any, params: SearchParams) -> str:
                 "code_verifier": pending["verifier"],
             }).to_string(),
             "timeoutMs": 10_000,
-        })  # fmt: skip
+            "local": runlight.local_installs,
+        }, runlight.fetcher)  # fmt: skip
     except Exception:  # noqa: BLE001
         answer = None
     granted = _json(answer) if answer is not None and answer.ok else None

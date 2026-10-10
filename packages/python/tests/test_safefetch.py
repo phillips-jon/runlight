@@ -12,7 +12,7 @@ from support.fake_fetcher import FakeFetcher
 
 from runlight.http import FetchError, Response
 from runlight.safefetch import PrivateAddressError, public_address, public_addresses, public_fetch
-from runlight.safefetch import resolves_privately
+from runlight.safefetch import install_address, install_fetch, resolves_privately
 
 
 def urls(fetcher: FakeFetcher) -> list[str]:
@@ -152,3 +152,32 @@ def test_running_out_of_time_says_so() -> None:
 
     with pytest.raises(FetchError, match="Connection refused"):
         public_fetch("https://a.example/", {"timeoutMs": 2000, "lookup": dns({"a.example": ["1.1.1.1"]})}, FakeFetcher(refuses))
+
+
+def test_only_a_get_follows_redirects_and_an_install_fetch_follows_none() -> None:
+    lookup = dns({"a.example": ["93.184.215.14"]})
+    fetcher = hops([Response.redirect("/next", 307)])
+    init = {"timeoutMs": 2000, "redirects": 3, "method": "POST", "body": "x", "lookup": lookup}
+    assert public_fetch("https://a.example/", init, fetcher).status == 307
+    assert urls(fetcher) == ["https://a.example/"]
+    assert fetcher.inits[0]["method"] == "POST"
+    assert fetcher.inits[0]["body"] == "x"
+
+    fetcher = hops([Response.redirect("/next", 302)])
+    assert install_fetch("https://a.example/api/sites", {"timeoutMs": 2000, "local": False, "lookup": lookup}, fetcher).status == 302
+    assert urls(fetcher) == ["https://a.example/api/sites"]
+
+
+def test_an_install_on_this_machine_only_when_code_allows_it() -> None:
+    assert install_address("https://example.com/runlight", False)
+    assert not install_address("http://localhost:3000", False)
+    assert install_address("http://localhost:3000", True)
+    assert install_address("http://127.0.0.1:3000/runlight", True)
+    assert not install_address("http://localhost.evil.com", True)
+    assert not install_address("http://10.0.0.2", True)
+    fetcher = hops([Response("ok")])
+    assert install_fetch("http://127.0.0.1:3000/api/sites", {"timeoutMs": 2000, "local": True}, fetcher).text() == "ok"
+    assert fetcher.inits[0]["redirect"] == "manual"
+    for url, local in [("http://127.0.0.1:3000/api/sites", False), ("https://127.0.0.1:3000/api/sites", True)]:
+        with pytest.raises(PrivateAddressError):
+            install_fetch(url, {"timeoutMs": 2000, "local": local}, hops([]))

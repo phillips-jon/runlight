@@ -1,6 +1,14 @@
 # Runlight answers every path itself, from index.php.
 DirectoryIndex index.php
 
+# When this folder is also the project folder, its settings stay private even without mod_rewrite. The data
+# folder has an .htaccess of its own that turns every request away.
+<IfModule mod_authz_core.c>
+    <FilesMatch "^(config\.php|composer\.(json|lock))$">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
     # Sign-in and the API read the Authorization header, which some setups drop.

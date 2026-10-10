@@ -24,6 +24,9 @@ Options, with the TS names (as a dict, or as keyword arguments in snake_case, `r
   connected installs. Default the RUNLIGHT_SECRET environment variable, then RUNLIGHT_TOKEN.
 - rateLimit: tracker requests allowed per visitor address per minute. Default 120, which a real visitor never
   reaches; False turns the limit off.
+- localInstalls: lets a connected install be at http://localhost or http://127.0.0.1, for trying a hub and an
+  app on one machine. Default False: otherwise anyone who can add a site could have this server ask services
+  on its own machine, so other installs must be public https addresses.
 - now: a callable giving the clock in epoch milliseconds. For tests.
 - fetcher: the Fetcher every outgoing request goes through. Default UrllibFetcher.
 
@@ -45,6 +48,7 @@ from typing import Any
 from . import _js
 from .env import env_value
 from .http import BodyTooLong, Fetcher, Request, Response, Url, UrllibFetcher
+from .safefetch import install_address, install_fetch
 
 # A path on every link domain that answers when the domain reaches this Runlight.
 LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain"
@@ -194,6 +198,8 @@ class Runlight:
         self._clock: Callable[[], int] = opts.get("now") or _wall_clock
         # Every outgoing request goes through it.
         self.fetcher: Fetcher = opts.get("fetcher") or UrllibFetcher()
+        # Whether a connected install may be on this machine, at http://localhost or http://127.0.0.1.
+        self.local_installs: bool = bool(opts.get("localInstalls", False))
         # Short links: create, change, delete, and import.
         self.links = Links(self)
         # Where links on the app's own domain are served, such as "/go".
@@ -457,9 +463,10 @@ class Runlight:
             "connection": "unreachable",
         }
         try:
-            answer = self.fetcher.fetch(
+            answer = install_fetch(
                 f"{remote['url']}/api/sites",
-                {"headers": {"authorization": f"Bearer {remote['token']}"}, "timeoutMs": 8000, "maxBytes": REMOTE_MAX_BYTES},
+                {"headers": {"authorization": f"Bearer {remote['token']}"}, "timeoutMs": 8000, "maxBytes": REMOTE_MAX_BYTES, "local": self.local_installs},
+                self.fetcher,
             )
             if answer.status in (401, 403):
                 info["connection"] = "refused"
@@ -486,9 +493,10 @@ class Runlight:
     def _revoke_remote_token(self, remote: Mapping[str, Any]) -> None:
         """Asks a connected install to delete the token this server holds for it. A failure leaves it listed there."""
         try:
-            self.fetcher.fetch(
+            install_fetch(
                 f"{remote['url']}/api/token",
-                {"method": "DELETE", "headers": {"authorization": f"Bearer {remote['token']}"}, "timeoutMs": 5_000},
+                {"method": "DELETE", "headers": {"authorization": f"Bearer {remote['token']}"}, "timeoutMs": 5_000, "local": self.local_installs},
+                self.fetcher,
             )
         except Exception:
             pass
@@ -500,15 +508,16 @@ class Runlight:
         from .time import is_timezone
 
         url = re.sub(r"/+\Z", "", _js.trim(_js.string(_or(input.get("url"), ""))))
-        if not re.match(r"https://[^/]+|http://(localhost|127\.0\.0\.1)(:\d+)?(/|\Z)", url):
+        if not install_address(url, self.local_installs):
             raise SettingsError("Enter the install's address, like https://example.com/runlight", "connect_url")
         token = _js.trim(_js.string(_or(input.get("token"), "")))
         if not token:
             raise SettingsError("Enter an API token from that install", "install_token")
         try:
-            answer = self.fetcher.fetch(
+            answer = install_fetch(
                 f"{url}/api/sites",
-                {"headers": {"authorization": f"Bearer {token}"}, "timeoutMs": 10_000, "maxBytes": REMOTE_MAX_BYTES},
+                {"headers": {"authorization": f"Bearer {token}"}, "timeoutMs": 10_000, "maxBytes": REMOTE_MAX_BYTES, "local": self.local_installs},
+                self.fetcher,
             )
         except BodyTooLong:
             # An answer too long to read is no Runlight's.
@@ -526,9 +535,10 @@ class Runlight:
         scope = "read"
         token_site = ""
         try:
-            about = self.fetcher.fetch(
+            about = install_fetch(
                 f"{url}/api/token",
-                {"headers": {"authorization": f"Bearer {token}"}, "timeoutMs": 10_000, "maxBytes": REMOTE_MAX_BYTES},
+                {"headers": {"authorization": f"Bearer {token}"}, "timeoutMs": 10_000, "maxBytes": REMOTE_MAX_BYTES, "local": self.local_installs},
+                self.fetcher,
             )
             info = _json_or_none(about) if about.ok else None
             if isinstance(info, dict) and info.get("scope") == "manage":

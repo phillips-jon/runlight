@@ -181,7 +181,7 @@ final class ManageTest extends TestCase
                 };
             }
         };
-        $hub = Make::runlight(['managedSites' => true, 'secret' => str_repeat('k', 32), 'fetcher' => $evil]);
+        $hub = Make::runlight(['managedSites' => true, 'secret' => str_repeat('k', 32), 'fetcher' => $evil, 'localInstalls' => true]);
         $routes = $hub->routes(['token' => 'owner']);
         $call = fn (string $path, string $method = 'GET', ?string $body = null): Response => $routes->handle(new Request("https://hub.example.com/runlight$path", $method, ['authorization' => 'Bearer owner', 'content-type' => 'application/json'], $body ?? ''));
         $added = $call('/api/sites', 'POST', Json::encode(['remote' => ['url' => 'http://127.0.0.1:9/runlight', 'token' => 'rl_x']]));

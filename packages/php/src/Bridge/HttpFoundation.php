@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Runlight\Bridge;
 
+use Runlight\Http\BodyTooLarge;
 use Runlight\Http\Request;
 use Runlight\Http\Response;
 use Runlight\Routes;
@@ -30,7 +31,12 @@ final class HttpFoundation
      */
     public static function handle(Runlight $rl, Routes $routes, SymfonyRequest $request): SymfonyResponse
     {
-        $answer = FrontController::answer($rl, $routes, self::request($request));
+        try {
+            $ours = self::request($request);
+        } catch (BodyTooLarge) {
+            return self::response(Request::tooLarge());
+        }
+        $answer = FrontController::answer($rl, $routes, $ours);
         register_shutdown_function($rl->idle(...));
         return self::response($answer);
     }
@@ -69,16 +75,23 @@ final class HttpFoundation
     /**
      * The request as Runlight reads it. The URL is the one the browser asked for, with its query string as sent
      * (Symfony's getUri() sorts it), and the address is the connection's, since Runlight reads proxy headers
-     * itself, only when trustProxy allows.
+     * itself, only when trustProxy allows. The body is read up to its limit, as Request::fromGlobals() reads it.
+     *
+     * @throws BodyTooLarge past the limit
      */
     public static function request(SymfonyRequest $request): Request
     {
         $method = $request->getRealMethod();
+        $body = '';
+        if (!in_array($method, ['GET', 'HEAD'], true)) {
+            $stream = $request->getContent(true);
+            $body = Request::readBody($stream, $request->getRequestUri(), $request->headers->get('content-length'));
+        }
         return new Request(
             $request->getSchemeAndHttpHost() . $request->getRequestUri(),
             $method,
             $request->headers->all(),
-            in_array($method, ['GET', 'HEAD'], true) ? '' : (string) $request->getContent(),
+            $body,
             (string) $request->server->get('REMOTE_ADDR', ''),
         );
     }

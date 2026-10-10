@@ -40,7 +40,7 @@ final class ConnectTest extends TestCase
 
     private function hub(Router $router): Runlight
     {
-        return new Runlight(['store' => Stores::sqlite(':memory:'), 'managedSites' => true, 'secret' => str_repeat('k', 32), 'fetcher' => $router, 'now' => fn (): int => $this->now]);
+        return new Runlight(['store' => Stores::sqlite(':memory:'), 'managedSites' => true, 'secret' => str_repeat('k', 32), 'fetcher' => $router, 'localInstalls' => true, 'now' => fn (): int => $this->now]);
     }
 
     private static function refused(callable $fn, string $code): ConnectError
@@ -131,9 +131,38 @@ final class ConnectTest extends TestCase
                 throw new \Runlight\Http\FetchError('refused');
             }
         };
-        $hub = new Runlight(['store' => Stores::sqlite(':memory:'), 'fetcher' => $down]);
+        $hub = new Runlight(['store' => Stores::sqlite(':memory:'), 'fetcher' => $down, 'localInstalls' => true]);
         $e = self::refused(fn () => Connect::startConnect($hub, self::APP, 'https://hub.example/done'), 'unreachable');
         self::assertSame(['host' => '127.0.0.1:4100'], $e->params);
+    }
+
+    public function testWithoutLocalInstallsAHubAsksOnlyPublicHttpsAddresses(): void
+    {
+        $router = self::install();
+        $hub = new Runlight(['store' => Stores::sqlite(':memory:'), 'managedSites' => true, 'secret' => str_repeat('k', 32), 'fetcher' => $router, 'now' => fn (): int => $this->now]);
+        $hub->init();
+        self::refused(fn () => Connect::startConnect($hub, self::APP, 'https://hub.example/done'), 'url');
+        foreach (['https://10.0.0.5', 'https://169.254.169.254', 'https://[::1]:4100', 'https://localhost'] as $url) {
+            self::refused(fn () => Connect::startConnect($hub, $url, 'https://hub.example/done'), 'unreachable');
+        }
+        try {
+            $hub->addSite(['remote' => ['url' => 'https://10.0.0.5/runlight', 'token' => 't']]);
+            self::fail('a private address was added');
+        } catch (\Runlight\SettingsError $e) {
+            self::assertSame('unreachable', $e->code);
+        }
+        self::assertSame([], $router->requests, 'nothing was fetched');
+        // A redirect from the install is handed back, never followed, so its token goes nowhere else.
+        $moved = new \Runlight\Tests\RecordingFetcher([\Runlight\Http\Response::redirect('https://elsewhere.example/api/sites')]);
+        $hub = new Runlight(['store' => Stores::sqlite(':memory:'), 'managedSites' => true, 'secret' => str_repeat('k', 32), 'fetcher' => $moved, 'now' => fn (): int => $this->now]);
+        $hub->init();
+        try {
+            $hub->addSite(['remote' => ['url' => 'https://app.example/runlight', 'token' => 't']]);
+            self::fail('a redirect was taken for an install');
+        } catch (\Runlight\SettingsError $e) {
+            self::assertSame('connect_not_runlight', $e->code);
+        }
+        self::assertSame(['https://app.example/runlight/api/sites'], array_column($moved->requests, 'url'));
     }
 
     public function testAnAddressTheUrlParserRefusesIsTheAddressError(): void

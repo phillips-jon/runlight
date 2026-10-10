@@ -86,6 +86,24 @@ final class VisitsImportTest extends CoreTestCase
         return $totals;
     }
 
+    public function testUmamiIsAskedOnlyAtAPublicHttpsAddress(): void
+    {
+        $router = self::umami(self::fakeEvents(), self::SESSIONS);
+        $code = static function (callable $fn): string {
+            try {
+                $fn();
+            } catch (\Runlight\Importers\ImportError $e) {
+                return $e->code;
+            }
+            return 'none';
+        };
+        self::assertSame('import_umami_address', $code(fn () => Visits::umamiWebsites(['url' => 'http://umami.example.com', 'apiKey' => 'key'], $router)));
+        foreach (['https://10.0.0.5', 'https://169.254.169.254', 'https://localhost:3000'] as $url) {
+            self::assertSame('unreachable', $code(fn () => Visits::umamiWebsites(['url' => $url, 'apiKey' => 'key'], $router)), $url);
+        }
+        self::assertSame([], $router->requests, 'refused at once, never tried again');
+    }
+
     #[DataProvider('kinds')]
     public function testUmamiVisitHistoryPageviewsAndEventsBecomeVisitsWithSourcesPlacesAndDevices(string $kind): void
     {

@@ -64,6 +64,7 @@ final class CliTest extends TestCase
         $this->assertSame('cf-connecting-ip', $config->trustProxy());
         $this->assertSame("{$this->root}/runlight-data", $config->dataDir());
         $this->assertSame(0700, fileperms($config->dataDir()) & 0777, 'the data folder is private');
+        $this->assertSame("Require all denied\n", file_get_contents("{$this->root}/runlight-data/.htaccess"), 'Apache turns it away without mod_rewrite');
         $this->assertNull($config->geo());
         $this->assertNull($config->dbIp());
 

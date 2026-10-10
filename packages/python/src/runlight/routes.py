@@ -40,6 +40,8 @@ from .brand import RUNLIGHT_ICON
 from .env import env_value as env
 from .hash import hmac, random_id, sha256
 from .http import FetchError, Headers, Request, Response, Url
+from .body import read_text_capped
+from .safefetch import install_fetch
 
 COOKIE = "runlight_token"
 IMPLEMENTATION = {"library": "runlight", "language": "python"}
@@ -231,15 +233,15 @@ def _pass_through(runlight: Any, remote: Mapping[str, Any], path: str, url: Url,
     init: dict[str, Any] = {
         "method": request.method if write and request is not None else "GET",
         "headers": headers,
-        # An install that answers with a redirect gets no fetch of somewhere else on its behalf.
-        "redirect": "manual",
         # A long report or an export is worked out in full before the install sends a byte, so reads get two minutes.
         "timeoutMs": 30_000 if write else 120_000,
+        "local": runlight.local_installs,
     }
     if write and request is not None:
         init["body"] = request.text()
     try:
-        answer = runlight.fetcher.fetch(target.href, init)
+        # An install that answers with a redirect gets no fetch of somewhere else on its behalf.
+        answer = install_fetch(target.href, init, runlight.fetcher)
     except Exception as error:  # noqa: BLE001
         if isinstance(error, FetchError) and error.timed_out:
             return coded(f"{host} took too long to answer. Try a shorter range.", "remote_slow", 504, {"host": host})
@@ -267,12 +269,13 @@ def _pass_through(runlight: Any, remote: Mapping[str, Any], path: str, url: Url,
     # An install's own error is shown here, so it says where it came from, keeps only short text, and
     # carries its code and params for the dashboard to put in its own words.
     if answer.status >= 400 and not download:
+        # Read no further than an error could need, so an answer without end never fills memory.
         try:
-            text = answer.text()
+            text = read_text_capped(answer, 65_536)
         except Exception:  # noqa: BLE001
             text = ""
         body: Any = None
-        if _js.length(text) <= 65_536:
+        if text:
             ok, value = _js.try_loads(text)
             body = value if ok else None
         params_given = _get(body, "params")
@@ -1834,6 +1837,18 @@ class Routes:
         any_site = bool(self.observe_key and given and _constant_time_equal(given, self.observe_key)) or self._can_read(request) is True
         if not any_site and not given:
             return coded("Unauthorized", "unauthorized", 401)
+        # A site's own key is found before the body is read, so a stranger costs one lookup at most.
+        key_site = None
+        if not any_site:
+            if not given.startswith("rlo_"):
+                return coded("Unauthorized", "unauthorized", 401)
+            rl.init()
+            for setting in rl.store.settings_starting_with("observe-key:"):
+                site_id = setting["key"][len("observe-key:"):]
+                if site_id and setting["value"] and _constant_time_equal(given, setting["value"]) and rl.site(site_id):
+                    key_site = site_id
+            if not key_site:
+                return coded("Unauthorized", "unauthorized", 401)
         body = self._read_json(request)
         if isinstance(body, Response):
             return body
@@ -1867,13 +1882,6 @@ class Routes:
         if not any_site:
             # A site's own key reports only pages on that site's domains. Pages elsewhere in a batch (another
             # host in the same log, say) are skipped, not a reason to refuse the rest.
-            key_site = None
-            for site in rl.sites:
-                key = rl.store.setting(f"observe-key:{site['id']}")
-                if key and _constant_time_equal(given, key):
-                    key_site = site["id"]
-            if not key_site:
-                return coded("Unauthorized", "unauthorized", 401)
             keep = [p for p in pages if (rl.site_for(p["page"].hostname) or {}).get("id") == key_site]
             # A single report for another site's page is a misconfigured plugin, which should hear about it.
             if not batch and not keep:

@@ -16,10 +16,12 @@ cli.ts). Settings come from the environment:
 
 from __future__ import annotations
 
+import io
 import os
 import re
 import secrets
 import signal
+import socket
 import socketserver
 import sys
 import threading
@@ -234,7 +236,36 @@ class _ThreadingServer(socketserver.ThreadingMixIn, WSGIServer):
     daemon_threads = True
 
 
+class _Deadline(io.RawIOBase):
+    """The connection's reads, each given only the time left before the deadline, so a request that trickles in
+    a byte at a time is cut off as surely as one that stops."""
+
+    def __init__(self, connection: socket.socket, idle: float, deadline: float) -> None:
+        self._connection = connection
+        self._idle = idle
+        self._deadline = deadline
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer: Any) -> int:
+        left = self._deadline - time.monotonic()
+        if left <= 0:
+            raise TimeoutError("The request took too long to arrive")
+        self._connection.settimeout(min(left, self._idle))
+        return self._connection.recv_into(buffer)
+
+
 class _QuietHandler(WSGIRequestHandler):
+    # A connection that sends nothing for this long is closed, so idle ones do not hold a thread for good.
+    timeout = 30
+    # And the whole request, body and all, has this long to arrive.
+    request_seconds = 60.0
+
+    def setup(self) -> None:
+        super().setup()
+        self.rfile = io.BufferedReader(_Deadline(self.connection, float(self.timeout), time.monotonic() + self.request_seconds))
+
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
         pass
 

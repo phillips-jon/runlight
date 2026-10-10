@@ -19,7 +19,7 @@ def umami_sign_in(credentials: dict[str, Any], token: Any = None, http: Http | N
     Gives {base, token}."""
     http = http or Http()
     base = re.sub(r"/+\Z", "", credential(credentials, "url"))
-    if not re.match(r"https?://[^/]+", base):
+    if not re.match(r"https://[^/]+", base):
         raise ImportError("Enter your Umami address, like https://stats.example.com", "import_umami_address")
     key = credential(credentials, "apiKey")
     if key or _js.truthy(token):

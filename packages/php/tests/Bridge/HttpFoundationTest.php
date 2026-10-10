@@ -38,6 +38,23 @@ final class HttpFoundationTest extends TestCase
         $this->assertSame('', HttpFoundation::request(Request::create('https://example.com/runlight/', 'GET'))->text());
     }
 
+    public function testABodyPastItsLimitIsAnswered413(): void
+    {
+        $rl = $this->runlight();
+        $routes = $rl->routes(['token' => 'app-token']);
+        $hit = HttpFoundation::handle($rl, $routes, Request::create('https://example.com/runlight/e', 'POST', [], [], [], ['REMOTE_ADDR' => '203.0.113.9'], str_repeat('x', 16 * 1024 + 1)));
+        $this->assertSame(413, $hit->getStatusCode());
+        $this->assertSame('close', $hit->headers->get('connection'));
+        $this->assertSame(16 * 1024, strlen(HttpFoundation::request(Request::create('https://example.com/runlight/e', 'POST', [], [], [], [], str_repeat('x', 16 * 1024)))->text()));
+        // Anything but the collect endpoint takes up to 10 MB.
+        $this->assertSame(20_000, strlen(HttpFoundation::request(Request::create('https://example.com/runlight/api/links/import', 'POST', [], [], [], [], str_repeat('x', 20_000)))->text()));
+        $stream = fopen('php://memory', 'r+');
+        fwrite($stream, str_repeat('x', 10 * 1024 * 1024 + 1));
+        rewind($stream);
+        $this->expectException(\Runlight\Http\BodyTooLarge::class);
+        \Runlight\Http\Request::readBody($stream, '/runlight/api/links/import');
+    }
+
     public function testATrackerHitAndTheDashboardTokenCookieGoThrough(): void
     {
         $rl = $this->runlight();

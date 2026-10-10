@@ -301,6 +301,14 @@ def test_a_cms_plugin_reports_ai_agent_fetches_with_its_own_key_which_reads_noth
     rows = body(routes.handle(owner("/runlight/api/breakdown?period=today&dimension=ai_page")))
     assert [r["value"] for r in rows["rows"]] == ["/post"]
 
+    # A key that is no one's is refused before the body is read, so a stranger's body is never parsed.
+    site_key = body(routes.handle(owner("/runlight/api/observe-key")))["key"]
+    for key in ["wrong", "rlo_wrong"]:
+        assert routes.handle(req("/runlight/api/observe", "POST", {"authorization": f"Bearer {key}", "content-type": "application/json"}, "{not json")).status == 401
+    assert routes.handle(req("/runlight/api/observe", "POST", {"authorization": f"Bearer {site_key}", "content-type": "application/json"}, "{not json")).status == 400
+    assert send(site_key, {"url": "https://blog.example.com/again", "userAgent": gpt}).status == 204
+    assert send(site_key, {"url": "https://elsewhere.example/post", "userAgent": gpt}).status == 401, "a site's key reports only its own pages"
+
 
 def test_a_gone_share_link_says_so_in_the_visitors_language_and_a_read_tokens_write_is_refused_with_a_code() -> None:
     rl = runlight({"sites": [{"id": "blog", "hostnames": ["blog.example.com"]}]})

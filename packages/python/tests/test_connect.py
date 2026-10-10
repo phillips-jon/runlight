@@ -65,7 +65,7 @@ class Clock:
         self.now = 1_791_288_000_000
 
     def hub(self, fetcher: Any) -> Runlight:
-        return Runlight({"store": Stores.sqlite(":memory:"), "managedSites": True, "secret": "k" * 32, "fetcher": fetcher, "now": lambda: self.now})
+        return Runlight({"store": Stores.sqlite(":memory:"), "managedSites": True, "secret": "k" * 32, "fetcher": fetcher, "now": lambda: self.now, "localInstalls": True})
 
 
 @pytest.fixture
@@ -175,16 +175,18 @@ def test_an_install_that_cannot_connect_says_why(clock):
         def fetch(self, url: str, init: dict[str, Any] | None = None) -> Response:
             raise FetchError("refused")
 
-    hub = Runlight({"store": Stores.sqlite(":memory:"), "fetcher": Down()})
+    hub = Runlight({"store": Stores.sqlite(":memory:"), "fetcher": Down(), "localInstalls": True})
     error = refused(lambda: start_connect(hub, APP, "https://hub.example/done"), "unreachable")
     assert error.params == {"host": "127.0.0.1:4100"}
 
 
 def test_install_addresses():
     assert install_url("  https://example.com/runlight/// ") == "https://example.com/runlight"
-    assert install_url("http://localhost:3000") == "http://localhost:3000"
+    assert install_url("http://localhost:3000", True) == "http://localhost:3000"
+    # An install on this machine only when code allows it, or anyone who can add a site could reach its services.
+    refused(lambda: install_url("http://localhost:3000"), "url")
     for bad in ["http://example.com", "http://localhost.evil.com", None, "", "example.com"]:
-        refused(lambda bad=bad: install_url(bad), "url")
+        refused(lambda bad=bad: install_url(bad, True), "url")
     assert isinstance(ConnectError("x", "url"), _js.RangeError), "a RangeError in TypeScript"
 
 

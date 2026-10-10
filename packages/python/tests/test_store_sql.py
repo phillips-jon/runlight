@@ -76,3 +76,30 @@ def test_text_is_ordered_by_code_point() -> None:
     values = ["b", "a ", "A", "�", "\U0001f600", "a", "é"]
     values.sort(key=functools.cmp_to_key(sql.code_order))
     assert values == ["A", "a", "a ", "b", "é", "�", "\U0001f600"], "an emoji after U+FFFD, as code points order them and UTF-16 units do not"
+
+
+def test_a_server_set_to_no_backslash_escapes_cannot_turn_a_value_into_sql(databases: Any) -> None:
+    from support.databases import mysql_urls
+
+    if not mysql_urls():
+        pytest.skip("RUNLIGHT_TEST_MYSQL is not set")
+    import pymysql
+
+    from runlight import db as dbs
+
+    url = databases.url(next(iter(mysql_urls())))
+    parts = dbs._parts(url)
+    # An app's own connection that starts with the mode on, as a server configured that way would.
+    conn = pymysql.connect(host=parts["host"], port=parts["port"] or 3306, user=parts["user"] or "", password=parts["password"] or "", database=parts["database"], charset="utf8mb4", autocommit=True)
+    with conn.cursor() as cursor:
+        cursor.execute("SET SESSION sql_mode = CONCAT(@@SESSION.sql_mode, ',NO_BACKSLASH_ESCAPES')")
+    store = Stores.mysql(conn)
+    try:
+        store.migrate()
+        value = "a\\' , 'x') -- \\\\ end"
+        store.set_setting("odd", value)
+        assert store.setting("odd") == value
+        assert store.setting("x") is None, "nothing else was written"
+        assert "NO_BACKSLASH_ESCAPES" not in str(store.db.all("SELECT @@SESSION.sql_mode AS mode")[0]["mode"])
+    finally:
+        conn.close()

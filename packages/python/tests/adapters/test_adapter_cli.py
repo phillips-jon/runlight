@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 import re
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -130,3 +131,47 @@ def test_agents_asks_for_what_it_needs(data: Path) -> None:
     assert code == 1
     assert err.startswith("Count AI agents on a site that has only the script tag")
     assert run("agents", "--help")[0] == 0
+
+
+def test_a_connection_that_stalls_is_closed_and_frees_its_thread() -> None:
+    import select
+    import socket
+    import threading
+    import time
+    from wsgiref.simple_server import make_server
+
+    class Handler(cli._QuietHandler):
+        timeout = 0.3
+        request_seconds = 0.8
+
+    def echo(environ: Any, start_response: Any) -> list[bytes]:
+        body = environ["wsgi.input"].read(int(environ.get("CONTENT_LENGTH") or 0))
+        start_response("200 OK", [("content-type", "text/plain")])
+        return [body]
+
+    httpd = make_server("127.0.0.1", 0, echo, server_class=cli._ThreadingServer, handler_class=Handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    port = httpd.server_address[1]
+    try:
+        # Sending nothing at all.
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as idle:
+            started = time.monotonic()
+            assert idle.recv(1024) == b""
+            assert time.monotonic() - started < 3
+        # Sending a body a byte at a time, each well inside the idle timeout.
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as slow:
+            slow.sendall(b"POST / HTTP/1.0\r\nContent-Length: 100\r\n\r\n")
+            started = time.monotonic()
+            # Until the server answers: the app's read fails, so it sends an error, if anything, and hangs up.
+            while not select.select([slow], [], [], 0.1)[0] and time.monotonic() - started < 5:
+                slow.sendall(b"x")
+            answer = slow.makefile("rb").read()
+            assert answer == b"" or answer.startswith(b"HTTP/1.0 500")
+            assert time.monotonic() - started < 3
+        # A request that arrives in time is answered.
+        with socket.create_connection(("127.0.0.1", port), timeout=5) as quick:
+            quick.sendall(b"POST / HTTP/1.0\r\nContent-Length: 2\r\n\r\nhi")
+            assert quick.makefile("rb").read().endswith(b"\r\n\r\nhi")
+    finally:
+        httpd.shutdown()
+        httpd.server_close()

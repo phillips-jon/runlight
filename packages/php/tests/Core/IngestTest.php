@@ -264,6 +264,31 @@ final class IngestTest extends CoreTestCase
         @rmdir($dir);
     }
 
+    public function testTheRateLimitHoldsAcrossSeparateProcessesWithoutApcu(): void
+    {
+        // Each PHP request is its own process, so the key has to outlast them all for the day, or every request
+        // hashes the address differently and none of them is ever over the limit.
+        $dir = sys_get_temp_dir() . '/runlight-rate-test-' . bin2hex(random_bytes(4));
+        $minute = 1_000 * 60_000;
+        $code = 'require ' . var_export(dirname(__DIR__, 2) . '/vendor/autoload.php', true) . ';'
+            . '$limit = new Runlight\RateLimit(2, fn () => (int) $argv[1], ' . var_export($dir, true) . ');'
+            . 'echo $limit->allow("192.0.2.1") ? "yes" : "no";';
+        $run = static fn (int $now): string => (string) shell_exec(escapeshellarg(PHP_BINARY) . ' -n -d apc.enable_cli=0 -r ' . escapeshellarg($code) . ' ' . $now);
+        self::assertSame(['yes', 'yes', 'no'], [$run($minute), $run($minute + 1), $run($minute + 2)]);
+        self::assertSame('yes', $run($minute + 60_000), 'a new minute starts a new count');
+        $day = intdiv($minute, 86_400_000);
+        self::assertFileExists("$dir/runlight-rate/key-$day");
+        self::assertSame(0600, fileperms("$dir/runlight-rate/key-$day") & 0777);
+        // The next day brings a new key and takes the old one and the old windows away.
+        $run($minute + 86_400_000);
+        $left = array_map('basename', glob("$dir/runlight-rate/*") ?: []);
+        sort($left);
+        self::assertSame([(string) intdiv($minute + 86_400_000, 60_000), 'key-' . ($day + 1)], $left);
+        array_map('unlink', glob("$dir/runlight-rate/*") ?: []);
+        @rmdir("$dir/runlight-rate");
+        @rmdir($dir);
+    }
+
     public function testATrackerHitThatFindsTheDatabaseBusyIsTriedAgainAtTheTimeItArrived(): void
     {
         $watched = new WatchedDb(Databases::fresh('sqlite')->db);

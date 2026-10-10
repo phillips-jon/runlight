@@ -29,3 +29,13 @@ def databases():
     dbs = Databases()
     yield dbs
     dbs.cleanup()
+
+
+@pytest.fixture(autouse=True)
+def _public_fetch_names_only():
+    """Fake Fetchers answer for names that do not resolve, as TypeScript's tests do through the runtime's fetch."""
+    from runlight.safefetch import public_fetch_names_only
+
+    public_fetch_names_only(True)
+    yield
+    public_fetch_names_only(False)

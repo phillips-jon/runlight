@@ -16,6 +16,8 @@ from typing import Any
 
 from .. import _js
 from ..http import Fetcher, FetchError, Url, UrllibFetcher
+from ..body import read_text_capped
+from ..safefetch import PrivateAddressError, public_fetch
 from .types import ImportError
 
 
@@ -39,6 +41,10 @@ def _wait(ms: int | float) -> None:
         time.sleep(ms / 1000)
 
 
+# The most one answer may weigh; a page of a thousand events is well under a megabyte.
+MAX_BYTES = 32 * 1024 * 1024
+
+
 class Http:
     """Where an importer's requests go: a Fetcher (the Runlight's), and a sleep given milliseconds."""
 
@@ -50,7 +56,9 @@ class Http:
         self.sleep(ms)
 
     def get_json(self, url: str, init: dict[str, Any] | None = None) -> Any:
-        """Fetches JSON. `init` takes headers, method, and body."""
+        """Fetches JSON. `init` takes headers, method, and body. The address can come from whoever runs an import (a
+        self-hosted Umami), so only public https addresses are asked, with no redirect followed, which would carry
+        the key somewhere else."""
         init = init or {}
         attempt = 1
         while True:
@@ -62,15 +70,18 @@ class Http:
                 options["body"] = init["body"]
             options["timeoutMs"] = 20_000
             try:
-                response = self.fetcher.fetch(url, options)
-            except FetchError:
-                if attempt < 3:
+                response = public_fetch(url, options, self.fetcher)
+            except (FetchError, PrivateAddressError) as error:
+                if attempt < 3 and not isinstance(error, PrivateAddressError):
                     attempt += 1
                     continue
                 host = _host(url)
                 raise ImportError(f"Could not reach {host}", "unreachable", {"host": host}) from None
             if response.ok:
-                return response.json_body()
+                ok, value = _js.try_loads(read_text_capped(response, MAX_BYTES))
+                if not ok:
+                    raise ValueError("The body is not JSON")
+                return value
             if response.status == 401:
                 raise HttpError("The key or sign-in was refused", 401, "import_refused")
             if (response.status == 429 or response.status >= 500) and attempt < 4:

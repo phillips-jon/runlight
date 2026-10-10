@@ -88,15 +88,14 @@ final class Crypto
         return 'scrypt$' . self::base64url($salt) . '$' . self::base64url(self::scrypt($password, $salt, 32));
     }
 
-    /**
-     * Whether a password matches a hash, scrypt or PBKDF2. A stored key under MIN_KEY_BYTES is refused, since an
-     * empty or cut key would match too easily, or anything.
-     *
-     * @throws \InvalidArgumentException when a part of the hash is not base64, as the TypeScript rejects then
-     */
     /** The shortest stored key accepted. Ours are 32 bytes. */
     public const MIN_KEY_BYTES = 16;
 
+    /**
+     * Whether a password matches a hash, scrypt or PBKDF2. A stored key under MIN_KEY_BYTES is refused, since an
+     * empty or cut key would match too easily, or anything, and so is a hash with a part that is not base64url.
+     * Neither throws: each is false, so a bad row fails one sign-in rather than the request.
+     */
     public static function checkPassword(string $password, string $stored): bool
     {
         $parts = explode('$', $stored);
