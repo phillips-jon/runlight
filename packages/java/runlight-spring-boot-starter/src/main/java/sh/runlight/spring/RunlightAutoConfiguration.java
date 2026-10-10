@@ -82,7 +82,10 @@ public class RunlightAutoConfiguration {
     if (properties.getLinkPath() != null) {
       options.linkPath(properties.getLinkPath());
     }
-    options.trustProxy(trustProxy(properties.getTrustProxy()));
+    // Left unset, Runlight's own default applies, so it can warn when nothing sits in front.
+    if (properties.getTrustProxy() != null) {
+      options.trustProxy(trustProxy(properties.getTrustProxy()));
+    }
     if (properties.getRateLimit() != null) {
       int limit = properties.getRateLimit();
       if (limit <= 0) {

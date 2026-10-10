@@ -550,7 +550,11 @@ class RoutesTest {
     assertTrue(again.text().contains("data-embed=\"\""));
     assertEquals(
         404,
-        routes.handle(req(path.substring(0, path.length() - 1) + "0")).status(),
+        // One character changed, never to what it already was, or the test would fail one time in
+        // 16.
+        routes
+            .handle(req(path.substring(0, path.length() - 1) + (path.endsWith("0") ? "1" : "0")))
+            .status(),
         "a ticket this install did not sign opens nothing");
 
     Map<String, String> as = Map.of("x-runlight-embed", session);

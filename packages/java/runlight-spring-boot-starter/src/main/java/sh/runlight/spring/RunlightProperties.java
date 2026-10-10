@@ -47,7 +47,7 @@ public class RunlightProperties {
   private String secret;
   private String basePath = "/runlight";
   private String linkPath = "/go";
-  private String trustProxy = "true";
+  private String trustProxy;
   private Integer rateLimit;
   private String origin;
   private boolean accounts;
@@ -301,8 +301,9 @@ public class RunlightProperties {
   }
 
   /**
-   * {@code true} (the default), {@code false}, or the one header to read the client's address from
-   * ({@code x-forwarded-for}, {@code x-real-ip}, or {@code cf-connecting-ip}).
+   * {@code true}, {@code false}, or the one header to read the client's address from ({@code
+   * x-forwarded-for}, {@code x-real-ip}, or {@code cf-connecting-ip}). Unset acts as {@code true},
+   * and Runlight warns once if requests then arrive straight from public addresses.
    */
   public String getTrustProxy() {
     return trustProxy;
