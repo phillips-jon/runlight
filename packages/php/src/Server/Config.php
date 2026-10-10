@@ -163,11 +163,14 @@ final class Config
         return $url;
     }
 
-    /** "false" with nothing in front, or the one header your proxy sets, such as cf-connecting-ip behind Cloudflare. */
-    public function trustProxy(): bool|string
+    /**
+     * "false" with nothing in front, or the one header your proxy sets, such as cf-connecting-ip behind Cloudflare.
+     * Unset stays null, so the library's default applies and it can warn when nothing sits in front.
+     */
+    public function trustProxy(): bool|string|null
     {
         $value = strtolower($this->get('TRUST_PROXY') ?? '');
-        return $value === 'false' ? false : (in_array($value, ['x-forwarded-for', 'x-real-ip', 'cf-connecting-ip'], true) ? $value : true);
+        return $value === '' ? null : ($value === 'false' ? false : (in_array($value, ['x-forwarded-for', 'x-real-ip', 'cf-connecting-ip'], true) ? $value : true));
     }
 
     /** DB-IP's monthly download, for RUNLIGHT_GEO city (the default) or country, or null. */

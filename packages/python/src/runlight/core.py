@@ -48,7 +48,7 @@ from typing import Any
 from . import _js
 from .env import env_value
 from .http import BodyTooLong, Fetcher, Request, Response, Url, UrllibFetcher
-from .safefetch import install_address, install_fetch
+from .safefetch import install_address, install_fetch, public_address
 
 # A path on every link domain that answers when the domain reaches this Runlight.
 LINK_DOMAIN_CHECK = "/.well-known/runlight-link-domain"
@@ -189,6 +189,9 @@ class Runlight:
         self._geo = opts.get("geo")
         trust = opts.get("trustProxy", True)
         self._trust_proxy: bool | str = True if trust is None else trust
+        # True until trustProxy left at its default has been seen answering a public address directly, and warned
+        # about once.
+        self._warn_direct = opts.get("trustProxy") is None
         per_minute = opts.get("rateLimit", 120)
         if per_minute is None:
             per_minute = 120
@@ -909,6 +912,8 @@ class Runlight:
         only that one. Otherwise it is the connection's address: the context's `ip`, or else the request's own
         remote_address."""
         context = context or {}
+        ip = context.get("ip")
+        address = str(ip) if ip is not None else request.remote_address
         if self._trust_proxy is not False:
             h = request.headers
 
@@ -931,8 +936,15 @@ class Runlight:
                 forwarded = h.get(str(self._trust_proxy))
             if forwarded is not None and _js.trim(forwarded):
                 return _js.trim(forwarded)
-        ip = context.get("ip")
-        return str(ip) if ip is not None else request.remote_address
+            # A public address with no forwarding header means nothing sits in front, and then any client could
+            # name its own address in one. Said once, only when trustProxy was left at its default.
+            if self._warn_direct and address and public_address(address):
+                self._warn_direct = False
+                print(
+                    "Runlight: a request came straight from a public address with no proxy in front, but trustProxy is on by default, so a client could send X-Forwarded-For and choose its own address, getting round the rate limits. Set trust_proxy=False when nothing sits in front of this server, or put a proxy in front that sets the header.",
+                    file=sys.stderr,
+                )
+        return address
 
     def _current_salts(self, now: int, timezone: str) -> dict[str, Any]:
         """Today's salt in a site's timezone and, if it still exists, yesterday's. Salts follow the site's own days,
