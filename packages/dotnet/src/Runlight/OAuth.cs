@@ -53,6 +53,14 @@ public sealed class OAuthContext
 
     /// <summary>Notes who made a token; false takes it back (accounts' tokenMade).</summary>
     public Func<JsObject, string, CancellationToken, Task<bool>>? TokenMade { get; init; }
+
+    private RateLimit? _registrations;
+
+    /// <summary>
+    /// Registrations counted per address in memory, as the TypeScript does, so nothing about an address is ever
+    /// written to the database. Made on first use, with the Runlight's clock.
+    /// </summary>
+    internal RateLimit Registrations => LazyInitializer.EnsureInitialized(ref _registrations, () => new RateLimit(OAuth.RegistrationsPerMinute, Now));
 }
 
 /// <summary>
@@ -87,7 +95,6 @@ public static class OAuth
     /// Where the per-address count of registrations is kept. TypeScript keeps it in memory per install; here, as in
     /// PHP, it lives in the install's settings, keyed by a hash of the address, so every process shares it.
     /// </summary>
-    private const string Registrations = "oauth-registrations";
 
     private const string Space = "\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF";
 
@@ -225,7 +232,7 @@ public static class OAuth
         if (path == "/oauth/register" && request.Method == "POST")
         {
             await ctx.Init(cancellationToken).ConfigureAwait(false);
-            if (!await AllowRegistrationAsync(ctx, ctx.ClientIp(request, ip), cancellationToken).ConfigureAwait(false))
+            if (!ctx.Registrations.Allow(ctx.ClientIp(request, ip)))
             {
                 return OauthError("invalid_client_metadata", "Too many registrations from this address. Wait a minute and try again.", 429);
             }
@@ -528,28 +535,6 @@ public static class OAuth
                 }
         }
         return form;
-    }
-
-    /// <summary>
-    /// Counts a registration from an address and says whether it is under the limit for this minute. The count is
-    /// kept in the install's settings, keyed by an HMAC of the address, so no address is ever stored.
-    /// </summary>
-    private static async Task<bool> AllowRegistrationAsync(OAuthContext ctx, string ip, CancellationToken cancellationToken)
-    {
-        // No address cannot be told apart, so it is not limited.
-        if (ip.Length == 0)
-        {
-            return true;
-        }
-        long now = ctx.Now();
-        long window = now / 60_000 - (now < 0 && now % 60_000 != 0 ? 1 : 0);
-        string id = Hash.Hmac(await ClientKeyAsync(ctx, cancellationToken).ConfigureAwait(false), "register:" + ip)[..16];
-        object? saved = Json.TryParse(await ctx.Store.SettingAsync(Registrations, cancellationToken).ConfigureAwait(false) ?? "");
-        var counts = saved is JsObject o && Js.Num(o.Get("window")) == window && o.Get("counts") is JsObject c ? c : new JsObject();
-        long count = Js.ToLong(Js.Number(counts.Get(id) ?? 0L)) + 1;
-        counts.Set(id, count);
-        await ctx.Store.SetSettingAsync(Registrations, Json.Stringify(new JsObject { ["window"] = window, ["counts"] = counts }), cancellationToken).ConfigureAwait(false);
-        return count <= RegistrationsPerMinute;
     }
 
     /// <summary>Registers a client by signing its name and addresses into its id, so nothing is stored until an owner allows it and the app swaps its code.</summary>

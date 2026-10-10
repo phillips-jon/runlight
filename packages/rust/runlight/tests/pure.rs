@@ -256,11 +256,12 @@ fn zones_and_local_times_match_the_sdk() {
     assert!(failures.is_empty(), "{failures:#?}");
 }
 
-const CHANGED_SINCE_2025C: [&str; 9] = [
+const CHANGED_SINCE_2025C: [&str; 10] = [
     "Africa/Casablanca",
     "Africa/El_Aaiun",
     "America/Vancouver",
     "America/Edmonton",
+    "America/Inuvik",
     "America/Yellowknife",
     "America/Dawson_Creek",
     "America/Fort_Nelson",

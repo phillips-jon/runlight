@@ -79,7 +79,7 @@ public sealed class TimeTests
     /// </summary>
     private static readonly string[] NewerData =
     [
-        "Africa/Casablanca", "Africa/El_Aaiun", "America/Vancouver", "America/Edmonton", "America/Yellowknife",
+        "Africa/Casablanca", "Africa/El_Aaiun", "America/Vancouver", "America/Edmonton", "America/Inuvik", "America/Yellowknife",
         "Canada/Mountain", "Canada/Pacific", "America/Dawson_Creek", "America/Fort_Nelson", "America/Creston",
         "Mountain", "Pacific", "MST7MDT", "PST8PDT",
     ];

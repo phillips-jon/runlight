@@ -17,7 +17,7 @@ class TimeTest < Minitest::Test
   # agrees with the fixture everywhere; with newer data, the zones whose rules changed since (Morocco, British
   # Columbia, and Alberta, in 2026b) are left out of the comparisons, and every other zone must still match.
   CHANGED_AFTER_2026A = %w[
-    Africa/Casablanca Africa/El_Aaiun America/Edmonton America/Vancouver America/Yellowknife Canada/Mountain Canada/Pacific
+    Africa/Casablanca Africa/El_Aaiun America/Edmonton America/Vancouver America/Inuvik America/Yellowknife Canada/Mountain Canada/Pacific
   ].freeze
 
   def self.data_version

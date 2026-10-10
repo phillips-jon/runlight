@@ -111,7 +111,7 @@ SYSTEM_V_SUMMER = [
 # The fixture came from Node's ICU with time zone data 2025c. The system's database may be newer, and disagree
 # wherever a zone's rules changed since: these zones' later instants are not compared.
 CHANGED_SINCE_2025C = {
-    "America/Vancouver", "Canada/Pacific", "America/Edmonton", "America/Yellowknife", "Canada/Mountain",
+    "America/Vancouver", "Canada/Pacific", "America/Edmonton", "America/Inuvik", "America/Yellowknife", "Canada/Mountain",
     "Africa/Casablanca", "Africa/El_Aaiun",
 }  # fmt: skip
 

@@ -2,13 +2,16 @@
 
 <p>{{ 'Runlight counts visitors without cookies and keeps the numbers in your own database. This plugin adds its script to every front-end page and reports AI agents that read your pages. The numbers live in your Runlight, wherever you run it.'|t('runlight') }}</p>
 
-{% if settings.getAddress() %}
+{# Craft namespaces every id in a plugin's settings, so the script looks the element up by the same name. #}
+{% if settings.getAddress() and not settings.hasErrors() %}
+  {% set statusId = 'runlight-status'|namespaceInputId %}
   <div class="readable" style="margin: 16px 0;">
     <p id="runlight-status" class="light">{{ 'Checking that your Runlight answers…'|t('runlight') }}</p>
   </div>
   {% js %}
     (function () {
-      var status = document.getElementById("runlight-status");
+      var status = document.getElementById({{ statusId|json_encode|raw }});
+      if (!status) return;
       Craft.sendActionRequest("POST", "runlight/dashboard/check").then(function (response) {
         var result = response.data;
         if (!result) { status.remove(); return; }
