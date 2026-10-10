@@ -89,14 +89,13 @@ import sh.runlight.server.JdkServer;
 
 HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
 server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
-JdkServer.mount(server, rl, rl.routes(new Routes.Options().basePath("/runlight")));
-var app = server.createContext("/", yourHandler);
-app.getFilters().add(JdkServer.linkDomains(rl));
+var routes = rl.routes(new Routes.Options().basePath("/runlight"));
+var app = JdkServer.mount(server, rl, routes, yourHandler);
 app.getFilters().add(JdkServer.observer(rl));
 server.start();
 ```
 
-Give the server an executor, since the routes read the database and the JDK's default runs every request on one thread. `mount` also answers [short links](/docs/links/) at `/go/`. The `linkDomains` filter answers them on any link domain added in **Settings**, and `observer` records the fetches of [AI agents](/docs/ai/#agents-that-read-your-pages) as your app serves its pages.
+Give the server an executor, since the routes read the database and the JDK's default runs every request on one thread. `mount` also answers [short links](/docs/links/) at `/go/`, and it serves your handler at `/` behind a filter that answers link domains added in **Settings**, so a request on any other host reaches your app untouched. The `observer` filter records the fetches of [AI agents](/docs/ai/#agents-that-read-your-pages) as your app serves its pages.
 
 ## Servlet containers
 
@@ -123,7 +122,7 @@ runlight.site.timezone=Europe/London
 runlight.token=${RUNLIGHT_TOKEN}
 ```
 
-The starter keeps its tables in your app's own `DataSource`, or in the database `runlight.database-url` names. It serves the routes at `runlight.base-path` (`/runlight`) and short links at `runlight.link-path` (`/go`), and it runs the scheduled check every minute. Its filters run ahead of Spring Security's. Set `runlight.open=true` to serve the dashboard without a token, behind your app's own sign-in, and its filter moves behind Spring Security so your rules guard it. A `Runlight` or `Routes` bean of your own takes the place of the one the starter makes. The other settings are `runlight.sites[0].*`, `managed-sites`, `secret`, `trust-proxy`, `rate-limit`, `origin`, `accounts`, `cron-secret`, `observe-key`, `observe`, `check.every`, and `web.enabled`.
+The starter keeps its tables in your app's own `DataSource`, or in the database `runlight.database-url` names. It serves the routes at `runlight.base-path` (`/runlight`) and short links at `runlight.link-path` (`/go`), it answers link domains added in **Settings** before your app's own routing, and it runs the scheduled check every minute. Its filters run ahead of Spring Security's. Set `runlight.open=true` to serve the dashboard without a token, behind your app's own sign-in, and its filter moves behind Spring Security so your rules guard it. A `Runlight` or `Routes` bean of your own takes the place of the one the starter makes. The other settings are `runlight.sites[0].*`, `managed-sites`, `secret`, `trust-proxy`, `rate-limit`, `origin`, `accounts`, `cron-secret`, `observe-key`, `observe`, `check.every`, and `web.enabled`.
 
 ## Add the script
 

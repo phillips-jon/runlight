@@ -35,10 +35,9 @@ import sh.runlight.http.Url;
  * Runlight rl = new Runlight(new Runlight.Options().store(Stores.sqlite("runlight.db")));
  * HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
  * server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
- * JdkServer.mount(server, rl, rl.routes(new Routes.Options().basePath("/runlight")));
- * HttpContext app = server.createContext("/", myHandler);
- * app.getFilters().add(JdkServer.linkDomains(rl)); // short links on a domain added in Settings
- * app.getFilters().add(JdkServer.observer(rl));    // AI agent fetches of the app's pages
+ * Routes routes = rl.routes(new Routes.Options().basePath("/runlight"));
+ * HttpContext app = JdkServer.mount(server, rl, routes, myHandler); // link domains answered too
+ * app.getFilters().add(JdkServer.observer(rl)); // AI agent fetches of the app's pages
  * server.start();
  * }</pre>
  *
@@ -100,6 +99,25 @@ public final class JdkServer {
         && !links.startsWith(base + "/")) {
       server.createContext(links, handler);
     }
+    return context;
+  }
+
+  /**
+   * Mounts Runlight as {@link #mount(HttpServer, Runlight, Routes)} does and serves the app's own
+   * handler at "/" behind the {@link #linkDomains(Runlight)} filter, so a request on a link domain
+   * added in Settings is answered with its short link and every other request reaches the app
+   * untouched. Returns the app's context, for filters of its own. The routes need a base path,
+   * since "/" is the app's.
+   */
+  public static HttpContext mount(
+      HttpServer server, Runlight runlight, Routes routes, HttpHandler app) {
+    if (routes.basePath().isEmpty()) {
+      throw new IllegalArgumentException(
+          "Give the routes a base path, such as /runlight, since the app answers at /");
+    }
+    mount(server, runlight, routes);
+    HttpContext context = server.createContext("/", app);
+    context.getFilters().add(linkDomains(runlight));
     return context;
   }
 
