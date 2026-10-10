@@ -74,12 +74,15 @@ export const VERSIONED = [
   { file: "packages/go/internal/assets/build.json", pattern: /^( {2}"version": ")([^"]+)(")/m },
   // The chi and Echo adapters and the command are modules of their own,
   // released with the core under tags of their own (see PUBLISH), and each
-  // requires the core at the same release. A replace directive points them
-  // at the source for development; an app that requires one ignores it and
-  // gets this version. The test module dbtest is never tagged, and moves
-  // with them only to stay in step. (A requirement is on a require line of
-  // its own or in a require block.)
+  // requires the core at the same release. None has a replace directive, so
+  // that go install runlight.sh/go/cmd/runlight@vX.Y.Z works; packages/go/go.work
+  // points them at the source for development instead, with a replace at
+  // the version they require, which the proxy has not seen until the tags
+  // are pushed. The test module dbtest is never tagged, and moves with them
+  // only to stay in step. (A requirement is on a require line of its own or
+  // in a require block.)
   ...["chi", "echo", "cmd/runlight", "dbtest"].map((dir) => ({ file: `packages/go/${dir}/go.mod`, pattern: /^((?:require |\t)runlight\.sh\/go v)(\S+)()$/m })),
+  { file: "packages/go/go.work", pattern: /^(replace runlight\.sh\/go v)(\S+)( => \.\/)$/m },
   // The Hex package: mix.exs alone holds its version, and build.json, which
   // scripts/elixir-assets.mts writes from the SDK's VERSION.
   { file: "packages/elixir/mix.exs", pattern: /^(\s*@version ")([^"]+)(")/m },

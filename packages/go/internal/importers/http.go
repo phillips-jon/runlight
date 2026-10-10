@@ -23,13 +23,19 @@ func (e *HTTPError) Unwrap() error { return e.ImportError }
 
 // Client is JSON over HTTPS with a timeout and a few retries on rate limits
 // and server errors. Every importer request goes through one, so tests can
-// pass a fake Fetcher and a Sleep that does not wait.
+// pass a fake Fetcher and a Sleep that does not wait. The address can come
+// from whoever runs an import (a self-hosted Umami), so only public https
+// addresses are asked, as web.PublicFetch asks them, with no redirect
+// followed, which would carry the key somewhere else.
 type Client struct {
 	// Fetcher makes the requests; nil is web.HTTPFetcher{}.
 	Fetcher web.Fetcher
 	// Sleep waits this many milliseconds; nil waits for real, or until ctx ends.
 	Sleep func(ctx context.Context, ms float64) error
 }
+
+// maxAnswer is the most one answer may weigh; a page of a thousand events is well under a megabyte.
+const maxAnswer = 32 * 1024 * 1024
 
 // RequestInit is what a request sends beyond its URL: Method is GET when
 // empty, Body is nil for none.
@@ -78,12 +84,14 @@ func (c *Client) GetJSON(ctx context.Context, url string, init RequestInit) (any
 		if method == "" {
 			method = "GET"
 		}
-		response, err := c.fetcher().Fetch(ctx, url, web.FetchInit{Method: method, Headers: headers, Body: init.Body, Timeout: 20 * time.Second})
+		response, err := web.PublicFetch(ctx, c.fetcher(), url, web.FetchInit{Method: method, Headers: headers, Body: init.Body, Timeout: 20 * time.Second, MaxBytes: maxAnswer}, 0)
 		if err != nil {
 			if ctx.Err() != nil {
 				return nil, ctx.Err()
 			}
-			if attempt < 3 {
+			// An address off the public internet stays off it, so it is not tried again.
+			var private *web.PrivateAddressError
+			if attempt < 3 && !errors.As(err, &private) {
 				continue
 			}
 			host, err := hostOf(url)

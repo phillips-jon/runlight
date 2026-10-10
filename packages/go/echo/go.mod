@@ -8,5 +8,3 @@ require (
 	github.com/labstack/echo/v5 v5.4.0
 	runlight.sh/go v0.0.0
 )
-
-replace runlight.sh/go => ../

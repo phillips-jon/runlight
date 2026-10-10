@@ -14,7 +14,7 @@ const umamiPage = 5
 
 var (
 	trailingSlashes = regexp.MustCompile(`/+$`)
-	umamiAddress    = regexp.MustCompile(`^https?://[^/]+`)
+	umamiAddress    = regexp.MustCompile(`^https://[^/]+`)
 )
 
 // UmamiLogin is where an Umami is and the token that signs in to it.

@@ -346,7 +346,10 @@ func run(args []string) error {
 	if err != nil {
 		return err
 	}
-	http := &http.Server{Handler: srv, ReadHeaderTimeout: 30 * time.Second}
+	// A body is 10 MB at most, which a slow line sends within two minutes. Nothing streams: the longest
+	// answer is a report or an export from a connected install, which may take two minutes to
+	// arrive before it is passed on, so writes get five.
+	http := &http.Server{Handler: srv, ReadHeaderTimeout: 30 * time.Second, ReadTimeout: 2 * time.Minute, WriteTimeout: 5 * time.Minute, IdleTimeout: 2 * time.Minute}
 	shown := host
 	if host == "0.0.0.0" || host == "::" {
 		shown = "localhost"

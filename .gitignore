@@ -17,3 +17,6 @@ dist/
 
 # Claude Code agent worktrees
 .claude/worktrees/
+
+# What the Go workspace (packages/go/go.work) records as it builds
+packages/go/go.work.sum

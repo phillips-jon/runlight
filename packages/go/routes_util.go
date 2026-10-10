@@ -375,7 +375,7 @@ func queryValue(u *whatwg.URL, name string) (string, bool) { return u.SearchPara
 // passThrough answers a read for a site counted by another install by
 // asking that install, with its token and its own id for the site, and
 // handing back what it says.
-func passThrough(ctx context.Context, fetcher Fetcher, remote Remote, path string, u *whatwg.URL, request *Request) *Response {
+func passThrough(ctx context.Context, r *Runlight, remote Remote, path string, u *whatwg.URL, request *Request) *Response {
 	target, err := whatwg.Parse(remote.URL + path)
 	if err != nil {
 		return Coded("Could not reach "+remote.URL, "unreachable", 502, params("host", remote.URL))
@@ -401,7 +401,8 @@ func passThrough(ctx context.Context, fetcher Fetcher, remote Remote, path strin
 		init.Timeout = 30 * time.Second
 	}
 	host := whatwg.MustParse(remote.URL).Host()
-	answer, err := fetcher.Fetch(ctx, target.Href(), init)
+	// An install that answers with a redirect gets no fetch of somewhere else on its behalf.
+	answer, err := r.installFetch(ctx, target.Href(), init)
 	if err != nil {
 		if web.IsTimeout(err) {
 			return Coded(host+" took too long to answer. Try a shorter range.", "remote_slow", 504, params("host", host))

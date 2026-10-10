@@ -196,13 +196,27 @@ func ResolvesPrivately(ctx context.Context, name string) bool {
 	return false
 }
 
-// PublicFetch GETs an https URL on the public internet, following up to
-// redirects redirects that stay on it, within timeout in all. It fails with
-// a *PrivateAddressError for an address off it, and a timed-out FetchError
+// PublicFetch fetches an https URL on the public internet as init says,
+// following up to redirects redirects that stay on it, within init.Timeout
+// in all (30 seconds when zero). Only a GET follows redirects; anything else
+// comes back with the redirect as it is. It fails with a
+// *PrivateAddressError for an address off it, and a timed-out FetchError
 // when time runs out. A redirect past the last one comes back as it is.
-func PublicFetch(ctx context.Context, fetcher Fetcher, target string, headers *Headers, timeout time.Duration, redirects int, maxBytes int64, truncate bool) (*Response, error) {
-	ctx, cancel := context.WithTimeout(ctx, timeout)
+func PublicFetch(ctx context.Context, fetcher Fetcher, target string, init FetchInit, redirects int) (*Response, error) {
+	if init.Timeout <= 0 {
+		init.Timeout = 30 * time.Second
+	}
+	ctx, cancel := context.WithTimeout(ctx, init.Timeout)
 	defer cancel()
+	init.Method = strings.ToUpper(init.Method)
+	if init.Method == "" {
+		init.Method = "GET"
+	}
+	if init.Method != "GET" {
+		redirects = 0
+	}
+	init.Redirect = "manual"
+	init.PublicOnly = true
 	u, err := whatwg.Parse(target)
 	if err != nil {
 		return nil, &FetchError{Message: "Invalid URL"}
@@ -218,7 +232,7 @@ func PublicFetch(ctx context.Context, fetcher Fetcher, target string, headers *H
 		if host == "localhost" || strings.HasSuffix(host, ".localhost") {
 			return nil, &PrivateAddressError{host}
 		}
-		answer, err := fetcher.Fetch(ctx, u.Href(), FetchInit{Headers: headers, Redirect: "manual", Timeout: timeout, MaxBytes: maxBytes, Truncate: truncate, PublicOnly: true})
+		answer, err := fetcher.Fetch(ctx, u.Href(), init)
 		if err != nil {
 			// Whichever way the runtime says it gave up, the caller hears that time ran out.
 			if ctx.Err() != nil {

@@ -8,5 +8,3 @@ require (
 	github.com/go-chi/chi/v5 v5.3.2
 	runlight.sh/go v0.0.0
 )
-
-replace runlight.sh/go => ../

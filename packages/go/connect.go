@@ -19,6 +19,9 @@ import (
 
 const pendingMs = 15 * 60_000
 
+// connectMaxBytes is the most an install's answer while connecting may weigh; a real one is under a kilobyte.
+const connectMaxBytes = 64 * 1024
+
 // ConnectError is why connecting failed, as a code the dashboard says in its
 // own words: expired, denied, refused, or token on the way back from the
 // consent page, and url, unreachable, not_runlight, endpoints, old, or
@@ -32,10 +35,10 @@ func connectError(message, code string, params ...string) error {
 }
 
 // installURL is the install's address as its dashboard is, without a trailing slash.
-func installURL(value any) (string, error) {
+func installURL(value any, local bool) (string, error) {
 	url := strings.TrimRight(jsTrim(stringOf(value)), "/")
 	// The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
-	if !connectURL.MatchString(url) || !whatwg.CanParse(url) {
+	if !installAddress(url, local) || !whatwg.CanParse(url) {
 		return "", connectError("Enter the install's address, like https://example.com/runlight", "url")
 	}
 	return url, nil
@@ -77,12 +80,12 @@ func clearExpired(ctx context.Context, r *Runlight) error {
 
 // StartConnect starts connecting another install: the address of its consent page.
 func StartConnect(ctx context.Context, r *Runlight, input any, back, site string) (string, error) {
-	url, err := installURL(input)
+	url, err := installURL(input, r.LocalInstalls)
 	if err != nil {
 		return "", err
 	}
 	host := whatwg.MustParse(url).Host()
-	answer, err := r.fetcher.Fetch(ctx, url+"/.well-known/oauth-authorization-server", FetchInit{Timeout: 10 * time.Second})
+	answer, err := r.installFetch(ctx, url+"/.well-known/oauth-authorization-server", FetchInit{Timeout: 10 * time.Second, MaxBytes: connectMaxBytes})
 	if err != nil {
 		return "", connectError("Could not reach "+url, "unreachable", "host", host)
 	}
@@ -114,7 +117,7 @@ func StartConnect(ctx context.Context, r *Runlight, input any, back, site string
 	}
 
 	body := js.Stringify(js.NewObject("client_name", "Runlight at "+whatwg.MustParse(back).Host(), "redirect_uris", []string{back}))
-	registered, err := r.fetcher.Fetch(ctx, js.String(registration), FetchInit{Method: "POST", Headers: web.NewHeaders("content-type", "application/json"), Body: []byte(body), Timeout: 10 * time.Second})
+	registered, err := r.installFetch(ctx, js.String(registration), FetchInit{Method: "POST", Headers: web.NewHeaders("content-type", "application/json"), Body: []byte(body), Timeout: 10 * time.Second, MaxBytes: connectMaxBytes})
 	if err != nil {
 		return "", connectError("Could not reach "+url, "unreachable", "host", host)
 	}
@@ -192,7 +195,7 @@ func FinishConnect(ctx context.Context, r *Runlight, params *whatwg.SearchParams
 	}
 	body := whatwg.NewSearchParams("grant_type", "authorization_code", "code", params.Value("code"), "client_id", js.String(js.Dig(pending, "client")),
 		"redirect_uri", js.String(js.Dig(pending, "redirect")), "code_verifier", js.String(js.Dig(pending, "verifier"))).String()
-	answer, err := r.fetcher.Fetch(ctx, js.String(js.Dig(pending, "token")), FetchInit{Method: "POST", Headers: web.NewHeaders("content-type", "application/x-www-form-urlencoded"), Body: []byte(body), Timeout: 10 * time.Second})
+	answer, err := r.installFetch(ctx, js.String(js.Dig(pending, "token")), FetchInit{Method: "POST", Headers: web.NewHeaders("content-type", "application/x-www-form-urlencoded"), Body: []byte(body), Timeout: 10 * time.Second, MaxBytes: connectMaxBytes})
 	var granted any
 	if err == nil && answer.OK() {
 		granted, _ = answer.JSON()

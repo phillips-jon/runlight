@@ -5,8 +5,6 @@ module runlight.sh/go/dbtest
 
 go 1.25.0
 
-replace runlight.sh/go => ../
-
 require (
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/jackc/pgx/v5 v5.11.0

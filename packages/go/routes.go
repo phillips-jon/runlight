@@ -619,7 +619,7 @@ func (rt *Routes) linksRoutes(c *call, path string, u *whatwg.URL, site SiteRow)
 		}
 		// Only a public address is fetched, whatever the name resolves to now, so the check cannot be pointed
 		// into a private network.
-		answer, err := web.PublicFetch(ctx, rt.r.fetcher, "https://"+domain+LinkDomainCheck, &Headers{}, 5*time.Second, 0, 1<<20, false)
+		answer, err := web.PublicFetch(ctx, rt.r.fetcher, "https://"+domain+LinkDomainCheck, FetchInit{Headers: &Headers{}, Timeout: 5 * time.Second, MaxBytes: 1 << 20}, 0)
 		if err != nil {
 			// A refused private address answers as a closed port does, so the check tells nothing about a private network.
 			if web.IsTimeout(err) {

@@ -25,6 +25,7 @@ type FetchInit struct {
 	Timeout time.Duration
 	// MaxBytes stops reading past this many bytes of the answer and fails
 	// with ErrBodyTooLong, or with Truncate, hands back the first MaxBytes.
+	// Zero is DefaultMaxBytes.
 	MaxBytes int64
 	Truncate bool
 	// PublicOnly connects only to addresses on the public internet, checking
@@ -58,6 +59,11 @@ type FetchError struct {
 }
 
 func (e *FetchError) Error() string { return e.Message }
+
+// DefaultMaxBytes is the most an answer may weigh when the request names no
+// limit, enough for a connected install's largest export, so no server can
+// stream an answer into memory without end.
+const DefaultMaxBytes = 100 * 1024 * 1024
 
 // ErrBodyTooLong is an answer longer than the reader allows.
 var ErrBodyTooLong = errors.New("body too long")
@@ -171,24 +177,20 @@ func (f HTTPFetcher) Fetch(ctx context.Context, url string, init FetchInit) (*Re
 			out.Header.Append(name, v)
 		}
 	}
-	if init.MaxBytes > 0 {
-		if n, err := strconv.ParseInt(answer.Header.Get("content-length"), 10, 64); err == nil && n > init.MaxBytes && !init.Truncate {
-			return nil, BodyTooLong(init.MaxBytes)
-		}
-		b, err := io.ReadAll(io.LimitReader(answer.Body, init.MaxBytes+1))
-		if int64(len(b)) > init.MaxBytes {
-			if !init.Truncate {
-				return nil, BodyTooLong(init.MaxBytes)
-			}
-			b = b[:init.MaxBytes]
-		} else if err != nil && !init.Truncate {
-			return nil, readError(ctx, err)
-		}
-		out.Body = b
-		return out, nil
+	limit := init.MaxBytes
+	if limit <= 0 {
+		limit = DefaultMaxBytes
 	}
-	b, err := io.ReadAll(answer.Body)
-	if err != nil {
+	if n, err := strconv.ParseInt(answer.Header.Get("content-length"), 10, 64); err == nil && n > limit && !init.Truncate {
+		return nil, BodyTooLong(limit)
+	}
+	b, err := io.ReadAll(io.LimitReader(answer.Body, limit+1))
+	if int64(len(b)) > limit {
+		if !init.Truncate {
+			return nil, BodyTooLong(limit)
+		}
+		b = b[:limit]
+	} else if err != nil && !init.Truncate {
 		return nil, readError(ctx, err)
 	}
 	out.Body = b

@@ -120,7 +120,7 @@ func IconLinks(html, base string) []string {
 var iconHeaders = web.NewHeaders("user-agent", "Runlight (+https://runlight.sh)")
 
 func iconImage(ctx context.Context, fetcher Fetcher, url string) *SiteIcon {
-	answer, err := web.PublicFetch(ctx, fetcher, url, iconHeaders, iconTimeout, 3, iconMaxBytes, false)
+	answer, err := web.PublicFetch(ctx, fetcher, url, FetchInit{Headers: iconHeaders, Timeout: iconTimeout, MaxBytes: iconMaxBytes}, 3)
 	if err != nil || !answer.OK() {
 		return nil
 	}
@@ -175,7 +175,7 @@ func FetchIcon(ctx context.Context, fetcher Fetcher, origin string, now int64) *
 func lookUpIcon(ctx context.Context, fetcher Fetcher, origin string) *SiteIcon {
 	var icon *SiteIcon
 	// The head is all that is needed, so a huge page is not read to the end.
-	page, err := web.PublicFetch(ctx, fetcher, origin+"/", iconHeaders, iconTimeout, 3, 200_000, true)
+	page, err := web.PublicFetch(ctx, fetcher, origin+"/", FetchInit{Headers: iconHeaders, Timeout: iconTimeout, MaxBytes: 200_000, Truncate: true}, 3)
 	if err == nil && page.OK() && strings.Contains(page.Header.Get("content-type"), "html") {
 		base := page.URL
 		if base == "" {
