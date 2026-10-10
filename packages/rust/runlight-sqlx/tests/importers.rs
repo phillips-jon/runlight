@@ -553,6 +553,19 @@ async fn umami_signs_in_with_a_username_and_password_and_re_runs_skip_what_is_th
     let nowhere = import_step_with(&rl, &http, "default", "nowhere", &creds(&[]), None, 0.0).await.unwrap_err();
     assert!(nowhere.message().contains("cannot import"));
     assert_eq!(nowhere.coded().unwrap().code, "import_source");
+    // Names JavaScript objects carry on their prototype are just names.
+    for source in ["constructor", "toString", "__proto__", "hasOwnProperty"] {
+        let e = import_step_with(&rl, &http, "default", source, &creds(&[]), None, 0.0).await.unwrap_err();
+        assert_eq!(e.coded().unwrap().code, "import_source", "{source}");
+    }
+}
+
+#[test]
+fn names_like_object_properties_are_just_names() {
+    use runlight::importers::write::{browser_name, device_kind, system_name};
+    for name in ["constructor", "__proto__", "tostring", "valueof", "hasownproperty"] {
+        assert_eq!((browser_name(name), system_name(name), device_kind(name)), (None, None, None), "{name}");
+    }
 }
 
 #[tokio::test]

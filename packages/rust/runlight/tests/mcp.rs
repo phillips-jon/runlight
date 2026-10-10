@@ -105,7 +105,7 @@ async fn tool_calls_read_the_same_api_and_answer_the_same() {
 async fn json_rpc_answers_match() {
     let f = fixture("mcp");
     let cases = list(&f, "rpcs");
-    assert_eq!(cases.len(), 43);
+    assert_eq!(cases.len(), 48);
     for case in cases {
         let body = match case.get("bodyHex") {
             Some(hex) => unhex(hex.as_str().unwrap()),
@@ -179,27 +179,42 @@ async fn a_failed_read_is_an_internal_error_without_its_message() {
 }
 
 #[tokio::test]
-async fn a_refusal_of_null_throws_as_javascript_reads_it() {
-    // `body.error` on a body of null is a TypeError in the TypeScript, which the
-    // MCP server answers as an internal error.
-    let error = mcp::call_tool(&obj! { "name" => "list_sites" }, &Answering(500, "null")).await.unwrap_err();
-    assert_eq!(error.message, "Cannot read properties of null (reading 'error')");
-    assert_eq!(error.code, None);
-    let error = mcp::call_tool(&obj! { "name" => "get_visit_times" }, &Answering(200, "null")).await.unwrap_err();
-    assert_eq!(error.message, "Cannot read properties of null (reading 'site')");
-    // A shape leaves out what the answer does not have, as JSON.stringify does undefined.
-    let ok = mcp::call_tool(&obj! { "name" => "get_visit_times" }, &Answering(200, "[1]")).await.unwrap();
-    assert_eq!(
-        s(&ok.at("content").as_array().unwrap()[0], "text"),
-        r#"{"weekdays":["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]}"#
-    );
+async fn a_body_that_is_not_an_object_reads_like_any_other() {
+    let text = |v: &Value| s(&v.at("content").as_array().unwrap()[0], "text").to_string();
+    // A refusal without an object says only its status.
+    for body in ["null", "[1]", "\"no\"", "7"] {
+        let refused = mcp::call_tool(&obj! { "name" => "list_sites" }, &Answering(500, body)).await.unwrap();
+        assert_eq!(text(&refused), "Runlight answered 500", "{body}");
+        assert_eq!(refused.at("isError"), &Value::Bool(true), "{body}");
+    }
+    // An answer that is not an object passes through unchanged, with no shape.
+    for body in ["null", "[1]", "\"x\"", "3"] {
+        let ok = mcp::call_tool(&obj! { "name" => "get_visit_times" }, &Answering(200, body)).await.unwrap();
+        assert_eq!(text(&ok), body, "{body}");
+        assert!(ok.get("isError").is_none(), "{body}");
+    }
 }
 
 #[tokio::test]
-async fn a_batch_reads_every_message_before_it_throws() {
+async fn a_notification_runs_nothing() {
     let f = fixture("mcp");
     let api = Canned::new(f.at("api").clone());
-    let body = r#"[null,{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"list_sites"}}]"#;
-    assert!(mcp::mcp_response(&post(body), &api).await.is_err());
-    assert_eq!(api.log(), r#"[{"path":"/api/sites","params":[]}]"#);
+    let alone = r#"{"jsonrpc":"2.0","method":"tools/call","params":{"name":"list_sites"}}"#;
+    let answer = mcp::mcp_response(&post(alone), &api).await.unwrap();
+    assert_eq!(answer.status, 202);
+    let batch = format!(r#"[{alone},{{"jsonrpc":"2.0","id":1,"method":"ping"}}]"#);
+    let answer = mcp::mcp_response(&post(batch), &api).await.unwrap();
+    assert_eq!(answer.text(), r#"[{"jsonrpc":"2.0","id":1,"result":{}}]"#);
+    assert_eq!(api.log(), "[]");
+}
+
+#[tokio::test]
+async fn a_batch_element_that_is_not_an_object_is_an_invalid_request() {
+    let api = Canned::new(obj! {});
+    let invalid = r#"{"jsonrpc":"2.0","id":null,"error":{"code":-32600,"message":"Invalid request"}}"#;
+    let answer = mcp::mcp_response(&post("[null]"), &api).await.unwrap();
+    assert_eq!(answer.status, 200);
+    assert_eq!(answer.text(), format!("[{invalid}]"));
+    let answer = mcp::mcp_response(&post(r#"[null,{"jsonrpc":"2.0","id":40,"method":"ping"},7]"#), &api).await.unwrap();
+    assert_eq!(answer.text(), format!(r#"[{invalid},{{"jsonrpc":"2.0","id":40,"result":{{}}}},{invalid}]"#));
 }

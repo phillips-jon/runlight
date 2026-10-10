@@ -71,7 +71,8 @@ fn host_of(url: &str) -> Result<String, ConnectFailure> {
 /// The install's address as its dashboard is, without a trailing slash.
 pub fn install_url(value: Option<&Value>) -> Result<String, ConnectError> {
     let url = crate::re::replace_all(js_re!(r"/+$"), js::trim(&js::str_or_empty(value)), "");
-    if !test(js_re!(r"^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"), &url) {
+    // The pattern says which addresses are allowed; the parser, that it is an address at all ("https://[" is not).
+    if !test(js_re!(r"^https://[^/]+|^http://(localhost|127\.0\.0\.1)(:\d+)?(/|$)"), &url) || !Url::can_parse(&url) {
         return Err(CodedError::new("Enter the install's address, like https://example.com/runlight", "url", &[]));
     }
     Ok(url)
@@ -82,13 +83,24 @@ fn json_of(answer: &Response) -> Option<Value> {
     answer.json_body().ok()
 }
 
+/// A saved attempt, or `None` when it cannot be read or has no time it runs
+/// out, which counts as expired.
+fn pending_from(value: &str, now: i64) -> Option<Value> {
+    let pending = js::parse(value).ok()?;
+    if !matches!(pending, Value::Object(_) | Value::Array(_)) {
+        return None;
+    }
+    match pending.get("expires") {
+        Some(Value::Number(expires)) if *expires >= now as f64 => Some(pending),
+        _ => None,
+    }
+}
+
 /// Attempts nobody came back from are removed, so they do not pile up in settings.
 async fn clear_expired(runlight: &Runlight) -> Result<(), ConnectFailure> {
     let store = runlight.store();
     for (key, value) in store.settings_starting_with("connect:").await? {
-        let pending = js::parse(&value).map_err(|e| Error::Other(format!("SyntaxError: {e}")))?;
-        let expires = pending.get("expires");
-        if !js::opt_truthy(expires) || js::opt_number(expires) < runlight.now() as f64 {
+        if pending_from(&value, runlight.now()).is_none() {
             store.set_setting(&key, None).await?;
         }
     }
@@ -219,13 +231,7 @@ pub async fn finish_connect(runlight: &Runlight, params: &SearchParams) -> Resul
     if stored.is_some() {
         store.set_setting(&key, None).await?;
     }
-    let pending = match &stored {
-        Some(text) => {
-            Some(js::parse(text).map_err(|e| Error::Other(format!("SyntaxError: {e}")))?).filter(|p| !p.is_null())
-        }
-        None => None,
-    };
-    let Some(pending) = pending.filter(|p| !crate::oauth::expired(p.get("expires"), runlight.now())) else {
+    let Some(pending) = stored.and_then(|text| pending_from(&text, runlight.now())) else {
         return Err(refuse("That connection took too long or was already used. Start again.", "expired", &[]));
     };
     if params.get("error") == Some("access_denied") {

@@ -269,14 +269,16 @@ fn icon_links_match_typescript() {
 
 #[test]
 fn icon_links_read_attributes_as_javascript_does() {
-    // As the TypeScript reads it (checked against Node): `\brel` finds the rel in data-rel first, so the
-    // first link is a stylesheet; a quote that never closes starts an unquoted value; names, spaces
-    // around the equals sign, and the tag itself are matched in any case.
+    // As the TypeScript reads it (checked against Node): data-rel is a name of its own, so the first
+    // link is an icon; a quote that never closes starts an unquoted value; names, spaces around the
+    // equals sign, and the tag itself are matched in any case.
     let html = "<link data-rel=\"stylesheet\" rel=\"icon\" href=/a.png\u{a0}x><link rel='apple-touch-icon' href=\"/t.png><LINK\nREL = ICON HREF = '/b.svg' >";
     assert_eq!(
         icon_links(html, "https://example.com"),
-        vec!["https://example.com/%22/t.png", "https://example.com/b.svg"]
+        vec!["https://example.com/%22/t.png", "https://example.com/b.svg", "https://example.com/a.png"]
     );
+    // A name with an equals sign and no value reads as empty.
+    assert!(icon_links("<link rel = \"icon\" href= >", "https://example.com").is_empty());
     // Unquoted values stop at JavaScript's whitespace, which includes a no-break space.
     assert_eq!(
         icon_links("<link rel=icon href=/a.png\u{a0}x>", "https://example.com"),

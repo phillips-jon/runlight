@@ -112,7 +112,7 @@ fn error_value(failure: &AssistantFailure) -> Value {
 async fn scenarios_send_the_same_requests_and_answer_the_same() {
     let f = fixture("assistant");
     let scenarios = list(&f, "scenarios");
-    assert_eq!(scenarios.len(), 36);
+    assert_eq!(scenarios.len(), 48);
     for scenario in scenarios {
         let name = s(scenario, "name");
         let queue = list(scenario, "responses")
@@ -296,35 +296,34 @@ async fn leaving_aborts_a_request_that_is_out() {
 }
 
 #[tokio::test]
-async fn answers_the_typescript_cannot_read_are_thrown() {
+async fn answers_runlight_cannot_read_are_refused() {
     let api = Canned { api: obj! {}, log: Mutex::new(Vec::new()) };
     let openai =
         AssistantSettings { provider: "openai".into(), model: "m".into(), base_url: String::new(), key: "k".into() };
     let claude = anthropic();
-    let cases: Vec<(&AssistantSettings, &str, &str)> = vec![
-        (&claude, r#"{"content":"text"}"#, "blocks.filter is not a function"),
-        (&claude, r#"{"content":[null]}"#, "Cannot read properties of null (reading 'type')"),
-        (&openai, r#"{"choices":[{"message":{"tool_calls":{"length":1}}}]}"#, "message.tool_calls is not iterable"),
-        (
-            &openai,
-            r#"{"choices":[{"message":{"tool_calls":"ab"}}]}"#,
-            "Cannot read properties of undefined (reading 'name')",
-        ),
-        (
-            &openai,
-            r#"{"choices":[{"message":{"tool_calls":[null]}}]}"#,
-            "Cannot read properties of null (reading 'function')",
-        ),
-        (
-            &openai,
-            r#"{"choices":[{"message":{"tool_calls":[{"function":null}]}}]}"#,
-            "Cannot read properties of null (reading 'name')",
-        ),
+    let unreadable = |host: &str| {
+        let message = format!("{host} sent an answer Runlight could not read");
+        obj! {
+            "message" => message.clone(),
+            "code" => "assistant_failed",
+            "params" => obj! { "host" => host, "detail" => message },
+        }
+    };
+    let cases: Vec<(&AssistantSettings, &str)> = vec![
+        (&claude, r#"{"content":"text"}"#),
+        (&claude, r#"{"content":[null]}"#),
+        (&claude, r#"{"content":[{"type":"text","text":"Hi"},7]}"#),
+        (&openai, r#"{"choices":[{"message":{"tool_calls":{"length":1}}}]}"#),
+        (&openai, r#"{"choices":[{"message":{"tool_calls":"ab"}}]}"#),
+        (&openai, r#"{"choices":[{"message":{"tool_calls":[null]}}]}"#),
+        (&openai, r#"{"choices":[{"message":{"tool_calls":[{"function":null}]}}]}"#),
+        (&openai, r#"{"choices":[{"message":{"tool_calls":[{"function":"f"}]}}]}"#),
     ];
-    for (settings, body, thrown) in cases {
+    for (settings, body) in cases {
         let fetcher: SharedFetcher = recording(vec![json(200, body)]);
         let failure = assistant::chat(settings, &ask(), &context_en(), &api, &fetcher, &fixed, None).await.unwrap_err();
-        assert_eq!(failure, AssistantFailure::Thrown(thrown.into()), "{body}");
+        let host = if settings.provider == "openai" { "api.openai.com" } else { "api.anthropic.com" };
+        assert_eq!(error_value(&failure), unreadable(host), "{body}");
     }
     // A tool_calls object without a length is no call at all.
     let fetcher: SharedFetcher =
@@ -346,7 +345,11 @@ async fn answers_the_typescript_cannot_read_are_thrown() {
     assert_eq!(failure, AssistantFailure::Thrown("Invalid URL".into()));
     let fetcher: SharedFetcher = recording(vec![json(200, r#"{"data":"x"}"#)]);
     let failure = assistant::list_models(&openai, &fetcher).await.unwrap_err();
-    assert_eq!(failure, AssistantFailure::Thrown("(data?.data ?? []).filter is not a function".into()));
+    assert_eq!(error_value(&failure), unreadable("api.openai.com"));
+    // Entries that are not objects are passed over.
+    let fetcher: SharedFetcher = recording(vec![json(200, r#"{"data":[null,"x",{"id":"m1"}]}"#)]);
+    let models = assistant::list_models(&openai, &fetcher).await.unwrap();
+    assert_eq!(models.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(), vec!["m1"]);
 }
 
 #[tokio::test]

@@ -266,22 +266,6 @@ fn in_time(deadline: i64, now: Clock<'_>, cancelled: Cancelled<'_>) -> Result<()
     Ok(())
 }
 
-/// `value.key` as JavaScript reads it: a TypeError on null.
-fn member<'a>(value: &'a Value, key: &str) -> Result<Option<&'a Value>, AssistantFailure> {
-    if value.is_null() {
-        return Err(AssistantFailure::Thrown(format!("Cannot read properties of null (reading '{key}')")));
-    }
-    Ok(value.get(key))
-}
-
-/// `value.key` for a value that may be undefined.
-fn member_of<'a>(value: Option<&'a Value>, key: &str) -> Result<Option<&'a Value>, AssistantFailure> {
-    match value {
-        None => Err(AssistantFailure::Thrown(format!("Cannot read properties of undefined (reading '{key}')"))),
-        Some(v) => member(v, key),
-    }
-}
-
 /// The service's own message from an error answer, never the request (it
 /// carries the key); "" when there is none.
 fn service_message(data: &Value) -> String {
@@ -309,6 +293,20 @@ fn refusal(host: &str, answer: &Response, data: &Value) -> AssistantFailure {
     }
     let detail = js::head16(&message, 300);
     AssistantError::new(format!("{host}: {detail}"), "assistant_refused", &[("host", host), ("detail", &detail)]).into()
+}
+
+/// A service that answered, but not in its protocol's shape.
+fn unreadable(url: &str) -> AssistantFailure {
+    let host = match parse_url(url) {
+        Ok(u) => u.host(),
+        Err(e) => return e,
+    };
+    let message = format!("{host} sent an answer Runlight could not read");
+    AssistantError::new(message.clone(), "assistant_failed", &[("host", &host), ("detail", &message)]).into()
+}
+
+fn is_object(value: &Value) -> bool {
+    matches!(value, Value::Object(_))
 }
 
 /// `new URL(url)`, or the TypeError it throws.
@@ -552,22 +550,17 @@ pub async fn chat(
             let data = post(fetcher, &format!("{base}/messages"), &headers, &body, deadline, now, cancelled).await?;
             let blocks = match data.get("content") {
                 None | Some(Value::Null) => Vec::new(),
-                Some(Value::Array(a)) => a.clone(),
-                Some(_) => return Err(AssistantFailure::Thrown("blocks.filter is not a function".into())),
+                Some(Value::Array(a)) if a.iter().all(is_object) => a.clone(),
+                Some(_) => return Err(unreadable(&base)),
             };
-            let mut calls = Vec::new();
-            for b in &blocks {
-                if member(b, "type")?.and_then(Value::as_str) == Some("tool_use") {
-                    calls.push(b);
-                }
-            }
+            let kind = |b: &Value| b.get("type").and_then(Value::as_str) == Some("tool_use");
+            let calls: Vec<&Value> = blocks.iter().filter(|b| kind(b)).collect();
             if data.get("stop_reason").and_then(Value::as_str) != Some("tool_use") || calls.is_empty() {
-                let mut texts = Vec::new();
-                for b in &blocks {
-                    if member(b, "type")?.and_then(Value::as_str) == Some("text") {
-                        texts.push(js::str_or_empty(b.get("text")));
-                    }
-                }
+                let texts: Vec<String> = blocks
+                    .iter()
+                    .filter(|b| b.get("type").and_then(Value::as_str) == Some("text"))
+                    .map(|b| js::str_or_empty(b.get("text")))
+                    .collect();
                 return Ok(ChatAnswer { reply: js::trim(&texts.join("\n")).to_string(), tools: used });
             }
             let mut results = Vec::new();
@@ -633,24 +626,25 @@ pub async fn chat(
         if !any {
             return Ok(ChatAnswer { reply: js::trim(&js::str_or_empty(content)).to_string(), tools: used });
         }
-        let tool_calls = tool_calls.expect("tool calls").clone();
+        let calls = match tool_calls {
+            Some(Value::Array(a))
+                if a.iter().all(|call| is_object(call) && call.get("function").is_some_and(is_object)) =>
+            {
+                a.clone()
+            }
+            _ => return Err(unreadable(&base)),
+        };
         convo.push(obj! {
             "role" => "assistant",
             "content" => content.cloned().unwrap_or(Value::Null),
-            "tool_calls" => tool_calls.clone(),
+            "tool_calls" => Value::Array(calls.clone()),
         });
-        let calls: Vec<Value> = match tool_calls {
-            Value::Array(a) => a,
-            // A string is iterated character by character, and none of them has a function.
-            Value::String(s) => s.chars().map(|c| Value::from(c.to_string())).collect(),
-            _ => return Err(AssistantFailure::Thrown("message.tool_calls is not iterable".into())),
-        };
         for call in &calls {
             in_time(deadline, now, cancelled)?;
-            let function = member(call, "function")?;
-            let name = member_of(function, "name")?;
+            let function = call.get("function");
+            let name = function.and_then(|f| f.get("name"));
             used.push(name.cloned().unwrap_or(Value::Null));
-            let given = member_of(function, "arguments")?;
+            let given = function.and_then(|f| f.get("arguments"));
             let text = if js::opt_truthy(given) { js::js_string(given.expect("arguments")) } else { "{}".to_string() };
             let args = js::parse(&text).unwrap_or_else(|_| obj! {});
             let (text, _) = tool_text(name, &args, read_api).await;
@@ -712,11 +706,11 @@ pub async fn list_models(
     let list = match data.get("data") {
         None | Some(Value::Null) => Vec::new(),
         Some(Value::Array(a)) => a.clone(),
-        Some(_) => return Err(AssistantFailure::Thrown("(data?.data ?? []).filter is not a function".into())),
+        Some(_) => return Err(unreadable(&base)),
     };
     let mut models = Vec::new();
-    for m in &list {
-        let Some(Value::String(id)) = member(m, "id")? else { continue };
+    for m in list.iter().filter(|m| is_object(m)) {
+        let Some(Value::String(id)) = m.get("id") else { continue };
         if id.is_empty() {
             continue;
         }

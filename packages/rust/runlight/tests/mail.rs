@@ -250,7 +250,7 @@ async fn every_service_sends_the_typescript_requests_exactly() {
     let now = f.at("now").as_f64().unwrap() as i64;
     assert_eq!(now, NOW);
     let cases = list(&f, "mail");
-    assert_eq!(cases.len(), 56);
+    assert_eq!(cases.len(), 64);
     for (i, case) in cases.iter().enumerate() {
         let answer = match case.at("answer") {
             Value::String(_) => Answer::Unreachable,
@@ -370,6 +370,27 @@ fn configs_are_checked_before_anything_is_sent() {
         check(obj! { "service" => "ses", "region" => "us-east-1", "accessKeyId" => "A" }).unwrap_err().0,
         "Enter the secret access key"
     );
+    // A port is read as Number() reads it, and must be one a socket can connect to.
+    let smtp = |port: &str| check(obj! { "service" => "smtp", "host" => "h", "port" => port, "security" => "tls" });
+    for good in ["1", "587", " 465 ", "0x1BB", "0o1000", "0b11", "65535", "5e2"] {
+        assert!(smtp(good).is_ok(), "{good}");
+    }
+    for bad in ["0", "70000", "65536", "1.5", "abc", "Infinity", "-25", "0o9", "0b2", "1e9"] {
+        assert_eq!(
+            smtp(bad).unwrap_err(),
+            ("The port must be a whole number from 1 to 65535".to_string(), "mail_port".to_string()),
+            "{bad}"
+        );
+    }
+    // A webhook URL the parser refuses is refused, after the https check.
+    for bad in ["https://", "https://["] {
+        assert_eq!(
+            check(obj! { "service" => "webhook", "url" => bad }).unwrap_err(),
+            ("Enter the webhook's whole URL, like https://example.com/hooks/mail".to_string(), "mail_url".to_string()),
+            "{bad}"
+        );
+    }
+    assert_eq!(check(obj! { "service" => "webhook", "url" => "http://[" }).unwrap_err().1, "mail_https");
 }
 
 #[test]

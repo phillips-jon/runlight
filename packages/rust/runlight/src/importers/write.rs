@@ -280,7 +280,7 @@ pub async fn write_link(
                                 city: js::head16(&text_or_empty(field(c, "city")), 100),
                                 browser: browser_name(&browser.to_lowercase()).map_or_else(|| title(&browser), str::to_string),
                                 browser_version: String::new(),
-                                os: system_name(&text_or_empty(os).to_lowercase()).map_or_else(|| text_or_blank(os), str::to_string),
+                                os: system_name(&text_or_empty(os).to_lowercase()).map_or_else(|| text_or_empty(os), str::to_string),
                                 os_version: String::new(),
                                 device: device_kind(&text_or_empty(field(c, "device")).to_lowercase()).unwrap_or("").to_string(),
                                 screen: text_or_blank(field(c, "screen")),

@@ -345,22 +345,9 @@ fn json(headers: Vec<(&'static str, String)>) -> Vec<(&'static str, String)> {
     out
 }
 
-/// `btoa(text)`: base64 of Latin-1, refusing a character past U+00FF as the browser's does.
-fn btoa(text: &str) -> Result<String, MailError> {
-    let mut bytes = Vec::with_capacity(text.len());
-    for c in text.chars() {
-        let n = c as u32;
-        if n > 0xff {
-            // TypeScript throws a DOMException here, which is not a MailError.
-            return Err(mail_error("Invalid character"));
-        }
-        bytes.push(n as u8);
-    }
-    Ok(STANDARD.encode(bytes))
-}
-
-fn basic(user: &str, pass: &str) -> Result<String, MailError> {
-    Ok(format!("Basic {}", btoa(&format!("{user}:{pass}"))?))
+/// Basic auth over the UTF-8 bytes, so a key with any character is sent.
+fn basic(user: &str, pass: &str) -> String {
+    format!("Basic {}", STANDARD.encode(format!("{user}:{pass}")))
 }
 
 /// Checks a config has what its service needs, before anything is saved or sent.
@@ -393,6 +380,18 @@ pub fn check_config(config: &MailConfig) -> Result<(), MailError> {
     let url = get_or_empty(config, "url");
     if service.id == "webhook" && !url.starts_with("https://") && !local_http(url) {
         return Err(CodedError::new("The webhook URL must use https", "mail_https", &[]));
+    }
+    if service.id == "webhook" && !Url::can_parse(url) {
+        return Err(CodedError::new(
+            "Enter the webhook's whole URL, like https://example.com/hooks/mail",
+            "mail_url",
+            &[],
+        ));
+    }
+    // A port a socket can connect to, read with Number() as the SMTP client reads it.
+    let port = js::opt_number(config.get("port"));
+    if service.id == "smtp" && !(port.fract() == 0.0 && (1.0..=65535.0).contains(&port)) {
+        return Err(CodedError::new("The port must be a whole number from 1 to 65535", "mail_port", &[]));
     }
     Ok(())
 }
@@ -505,7 +504,7 @@ pub async fn send(config: &MailConfig, m: &Message, fetcher: &SharedFetcher, now
                 fetcher,
                 &url,
                 &[
-                    ("authorization", basic("api", &c("apiKey"))?),
+                    ("authorization", basic("api", &c("apiKey"))),
                     ("content-type", "application/x-www-form-urlencoded".into()),
                 ],
                 form.to_string(),
@@ -534,7 +533,7 @@ pub async fn send(config: &MailConfig, m: &Message, fetcher: &SharedFetcher, now
                     "TextPart" => m.text.as_str(), "HTMLPart" => m.html.as_str(), "Headers" => headers,
                 }],
             };
-            let auth = basic(&c("apiKey"), &c("secretKey"))?;
+            let auth = basic(&c("apiKey"), &c("secretKey"));
             post(
                 fetcher,
                 "https://api.mailjet.com/v3.1/send",
