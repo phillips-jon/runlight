@@ -12,6 +12,10 @@ impl Routes {
     pub(crate) async fn api(&self, request: &Request, path: &str, url: &mut Url, call: &Call) -> R {
         let rl = self.rl().clone();
         let method = request.method.as_str();
+        // An embedded dashboard reads what a share link shows and nothing else, whoever else the request comes from.
+        if request.headers.get(EMBED_HEADER).is_some() && !(method == "GET" && shared_path(path)) {
+            return Ok(coded("Not available on a shared dashboard", "share_not_available", 403, None));
+        }
         // A write must be JSON, which a form on another page cannot send, even the writes that carry no body.
         if !["GET", "HEAD", "OPTIONS", "DELETE"].contains(&method) && bearer(request).is_empty() && !is_json(request) {
             return Ok(coded("Send JSON", "send_json", 415, None));
@@ -72,7 +76,67 @@ impl Routes {
             return Ok(see_other(to));
         }
 
+        // A ticket for one load of the dashboard inside a CMS's admin pages. The plugin's server asks with its embed
+        // token on each page view and names the admin's origin, which must be one of the site's domains and alone
+        // may frame the page the ticket opens.
+        if path == "/api/embed" && method == "POST" {
+            let Some(token) = self.api_token(request).await? else { return Ok(self.denied(CanRead::No)) };
+            if token.scope != "embed" {
+                return Ok(coded(
+                    "Use a key for the dashboard in a CMS, made in Settings, Install",
+                    "embed_token",
+                    403,
+                    None,
+                ));
+            }
+            let Some(site) = rl.site(Some(&token.site)) else {
+                return Ok(coded("Unknown site", "unknown_site", 404, None));
+            };
+            let body = match read_json(request) {
+                Ok(b) => Value::Object(b),
+                Err(r) => return Ok(r),
+            };
+            let origin = js::str_or_empty(body.get("origin"));
+            let parsed = (test(js_re!(r"^https?://[^/?#\s]+$"), &origin)
+                && !origin.chars().any(js::is_space)
+                && js::len16(&origin) <= 200)
+                .then(|| Url::parse(&origin))
+                .flatten()
+                .filter(|u| u.origin() == origin);
+            let Some(parsed) = parsed else {
+                return Ok(coded(
+                    "Send the admin page's origin, such as https://example.com",
+                    "embed_origin",
+                    400,
+                    None,
+                ));
+            };
+            let host = host_name(&parsed.host());
+            let domains = rl.remote(&site.id).map_or(site.hostnames.clone(), |r| r.hostnames);
+            if !domains.iter().any(|d| host_name(d) == host) {
+                return Ok(coded(
+                    &format!(
+                        "{host} is not one of this site's domains. Add it to the site's domains in Runlight's settings."
+                    ),
+                    "embed_host",
+                    400,
+                    Some(&[("host", host.as_str())]),
+                ));
+            }
+            let (ticket, expires_at) = self.embed_ticket(&origin, &token.id).await?;
+            let path = format!("{}/embed?ticket={ticket}", self.0.base);
+            return Ok(json(
+                &obj! { "ticket" => ticket, "site" => site.id.clone(), "expiresAt" => expires_at, "path" => path },
+                201,
+                &[],
+            ));
+        }
+
         let token = if bearer(request).starts_with(TOKEN_PREFIX) { self.api_token(request).await? } else { None };
+        // An embed token gets tickets and reads nothing itself.
+        if token.as_ref().is_some_and(|t| t.scope == "embed") {
+            return Ok(coded("This key only opens the dashboard inside a CMS", "token_embed_only", 403, None));
+        }
         if let Some(t) = &token
             && t.scope == "manage"
             && manage_path(method, path)
@@ -453,6 +517,18 @@ impl Routes {
                 return Ok(coded("Not available on a shared dashboard", "share_not_available", 403, None));
             }
             only = Some(share.site.clone());
+        } else if let Some(session) = request.headers.get(EMBED_HEADER) {
+            let Some(token) = self.embed_reader(&session).await? else {
+                return Ok(coded(
+                    "This dashboard has expired. Reload the page to open it again.",
+                    "embed_expired",
+                    401,
+                    None,
+                ));
+            };
+            // An embedded dashboard sees what a share link of its token's site shows.
+            shared = Some(ShareRow { id: String::new(), site: token.site.clone(), name: String::new(), created_at: 0 });
+            only = Some(token.site);
         } else {
             let reader = self.reader(request, call).await?;
             match &reader {

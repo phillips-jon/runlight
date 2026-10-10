@@ -39,7 +39,7 @@ pub(crate) struct ApiReader {
 impl ApiReader {
     pub(crate) fn new(routes: &Routes, request: &Request, url: &Url, site: Option<String>) -> ApiReader {
         let mut headers = request.headers.clone();
-        for name in ["content-type", "content-length", SHARE_HEADER] {
+        for name in ["content-type", "content-length", SHARE_HEADER, EMBED_HEADER] {
             headers.delete(name);
         }
         ApiReader { routes: routes.clone(), origin: url.origin(), headers, site }

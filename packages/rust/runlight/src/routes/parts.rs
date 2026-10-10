@@ -737,11 +737,23 @@ impl Routes {
             if !site.is_empty() && !rl.sites().iter().any(|s| s.id == site) {
                 return Ok(coded("Unknown site", "unknown_site", 404, None));
             }
-            let scope = if body.get("scope").and_then(Value::as_str) == Some("manage") { "manage" } else { "read" };
+            let scope = match body.get("scope").and_then(Value::as_str) {
+                Some("manage") => "manage",
+                Some("embed") => "embed",
+                _ => "read",
+            };
             if scope == "manage" && site.is_empty() {
                 return Ok(coded(
                     "A token that changes settings is for one site. Pick the site.",
                     "token_site",
+                    400,
+                    None,
+                ));
+            }
+            if scope == "embed" && site.is_empty() {
+                return Ok(coded(
+                    "A key for the dashboard in a CMS is for one site. Pick the site.",
+                    "embed_site",
                     400,
                     None,
                 ));

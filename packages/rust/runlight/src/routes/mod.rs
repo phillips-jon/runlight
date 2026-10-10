@@ -81,6 +81,12 @@ pub(crate) const COOKIE: &str = "runlight_token";
 pub(crate) const TOKEN_PREFIX: &str = "rl_";
 /// The header a shared dashboard sends its share id in.
 pub(crate) const SHARE_HEADER: &str = "x-runlight-share";
+/// The header an embedded dashboard sends its session in.
+pub(crate) const EMBED_HEADER: &str = "x-runlight-embed";
+/// How long an embed ticket works: long enough for the admin page to load its frame, never to be kept.
+const EMBED_TICKET_MS: i64 = 5 * 60_000;
+/// How long an embedded dashboard reads before the admin page has to be loaded again for a new ticket.
+const EMBED_SESSION_MS: i64 = 60 * 60_000;
 /// Where the tracker's click rules go; the script ships with this string in their place.
 const RULES_PLACEHOLDER: &str = "\"__RUNLIGHT_RULES__\"";
 /// Where the picker's one allowed receiver goes.
@@ -304,7 +310,22 @@ fn locale_urls(base: &str) -> String {
     o.to_json()
 }
 
-fn dashboard_page(base: &str, share: &str, sign_out: &str, geo_credit: bool, accounts: bool, sign_in: &str) -> String {
+/// The dashboard inside a CMS's admin pages: its session (empty once its ticket was used or ran out) and the admin
+/// origin that frames it.
+struct Embedded<'a> {
+    session: &'a str,
+    origin: &'a str,
+}
+
+fn dashboard_page(
+    base: &str,
+    share: &str,
+    sign_out: &str,
+    geo_credit: bool,
+    accounts: bool,
+    sign_in: &str,
+    embed: Option<Embedded<'_>>,
+) -> String {
     let b = escape_attr(base);
     let hash = &BUILD_INFO.dashboard_hash;
     let mut attrs = String::new();
@@ -322,6 +343,13 @@ fn dashboard_page(base: &str, share: &str, sign_out: &str, geo_credit: bool, acc
     }
     if accounts {
         attrs.push_str(" data-accounts=\"\"");
+    }
+    if let Some(embed) = embed {
+        attrs.push_str(&format!(
+            " data-embed=\"{}\" data-embed-origin=\"{}\"",
+            escape_attr(embed.session),
+            escape_attr(embed.origin)
+        ));
     }
     format!(
         "<!doctype html>
@@ -366,7 +394,7 @@ pub fn manage_path(method: &str, path: &str) -> bool {
     false
 }
 
-/// What a share can read: one site's reports, nothing that changes anything.
+/// What a share, or the dashboard inside a CMS, can read: one site's reports, nothing that changes anything.
 pub(crate) fn shared_path(path: &str) -> bool {
     matches!(
         path,
@@ -620,7 +648,8 @@ impl Routes {
     /// Who may read stats: the owner, an API token or a read-only sign-in, or nobody.
     pub(crate) async fn reader(&self, request: &Request, call: &Call) -> Result<Reader, crate::Error> {
         if let Some(token) = self.api_token(request).await? {
-            return Ok(Reader::Token(token));
+            // A key for the dashboard inside a CMS gets tickets and reads nothing itself.
+            return Ok(if token.scope == "embed" { Reader::No } else { Reader::Token(token) });
         }
         let access = self.can_read(request, call).await;
         if self.0.options.authorize.is_some() || self.0.web.is_some() {
@@ -702,6 +731,94 @@ impl Routes {
         }
         let origin = unhex(&part(3));
         Ok(test(js_re!(r"^https?://[^/?#\s]+$"), &origin).then(|| (origin, unhex(&part(2)))))
+    }
+
+    /// The key embed tickets and sessions are signed with, made on first use and kept in the database for every process.
+    async fn embed_key(&self) -> Result<String, crate::Error> {
+        self.rl().init().await?;
+        let store = self.rl().store();
+        if let Some(saved) = store.setting("embed-key").await?.filter(|s| !s.is_empty()) {
+            return Ok(saved);
+        }
+        let made = random_id(32);
+        store.set_setting("embed-key", Some(&made)).await?;
+        Ok(made)
+    }
+
+    /// An embed token that still exists, for a site that still does.
+    pub(crate) async fn embed_token(&self, id: &str) -> Result<Option<TokenRow>, crate::Error> {
+        let tokens = self.rl().store().tokens().await?;
+        Ok(tokens
+            .into_iter()
+            .find(|t| t.id == id)
+            .filter(|t| t.scope == "embed" && self.rl().site(Some(&t.site)).is_some()))
+    }
+
+    /// A ticket for one load of the embedded dashboard, signed with when it runs out, a nonce, and the admin origin
+    /// that may frame it. The nonce is kept, with the token it was made for, until the ticket is used.
+    pub(crate) async fn embed_ticket(&self, origin: &str, token: &str) -> Result<(String, i64), crate::Error> {
+        let store = self.rl().store();
+        let now = self.rl().now();
+        // Tickets nobody used are cleared as new ones are made.
+        for (key, value) in store.settings_starting_with("embed-ticket:").await? {
+            if js::text_number(value.split('.').next().unwrap_or("")) < now as f64 {
+                store.set_setting(&key, None).await?;
+            }
+        }
+        let expires_at = now + EMBED_TICKET_MS;
+        let nonce = random_id(16);
+        store.set_setting(&format!("embed-ticket:{nonce}"), Some(&format!("{expires_at}.{token}"))).await?;
+        let payload = format!("{expires_at}.{nonce}.{}", crate::hash::hex(origin.as_bytes()));
+        let sig = hmac(&self.embed_key().await?, &format!("ticket.{payload}"));
+        Ok((format!("{payload}.{sig}"), expires_at))
+    }
+
+    /// What a ticket this install signed names: always its origin, and its token only the first time it is used
+    /// before it runs out. `None` for anything else.
+    async fn redeem_embed(&self, ticket: &str) -> Result<Option<(String, Option<TokenRow>)>, crate::Error> {
+        let re = js_re!(r"^(\d{1,15})\.([a-f0-9]{32})\.([a-f0-9]{2,512})\.([a-f0-9]{64})$");
+        let Some(caps) = re.captures(ticket.as_bytes()) else { return Ok(None) };
+        let part = |i: usize| String::from_utf8_lossy(caps.get(i).map_or(&[][..], |m| m.as_bytes())).into_owned();
+        let expected = hmac(&self.embed_key().await?, &format!("ticket.{}.{}.{}", part(1), part(2), part(3)));
+        if !constant_time_equal(&part(4), &expected) {
+            return Ok(None);
+        }
+        let origin = unhex(&part(3));
+        if !test(js_re!(r"^https?://[^/?#\s]+$"), &origin) || origin.chars().any(js::is_space) {
+            return Ok(None);
+        }
+        // A ticket works once: it is gone before anything else is checked.
+        let kept = self.rl().store().take_setting(&format!("embed-ticket:{}", part(2))).await?;
+        let token = match kept.filter(|k| !k.is_empty()) {
+            Some(kept) if js::text_number(&part(1)) >= self.rl().now() as f64 => {
+                self.embed_token(kept.split('.').nth(1).unwrap_or("")).await?
+            }
+            _ => None,
+        };
+        Ok(Some((origin, token)))
+    }
+
+    /// A session for an embedded dashboard, which its page sends with every read, signed with when it runs out
+    /// and its token.
+    async fn embed_session(&self, token: &str) -> Result<String, crate::Error> {
+        let payload = format!("{}.{token}", self.rl().now() + EMBED_SESSION_MS);
+        let sig = hmac(&self.embed_key().await?, &format!("session.{payload}"));
+        Ok(format!("{payload}.{sig}"))
+    }
+
+    /// The embed token a session this install signed was made for, while it lasts and the token still exists.
+    pub(crate) async fn embed_reader(&self, session: &str) -> Result<Option<TokenRow>, crate::Error> {
+        let re = js_re!(r"^(\d{1,15})\.([a-f0-9]{24})\.([a-f0-9]{64})$");
+        let Some(caps) = re.captures(session.as_bytes()) else { return Ok(None) };
+        let part = |i: usize| String::from_utf8_lossy(caps.get(i).map_or(&[][..], |m| m.as_bytes())).into_owned();
+        if js::text_number(&part(1)) < self.rl().now() as f64 {
+            return Ok(None);
+        }
+        let expected = hmac(&self.embed_key().await?, &format!("session.{}.{}", part(1), part(2)));
+        if !constant_time_equal(&part(3), &expected) {
+            return Ok(None);
+        }
+        self.embed_token(&part(2)).await
     }
 
     /// The tracker with click rules inside, rebuilt when goals change.
@@ -917,6 +1034,52 @@ impl Routes {
         {
             return self.unsubscribe_page(request, &token).await;
         }
+        // The dashboard inside a CMS's admin pages, opened with a ticket its plugin just got. Only the admin origin
+        // the ticket names may frame it. A ticket used already or run out opens it with no session, so it says it
+        // has expired and offers to reload the admin page; anything else is refused and never framed.
+        if path == "/embed" && method == "GET" {
+            self.rl().init().await?;
+            let Some((origin, token)) = self.redeem_embed(url.search_params().get("ticket").unwrap_or("")).await?
+            else {
+                let lang = accepted_language(request);
+                let (t, lang) = glue::translator(&lang);
+                return Ok(small_page(
+                    &lang,
+                    &format!(
+                        "<h1>{}</h1><p>{}</p>",
+                        escape_html(&t("embed.goneTitle", &[])),
+                        escape_html(&t("embed.gone", &[]))
+                    ),
+                    404,
+                ));
+            };
+            let session = match &token {
+                Some(token) => self.embed_session(&token.id).await?,
+                None => String::new(),
+            };
+            let page = dashboard_page(
+                &self.0.base,
+                "",
+                "",
+                self.0.options.geo_credit,
+                false,
+                "",
+                Some(Embedded { session: &session, origin: &origin }),
+            );
+            return Ok(Response::new(
+                page,
+                if session.is_empty() { 410 } else { 200 },
+                Headers::new()
+                    .with("content-type", "text/html; charset=utf-8")
+                    .with("cache-control", "no-store")
+                    .with(
+                        "content-security-policy",
+                        DASHBOARD_CSP.replacen("frame-ancestors 'none'", &format!("frame-ancestors {origin}"), 1),
+                    )
+                    .with("referrer-policy", "no-referrer")
+                    .with("x-robots-tag", "noindex"),
+            ));
+        }
         if let Some(id) = crate::re::group(js_re!(r"^/share/([^/]+)/?$"), path, 1)
             && method == "GET"
         {
@@ -937,7 +1100,7 @@ impl Routes {
                 ));
             };
             return Ok(Response::new(
-                dashboard_page(&self.0.base, &share.id, "", self.0.options.geo_credit, false, ""),
+                dashboard_page(&self.0.base, &share.id, "", self.0.options.geo_credit, false, "", None),
                 200,
                 Headers::new()
                     .with("content-type", "text/html; charset=utf-8")
@@ -981,6 +1144,7 @@ impl Routes {
                     self.0.options.geo_credit,
                     self.0.web.is_some(),
                     self.0.sign_in.as_deref().unwrap_or(""),
+                    None,
                 ),
                 200,
                 Headers::new()

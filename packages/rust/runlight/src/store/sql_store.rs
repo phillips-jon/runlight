@@ -97,7 +97,11 @@ fn token_row(r: &Row) -> TokenRow {
         id: r.text("id"),
         name: r.text("name"),
         site: r.text_or("site", ""),
-        scope: if r.text("scope") == "manage" { "manage".into() } else { "read".into() },
+        scope: match r.text("scope").as_str() {
+            "manage" => "manage".into(),
+            "embed" => "embed".into(),
+            _ => "read".into(),
+        },
         hash: r.text("hash"),
         hint: r.text_or("hint", ""),
         created_at: r.int("created_at"),
@@ -1270,6 +1274,13 @@ impl SqlStore {
             .iter()
             .map(|r| (r.text("key"), r.text("value")))
             .collect())
+    }
+
+    /// Reads a setting and deletes it. Of two callers at once, only the one whose delete took the row gets its value.
+    pub async fn take_setting(&self, key: &str) -> R<Option<String>> {
+        let Some(value) = self.setting(key).await? else { return Ok(None) };
+        let gone = self.changed("DELETE FROM rl_settings WHERE \"key\" = ?", params![key]).await?;
+        Ok((gone == 1).then_some(value))
     }
 
     /// Saves a setting, or deletes it with `None`.
