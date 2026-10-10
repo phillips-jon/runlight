@@ -200,6 +200,11 @@ test("a site's observe key reports AI fetches for that site only, and reads noth
   assert.equal((await report(a, "https://a.com/post")).status, 204);
   assert.equal((await report(a, "https://b.com/post")).status, 401, "a's key cannot write into b");
   assert.equal((await report("rlo_wrong", "https://a.com/post")).status, 401);
+  // A key is checked before the body is read, so a stranger hears 401 whatever it sends.
+  const junk = (key: string) => POST(new Request("https://x.com/runlight/api/observe", { method: "POST", headers: { authorization: `Bearer ${key}`, "content-type": "text/plain" }, body: "not json" }));
+  assert.equal((await junk("rlo_wrong")).status, 401);
+  assert.equal((await junk(`rlo_${"0".repeat(40)}`)).status, 401);
+  assert.notEqual((await junk(a)).status, 401, "a real key gets as far as the body");
   assert.equal((await GET(new Request("https://x.com/runlight/api/stats?site=a", { headers: { authorization: `Bearer ${a}` } }))).status, 401, "it reads nothing");
   const replaced = ((await (await POST(new Request("https://x.com/runlight/api/observe-key/new?site=a", { method: "POST", headers: auth }))).json()) as { key: string }).key;
   assert.notEqual(replaced, a);

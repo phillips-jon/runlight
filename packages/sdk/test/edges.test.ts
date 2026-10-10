@@ -8,6 +8,10 @@ import { runlight } from "../src/index.js";
 import { MailError, checkConfig, send } from "../src/mail/transports.js";
 import { callTool, mcpResponse } from "../src/mcp.js";
 import { sqlite } from "../src/stores/sqlite.js";
+import { publicFetchThroughGlobal } from "../src/safefetch.js";
+
+// Fetches go to the stand-in fetch below; an address written as an IP is still refused.
+publicFetchThroughGlobal(true);
 
 const realFetch = globalThis.fetch;
 afterEach(() => {

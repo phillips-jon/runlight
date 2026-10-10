@@ -3,6 +3,10 @@ import { afterEach, test } from "node:test";
 import { importUmamiVisits } from "../src/importers/visits.js";
 import { runlight } from "../src/index.js";
 import { sqlite } from "../src/stores/sqlite.js";
+import { publicFetchThroughGlobal } from "../src/safefetch.js";
+
+// Fetches go to the stand-in fetch below; an address written as an IP is still refused.
+publicFetchThroughGlobal(true);
 
 const realFetch = globalThis.fetch;
 afterEach(() => {

@@ -8,6 +8,7 @@
  */
 import { inflateRawSync } from "node:zlib";
 import { runlight } from "../src/index.js";
+import { publicFetchThroughGlobal } from "../src/safefetch.js";
 import type { SqlStore } from "../src/store.js";
 import { sqlite } from "../src/stores/sqlite.js";
 import { totp } from "../src/accounts/auth.js";
@@ -187,6 +188,8 @@ export async function play(scenario: Scenario, store: SqlStore = sqlite({ path: 
   const saved = ENV.map((name) => [name, process.env[name]] as const);
   for (const name of ENV) delete process.env[name];
   const realFetch = globalThis.fetch;
+  // Fetches go to the stand-in below; an address written as an IP is still refused.
+  publicFetchThroughGlobal(true);
   let fetched: Array<{ seen: Fetched; text: string }> = [];
   globalThis.fetch = (async (input: RequestInfo | URL, init: RequestInit = {}) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -207,6 +210,7 @@ export async function play(scenario: Scenario, store: SqlStore = sqlite({ path: 
     });
   } finally {
     globalThis.fetch = realFetch;
+    publicFetchThroughGlobal(false);
     for (const [name, value] of saved) if (value === undefined) delete process.env[name];
     else process.env[name] = value;
   }

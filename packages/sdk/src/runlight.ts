@@ -7,6 +7,7 @@ import { parsePayload, MAX_BODY, type Payload } from "./payload.js";
 import { Links } from "./links.js";
 import { PROVIDERS, type AssistantSettings } from "./assistant.js";
 import { readJsonCapped } from "./body.js";
+import { installAddress, installFetch } from "./safefetch.js";
 import { RateLimit } from "./limit.js";
 import { createRoutes, type Routes, type RoutesOptions } from "./routes.js";
 import { attribute, parsePage, stripWww, type Page } from "./sources.js";
@@ -68,6 +69,13 @@ export interface RunlightOptions {
    * false turns the limit off.
    */
   rateLimit?: number | false;
+  /**
+   * Lets a connected install be at http://localhost or http://127.0.0.1, for
+   * trying a hub and an app on one machine. Default false: otherwise anyone
+   * who can add a site could have this server ask services on its own
+   * machine, so other installs must be public https addresses.
+   */
+  localInstalls?: boolean;
   /** For tests. */
   now?: () => number;
 }
@@ -189,6 +197,8 @@ export class Runlight {
   private readonly mailInCode: MailSettings | undefined;
   /** Encrypts the keys kept in the database; null leaves them readable, and the dashboard says so. */
   readonly secret: string | null;
+  /** Whether a connected install may be on this machine, at http://localhost or http://127.0.0.1. */
+  readonly localInstalls: boolean;
 
   constructor(options: RunlightOptions) {
     if (!options?.store) throw new Error("Runlight: pass a store, such as sqlite({ path: \"./data/runlight.db\" })");
@@ -211,6 +221,7 @@ export class Runlight {
     this.links = new Links(this);
     this.linkPath = `/${(options.linkPath ?? "/go").replace(/^\/+|\/+$/g, "")}`;
     this.mailInCode = options.mail;
+    this.localInstalls = options.localInstalls ?? false;
     this.secret = options.secret ?? envValue("RUNLIGHT_SECRET") ?? envValue("RUNLIGHT_TOKEN") ?? null;
   }
 
@@ -385,7 +396,7 @@ export class Runlight {
     if (cached && this.now() - cached.at < 60_000) return cached;
     let info: RemoteInfo = { lastSeen: cached?.lastSeen ?? null, retentionMonths: undefined, connection: "unreachable" };
     try {
-      const answer = await fetch(`${remote.url}/api/sites`, { headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(8000) });
+      const answer = await installFetch(`${remote.url}/api/sites`, { headers: { authorization: `Bearer ${remote.token}` }, timeoutMs: 8000, local: this.localInstalls });
       if (answer.status === 401 || answer.status === 403) info = { ...info, connection: "refused" };
       const body = (await readJsonCapped(answer, REMOTE_MAX_BYTES).catch(() => null)) as { sites?: Array<{ id: string; lastSeen: number | null; retentionMonths?: number | null }> } | null;
       const there = body?.sites?.find((s) => s.id === remote.site);
@@ -402,7 +413,7 @@ export class Runlight {
 
   /** Asks a connected install to delete the token this server holds for it. A failure leaves it listed there. */
   private async revokeRemoteToken(remote: Remote): Promise<void> {
-    await fetch(`${remote.url}/api/token`, { method: "DELETE", headers: { authorization: `Bearer ${remote.token}` }, signal: AbortSignal.timeout(5_000) }).catch(() => null);
+    await installFetch(`${remote.url}/api/token`, { method: "DELETE", headers: { authorization: `Bearer ${remote.token}` }, timeoutMs: 5_000, local: this.localInstalls }).catch(() => null);
   }
 
   /**
@@ -412,12 +423,12 @@ export class Runlight {
    */
   private async addRemoteSite(input: { url?: unknown; token?: unknown; site?: unknown; name?: unknown }): Promise<SiteRow> {
     const url = String(input.url ?? "").trim().replace(/\/+$/, "");
-    if (!/^https:\/\/[^/]+|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$)/.test(url)) throw new SettingsError("Enter the install's address, like https://example.com/runlight", "connect_url");
+    if (!installAddress(url, this.localInstalls)) throw new SettingsError("Enter the install's address, like https://example.com/runlight", "connect_url");
     const token = String(input.token ?? "").trim();
     if (!token) throw new SettingsError("Enter an API token from that install", "install_token");
     let answer: Response;
     try {
-      answer = await fetch(`${url}/api/sites`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
+      answer = await installFetch(`${url}/api/sites`, { headers: { authorization: `Bearer ${token}` }, timeoutMs: 10_000, local: this.localInstalls });
     } catch {
       throw new SettingsError(`Could not reach ${url}`, "unreachable", { host: new URL(url).host });
     }
@@ -428,7 +439,7 @@ export class Runlight {
     let scope: "read" | "manage" = "read";
     let tokenSite = "";
     try {
-      const about = await fetch(`${url}/api/token`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(10_000) });
+      const about = await installFetch(`${url}/api/token`, { headers: { authorization: `Bearer ${token}` }, timeoutMs: 10_000, local: this.localInstalls });
       const info = about.ok ? ((await readJsonCapped(about, REMOTE_MAX_BYTES).catch(() => null)) as { scope?: string; site?: string } | null) : null;
       if (info?.scope === "manage") scope = "manage";
       tokenSite = String(info?.site ?? "");

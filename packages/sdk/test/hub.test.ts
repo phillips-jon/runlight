@@ -18,7 +18,7 @@ test("a standalone server reads a connected app install through its API, and cha
   const appUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/runlight`;
 
   try {
-    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32), localInstalls: true });
     const { GET, POST, PATCH } = hub.routes({ token: "hub-owner" });
     const auth = { authorization: "Bearer hub-owner", "content-type": "application/json" };
     const call = (handler: typeof GET, method: string, path: string, body?: unknown) =>
@@ -59,7 +59,7 @@ test("a standalone server reads a connected app install through its API, and cha
     assert.equal(hub.site(site.id)?.timezone, "Europe/Paris");
 
     // A restart reads the connection back, and removing it leaves the app's data alone.
-    const again = runlight({ store: hub.store, managedSites: true, secret: "k".repeat(32) });
+    const again = runlight({ store: hub.store, managedSites: true, secret: "k".repeat(32), localInstalls: true });
     await again.init();
     assert.equal(again.remote(site.id)?.url, appUrl);
     assert.equal((await call(hub.routes({ token: "hub-owner" }).DELETE, "DELETE", `/api/sites/${site.id}`)).status, 200);
@@ -82,7 +82,7 @@ test("a hub connects an app through its consent page and changes that site's set
   const asAppOwner = (url: string, init: RequestInit = {}) => fetch(url, { ...init, redirect: "manual", headers: { ...(init.headers as Record<string, string>), authorization: "Bearer app-owner" } });
 
   try {
-    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32), localInstalls: true });
     const { handler } = hub.routes({ token: "hub-owner" });
     const call = async (method: string, path: string, body?: unknown) => {
       const answer = await handler(new Request(`http://localhost:4900/runlight${path}`, { method, headers: { authorization: "Bearer hub-owner", "content-type": "application/json" }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) }));
@@ -169,7 +169,7 @@ test("connecting a site again with a manage token upgrades the same connection",
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   const appUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}/runlight`;
   try {
-    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32), localInstalls: true });
     const { POST } = hub.routes({ token: "hub-owner" });
     const add = async (secret: string) => ((await (await POST(new Request("http://localhost/runlight/api/sites", { method: "POST", headers: { authorization: "Bearer hub-owner", "content-type": "application/json" }, body: JSON.stringify({ remote: { url: appUrl, token: secret } }) }))).json()) as any).site.id as string;
     const first = await add(await token("read"));
@@ -195,7 +195,7 @@ test("a hub only follows an install's own endpoints when connecting", async () =
   });
   await new Promise<void>((resolve) => hostile.listen(0, "127.0.0.1", resolve));
   try {
-    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32), localInstalls: true });
     const { POST } = hub.routes({ token: "hub-owner" });
     const answer = await POST(new Request("http://localhost/runlight/api/sites/connect", { method: "POST", headers: { authorization: "Bearer hub-owner", "content-type": "application/json" }, body: JSON.stringify({ url: `http://127.0.0.1:${(hostile.address() as AddressInfo).port}` }) }));
     assert.equal(answer.status, 400);
@@ -214,7 +214,7 @@ test("an install whose scopes_supported is not a list counts as an older Runligh
     });
     await new Promise<void>((resolve) => odd.listen(0, "127.0.0.1", resolve));
     try {
-      const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+      const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32), localInstalls: true });
       const { POST } = hub.routes({ token: "hub-owner" });
       const answer = await POST(new Request("http://localhost/runlight/api/sites/connect", { method: "POST", headers: { authorization: "Bearer hub-owner", "content-type": "application/json" }, body: JSON.stringify({ url: `http://127.0.0.1:${(odd.address() as AddressInfo).port}` }) }));
       assert.equal(answer.status, 400, `scopes_supported ${JSON.stringify(scopes)}`);
@@ -222,5 +222,35 @@ test("an install whose scopes_supported is not a list counts as an older Runligh
     } finally {
       odd.close();
     }
+  }
+});
+
+test("a hub never asks its own machine or network for an install unless code allows it", async () => {
+  let reached = 0;
+  const inside = createServer((_req, res) => {
+    reached++;
+    res.setHeader("content-type", "application/json");
+    res.end(JSON.stringify({ sites: [{ id: "x", name: "X", timezone: "UTC", hostnames: [] }] }));
+  });
+  await new Promise<void>((resolve) => inside.listen(0, "127.0.0.1", resolve));
+  const port = (inside.address() as AddressInfo).port;
+  try {
+    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+    const { POST } = hub.routes({ token: "hub-owner" });
+    const post = async (path: string, body: unknown) => {
+      const answer = await POST(new Request(`https://hub.example.com/runlight${path}`, { method: "POST", headers: { authorization: "Bearer hub-owner", "content-type": "application/json" }, body: JSON.stringify(body) }));
+      return { status: answer.status, code: ((await answer.json()) as any).code };
+    };
+    for (const url of [`http://127.0.0.1:${port}/runlight`, `http://localhost:${port}/runlight`]) {
+      assert.deepEqual(await post("/api/sites", { remote: { url, token: "rl_x" } }), { status: 400, code: "connect_url" }, url);
+      assert.equal((await post("/api/sites/connect", { url })).status, 400, url);
+    }
+    for (const url of [`https://127.0.0.1:${port}/runlight`, `https://localhost:${port}/runlight`, "https://169.254.169.254/runlight", "https://[::ffff:10.0.0.1]/runlight"]) {
+      assert.deepEqual(await post("/api/sites", { remote: { url, token: "rl_x" } }), { status: 400, code: "unreachable" }, url);
+      assert.deepEqual(await post("/api/sites/connect", { url }), { status: 400, code: "unreachable" }, url);
+    }
+    assert.equal(reached, 0);
+  } finally {
+    inside.close();
   }
 });

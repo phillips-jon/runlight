@@ -16,7 +16,8 @@ import { FunnelError, funnelFrom } from "./funnels.js";
 import { MailError, SERVICES } from "./mail/transports.js";
 import { languages, translator } from "./messages.js";
 import { fetchIcon } from "./icon.js";
-import { publicAddresses, publicFetch, resolvesPrivately } from "./safefetch.js";
+import { installFetch, publicAddresses, publicFetch, resolvesPrivately } from "./safefetch.js";
+import { readTextCapped } from "./body.js";
 import { ImportError, importStep } from "./importers/index.js";
 import { importCsvVisits, importUmamiVisits, umamiWebsites } from "./importers/visits.js";
 import { LinkError } from "./links.js";
@@ -179,7 +180,7 @@ function privateName(domain: string): boolean {
  * Answers a read for a site counted by another install by asking that install,
  * with its token and its own id for the site, and handing back what it says.
  */
-async function passThrough(remote: { url: string; token: string; site: string }, path: string, url: URL, request?: Request): Promise<Response> {
+async function passThrough(remote: { url: string; token: string; site: string }, path: string, url: URL, request: Request | undefined, local: boolean): Promise<Response> {
   const target = new URL(`${remote.url}${path}`);
   url.searchParams.forEach((value, key) => target.searchParams.append(key, value));
   target.searchParams.set("site", remote.site);
@@ -189,15 +190,16 @@ async function passThrough(remote: { url: string; token: string; site: string },
   if (write && request.headers.get("content-type")) headers["content-type"] = request.headers.get("content-type")!;
   let answer: Response;
   try {
-    answer = await fetch(target, {
+    // An install that answers with a redirect gets no fetch of somewhere else on its behalf.
+    answer = await installFetch(target.href, {
       method: write ? request.method : "GET",
       headers,
       ...(write ? { body: await request.text() } : {}),
-      // An install that answers with a redirect gets no fetch of somewhere else on its behalf.
-      redirect: "manual",
       // A long report or an export is worked out in full before the install sends a byte, so reads get
       // two minutes. A browser that leaves stops the wait too.
-      signal: AbortSignal.any([AbortSignal.timeout(write ? 30_000 : 120_000), ...(request ? [request.signal] : [])]),
+      timeoutMs: write ? 30_000 : 120_000,
+      ...(request ? { signal: request.signal } : {}),
+      local,
     });
   } catch (error) {
     const host = new URL(remote.url).host;
@@ -224,10 +226,11 @@ async function passThrough(remote: { url: string; token: string; site: string },
   // carries its code and params for the dashboard to put in its own words.
   if (answer.status >= 400 && !download) {
     const host = new URL(remote.url).host;
-    const text = await answer.text().catch(() => "");
+    // Read no further than an error could need, so an answer without end never fills memory.
+    const text = await readTextCapped(answer, 65_536).catch(() => "");
     const body = (() => {
       try {
-        return text.length <= 65_536 ? (JSON.parse(text) as { error?: unknown; code?: unknown; params?: unknown }) : null;
+        return text ? (JSON.parse(text) as { error?: unknown; code?: unknown; params?: unknown }) : null;
       } catch {
         return null;
       }
@@ -1239,6 +1242,17 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       // The install-wide key and the owner's access can report for any site.
       const anySite = Boolean(observeKey && given && constantTimeEqual(given, observeKey)) || (await canRead(request)) === true;
       if (!anySite && !given) return coded("Unauthorized", "unauthorized", 401);
+      // A site's own key is found before the body is read, so a stranger costs one lookup at most.
+      let keySite: string | null = null;
+      if (!anySite) {
+        if (!given.startsWith("rlo_")) return coded("Unauthorized", "unauthorized", 401);
+        await runlight.init();
+        for (const { key, value } of await runlight.store.settingsStartingWith("observe-key:")) {
+          const id = key.slice("observe-key:".length);
+          if (id && constantTimeEqual(given, value) && runlight.site(id)) keySite = id;
+        }
+        if (!keySite) return coded("Unauthorized", "unauthorized", 401);
+      }
       const body = await readJson(request);
       if (body instanceof Response) return body;
       // One fetch as { url, userAgent, at? }, or up to 500 as { fetches: [...] } from a log reader.
@@ -1261,12 +1275,6 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (!anySite) {
         // A site's own key reports only pages on that site's domains. Pages elsewhere in a batch (another
         // host in the same log, say) are skipped, not a reason to refuse the rest.
-        let keySite: string | null = null;
-        for (const site of runlight.sites) {
-          const key = await runlight.store.setting(`observe-key:${site.id}`);
-          if (key && constantTimeEqual(given, key)) keySite = site.id;
-        }
-        if (!keySite) return coded("Unauthorized", "unauthorized", 401);
         keep = pages.filter((p) => runlight.siteFor(p.page.hostname)?.id === keySite);
         // A single report for another site's page is a misconfigured plugin, which should hear about it.
         if (!Array.isArray(body.fetches) && keep.length === 0) return coded("Unauthorized", "unauthorized", 401);
@@ -1295,7 +1303,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       const access = await canRead(request);
       if (access !== true) return denied(access);
       if (request.method !== "GET") runlight.forgetRemoteInfo(asked!);
-      return passThrough(connected, path, url, request);
+      return passThrough(connected, path, url, request, runlight.localInstalls);
     }
     if (connected && !(request.method === "GET" && (sharedPath(path) || path === "/api/links"))) {
       return coded("This site is counted by its own Runlight. Connect it again from its settings to change it from here.", "site_remote", 400);
@@ -1521,7 +1529,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
       if (access === false || access === "unconfigured") return denied(access);
       // A token limited to one site reads only that site's links, here as everywhere else.
       if (access !== true && access.site && access.site !== asked) return coded("Unknown site", "unknown_site", 404);
-      return passThrough(connected, path, url);
+      return passThrough(connected, path, url, undefined, runlight.localInstalls);
     }
 
     // An API token, or someone signed in to read, may list links and see each one's clicks, but not change them.
@@ -1637,6 +1645,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
             `/api/sites/${encodeURIComponent(remote.site)}`,
             new URL(url),
             new Request(request.url, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(forward) }),
+            runlight.localInstalls,
           );
           if (!answer.ok) return answer;
           runlight.forgetRemoteInfo(id);
@@ -1712,7 +1721,7 @@ export function createRoutes(runlight: Runlight, options: RoutesOptions = {}): R
     if (site instanceof Response) return site;
     if (!site || (only && site.id !== only)) return coded("Unknown site", "unknown_site", 404);
     const remote = runlight.remote(site.id);
-    if (remote) return passThrough(remote, path, url, request);
+    if (remote) return passThrough(remote, path, url, request, runlight.localInstalls);
 
     if (path === "/api/icon") {
       const host = site.hostnames[0];

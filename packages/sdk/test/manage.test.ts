@@ -151,7 +151,7 @@ test("the hub never passes on an install's answer as a page, nor follows its red
   });
   await new Promise<void>((resolve) => evil.listen(0, "127.0.0.1", resolve));
   try {
-    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32) });
+    const hub = runlight({ store: sqlite({ path: ":memory:" }), managedSites: true, secret: "k".repeat(32), localInstalls: true });
     const { handler } = hub.routes({ token: "owner" });
     const call = (path: string, init: RequestInit = {}) => handler(new Request(`https://hub.example.com/runlight${path}`, { ...init, headers: { authorization: "Bearer owner", "content-type": "application/json" } }));
     const added = await call("/api/sites", { method: "POST", body: JSON.stringify({ remote: { url: `http://127.0.0.1:${(evil.address() as { port: number }).port}/runlight`, token: "rl_x" } }) });
