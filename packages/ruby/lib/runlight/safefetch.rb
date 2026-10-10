@@ -187,13 +187,21 @@ module Runlight
       end
     end
 
+    # An install on this machine: http://localhost or http://127.0.0.1, with any port.
+    LOCAL_INSTALL = %r{\Ahttp://(localhost|127\.0\.0\.1)(:\d+)?(/|\z)}
+
+    # Whether an address can be another Runlight install's: https, or, with `local`, an install on this
+    # machine, which only code can allow (the Core's localInstalls).
+    def install_address?(url, local)
+      url.match?(%r{\Ahttps://[^/]+}) || (local && url.match?(LOCAL_INSTALL))
+    end
+
     # A fetch of another Runlight install or an Umami, at an address its owner typed: through public_fetch,
-    # with no redirect followed, or as plain http to this machine (localhost or 127.0.0.1), which the address
-    # checks allow on purpose for an install running beside this one. init as public_fetch takes it.
-    def owner_fetch(target, init, fetcher = nil)
-      url = Http::Url.parse(target)
-      if !url.nil? && url.protocol == "http:" && %w[localhost 127.0.0.1].include?(url.hostname)
-        return (fetcher || Http::NetFetcher.new).fetch(url.href, init.merge("redirect" => "manual"))
+    # with no redirect followed. With `local` (the Core's localInstalls), an install on this machine is
+    # fetched as it is, still without following a redirect. init as public_fetch takes it.
+    def owner_fetch(target, init, fetcher = nil, local = false)
+      if local && target.match?(LOCAL_INSTALL)
+        return (fetcher || Http::NetFetcher.new).fetch(target, init.merge("redirect" => "manual"))
       end
 
       public_fetch(target, init.merge("redirects" => 0), fetcher)

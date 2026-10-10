@@ -64,7 +64,7 @@ module Runlight
         now = options["now"] || -> { Process.clock_gettime(Process::CLOCK_REALTIME, :millisecond) }
         @now = now
         @token = options["token"].nil? || options["token"] == "" ? nil : options["token"].to_s
-        @trust_proxy = options["trustProxy"].nil? ? true : options["trustProxy"]
+        @trust_proxy = options["trustProxy"]
         @public_url = options["url"].nil? || options["url"] == "" ? nil : Http::Url.new(options["url"].to_s)
         @public_host = @public_url.nil? ? nil : Routes.host_name(@public_url.host)
         @own_hosts = nil
@@ -74,9 +74,10 @@ module Runlight
           "store" => @store,
           "managedSites" => true,
           "secret" => options["secret"],
-          "trustProxy" => @trust_proxy,
           "now" => now,
         }
+        # Unset stays unset, so the Core's default applies and it can warn when nothing sits in front.
+        core["trustProxy"] = @trust_proxy unless @trust_proxy.nil?
         core["geo"] = options["geo"] unless options["geo"].nil?
         core["fetcher"] = options["fetcher"] unless options["fetcher"].nil?
         @runlight = rl = Core.new(core)

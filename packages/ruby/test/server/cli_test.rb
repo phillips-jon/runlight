@@ -73,6 +73,8 @@ class ServerCliTest < Minitest::Test
     configure({ PORT: 4000, TRUST_PROXY: false, RUNLIGHT_GEO: "off" })
     assert_equal "4000", Config.new(@root).get("PORT")
     assert_equal false, Config.new(@root).trust_proxy
+    configure({ "RUNLIGHT_GEO" => "off" })
+    assert_nil Config.new(@root).trust_proxy, "unset stays unset, so the default can warn"
 
     configure({ "RUNLIGHT_URL" => "https://stats.example.com/dashboard" })
     error = assert_raises(RuntimeError) { Config.new(@root).url }

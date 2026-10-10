@@ -119,4 +119,27 @@ class SafefetchTest < Minitest::Test
     end
     assert_equal "Connection refused", error.message
   end
+
+  def test_another_install_is_only_fetched_at_a_public_https_address_with_no_redirect_followed
+    ["https://example.com/runlight", "https://example.com"].each { |url| assert Safefetch.install_address?(url, false), url }
+    ["http://127.0.0.1:4100/runlight", "http://localhost", "http://example.com", "ftp://example.com"].each { |url| refute Safefetch.install_address?(url, false), url }
+    # Only code allows an install on this machine, and then only at these two names.
+    ["http://127.0.0.1:4100/runlight", "http://localhost", "http://localhost:3000/runlight"].each { |url| assert Safefetch.install_address?(url, true), url }
+    ["http://10.0.0.1", "http://localhost.example.com", "http://localhost@example.com", "http://127.0.0.1:80@example.com"].each do |url|
+      refute Safefetch.install_address?(url, true), url
+    end
+
+    asked = []
+    inside = FakeFetcher.new do |url, init|
+      asked << [url, init["redirect"]]
+      Response.new("", status: 302, headers: { "location" => "http://169.254.169.254/" })
+    end
+    ["http://127.0.0.1:4100/api/sites", "https://127.0.0.1:4100/api/sites", "https://localhost:4100/api/sites", "https://169.254.169.254/latest/meta-data/"].each do |url|
+      assert_raises(PrivateAddressError, url) { Safefetch.owner_fetch(url, { "timeoutMs" => 2000 }, inside) }
+    end
+    assert_equal [], asked, "nothing on this machine was asked"
+    # Allowed in code, a local install is asked, and its redirect is handed back, not followed.
+    assert_equal 302, Safefetch.owner_fetch("http://127.0.0.1:4100/api/sites", { "timeoutMs" => 2000 }, inside, true).status
+    assert_equal [["http://127.0.0.1:4100/api/sites", "manual"]], asked
+  end
 end

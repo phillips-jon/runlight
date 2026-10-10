@@ -37,7 +37,8 @@ defmodule Runlight do
     * `:trust_proxy` - read the client's address from forwarding headers:
       `true` (the default: the last X-Forwarded-For entry, then X-Real-IP,
       then CF-Connecting-IP), one header's name, or `false` for the
-      connection's own address.
+      connection's own address. Left unset, it warns once when a request
+      comes straight from a public address with none of those headers.
     * `:link_path` - where short links on the app's own domain live, default
       "/go".
     * `:mail` - the mail service for email reports, set in code.
@@ -82,6 +83,7 @@ defmodule Runlight do
     :managed_sites,
     :geo,
     :trust_proxy,
+    :warn_direct,
     :limit,
     :now,
     :link_path,
@@ -176,7 +178,9 @@ defmodule Runlight do
       store: store,
       managed_sites: managed,
       geo: Keyword.get(opts, :geo),
-      trust_proxy: Keyword.get(opts, :trust_proxy, true),
+      trust_proxy: if(is_nil(opts[:trust_proxy]), do: true, else: opts[:trust_proxy]),
+      # Warned about once, when trust_proxy was left at its default and answers a public address directly.
+      warn_direct: is_nil(opts[:trust_proxy]),
       limit: limit,
       now: Keyword.get(opts, :now) || fn -> System.os_time(:millisecond) end,
       link_path: link_path,
@@ -1181,7 +1185,20 @@ defmodule Runlight do
         end
       end
 
-    if forwarded && JS.trim(forwarded) != "", do: JS.trim(forwarded), else: request.remote_address || ""
+    if forwarded && JS.trim(forwarded) != "" do
+      JS.trim(forwarded)
+    else
+      # A public address with no forwarding header means nothing sits in front, and then any client
+      # could name its own address in one. Said once, only when trust_proxy was left at its default.
+      if rl.warn_direct && request.remote_address && Safefetch.public_address?(request.remote_address) &&
+           :ets.insert_new(rl.table, {:warned_direct, true}) do
+        Logger.warning(
+          "Runlight: a request came straight from a public address with no proxy in front, but trustProxy is on by default, so a client could send X-Forwarded-For and choose its own address, getting round the rate limits. Set trust_proxy: false when nothing sits in front of this server, or put a proxy in front that sets the header."
+        )
+      end
+
+      request.remote_address || ""
+    end
   end
 
   # Today's salt in a site's timezone and, if it still exists, yesterday's. Old salts go on the way.

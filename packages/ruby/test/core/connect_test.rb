@@ -41,7 +41,7 @@ class CoreConnectTest < Minitest::Test
 
   def hub(router)
     Runlight::Core.new({ "store" => Runlight::Stores.sqlite(":memory:"), "managedSites" => true, "secret" => "k" * 32, "fetcher" => router,
-                         "now" => -> { @now } })
+                         "now" => -> { @now }, "localInstalls" => true })
   end
 
   def refused(code, &block)
@@ -130,7 +130,7 @@ class CoreConnectTest < Minitest::Test
     def down.fetch(_url, _init = {})
       raise Runlight::Http::FetchError, "refused"
     end
-    hub = Runlight::Core.new({ "store" => Runlight::Stores.sqlite(":memory:"), "fetcher" => down })
+    hub = Runlight::Core.new({ "store" => Runlight::Stores.sqlite(":memory:"), "fetcher" => down, "localInstalls" => true })
     e = refused("unreachable") { Connect.start_connect(hub, APP, "https://hub.example/done") }
     assert_equal({ "host" => "127.0.0.1:4100" }, e.params)
   end
@@ -143,5 +143,32 @@ class CoreConnectTest < Minitest::Test
     end
     Connect.start_connect(fresh, APP, "https://hub.example/done")
     assert_equal 1, fresh.store.settings_starting_with("connect:").length
+  end
+
+  def test_a_hub_never_asks_its_own_machine_or_network_for_an_install_unless_code_allows_it
+    reached = 0
+    inside = Object.new
+    inside.define_singleton_method(:fetch) do |_url, _init = {}|
+      reached += 1
+      Runlight::Http::Response.new(Json.encode({ "sites" => [{ "id" => "x", "name" => "X", "timezone" => "UTC", "hostnames" => [] }] }),
+                                   headers: { "content-type" => "application/json" })
+    end
+    hub = Runlight::Core.new({ "store" => Runlight::Stores.sqlite(":memory:"), "managedSites" => true, "secret" => "k" * 32, "fetcher" => inside })
+    routes = hub.routes({ "token" => "hub-owner" })
+    headers = { "authorization" => "Bearer hub-owner", "content-type" => "application/json" }
+    post = lambda do |path, body|
+      request = Runlight::Http::Request.new("https://hub.example.com/runlight#{path}", method: "POST", headers: headers, body: Json.encode(body))
+      answer = routes.handle(request)
+      [answer.status, Json.decode(answer.text)["code"]]
+    end
+    ["http://127.0.0.1:4100/runlight", "http://localhost:4100/runlight"].each do |url|
+      assert_equal [400, "connect_url"], post.call("/api/sites", { "remote" => { "url" => url, "token" => "rl_x" } }), url
+      assert_equal 400, post.call("/api/sites/connect", { "url" => url })[0], url
+    end
+    ["https://127.0.0.1:4100/runlight", "https://localhost:4100/runlight", "https://169.254.169.254/runlight", "https://[::ffff:10.0.0.1]/runlight"].each do |url|
+      assert_equal [400, "unreachable"], post.call("/api/sites", { "remote" => { "url" => url, "token" => "rl_x" } }), url
+      assert_equal [400, "unreachable"], post.call("/api/sites/connect", { "url" => url }), url
+    end
+    assert_equal 0, reached
   end
 end

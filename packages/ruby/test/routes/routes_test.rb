@@ -289,6 +289,12 @@ class RoutesRoutesTest < RoutesTestCase
     assert_equal 204, send.call("agents", { "url" => "https://blog.example.com/style.css", "userAgent" => gpt }).status, "assets are ignored, quietly"
     assert_equal 204, send.call("agents", { "url" => "https://elsewhere.example/post", "userAgent" => gpt }).status, "other sites are ignored, quietly"
     assert_equal 401, routes.handle(RoutesMake.owner("/runlight/api/stats", "GET", nil, "agents")).status, "the observe key reads nothing"
+    # A key is checked before the body is read, so a stranger hears 401 whatever it sends.
+    key = RoutesMake.body(routes.handle(RoutesMake.owner("/runlight/api/observe-key/new?site=default", "POST")))["key"]
+    junk = ->(given) { routes.handle(req("/runlight/api/observe", "POST", { "authorization" => "Bearer #{given}", "content-type" => "text/plain" }, "not json")) }
+    assert_equal 401, junk.call("rlo_wrong").status
+    assert_equal 401, junk.call("rlo_#{"0" * 40}").status
+    refute_equal 401, junk.call(key).status, "a real key gets as far as the body"
     rows = RoutesMake.body(routes.handle(RoutesMake.owner("/runlight/api/breakdown?period=today&dimension=ai_page")))
     assert_equal ["/post"], rows["rows"].map { |r| r["value"] }
   end

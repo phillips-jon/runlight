@@ -694,7 +694,7 @@ module Runlight
           "timeoutMs" => write ? 30_000 : 120_000,
         }
         init["body"] = request.text if write
-        answer = Safefetch.owner_fetch(target.href, init, @rl.fetcher)
+        answer = Safefetch.owner_fetch(target.href, init, @rl.fetcher, @rl.local_installs)
       rescue StandardError => e
         if e.is_a?(Http::FetchError) && e.timed_out?
           return coded("#{host} took too long to answer. Try a shorter range.", "remote_slow", 504, { "host" => host })
@@ -1890,13 +1890,17 @@ module Runlight
       any_site = (!@observe_key.nil? && @observe_key != "" && given != "" && constant_time_equal(given, @observe_key)) || can_read(request) == true
       return coded("Unauthorized", "unauthorized", 401) if !any_site && given == ""
 
-      rl.init
-      # A site's own key, checked before the body is read, so a wrong key costs no parsing.
+      # A site's own key is found before the body is read, so a stranger costs one lookup at most.
       key_site = nil
-      unless any_site
-        sites.each do |site|
-          key = store.setting("observe-key:#{site["id"]}")
-          key_site = site["id"] if !key.nil? && key != "" && constant_time_equal(given, key)
+      if any_site
+        rl.init
+      else
+        return coded("Unauthorized", "unauthorized", 401) unless given.start_with?("rlo_")
+
+        rl.init
+        store.settings_starting_with("observe-key:").each do |row|
+          id = row["key"].delete_prefix("observe-key:")
+          key_site = id if id != "" && !row["value"].nil? && constant_time_equal(given, row["value"]) && !rl.site(id).nil?
         end
         return coded("Unauthorized", "unauthorized", 401) if key_site.nil?
       end

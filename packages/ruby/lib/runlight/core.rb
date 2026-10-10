@@ -19,7 +19,8 @@ module Runlight
   #   client IP from forwarding headers: the last X-Forwarded-For entry, which the nearest proxy wrote, then
   #   X-Real-IP, then CF-Connecting-IP. Name one of them to read only that header, such as "cf-connecting-ip"
   #   behind Cloudflare and another proxy. False reads only the connection's address, for an app nothing sits
-  #   in front of.
+  #   in front of. Left unset, it warns once when a request comes straight from a public address with none of
+  #   those headers.
   # - linkPath: where short links on the app's own domain live, as `{linkPath}/{slug}`. Default "/go".
   # - mail: the mail service for email reports, in code (a Transports config plus `from` and `fromName`).
   #   When set, the dashboard shows it and cannot change it. Otherwise it is set up in Settings.
@@ -27,6 +28,9 @@ module Runlight
   #   for connected installs. Default the RUNLIGHT_SECRET environment variable, then RUNLIGHT_TOKEN.
   # - rateLimit: tracker requests allowed per visitor address per minute. Default 120, which a real visitor
   #   never reaches; false turns the limit off.
+  # - localInstalls: lets a connected install be at http://localhost or http://127.0.0.1, for trying a hub and
+  #   an app on one machine. Default false: otherwise anyone who can add a site could have this server ask
+  #   services on its own machine, so other installs must be public https addresses.
   # - now: a callable giving the clock in milliseconds. For tests.
   # - fetcher: what every outgoing request goes through (anything with fetch(url, init)). Default
   #   Http::NetFetcher.
@@ -69,6 +73,8 @@ module Runlight
                 :link_path,
                 # Encrypts the keys kept in the database; nil leaves them readable, and the dashboard says so.
                 :secret,
+                # Whether a connected install may be on this machine, at http://localhost or http://127.0.0.1.
+                :local_installs,
                 # Every outgoing request goes through it.
                 :fetcher
 
@@ -101,6 +107,8 @@ module Runlight
 
       @geo = options["geo"]
       @trust_proxy = options["trustProxy"].nil? ? true : options["trustProxy"]
+      # True until trustProxy left at its default has been seen answering a public address directly, and warned about once.
+      @warn_direct = options["trustProxy"].nil?
       per_minute = options["rateLimit"].nil? ? 120 : options["rateLimit"]
       # false, 0, or anything that is not a positive number means no limit, never a limit of nothing.
       number = per_minute == false ? Float::NAN : Js.number(per_minute)
@@ -112,6 +120,7 @@ module Runlight
       @links = Links.new(self)
       @link_path = "/#{(options["linkPath"].nil? ? "/go" : options["linkPath"]).to_s.gsub(%r{\A/+|/+\z}, "")}"
       @mail_in_code = options["mail"]
+      @local_installs = options["localInstalls"] ? true : false
       @secret = if options.key?("secret") && !options["secret"].nil?
                   options["secret"].to_s
                 else
@@ -335,7 +344,7 @@ module Runlight
       begin
         answer = Safefetch.owner_fetch("#{remote["url"]}/api/sites", {
           "headers" => { "authorization" => "Bearer #{remote["token"]}" }, "timeoutMs" => 8000, "maxBytes" => REMOTE_MAX_BYTES,
-        }, @fetcher)
+        }, @fetcher, @local_installs)
         info["connection"] = "refused" if answer.status == 401 || answer.status == 403
         body = json_or_nil(answer)
         listed = body.is_a?(Hash) && body["sites"].is_a?(Array) ? body["sites"] : []
@@ -675,7 +684,14 @@ module Runlight
         return Js.trim(forwarded) if !forwarded.nil? && Js.trim(forwarded) != ""
       end
       ip = context_ip(context)
-      (ip.nil? ? request.remote_address : ip).to_s
+      ip = (ip.nil? ? request.remote_address : ip).to_s
+      # A public address with no forwarding header means nothing sits in front, and then any client
+      # could name its own address in one. Said once, only when trustProxy was left at its default.
+      if @warn_direct && Safefetch.public_address?(ip)
+        @warn_direct = false
+        warn("Runlight: a request came straight from a public address with no proxy in front, but trustProxy is on by default, so a client could send X-Forwarded-For and choose its own address, getting round the rate limits. Set trust_proxy: false when nothing sits in front of this server, or put a proxy in front that sets the header.")
+      end
+      ip
     end
 
     # Handles one tracker request. Bad input is dropped quietly; only a database that keeps failing raises.
@@ -985,7 +1001,7 @@ module Runlight
     def revoke_remote_token(remote)
       Safefetch.owner_fetch("#{remote["url"]}/api/token", {
         "method" => "DELETE", "headers" => { "authorization" => "Bearer #{remote["token"]}" }, "timeoutMs" => 5_000,
-      }, @fetcher)
+      }, @fetcher, @local_installs)
     rescue StandardError
       nil
     end
@@ -995,7 +1011,7 @@ module Runlight
     # (https://example.com/runlight), and an API token made there.
     def add_remote_site(input)
       url = Js.trim(Js.string(input["url"].nil? ? "" : input["url"])).sub(%r{/+\z}, "")
-      unless url.match?(%r{\Ahttps://[^/]+|\Ahttp://(localhost|127\.0\.0\.1)(:\d+)?(/|\z)})
+      unless Safefetch.install_address?(url, @local_installs)
         raise SettingsError.new("Enter the install's address, like https://example.com/runlight", "connect_url")
       end
 
@@ -1005,7 +1021,7 @@ module Runlight
       begin
         answer = Safefetch.owner_fetch("#{url}/api/sites", {
           "headers" => { "authorization" => "Bearer #{token}" }, "timeoutMs" => 10_000, "maxBytes" => REMOTE_MAX_BYTES,
-        }, @fetcher)
+        }, @fetcher, @local_installs)
       rescue Http::BodyTooLong
         # An answer too long to read is no Runlight's.
         raise SettingsError.new("#{url} did not answer like a Runlight install", "connect_not_runlight", { "url" => url })
@@ -1026,7 +1042,7 @@ module Runlight
       begin
         about = Safefetch.owner_fetch("#{url}/api/token", {
           "headers" => { "authorization" => "Bearer #{token}" }, "timeoutMs" => 10_000, "maxBytes" => REMOTE_MAX_BYTES,
-        }, @fetcher)
+        }, @fetcher, @local_installs)
         info = about.ok? ? json_or_nil(about) : nil
         scope = "manage" if info.is_a?(Hash) && info["scope"] == "manage"
         token_site = Js.string(info.is_a?(Hash) && !info["site"].nil? ? info["site"] : "")

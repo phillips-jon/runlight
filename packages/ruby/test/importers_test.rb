@@ -100,4 +100,24 @@ class ImportersTest < Minitest::Test
     assert Client.number("soon").nan?
     assert_equal "a%20b%2Fc!'()*~", Client.encode_uri_component("a b/c!'()*~")
   end
+
+  def test_umami_an_address_on_the_installs_own_network_or_without_https_is_never_asked
+    calls = []
+    fetcher = FakeFetcher.new do |url, _init|
+      calls << url
+      Runlight::Http::Response.new(Json.encode({ "token" => "t", "data" => [], "count" => 0 }), headers: { "content-type" => "application/json" })
+    end
+    rl = Runlight::Core.new({ "store" => Runlight::Stores.sqlite(":memory:"), "fetcher" => fetcher })
+    ["https://127.0.0.1:3000", "https://10.0.0.5", "https://169.254.169.254", "https://[::1]", "https://localhost:3000"].each do |url|
+      error = assert_raises(Runlight::Importers::ImportError, url) do
+        Runlight::Importers::Index.import_step(rl, "default", "umami", { "url" => url, "apiKey" => "k" }, nil, 0)
+      end
+      assert_equal "unreachable", error.code, url
+    end
+    error = assert_raises(Runlight::Importers::ImportError) do
+      Runlight::Importers::Index.import_step(rl, "default", "umami", { "url" => "http://stats.example.com", "apiKey" => "k" }, nil, 0)
+    end
+    assert_equal "import_umami_address", error.code
+    assert_equal [], calls
+  end
 end

@@ -215,4 +215,40 @@ defmodule Runlight.EdgesTest do
 
     assert Connect.install_url("https://example.com/runlight/") == "https://example.com/runlight"
   end
+
+  test "with trust_proxy left at its default, a public address with no proxy header is warned about once" do
+    {store, cleanup} = Stores.store(:sqlite)
+    on_exit(cleanup)
+    site = [hostnames: ["example.com"]]
+    bare = fn ip -> Request.new("https://example.com/e", remote_address: ip) end
+
+    forwarded =
+      Request.new("https://example.com/e", headers: %{"x-forwarded-for" => "8.8.4.4"}, remote_address: "10.0.0.2")
+
+    quiet = Runlight.new(store: store, site: site, trust_proxy: true)
+
+    said =
+      ExUnit.CaptureLog.capture_log(fn -> assert Runlight.client_ip(quiet, bare.("8.8.8.8")) == "8.8.8.8" end)
+
+    refute said =~ "trust_proxy", "trust_proxy set on purpose is never second-guessed"
+
+    rl = Runlight.new(store: store, site: site)
+
+    said =
+      ExUnit.CaptureLog.capture_log(fn ->
+        Runlight.client_ip(rl, forwarded)
+        Runlight.client_ip(rl, bare.("127.0.0.1"))
+        Runlight.client_ip(rl, bare.("192.168.1.5"))
+      end)
+
+    refute said =~ "trust_proxy", "a proxy's header, or a private or loopback address, says nothing"
+
+    said =
+      ExUnit.CaptureLog.capture_log(fn ->
+        assert Runlight.client_ip(rl, bare.("8.8.8.8")) == "8.8.8.8"
+        Runlight.client_ip(rl, bare.("1.1.1.1"))
+      end)
+
+    assert length(String.split(said, "trust_proxy: false")) == 2, "said once"
+  end
 end

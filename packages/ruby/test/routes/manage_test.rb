@@ -172,7 +172,7 @@ class RoutesManageTest < RoutesTestCase
         Response.new("{}", status: 404)
       end
     end
-    hub = RoutesMake.runlight({ "managedSites" => true, "secret" => "k" * 32, "fetcher" => evil })
+    hub = RoutesMake.runlight({ "managedSites" => true, "secret" => "k" * 32, "fetcher" => evil, "localInstalls" => true })
     routes = hub.routes({ "token" => "owner" })
     call = lambda do |path, method = "GET", body = nil|
       routes.handle(Request.new("https://hub.example.com/runlight#{path}", method: method, headers: { "authorization" => "Bearer owner", "content-type" => "application/json" }, body: body || ""))
