@@ -65,9 +65,10 @@ public sealed class RunlightOptions
     /// wrote, then X-Real-IP, then CF-Connecting-IP. Name one of them to read only that header, such as
     /// "cf-connecting-ip" behind Cloudflare and another proxy. Default true: analytics needs the visitor's
     /// address, and most apps sit behind a proxy. False reads only the connection's address, for an app
-    /// nothing sits in front of.
+    /// nothing sits in front of. Left unset, it is true, and Runlight warns once if a request then comes
+    /// straight from a public address with no forwarding header.
     /// </summary>
-    public ProxyTrust TrustProxy { get; init; } = true;
+    public ProxyTrust? TrustProxy { get; init; }
 
     /// <summary>Where short links on the app's own domain live, as <c>{linkPath}/{slug}</c>. Default "/go".</summary>
     public string? LinkPath { get; init; }

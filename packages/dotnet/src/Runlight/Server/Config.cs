@@ -232,10 +232,17 @@ public sealed partial class Config
         return url;
     }
 
-    /// <summary>"false" with nothing in front, or the one header your proxy sets, such as cf-connecting-ip behind Cloudflare.</summary>
-    public ProxyTrust TrustProxy()
+    /// <summary>
+    /// "false" with nothing in front, or the one header your proxy sets, such as cf-connecting-ip behind Cloudflare.
+    /// Null when unset, so the library's default applies and it can warn when nothing sits in front.
+    /// </summary>
+    public ProxyTrust? TrustProxy()
     {
         string value = Js.Lower(Get("TRUST_PROXY") ?? "");
+        if (value.Length == 0)
+        {
+            return null;
+        }
         if (value == "false")
         {
             return ProxyTrust.FromBoolean(false);

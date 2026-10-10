@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Runlight.Http;
@@ -313,6 +314,37 @@ public sealed class IngestTests : CoreTestCase
         var cf = new Runlight(new RunlightOptions { Store = store, TrustProxy = "cf-connecting-ip" });
         Assert.Equal("203.0.113.4", cf.ClientIp(R(new Headers { ["x-forwarded-for"] = "203.0.113.1", ["cf-connecting-ip"] = "203.0.113.4" })));
         Assert.Equal("192.0.2.9", cf.ClientIp(R(new Headers { ["x-forwarded-for"] = "203.0.113.1" })));
+    }
+
+    [Fact]
+    public async Task With_TrustProxy_left_at_its_default_a_public_address_with_no_proxy_header_is_warned_about_once()
+    {
+        static Request R(Headers headers) => new("https://example.com/", "GET", headers, "", "192.0.2.9");
+        var store = await Databases.FreshAsync("sqlite");
+        var said = new StringWriter();
+        var stderr = Console.Error;
+        Console.SetError(said);
+        try
+        {
+            var quiet = new Runlight(new RunlightOptions { Store = store, TrustProxy = true });
+            Assert.Equal("8.8.8.8", quiet.ClientIp(R(new Headers()), "8.8.8.8"));
+            Assert.Equal("", said.ToString()); // set on purpose, never second-guessed
+
+            var rl = new Runlight(new RunlightOptions { Store = store });
+            rl.ClientIp(R(new Headers { ["x-forwarded-for"] = "8.8.4.4" }), "10.0.0.2");
+            rl.ClientIp(R(new Headers()), "127.0.0.1");
+            rl.ClientIp(R(new Headers()), "192.168.1.5");
+            Assert.Equal("", said.ToString()); // a proxy's header, or a private or loopback address, says nothing
+            Assert.Equal("8.8.8.8", rl.ClientIp(R(new Headers()), "8.8.8.8"));
+            rl.ClientIp(R(new Headers()), "1.1.1.1");
+            var lines = said.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+            Assert.Single(lines); // said once
+            Assert.Contains("TrustProxy = false", lines[0], StringComparison.Ordinal);
+        }
+        finally
+        {
+            Console.SetError(stderr);
+        }
     }
 
     [Fact]
