@@ -291,6 +291,30 @@ class CoreIngestTest < CoreTestCase
     assert_equal "192.0.2.9", cf.client_ip(request.call({ "x-forwarded-for" => "203.0.113.1" }))
   end
 
+  def test_with_trust_proxy_left_at_its_default_a_public_address_with_no_proxy_header_is_warned_about_once
+    store = Runlight::Stores.sqlite(":memory:")
+    site = { "hostnames" => ["example.com"] }
+    bare = Request.new("https://example.com/e")
+    forwarded = Request.new("https://example.com/e", headers: { "x-forwarded-for" => "8.8.4.4" })
+    quiet = Runlight::Core.new({ "store" => store, "site" => site, "trustProxy" => true })
+    _, said = capture_io { assert_equal "8.8.8.8", quiet.client_ip(bare, { "ip" => "8.8.8.8" }) }
+    assert_equal "", said, "trustProxy set on purpose is never second-guessed"
+
+    rl = Runlight::Core.new({ "store" => store, "site" => site })
+    _, said = capture_io do
+      rl.client_ip(forwarded, { "ip" => "10.0.0.2" })
+      rl.client_ip(bare, { "ip" => "127.0.0.1" })
+      rl.client_ip(bare, { "ip" => "192.168.1.5" })
+    end
+    assert_equal "", said, "a proxy's header, or a private or loopback address, says nothing"
+    _, said = capture_io do
+      assert_equal "8.8.8.8", rl.client_ip(bare, { "ip" => "8.8.8.8" })
+      rl.client_ip(bare, { "ip" => "1.1.1.1" })
+    end
+    assert_equal 1, said.scan("Runlight:").length, "said once"
+    assert_includes said, "trust_proxy: false"
+  end
+
   def test_options_are_checked_as_ts_checks_them
     store = Runlight::Stores.sqlite(":memory:")
     [

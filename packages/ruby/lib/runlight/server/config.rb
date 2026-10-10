@@ -133,8 +133,10 @@ module Runlight
       end
 
       # false with nothing in front, or the one header your proxy sets, such as cf-connecting-ip behind Cloudflare.
+      # Unset stays nil, so the library's default applies and it can warn when nothing sits in front.
       def trust_proxy
         value = (get("TRUST_PROXY") || "").downcase
+        return nil if value == ""
         return false if value == "false"
 
         %w[x-forwarded-for x-real-ip cf-connecting-ip].include?(value) ? value : true

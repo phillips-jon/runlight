@@ -19,7 +19,8 @@ module Runlight
   #   client IP from forwarding headers: the last X-Forwarded-For entry, which the nearest proxy wrote, then
   #   X-Real-IP, then CF-Connecting-IP. Name one of them to read only that header, such as "cf-connecting-ip"
   #   behind Cloudflare and another proxy. False reads only the connection's address, for an app nothing sits
-  #   in front of.
+  #   in front of. Left unset, it warns once when a request comes straight from a public address with none of
+  #   those headers.
   # - linkPath: where short links on the app's own domain live, as `{linkPath}/{slug}`. Default "/go".
   # - mail: the mail service for email reports, in code (a Transports config plus `from` and `fromName`).
   #   When set, the dashboard shows it and cannot change it. Otherwise it is set up in Settings.
@@ -101,6 +102,8 @@ module Runlight
 
       @geo = options["geo"]
       @trust_proxy = options["trustProxy"].nil? ? true : options["trustProxy"]
+      # True until trustProxy left at its default has been seen answering a public address directly, and warned about once.
+      @warn_direct = options["trustProxy"].nil?
       per_minute = options["rateLimit"].nil? ? 120 : options["rateLimit"]
       # false, 0, or anything that is not a positive number means no limit, never a limit of nothing.
       number = per_minute == false ? Float::NAN : Js.number(per_minute)
@@ -675,7 +678,14 @@ module Runlight
         return Js.trim(forwarded) if !forwarded.nil? && Js.trim(forwarded) != ""
       end
       ip = context_ip(context)
-      (ip.nil? ? request.remote_address : ip).to_s
+      ip = (ip.nil? ? request.remote_address : ip).to_s
+      # A public address with no forwarding header means nothing sits in front, and then any client
+      # could name its own address in one. Said once, only when trustProxy was left at its default.
+      if @warn_direct && Safefetch.public_address?(ip)
+        @warn_direct = false
+        warn("Runlight: a request came straight from a public address with no proxy in front, but trustProxy is on by default, so a client could send X-Forwarded-For and choose its own address, getting round the rate limits. Set trust_proxy: false when nothing sits in front of this server, or put a proxy in front that sets the header.")
+      end
+      ip
     end
 
     # Handles one tracker request. Bad input is dropped quietly; only a database that keeps failing raises.
